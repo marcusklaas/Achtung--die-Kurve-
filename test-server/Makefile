@@ -123,12 +123,12 @@ DIST_SOURCES = $(libwebsockets_test_client_SOURCES) \
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
-ACLOCAL = ${SHELL} /var/www/canvas/websockets/missing --run aclocal-1.11
-AMTAR = ${SHELL} /var/www/canvas/websockets/missing --run tar
+ACLOCAL = ${SHELL} /home/marcusklaas/Achtung--die-Kurve-/missing --run aclocal-1.11
+AMTAR = ${SHELL} /home/marcusklaas/Achtung--die-Kurve-/missing --run tar
 AR = ar
-AUTOCONF = ${SHELL} /var/www/canvas/websockets/missing --run autoconf
-AUTOHEADER = ${SHELL} /var/www/canvas/websockets/missing --run autoheader
-AUTOMAKE = ${SHELL} /var/www/canvas/websockets/missing --run automake-1.11
+AUTOCONF = ${SHELL} /home/marcusklaas/Achtung--die-Kurve-/missing --run autoconf
+AUTOHEADER = ${SHELL} /home/marcusklaas/Achtung--die-Kurve-/missing --run autoheader
+AUTOMAKE = ${SHELL} /home/marcusklaas/Achtung--die-Kurve-/missing --run automake-1.11
 AWK = mawk
 CC = gcc -lm
 CCDEPMODE = depmode=gcc3
@@ -161,7 +161,7 @@ LIBTOOL = $(SHELL) $(top_builddir)/libtool
 LIPO = 
 LN_S = ln -s
 LTLIBOBJS = 
-MAKEINFO = ${SHELL} /var/www/canvas/websockets/missing --run makeinfo
+MAKEINFO = ${SHELL} /home/marcusklaas/Achtung--die-Kurve-/missing --run makeinfo
 MANIFEST_TOOL = :
 MKDIR_P = /bin/mkdir -p
 NM = /usr/bin/nm -B
@@ -184,10 +184,10 @@ SET_MAKE =
 SHELL = /bin/bash
 STRIP = strip
 VERSION = 0.3
-abs_builddir = /var/www/canvas/websockets/test-server
-abs_srcdir = /var/www/canvas/websockets/test-server
-abs_top_builddir = /var/www/canvas/websockets
-abs_top_srcdir = /var/www/canvas/websockets
+abs_builddir = /home/marcusklaas/Achtung--die-Kurve-/test-server
+abs_srcdir = /home/marcusklaas/Achtung--die-Kurve-/test-server
+abs_top_builddir = /home/marcusklaas/Achtung--die-Kurve-
+abs_top_srcdir = /home/marcusklaas/Achtung--die-Kurve-
 ac_ct_AR = ar
 ac_ct_CC = gcc
 ac_ct_DUMPBIN = 
@@ -217,7 +217,7 @@ host_vendor = unknown
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
-install_sh = ${SHELL} /var/www/canvas/websockets/install-sh
+install_sh = ${SHELL} /home/marcusklaas/Achtung--die-Kurve-/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale
@@ -245,14 +245,14 @@ libwebsockets_test_server_extpoll_SOURCES = test-server-extpoll.c
 libwebsockets_test_server_extpoll_LDADD = -L../lib -lwebsockets
 libwebsockets_test_fraggle_SOURCES = test-fraggle.c
 libwebsockets_test_fraggle_LDADD = -L../lib -lwebsockets
-libwebsockets_test_server_CFLAGS := -Wall -std=gnu99 -pedantic -DDATADIR=\"${datarootdir}\" -DLWS_OPENSSL_CLIENT_CERTS=\"/etc/pki/tls/certs/\"
+libwebsockets_test_server_CFLAGS := -Wall -Werror -std=gnu99 -pedantic -DDATADIR=\"${datarootdir}\" -DLWS_OPENSSL_CLIENT_CERTS=\"/etc/pki/tls/certs/\"
 libwebsockets_test_client_CFLAGS := -Wall -Werror -std=gnu99 -pedantic -DDATADIR=\"${datarootdir}\" -DLWS_OPENSSL_CLIENT_CERTS=\"/etc/pki/tls/certs/\"
 libwebsockets_test_server_extpoll_CFLAGS := -Wall -Werror -std=gnu99 -pedantic -DDATADIR=\"${datarootdir}\" -DLWS_OPENSSL_CLIENT_CERTS=\"/etc/pki/tls/certs/\"
 libwebsockets_test_fraggle_CFLAGS := -Wall -Werror -std=gnu99 -pedantic -DDATADIR=\"${datarootdir}\" -DLWS_OPENSSL_CLIENT_CERTS=\"/etc/pki/tls/certs/\"
 libwebsockets_test_ping_SOURCES = test-ping.c
 libwebsockets_test_ping_LDADD = -L../lib -lwebsockets
 libwebsockets_test_ping_CFLAGS := -Wall -Werror -std=gnu99 -pedantic -DDATADIR=\"${datarootdir}\" -DLWS_OPENSSL_CLIENT_CERTS=\"/etc/pki/tls/certs/\"
-all: libwebsockets-test-server
+all: all-am
 
 .SUFFIXES:
 .SUFFIXES: .c .lo .o .obj
