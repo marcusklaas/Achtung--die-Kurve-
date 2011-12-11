@@ -92,9 +92,14 @@ struct game* findgame(int nmin, int nmax) {
 void leavegame(struct user *u) {
 	struct game *gm;
 	struct usern *current, *tmp;
-	
+
 	if(!u || !(gm = u->gm))
 		return;
+		
+	if(!gm->usrn){
+		fprintf(stderr, "no users!\n");
+		return;
+	}
 
 	for(current = gm->usrn; current->nxt && current->nxt->usr != u; current = current->nxt);
 
@@ -114,15 +119,23 @@ void leavegame(struct user *u) {
 	/* TODO: send message to group: this player left */
 }
 
-void adduser(struct game *gm, struct user *u) {
-	struct usern *new;
-
-	/* TODO: send message to group: we have new player */
+void joingame(struct game *gm, struct user *u) {
+	struct usern *new, *a;
+	cJSON *json;
+	char *buf;
+	
+	json= jsoncreate("newPlayer");
+	jsonaddint(json, "playerId", u->id);
+	jsonaddstr(json, "playerName", u->name);
+	buf= jsongetpacket(json);
+	for(a= gm->usrn; a; a= a->nxt)
+		sendstr(buf, a->usr);
 	
 	new = smalloc(sizeof(struct usern));
 
 	new->usr = u;
 	new->nxt = gm->usrn;
+	gm->usrn = new;
 	u->gm = gm;
 
 	if(++gm->n >= gm->nmin)

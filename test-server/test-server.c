@@ -116,6 +116,7 @@ callback_game(struct libwebsocket_context * context,
 		u->sb= malloc(sbmax * sizeof(char**));
 		u->sbat= 0;
 		u->gm= 0;
+		u->name= 0;
 		json= jsoncreate("accept");
 		jsonaddint(json, "playerId", u->id);
 		//sendmsg(json, u);
@@ -127,7 +128,8 @@ callback_game(struct libwebsocket_context * context,
 		if(u->gm!=0)
 			leavegame(u);
 		free(u->sb);
-		free(u->name);
+		if(u->name!=0)
+			free(u->name);
 		break;
 		
 	case LWS_CALLBACK_SERVER_WRITEABLE:
@@ -170,11 +172,12 @@ callback_game(struct libwebsocket_context * context,
 				if(debug) printf("requested game\n");
 				nmin= getjsonint(json, "minPlayers");
 				nmax= getjsonint(json, "maxPlayers");
+				u->name= getjsonstr(json, "playerName");
 				if(0<nmin && nmin<nmax && nmax<17){
 					struct game *gm= findgame(nmin, nmax);
 					if(gm==0)
 						gm= creategame(nmin, nmax);
-					adduser(gm, u);
+					joingame(gm, u);
 					//libwebsocket_callback_on_writable(context, wsi);
 
 					//this logic is now in adduser()

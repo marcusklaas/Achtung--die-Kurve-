@@ -1,6 +1,8 @@
 var keyCodeLeft = 37; // left arrow button
 var keyCodeRight = 39; // right arrow button
-var serverURL = (location.href.indexOf('localhost') != -1) ? "ws://localhost:7681" : "ws://marcusklaas.nl:7681"; // websocket game server
+var serverURL = (location.href.indexOf('localhost') != -1) ? 
+	"ws://localhost:" + location.href.substr(location.href.lastIndexOf(':') + 1) : 
+	"ws://marcusklaas.nl:7681"; // websocket game server
 
 /* those variables we should probably get from server */
 var speed = 90;

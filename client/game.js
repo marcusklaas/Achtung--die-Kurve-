@@ -29,11 +29,16 @@ GameEngine.prototype.connect = function(url, name) {
 		this.websocket = new MozWebSocket(url, name);
 	else
 		this.websocket = new WebSocket(url, name);
-
+	
+	this.websocket.parent = this;
+	
 	try {
 		this.websocket.onopen = function() {
 			debugLog('Connected to websocket server');
 			this.connected = true;
+			
+			// for testing purposes
+			this.parent.requestGame();
 		}
 		this.websocket.onmessage = function got_packet(msg) {
 			debugLog('received data: ' + msg.data);
@@ -49,15 +54,6 @@ GameEngine.prototype.connect = function(url, name) {
 				case 'accept':
 					player[0].playerId = obj.playerId;
 					this.idToPlayer[obj.playerId] = 0;
-					break;
-				case 'newGame':
-					for(var i = 0; i < obj.players.length; i++) {
-						var newPlayer = new Player(speed, turnSpeed, playerColors[this.players.length]);
-						newPlayer.playerId = obj.players[i].playerId;
-						newPlayer.playerName = obj.players[i].playerName;
-						this.addPlayer(newPlayer);
-					}
-					debugLog('joined a game');
 					break;
 				case 'newPlayer':
 					var newPlayer = new Player(speed, turnSpeed, playerColors[this.players.length]);
@@ -105,7 +101,7 @@ GameEngine.prototype.requestGame = function() {
 		return;
 
 	this.players[0].playerName = playerName;
-	this.sendMsg('requestGame', {'playerName': playerName, 'minPlayers': 2, 'maxPlayers': 50});
+	this.sendMsg('requestGame', {'playerName': playerName, 'minPlayers': 2, 'maxPlayers': 8});
 }
 
 GameEngine.prototype.sendMsg = function(mode, data) {

@@ -33,18 +33,25 @@ cJSON* jsoncreate(char *mode){
 	return json;
 }
 
-
-void sendmsg(cJSON *json, struct user *u){
+char* jsongetpacket(cJSON *json){
 	char *tmp, *buf;
-	if(u->sbat==sbmax){
-		if(showwarning) printf("send-buffer full.\n");
-		return;
-	}
 	tmp= cJSON_PrintUnformatted(json); // jammer dat dit nodig is
 	buf= malloc(lwsprepadding + strlen(tmp) + lwspostpadding);
 	memcpy(buf + lwsprepadding, tmp, strlen(tmp));
 	free(tmp);
+	return buf;
+}
+
+
+void sendstr(char *buf, struct user *u){
+	if(u->sbat==sbmax){
+		if(showwarning) printf("send-buffer full.\n");
+		return;
+	}
 	u->sb[u->sbat++]= buf;
 	libwebsocket_callback_on_writable(ctx, u->wsi);
 }
 
+void sendjson(cJSON *json, struct user *u){
+	sendstr(jsongetpacket(json), u);
+}
