@@ -23,11 +23,9 @@
 static int close_testing;
 struct libwebsocket_context *ctx; //mag dit?
 
-#include "game.c"
-#include "../../cjson/cJSON.c"
 #include "helper.c"
-
-
+#include "game.c"
+#include "../cjson/cJSON.c"
 
 enum demo_protocols {
 	PROTOCOL_HTTP = 0, //always first

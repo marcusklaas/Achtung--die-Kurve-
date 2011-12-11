@@ -117,7 +117,7 @@ void adduser(struct game *gm, struct user *u) {
 
 	/* TODO: send message to group: we have new player */
 	
-	new = malloc(sizeof(struct usern));
+	new = smalloc(sizeof(struct usern));
 
 	new->usr = u;
 	new->nxt = gm->usrn;
@@ -128,7 +128,7 @@ void adduser(struct game *gm, struct user *u) {
 }
 
 struct game* creategame(int nmin, int nmax) {
-	struct game *gm = malloc(sizeof(struct game));
+	struct game *gm = smalloc(sizeof(struct game));
 
 	gm->nmin = nmin; gm->nmax = nmax;
 	gm->t = 0.0;
@@ -140,7 +140,7 @@ struct game* creategame(int nmin, int nmax) {
 	gm->state= gs_lobby;
 	gm->nxt = headgame;
 	headgame = gm;
-	gm->seg = malloc(gm->htiles * gm->vtiles * sizeof(struct seg*));
+	gm->seg = smalloc(gm->htiles * gm->vtiles * sizeof(struct seg*));
 
 	return gm;
 }
@@ -240,12 +240,7 @@ int addsegment(struct game *gm, struct seg *seg) {
 				if(segcollision(seg, current))
 					return 1;
 
-			copy = malloc(sizeof(struct seg));
-			if(!copy) {
-				fprintf(stderr, "malloc failed in addsegment\n");
-				exit(404);
-			}
-
+			copy = smalloc(sizeof(struct seg));
 			memcpy(copy, seg, sizeof(struct seg));
 			copy->nxt = gm->seg[gm->htiles * j + i];
 		}
