@@ -220,15 +220,13 @@ int addsegment(struct game *gm, struct seg *seg) {
 
 	left_tile = seg->x1/ gm->tilew;
 	right_tile = seg->x2/ gm->tilew;
-	if(left_tile > right_tile) {
+	if(left_tile > right_tile)
 		swap = left_tile; left_tile = right_tile; right_tile = swap;
-	}
 
 	bottom_tile = seg->y1/ gm->tileh;
 	top_tile = seg->y2/ gm->tileh;
-	if(bottom_tile > top_tile) {
+	if(bottom_tile > top_tile)
 		swap = bottom_tile; bottom_tile = top_tile; top_tile = swap;
-	}
 
 	for(int i = left_tile; i <= right_tile; i++) {
 		for(int j = bottom_tile; j <= top_tile; j++) {
