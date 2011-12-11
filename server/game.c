@@ -148,6 +148,10 @@ struct game* creategame(int nmin, int nmax) {
 	return gm;
 }
 
+// return 1 in case of collision, 0 other wise
+int addSegment(struct game *gm, struct seg *seg) {
+}
+
 void mainloop(){
 	
 }
