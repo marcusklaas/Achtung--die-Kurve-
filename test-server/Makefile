@@ -34,11 +34,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = x86_64-unknown-linux-gnu
 host_triplet = x86_64-unknown-linux-gnu
-bin_PROGRAMS = libwebsockets-test-server$(EXEEXT) \
-	libwebsockets-test-client$(EXEEXT) \
-	libwebsockets-test-server-extpoll$(EXEEXT) \
-	libwebsockets-test-fraggle$(EXEEXT) $(am__EXEEXT_1)
-am__append_1 = libwebsockets-test-ping
+bin_PROGRAMS = libwebsockets-test-server$(EXEEXT)
 subdir = test-server
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -49,37 +45,8 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
-am__EXEEXT_1 = libwebsockets-test-ping$(EXEEXT)
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
-am_libwebsockets_test_client_OBJECTS =  \
-	libwebsockets_test_client-test-client.$(OBJEXT)
-libwebsockets_test_client_OBJECTS =  \
-	$(am_libwebsockets_test_client_OBJECTS)
-libwebsockets_test_client_DEPENDENCIES =
-libwebsockets_test_client_LINK = $(LIBTOOL) --tag=CC \
-	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
-	$(libwebsockets_test_client_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
-	$(LDFLAGS) -o $@
-am_libwebsockets_test_fraggle_OBJECTS =  \
-	libwebsockets_test_fraggle-test-fraggle.$(OBJEXT)
-libwebsockets_test_fraggle_OBJECTS =  \
-	$(am_libwebsockets_test_fraggle_OBJECTS)
-libwebsockets_test_fraggle_DEPENDENCIES =
-libwebsockets_test_fraggle_LINK = $(LIBTOOL) --tag=CC \
-	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
-	$(libwebsockets_test_fraggle_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
-	$(LDFLAGS) -o $@
-am__libwebsockets_test_ping_SOURCES_DIST = test-ping.c
-am_libwebsockets_test_ping_OBJECTS =  \
-	libwebsockets_test_ping-test-ping.$(OBJEXT)
-libwebsockets_test_ping_OBJECTS =  \
-	$(am_libwebsockets_test_ping_OBJECTS)
-libwebsockets_test_ping_DEPENDENCIES =
-libwebsockets_test_ping_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) \
-	$(libwebsockets_test_ping_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
-	$(LDFLAGS) -o $@
 am_libwebsockets_test_server_OBJECTS =  \
 	libwebsockets_test_server-test-server.$(OBJEXT)
 libwebsockets_test_server_OBJECTS =  \
@@ -89,14 +56,6 @@ libwebsockets_test_server_LINK = $(LIBTOOL) --tag=CC \
 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
 	$(libwebsockets_test_server_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-am_libwebsockets_test_server_extpoll_OBJECTS = libwebsockets_test_server_extpoll-test-server-extpoll.$(OBJEXT)
-libwebsockets_test_server_extpoll_OBJECTS =  \
-	$(am_libwebsockets_test_server_extpoll_OBJECTS)
-libwebsockets_test_server_extpoll_DEPENDENCIES =
-libwebsockets_test_server_extpoll_LINK = $(LIBTOOL) --tag=CC \
-	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
-	$(libwebsockets_test_server_extpoll_CFLAGS) $(CFLAGS) \
-	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I. -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -110,27 +69,19 @@ CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-SOURCES = $(libwebsockets_test_client_SOURCES) \
-	$(libwebsockets_test_fraggle_SOURCES) \
-	$(libwebsockets_test_ping_SOURCES) \
-	$(libwebsockets_test_server_SOURCES) \
-	$(libwebsockets_test_server_extpoll_SOURCES)
-DIST_SOURCES = $(libwebsockets_test_client_SOURCES) \
-	$(libwebsockets_test_fraggle_SOURCES) \
-	$(am__libwebsockets_test_ping_SOURCES_DIST) \
-	$(libwebsockets_test_server_SOURCES) \
-	$(libwebsockets_test_server_extpoll_SOURCES)
+SOURCES = $(libwebsockets_test_server_SOURCES)
+DIST_SOURCES = $(libwebsockets_test_server_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
-ACLOCAL = ${SHELL} /home/marcusklaas/Achtung--die-Kurve-/missing --run aclocal-1.11
-AMTAR = ${SHELL} /home/marcusklaas/Achtung--die-Kurve-/missing --run tar
+ACLOCAL = ${SHELL} /home/rik/git/missing --run aclocal-1.11
+AMTAR = ${SHELL} /home/rik/git/missing --run tar
 AR = ar
-AUTOCONF = ${SHELL} /home/marcusklaas/Achtung--die-Kurve-/missing --run autoconf
-AUTOHEADER = ${SHELL} /home/marcusklaas/Achtung--die-Kurve-/missing --run autoheader
-AUTOMAKE = ${SHELL} /home/marcusklaas/Achtung--die-Kurve-/missing --run automake-1.11
+AUTOCONF = ${SHELL} /home/rik/git/missing --run autoconf
+AUTOHEADER = ${SHELL} /home/rik/git/missing --run autoheader
+AUTOMAKE = ${SHELL} /home/rik/git/missing --run automake-1.11
 AWK = mawk
-CC = gcc -lm
+CC = gcc
 CCDEPMODE = depmode=gcc3
 CFLAGS = -g -O2
 CPP = gcc -E
@@ -161,7 +112,7 @@ LIBTOOL = $(SHELL) $(top_builddir)/libtool
 LIPO = 
 LN_S = ln -s
 LTLIBOBJS = 
-MAKEINFO = ${SHELL} /home/marcusklaas/Achtung--die-Kurve-/missing --run makeinfo
+MAKEINFO = ${SHELL} /home/rik/git/missing --run makeinfo
 MANIFEST_TOOL = :
 MKDIR_P = /bin/mkdir -p
 NM = /usr/bin/nm -B
@@ -184,10 +135,10 @@ SET_MAKE =
 SHELL = /bin/bash
 STRIP = strip
 VERSION = 0.3
-abs_builddir = /home/marcusklaas/Achtung--die-Kurve-/test-server
-abs_srcdir = /home/marcusklaas/Achtung--die-Kurve-/test-server
-abs_top_builddir = /home/marcusklaas/Achtung--die-Kurve-
-abs_top_srcdir = /home/marcusklaas/Achtung--die-Kurve-
+abs_builddir = /home/rik/git/test-server
+abs_srcdir = /home/rik/git/test-server
+abs_top_builddir = /home/rik/git
+abs_top_srcdir = /home/rik/git
 ac_ct_AR = ar
 ac_ct_CC = gcc
 ac_ct_DUMPBIN = 
@@ -217,7 +168,7 @@ host_vendor = unknown
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
-install_sh = ${SHELL} /home/marcusklaas/Achtung--die-Kurve-/install-sh
+install_sh = ${SHELL} /home/rik/git/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale
@@ -239,19 +190,7 @@ top_builddir = ..
 top_srcdir = ..
 libwebsockets_test_server_SOURCES = test-server.c
 libwebsockets_test_server_LDADD = -L../lib -lwebsockets
-libwebsockets_test_client_SOURCES = test-client.c
-libwebsockets_test_client_LDADD = -L../lib -lwebsockets
-libwebsockets_test_server_extpoll_SOURCES = test-server-extpoll.c
-libwebsockets_test_server_extpoll_LDADD = -L../lib -lwebsockets
-libwebsockets_test_fraggle_SOURCES = test-fraggle.c
-libwebsockets_test_fraggle_LDADD = -L../lib -lwebsockets
-libwebsockets_test_server_CFLAGS := -Wall -Werror -std=gnu99 -pedantic -DDATADIR=\"${datarootdir}\" -DLWS_OPENSSL_CLIENT_CERTS=\"/etc/pki/tls/certs/\"
-libwebsockets_test_client_CFLAGS := -Wall -Werror -std=gnu99 -pedantic -DDATADIR=\"${datarootdir}\" -DLWS_OPENSSL_CLIENT_CERTS=\"/etc/pki/tls/certs/\"
-libwebsockets_test_server_extpoll_CFLAGS := -Wall -Werror -std=gnu99 -pedantic -DDATADIR=\"${datarootdir}\" -DLWS_OPENSSL_CLIENT_CERTS=\"/etc/pki/tls/certs/\"
-libwebsockets_test_fraggle_CFLAGS := -Wall -Werror -std=gnu99 -pedantic -DDATADIR=\"${datarootdir}\" -DLWS_OPENSSL_CLIENT_CERTS=\"/etc/pki/tls/certs/\"
-libwebsockets_test_ping_SOURCES = test-ping.c
-libwebsockets_test_ping_LDADD = -L../lib -lwebsockets
-libwebsockets_test_ping_CFLAGS := -Wall -Werror -std=gnu99 -pedantic -DDATADIR=\"${datarootdir}\" -DLWS_OPENSSL_CLIENT_CERTS=\"/etc/pki/tls/certs/\"
+libwebsockets_test_server_CFLAGS := -Wall -lm -Werror -std=gnu99 -pedantic -DDATADIR=\"${datarootdir}\" -DLWS_OPENSSL_CLIENT_CERTS=\"/etc/pki/tls/certs/\"
 all: all-am
 
 .SUFFIXES:
@@ -329,21 +268,9 @@ clean-binPROGRAMS:
 	list=`for p in $$list; do echo "$$p"; done | sed 's/$(EXEEXT)$$//'`; \
 	echo " rm -f" $$list; \
 	rm -f $$list
-libwebsockets-test-client$(EXEEXT): $(libwebsockets_test_client_OBJECTS) $(libwebsockets_test_client_DEPENDENCIES) 
-	@rm -f libwebsockets-test-client$(EXEEXT)
-	$(libwebsockets_test_client_LINK) $(libwebsockets_test_client_OBJECTS) $(libwebsockets_test_client_LDADD) $(LIBS)
-libwebsockets-test-fraggle$(EXEEXT): $(libwebsockets_test_fraggle_OBJECTS) $(libwebsockets_test_fraggle_DEPENDENCIES) 
-	@rm -f libwebsockets-test-fraggle$(EXEEXT)
-	$(libwebsockets_test_fraggle_LINK) $(libwebsockets_test_fraggle_OBJECTS) $(libwebsockets_test_fraggle_LDADD) $(LIBS)
-libwebsockets-test-ping$(EXEEXT): $(libwebsockets_test_ping_OBJECTS) $(libwebsockets_test_ping_DEPENDENCIES) 
-	@rm -f libwebsockets-test-ping$(EXEEXT)
-	$(libwebsockets_test_ping_LINK) $(libwebsockets_test_ping_OBJECTS) $(libwebsockets_test_ping_LDADD) $(LIBS)
 libwebsockets-test-server$(EXEEXT): $(libwebsockets_test_server_OBJECTS) $(libwebsockets_test_server_DEPENDENCIES) 
 	@rm -f libwebsockets-test-server$(EXEEXT)
 	$(libwebsockets_test_server_LINK) $(libwebsockets_test_server_OBJECTS) $(libwebsockets_test_server_LDADD) $(LIBS)
-libwebsockets-test-server-extpoll$(EXEEXT): $(libwebsockets_test_server_extpoll_OBJECTS) $(libwebsockets_test_server_extpoll_DEPENDENCIES) 
-	@rm -f libwebsockets-test-server-extpoll$(EXEEXT)
-	$(libwebsockets_test_server_extpoll_LINK) $(libwebsockets_test_server_extpoll_OBJECTS) $(libwebsockets_test_server_extpoll_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -351,11 +278,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-include ./$(DEPDIR)/libwebsockets_test_client-test-client.Po
-include ./$(DEPDIR)/libwebsockets_test_fraggle-test-fraggle.Po
-include ./$(DEPDIR)/libwebsockets_test_ping-test-ping.Po
 include ./$(DEPDIR)/libwebsockets_test_server-test-server.Po
-include ./$(DEPDIR)/libwebsockets_test_server_extpoll-test-server-extpoll.Po
 
 .c.o:
 	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -378,48 +301,6 @@ include ./$(DEPDIR)/libwebsockets_test_server_extpoll-test-server-extpoll.Po
 #	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
 #	$(LTCOMPILE) -c -o $@ $<
 
-libwebsockets_test_client-test-client.o: test-client.c
-	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libwebsockets_test_client_CFLAGS) $(CFLAGS) -MT libwebsockets_test_client-test-client.o -MD -MP -MF $(DEPDIR)/libwebsockets_test_client-test-client.Tpo -c -o libwebsockets_test_client-test-client.o `test -f 'test-client.c' || echo '$(srcdir)/'`test-client.c
-	$(am__mv) $(DEPDIR)/libwebsockets_test_client-test-client.Tpo $(DEPDIR)/libwebsockets_test_client-test-client.Po
-#	source='test-client.c' object='libwebsockets_test_client-test-client.o' libtool=no \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libwebsockets_test_client_CFLAGS) $(CFLAGS) -c -o libwebsockets_test_client-test-client.o `test -f 'test-client.c' || echo '$(srcdir)/'`test-client.c
-
-libwebsockets_test_client-test-client.obj: test-client.c
-	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libwebsockets_test_client_CFLAGS) $(CFLAGS) -MT libwebsockets_test_client-test-client.obj -MD -MP -MF $(DEPDIR)/libwebsockets_test_client-test-client.Tpo -c -o libwebsockets_test_client-test-client.obj `if test -f 'test-client.c'; then $(CYGPATH_W) 'test-client.c'; else $(CYGPATH_W) '$(srcdir)/test-client.c'; fi`
-	$(am__mv) $(DEPDIR)/libwebsockets_test_client-test-client.Tpo $(DEPDIR)/libwebsockets_test_client-test-client.Po
-#	source='test-client.c' object='libwebsockets_test_client-test-client.obj' libtool=no \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libwebsockets_test_client_CFLAGS) $(CFLAGS) -c -o libwebsockets_test_client-test-client.obj `if test -f 'test-client.c'; then $(CYGPATH_W) 'test-client.c'; else $(CYGPATH_W) '$(srcdir)/test-client.c'; fi`
-
-libwebsockets_test_fraggle-test-fraggle.o: test-fraggle.c
-	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libwebsockets_test_fraggle_CFLAGS) $(CFLAGS) -MT libwebsockets_test_fraggle-test-fraggle.o -MD -MP -MF $(DEPDIR)/libwebsockets_test_fraggle-test-fraggle.Tpo -c -o libwebsockets_test_fraggle-test-fraggle.o `test -f 'test-fraggle.c' || echo '$(srcdir)/'`test-fraggle.c
-	$(am__mv) $(DEPDIR)/libwebsockets_test_fraggle-test-fraggle.Tpo $(DEPDIR)/libwebsockets_test_fraggle-test-fraggle.Po
-#	source='test-fraggle.c' object='libwebsockets_test_fraggle-test-fraggle.o' libtool=no \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libwebsockets_test_fraggle_CFLAGS) $(CFLAGS) -c -o libwebsockets_test_fraggle-test-fraggle.o `test -f 'test-fraggle.c' || echo '$(srcdir)/'`test-fraggle.c
-
-libwebsockets_test_fraggle-test-fraggle.obj: test-fraggle.c
-	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libwebsockets_test_fraggle_CFLAGS) $(CFLAGS) -MT libwebsockets_test_fraggle-test-fraggle.obj -MD -MP -MF $(DEPDIR)/libwebsockets_test_fraggle-test-fraggle.Tpo -c -o libwebsockets_test_fraggle-test-fraggle.obj `if test -f 'test-fraggle.c'; then $(CYGPATH_W) 'test-fraggle.c'; else $(CYGPATH_W) '$(srcdir)/test-fraggle.c'; fi`
-	$(am__mv) $(DEPDIR)/libwebsockets_test_fraggle-test-fraggle.Tpo $(DEPDIR)/libwebsockets_test_fraggle-test-fraggle.Po
-#	source='test-fraggle.c' object='libwebsockets_test_fraggle-test-fraggle.obj' libtool=no \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libwebsockets_test_fraggle_CFLAGS) $(CFLAGS) -c -o libwebsockets_test_fraggle-test-fraggle.obj `if test -f 'test-fraggle.c'; then $(CYGPATH_W) 'test-fraggle.c'; else $(CYGPATH_W) '$(srcdir)/test-fraggle.c'; fi`
-
-libwebsockets_test_ping-test-ping.o: test-ping.c
-	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libwebsockets_test_ping_CFLAGS) $(CFLAGS) -MT libwebsockets_test_ping-test-ping.o -MD -MP -MF $(DEPDIR)/libwebsockets_test_ping-test-ping.Tpo -c -o libwebsockets_test_ping-test-ping.o `test -f 'test-ping.c' || echo '$(srcdir)/'`test-ping.c
-	$(am__mv) $(DEPDIR)/libwebsockets_test_ping-test-ping.Tpo $(DEPDIR)/libwebsockets_test_ping-test-ping.Po
-#	source='test-ping.c' object='libwebsockets_test_ping-test-ping.o' libtool=no \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libwebsockets_test_ping_CFLAGS) $(CFLAGS) -c -o libwebsockets_test_ping-test-ping.o `test -f 'test-ping.c' || echo '$(srcdir)/'`test-ping.c
-
-libwebsockets_test_ping-test-ping.obj: test-ping.c
-	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libwebsockets_test_ping_CFLAGS) $(CFLAGS) -MT libwebsockets_test_ping-test-ping.obj -MD -MP -MF $(DEPDIR)/libwebsockets_test_ping-test-ping.Tpo -c -o libwebsockets_test_ping-test-ping.obj `if test -f 'test-ping.c'; then $(CYGPATH_W) 'test-ping.c'; else $(CYGPATH_W) '$(srcdir)/test-ping.c'; fi`
-	$(am__mv) $(DEPDIR)/libwebsockets_test_ping-test-ping.Tpo $(DEPDIR)/libwebsockets_test_ping-test-ping.Po
-#	source='test-ping.c' object='libwebsockets_test_ping-test-ping.obj' libtool=no \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libwebsockets_test_ping_CFLAGS) $(CFLAGS) -c -o libwebsockets_test_ping-test-ping.obj `if test -f 'test-ping.c'; then $(CYGPATH_W) 'test-ping.c'; else $(CYGPATH_W) '$(srcdir)/test-ping.c'; fi`
-
 libwebsockets_test_server-test-server.o: test-server.c
 	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libwebsockets_test_server_CFLAGS) $(CFLAGS) -MT libwebsockets_test_server-test-server.o -MD -MP -MF $(DEPDIR)/libwebsockets_test_server-test-server.Tpo -c -o libwebsockets_test_server-test-server.o `test -f 'test-server.c' || echo '$(srcdir)/'`test-server.c
 	$(am__mv) $(DEPDIR)/libwebsockets_test_server-test-server.Tpo $(DEPDIR)/libwebsockets_test_server-test-server.Po
@@ -433,20 +314,6 @@ libwebsockets_test_server-test-server.obj: test-server.c
 #	source='test-server.c' object='libwebsockets_test_server-test-server.obj' libtool=no \
 #	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
 #	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libwebsockets_test_server_CFLAGS) $(CFLAGS) -c -o libwebsockets_test_server-test-server.obj `if test -f 'test-server.c'; then $(CYGPATH_W) 'test-server.c'; else $(CYGPATH_W) '$(srcdir)/test-server.c'; fi`
-
-libwebsockets_test_server_extpoll-test-server-extpoll.o: test-server-extpoll.c
-	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libwebsockets_test_server_extpoll_CFLAGS) $(CFLAGS) -MT libwebsockets_test_server_extpoll-test-server-extpoll.o -MD -MP -MF $(DEPDIR)/libwebsockets_test_server_extpoll-test-server-extpoll.Tpo -c -o libwebsockets_test_server_extpoll-test-server-extpoll.o `test -f 'test-server-extpoll.c' || echo '$(srcdir)/'`test-server-extpoll.c
-	$(am__mv) $(DEPDIR)/libwebsockets_test_server_extpoll-test-server-extpoll.Tpo $(DEPDIR)/libwebsockets_test_server_extpoll-test-server-extpoll.Po
-#	source='test-server-extpoll.c' object='libwebsockets_test_server_extpoll-test-server-extpoll.o' libtool=no \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libwebsockets_test_server_extpoll_CFLAGS) $(CFLAGS) -c -o libwebsockets_test_server_extpoll-test-server-extpoll.o `test -f 'test-server-extpoll.c' || echo '$(srcdir)/'`test-server-extpoll.c
-
-libwebsockets_test_server_extpoll-test-server-extpoll.obj: test-server-extpoll.c
-	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libwebsockets_test_server_extpoll_CFLAGS) $(CFLAGS) -MT libwebsockets_test_server_extpoll-test-server-extpoll.obj -MD -MP -MF $(DEPDIR)/libwebsockets_test_server_extpoll-test-server-extpoll.Tpo -c -o libwebsockets_test_server_extpoll-test-server-extpoll.obj `if test -f 'test-server-extpoll.c'; then $(CYGPATH_W) 'test-server-extpoll.c'; else $(CYGPATH_W) '$(srcdir)/test-server-extpoll.c'; fi`
-	$(am__mv) $(DEPDIR)/libwebsockets_test_server_extpoll-test-server-extpoll.Tpo $(DEPDIR)/libwebsockets_test_server_extpoll-test-server-extpoll.Po
-#	source='test-server-extpoll.c' object='libwebsockets_test_server_extpoll-test-server-extpoll.obj' libtool=no \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libwebsockets_test_server_extpoll_CFLAGS) $(CFLAGS) -c -o libwebsockets_test_server_extpoll-test-server-extpoll.obj `if test -f 'test-server-extpoll.c'; then $(CYGPATH_W) 'test-server-extpoll.c'; else $(CYGPATH_W) '$(srcdir)/test-server-extpoll.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -656,20 +523,10 @@ uninstall-am: uninstall-binPROGRAMS
 	tags uninstall uninstall-am uninstall-binPROGRAMS
 
 
-#
-# cook a random test cert and key
-# notice your real cert and key will want to be 0600 permissions
-libwebsockets-test-server.pem libwebsockets-test-server.key.pem:
-	printf "GB\nErewhon\nAll around\nlibwebsockets-test\n\nlocalhost\nnone@invalid.org\n" | \
-	openssl req -new -newkey rsa:1024 -days 10000 -nodes -x509 -keyout \
-	./libwebsockets-test-server.key.pem -out ./libwebsockets-test-server.pem >/dev/null 2>&1  && \
-	chmod 644 	./libwebsockets-test-server.key.pem \
-			./libwebsockets-test-server.pem
-
 clean-local:
 	rm -f ./libwebsockets-test-server.key.pem ./libwebsockets-test-server.pem
 
-install-data-local:libwebsockets-test-server.key.pem libwebsockets-test-server.pem
+install-data-local:
 	mkdir -p $(DESTDIR)$(datadir)/libwebsockets-test-server
 	cp -a test.html favicon.ico libwebsockets-test-server.key.pem libwebsockets-test-server.pem \
 		$(DESTDIR)$(datadir)/libwebsockets-test-server

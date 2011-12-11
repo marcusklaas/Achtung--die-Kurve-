@@ -449,7 +449,7 @@ Copyright (C) 2010 Free Software Foundation, Inc.
 This config.status script is free software; the Free Software Foundation
 gives unlimited permission to copy, distribute and modify it."
 
-ac_pwd='/home/marcusklaas/Achtung--die-Kurve-'
+ac_pwd='/home/rik/git'
 srcdir='.'
 INSTALL='/usr/bin/install -c'
 MKDIR_P='/bin/mkdir -p'
@@ -687,7 +687,7 @@ finish_cmds='PATH="\$PATH:/sbin" ldconfig -n $libdir'
 finish_eval=''
 hardcode_into_libs='yes'
 sys_lib_search_path_spec='/usr/lib/gcc/x86_64-linux-gnu/4.6.1 /usr/lib/x86_64-linux-gnu /usr/lib /lib/x86_64-linux-gnu /lib '
-sys_lib_dlsearch_path_spec='/lib64 /usr/lib64 /lib /usr/lib /lib32 /usr/lib32 /lib/i386-linux-gnu /usr/lib/i386-linux-gnu /lib/i686-linux-gnu /usr/lib/i686-linux-gnu /usr/local/lib /lib/x86_64-linux-gnu /usr/lib/x86_64-linux-gnu /usr/lib/x86_64-linux-gnu/mesa '
+sys_lib_dlsearch_path_spec='/lib64 /usr/lib64 /lib /usr/lib /lib/i386-linux-gnu /usr/lib/i386-linux-gnu /lib/i686-linux-gnu /usr/lib/i686-linux-gnu /usr/local/lib /usr/lib/nvidia-settings /lib/x86_64-linux-gnu /usr/lib/x86_64-linux-gnu /usr/lib/nvidia-current /usr/lib32/nvidia-current '
 hardcode_action='immediate'
 enable_dlopen='unknown'
 enable_dlopen_self='unknown'
@@ -886,7 +886,7 @@ S["build"]="x86_64-unknown-linux-gnu"
 S["LIBTOOL"]="$(SHELL) $(top_builddir)/libtool"
 S["am__untar"]="${AMTAR} xf -"
 S["am__tar"]="${AMTAR} chof - \"$$tardir\""
-S["AMTAR"]="${SHELL} /home/marcusklaas/Achtung--die-Kurve-/missing --run tar"
+S["AMTAR"]="${SHELL} /home/rik/git/missing --run tar"
 S["am__leading_dot"]="."
 S["SET_MAKE"]=""
 S["AWK"]="mawk"
@@ -894,12 +894,12 @@ S["mkdir_p"]="/bin/mkdir -p"
 S["MKDIR_P"]="/bin/mkdir -p"
 S["INSTALL_STRIP_PROGRAM"]="$(install_sh) -c -s"
 S["STRIP"]="strip"
-S["install_sh"]="${SHELL} /home/marcusklaas/Achtung--die-Kurve-/install-sh"
-S["MAKEINFO"]="${SHELL} /home/marcusklaas/Achtung--die-Kurve-/missing --run makeinfo"
-S["AUTOHEADER"]="${SHELL} /home/marcusklaas/Achtung--die-Kurve-/missing --run autoheader"
-S["AUTOMAKE"]="${SHELL} /home/marcusklaas/Achtung--die-Kurve-/missing --run automake-1.11"
-S["AUTOCONF"]="${SHELL} /home/marcusklaas/Achtung--die-Kurve-/missing --run autoconf"
-S["ACLOCAL"]="${SHELL} /home/marcusklaas/Achtung--die-Kurve-/missing --run aclocal-1.11"
+S["install_sh"]="${SHELL} /home/rik/git/install-sh"
+S["MAKEINFO"]="${SHELL} /home/rik/git/missing --run makeinfo"
+S["AUTOHEADER"]="${SHELL} /home/rik/git/missing --run autoheader"
+S["AUTOMAKE"]="${SHELL} /home/rik/git/missing --run automake-1.11"
+S["AUTOCONF"]="${SHELL} /home/rik/git/missing --run autoconf"
+S["ACLOCAL"]="${SHELL} /home/rik/git/missing --run aclocal-1.11"
 S["VERSION"]="0.3"
 S["PACKAGE"]="libwebsockets"
 S["CYGPATH_W"]="echo"

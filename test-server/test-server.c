@@ -27,6 +27,7 @@ struct libwebsocket_context *ctx; //mag dit?
 //#include "helper.c"
 #include "game.c"
 
+
 enum demo_protocols {
 	PROTOCOL_HTTP = 0, //always first
 	PROTOCOL_GAME,
@@ -34,7 +35,7 @@ enum demo_protocols {
 };
 
 
-#define LOCAL_RESOURCE_PATH "../.."
+#define LOCAL_RESOURCE_PATH "../client"
 
 /* this protocol server (always the first one) just knows how to do HTTP */
 
@@ -59,6 +60,12 @@ static int callback_http(struct libwebsocket_context * context,
 		if (in && strcmp(in, "/game.js") == 0) {
 			if (libwebsockets_serve_http_file(wsi,
 			     LOCAL_RESOURCE_PATH"/game.js", "text/javascript"))
+				fprintf(stderr, "Failed http request\n");
+			break;
+		}
+		if (in && strcmp(in, "/config.js") == 0) {
+			if (libwebsockets_serve_http_file(wsi,
+			     LOCAL_RESOURCE_PATH"/config.js", "text/javascript"))
 				fprintf(stderr, "Failed http request\n");
 			break;
 		}
@@ -108,9 +115,10 @@ callback_game(struct libwebsocket_context * context,
 		u->wsi= wsi;
 		u->sb= malloc(sbmax * sizeof(char**));
 		u->sbat= 0;
+		u->gm= 0;
 		json= jsoncreate("accept");
 		jsonaddint(json, "playerId", u->id);
-		sendmsg(json, u);
+		//sendmsg(json, u);
 		jsondel(json);
 		break;
 		
