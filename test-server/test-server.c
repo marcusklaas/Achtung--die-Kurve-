@@ -12,6 +12,7 @@
 #define sbmax 10	// sendbuffer max size
 
 #define gs_lobby 0	// gamestate_lobby
+#define gs_running 1
 #define jsonaddint cJSON_AddNumberToObject
 #define jsonaddstr cJSON_AddStringToObject
 #define jsonaddfalse cJSON_AddFalseToObject
@@ -20,16 +21,15 @@
 #define lwsprepadding	LWS_SEND_BUFFER_PRE_PADDING
 #define lwspostpadding	LWS_SEND_BUFFER_POST_PADDING
 
-static int close_testing;
-struct libwebsocket_context *ctx; //mag dit?
+struct libwebsocket_context *ctx; // mag dit?
 
 #include "../cjson/cJSON.c"
 #include "game.c"
 
 enum demo_protocols {
-	PROTOCOL_HTTP = 0, //always first
+	PROTOCOL_HTTP = 0, // always first
 	PROTOCOL_GAME,
-	DEMO_PROTOCOL_COUNT //always last
+	DEMO_PROTOCOL_COUNT // always last
 };
 
 
@@ -77,7 +77,7 @@ static int callback_http(struct libwebsocket_context * context,
 		libwebsockets_get_peer_addresses((int)(long)user, client_name,
 			     sizeof(client_name), client_ip, sizeof(client_ip));
 
-		fprintf(stderr, "Received network connect from %s (%s)\n",
+		printf("Received network connect from %s (%s)\n",
 							client_name, client_ip);
 
 		/* if we returned non-zero from here, we kill the connection */
@@ -97,9 +97,6 @@ callback_game(struct libwebsocket_context * context,
 			enum libwebsocket_callback_reasons reason,
 					       void *user, void *in, size_t len)
 {
-	//int n;
-	//unsigned char buf[LWS_SEND_BUFFER_PRE_PADDING + 512 + LWS_SEND_BUFFER_POST_PADDING];
-	//unsigned char *p = &buf[LWS_SEND_BUFFER_PRE_PADDING];
 	struct user *u = user;
 	char *inchar= in;
 	cJSON *json;
@@ -111,10 +108,11 @@ callback_game(struct libwebsocket_context * context,
 		if(debug) printf("LWS_CALLBACK_ESTABLISHED\n");
 		u->id= usrc++;
 		u->wsi= wsi;
-		u->sb= malloc(sbmax * sizeof(char**));
+		u->sb= smalloc(sbmax * sizeof(char**));
 		u->sbat= 0;
 		u->gm= 0;
 		u->name= 0;
+		if(debug) printf("new user created:\n"); printuser(u); printf("\n");
 
 		json= jsoncreate("accept");
 		jsonaddint(json, "playerId", u->id);
@@ -134,58 +132,58 @@ callback_game(struct libwebsocket_context * context,
 	case LWS_CALLBACK_SERVER_WRITEABLE:
 		if(debug) printf("LWS_CALLBACK_SERVER_WRITEABLE\n");
 		while(--u->sbat >= 0){
-			char *s= u->sb[u->sbat] + lwsprepadding;
-			if(debug) printf("send msg %s\n", s);
-			libwebsocket_write(wsi, (unsigned char*) s, strlen(s), LWS_WRITE_TEXT);
-			free(u->sb[u->sbat]);
+			char *s= u->sb[u->sbat];
+			if(debug) printf("send msg %s to user %d\n", s + lwsprepadding, u->id);
+			libwebsocket_write(wsi, (unsigned char*) s + lwsprepadding, strlen(s + lwsprepadding), LWS_WRITE_TEXT);
+			free(s);
 		}
 		break;
 
 	case LWS_CALLBACK_BROADCAST:
-		/*n = sprintf((char *)p, "%d", u->number++);
-		n = libwebsocket_write(wsi, p, n, LWS_WRITE_TEXT);
-		if (n < 0) {
-			fprintf(stderr, "ERROR writing to socket");
-			return 1;
-		}
-		if (close_testing && u->number == 50) {
-			fprintf(stderr, "close tesing limit, closing\n");
-			libwebsocket_close_and_free_session(context, wsi,
-						       LWS_CLOSE_STATUS_NORMAL);
-		}*/
 		break;
 
 	case LWS_CALLBACK_RECEIVE:
 		if(debug) printf("received: %s\n", inchar);
 		
 		json= cJSON_Parse(inchar);
-		if(json==0){
-			if(debug) fprintf(stderr, "invalid json!\n");
+		if(!json){
+			if(debug) printf("invalid json!\n");
 			break;
 		}
-		mode= getjsonstr(json, "mode");
+		mode= jsongetstr(json, "mode");
+		if(!mode){
+			printf("no mode specified!\n");
+			break;
+		}
 
-		if(u->gm==0 && strcmp(mode, "requestGame")==0) {
-			int nmin, nmax;
-			if(debug) printf("requested game\n");
-			nmin= getjsonint(json, "minPlayers");
-			nmax= getjsonint(json, "maxPlayers");
-			u->name= getjsonstr(json, "playerName");
-			if(0<nmin && nmin<nmax && nmax<17){
-				struct game *gm= findgame(nmin, nmax);
-				if(gm==0)
-					gm= creategame(nmin, nmax);
-				joingame(gm, u);
-				//libwebsocket_callback_on_writable(context, wsi);
+		if(!u->gm){	// do not combine these ifs. we handle the messages according to gamestate.
+			if(!strcmp(mode, "requestGame")) {
+				int nmin, nmax;
+				if(debug) printf("requested game\n");
+				nmin= jsongetint(json, "minPlayers");
+				nmax= jsongetint(json, "maxPlayers");
+				u->name= jsongetstr(json, "playerName");
+				if(0<nmin && nmin<nmax && nmax<17){
+					struct game *gm= findgame(nmin, nmax);
+					if(gm==0)
+						gm= creategame(nmin, nmax);
+					joingame(gm, u);
+				}
 			}
 		}
-		else if(u->gm && strcmp(mode, "newInput") == 0) {
-			/* parrot the input to rest of game, but not u */
-			sendjsontogame(json, u->gm, u); 
+		else if(u->gm->state == gs_lobby){
+			if(!strcmp(mode, "leaveGame"))
+				leavegame(u);
 		}
-		else if(u->gm->state==gs_lobby && strcmp(mode, "leaveGame")==0){
-			leavegame(u);
+		else if(u->gm->state == gs_running){
+			if(strcmp(mode, "newInput") == 0) {
+				/* parrot the input to rest of game, but not u */
+				sendjsontogame(json, u->gm, u); 
+			}
 		}
+		
+		jsondel(json);
+		free(mode);
 		break;
 
 	default:
@@ -261,13 +259,9 @@ int main(int argc, char **argv)
 			interface_name[(sizeof interface_name) - 1] = '\0';
 			interface = interface_name;
 			break;
-		case 'c':
-			close_testing = 1;
-			fprintf(stderr, " Close testing mode ");
-			break;
 		case 'h':
-			fprintf(stderr, "Usage: test-server "
-					     "[--port=<p>]\n");
+			printf("Usage: test-server "
+					     "[-p=<p>]\n");
 			exit(1);
 		}
 	}
@@ -276,10 +270,11 @@ int main(int argc, char **argv)
 				libwebsocket_internal_extensions,
 				NULL, NULL, -1, -1, opts);
 	if (context == NULL) {
-		fprintf(stderr, "libwebsocket init failed\n");
+		printf("libwebsocket init failed\n");
 		return -1;
 	}
 	ctx= context;
+	//printf("server started on port %d\n", port);
 
 #ifdef LWS_NO_FORK
 

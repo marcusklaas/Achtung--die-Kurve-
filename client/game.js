@@ -38,7 +38,7 @@ GameEngine.prototype.connect = function(url, name) {
 			this.connected = true;
 			
 			// for testing purposes
-			this.parent.requestGame();
+			//this.parent.requestGame();
 		}
 		this.websocket.onmessage = function got_packet(msg) {
 			debugLog('received data: ' + msg.data);
@@ -52,6 +52,7 @@ GameEngine.prototype.connect = function(url, name) {
 
 			switch(obj.mode) {
 				case 'accept':
+					// TODO: geeft error! player not defined!
 					player[0].playerId = obj.playerId;
 					this.idToPlayer[obj.playerId] = 0;
 					break;

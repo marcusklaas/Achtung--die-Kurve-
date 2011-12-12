@@ -60,18 +60,17 @@ void randomizePlayerStarts(struct game *gm, float *buf) {
 		printf("Survived randomization\n");
 }
 
-void startgame(struct game *gm){
-	//unsigned char buf[LWS_SEND_BUFFER_PRE_PADDING + 1024 + LWS_SEND_BUFFER_POST_PADDING];
-
+void startgame(struct game *gm){ 
 	if(DEBUG_MODE)
 		printf("startgame called!\n");
 
 	float *player_locations = smalloc(3 * gm->n * sizeof(float));
 	randomizePlayerStarts(gm, player_locations);
 
+	gm->state= gs_running;
+
 	// create JSON object
-	cJSON *root = cJSON_CreateObject();
-	cJSON_AddStringToObject(root, "mode", "startGame");
+	cJSON *root = jsoncreate("startGame");
 
 	//cJSON *start_locations = cJSON_CreateArray();
 	//struct usern *usrn;
@@ -103,7 +102,7 @@ void startgame(struct game *gm){
 	 * starting positions somewhere as well */
 
 	free(player_locations);
-	cJSON_Delete(root);
+	jsondel(root);
 }
 
 void remgame(struct game *gm){
@@ -175,18 +174,24 @@ void leavegame(struct user *u) {
 		fprintf(stderr, "no users!\n");
 		return;
 	}
+	
+	if(gm->usrn->usr == u){
+		tmp= gm->usrn;
+		gm->usrn= gm->usrn->nxt;
+		free(tmp);
+	}else{
+		for(current = gm->usrn; current->nxt && current->nxt->usr != u; current = current->nxt);
 
-	for(current = gm->usrn; current->nxt && current->nxt->usr != u; current = current->nxt);
+		// this should never be the case
+		if(!current->nxt) {
+			printf("this is not possible!\n");
+			return;
+		}
 
-	// this should never be the case
-	if(!current->nxt) {
-		fprintf(stderr, "this is not possible!\n");
-		return;
+		tmp = current->nxt;
+		current->nxt = tmp->nxt;
+		free(tmp);
 	}
-
-	tmp = current->nxt;
-	current->nxt = tmp->nxt;
-	free(tmp);
 
 	if(--gm->n == 0)
 		remgame(gm);
@@ -199,6 +204,8 @@ void leavegame(struct user *u) {
 	}
 
 	u->gm = NULL;	
+	
+	if(debug) printgames();
 }
 
 void joingame(struct game *gm, struct user *u) {
@@ -213,19 +220,18 @@ void joingame(struct game *gm, struct user *u) {
 	jsonaddint(json, "playerId", u->id);
 	jsonaddstr(json, "playerName", u->name);
 	sendjsontogame(json, gm, 0);
-	cJSON_Delete(json);
+	//jsondel(json);
 	
 	// send a message to the new player for every other player that is already in the game
 	for(usrn = gm->usrn; usrn; usrn = usrn->nxt) {
-		// i am not sure if we can overwrite properties of a cJSON object
-		// so for now, lets just create a new one for every player
-
+		// create new node, just to be sure
 		json= jsoncreate("newPlayer");
-		jsonaddint(json, "playerId", usrn->usr->id);
-		jsonaddstr(json, "playerName", usrn->usr->name);
+		jsonsetint(json, "playerId", usrn->usr->id);
+		jsonsetstr(json, "playerName", usrn->usr->name);
 		sendjson(json, u);
-		jsondel(json);
 	}
+	
+	//jsondel(json);
 	
 	usrn = smalloc(sizeof(struct usern));
 	usrn->usr = u;
@@ -234,7 +240,12 @@ void joingame(struct game *gm, struct user *u) {
 	u->gm = gm;
 
 	if(++gm->n >= gm->nmin)
-		startgame(gm);
+		;//startgame(gm);
+	
+	if(debug){
+		printf("user %d joined game %p\n", u->id, (void *)gm);
+		printgames();
+	}
 }
 
 struct game* creategame(int nmin, int nmax) {

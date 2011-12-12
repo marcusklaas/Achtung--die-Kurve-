@@ -1,30 +1,48 @@
 // safe malloc, exit(500) on error
 void* smalloc(size_t size){
 	void* a= malloc(size);
-	if(a==0){
-		fprintf(stderr, "malloc failed, exiting..\n");
+	if(!a){
+		printf("malloc failed, exiting..\n");
 		exit(500);
 	}
 	return a;
 }
 
-// returns "" on error
-char* getjsonstr(cJSON *json, char* obj){
+// returns NULL on error
+char* jsongetstr(cJSON *json, char* obj){
 	json= cJSON_GetObjectItem(json,obj);
-	if(json==0){
-		if(debug) fprintf(stderr, "json parse error! object '%s' not found!\n", obj);
-		return "";
+	if(!json){
+		if(debug) printf("json parse error! object '%s' not found!\n", obj);
+		return 0;
 	}
 	return json->valuestring;
 }
 // returns -1 on error
-int getjsonint(cJSON *json, char* obj){
+int jsongetint(cJSON *json, char* obj){
 	json= cJSON_GetObjectItem(json,obj);
-	if(json==0){
-		if(debug) fprintf(stderr, "json parse error! object '%s' not found!\n", obj);
+	if(!json){
+		if(debug) printf("json parse error! object '%s' not found!\n", obj);
 		return -1;
 	}
 	return json->valueint;
+}
+
+void jsonsetstr(cJSON *json, char* obj, char* str){
+	json= cJSON_GetObjectItem(json,obj);
+	if(!json){
+		if(debug) printf("json parse error! object '%s' not found!\n", obj);
+		return ;
+	}
+	json->valuestring= str;
+}
+
+void jsonsetint(cJSON *json, char* obj, int val){
+	json= cJSON_GetObjectItem(json,obj);
+	if(!json){
+		if(debug) printf("json parse error! object '%s' not found!\n", obj);
+		return ;
+	}
+	json->valueint= val;
 }
 
 cJSON* jsoncreate(char *mode){
@@ -33,28 +51,35 @@ cJSON* jsoncreate(char *mode){
 	return json;
 }
 
+// returns string with on position lwsprepadding the message
 char* jsongetpacket(cJSON *json){
 	char *tmp, *buf;
-	tmp= cJSON_PrintUnformatted(json); // jammer dat dit nodig is - idd, maar da's C nu 1maal
-	buf= calloc(lwsprepadding + strlen(tmp) + lwspostpadding, sizeof(char));
+	tmp= cJSON_PrintUnformatted(json);
+	buf= smalloc(lwsprepadding + strlen(tmp) + lwspostpadding);
 	memcpy(buf + lwsprepadding, tmp, strlen(tmp));
 	free(tmp);
 	return buf;
 }
 
+// will not free buf
 void sendstr(char *buf, struct user *u){
+	char *tmp;
 	if(u->sbat==sbmax){
 		if(showwarning) printf("send-buffer full.\n");
 		return;
 	}
-	u->sb[u->sbat++]= buf;
+	// tmp is being freed inside the callback
+	tmp= smalloc(lwsprepadding + strlen(buf + lwsprepadding) + lwspostpadding);
+	memcpy(tmp, buf, lwsprepadding + strlen(buf + lwsprepadding) + lwspostpadding);
+	u->sb[u->sbat++]= tmp;
+	if(debug) printf("queued msg %s, will be send to user %d\n", tmp + lwsprepadding, u->id);
 	libwebsocket_callback_on_writable(ctx, u->wsi);
 }
 
 void sendjson(cJSON *json, struct user *u){
 	char *buf = jsongetpacket(json);
 	sendstr(buf, u);
-	//free(buf); should we free?
+	free(buf);
 }
 
 /* sends a message to all in game, except for given user. to send message to
@@ -66,6 +91,27 @@ void sendjsontogame(cJSON *json, struct game *gm, struct user *u) {
 	for(a= gm->usrn; a; a= a->nxt)
 		if(a->usr != u)
 			sendstr(buf, a->usr);
-
-	//free(buf); should we free?
+			
+	free(buf);
 }	
+
+void printuser(struct user *u){
+	printf("user %d: name = %s, in game = %p\n", u->id, u->name ? u->name : "(null)", (void *)u->gm);
+}
+
+void printgame(struct game *gm){
+	struct usern *a;
+	printf("game %p: n = %d, state = %d, users =\n", (void *)gm, gm->n, gm->state);
+	for(a= gm->usrn; a; a= a->nxt){
+		printf("\t");
+		printuser(a->usr);
+	}
+}
+
+void printgames(){
+	struct game *gm= headgame;
+	if(!gm) printf("no games active\n");
+	for(; gm; gm=gm->nxt)
+		printgame(gm);
+}
+
