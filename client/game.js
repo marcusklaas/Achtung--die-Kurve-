@@ -50,7 +50,6 @@ GameEngine.prototype.connect = function(url, name) {
 
 			switch(obj.mode) {
 				case 'accept':
-					// TODO: geeft error! player not defined!
 					game.players[0].playerId = obj.playerId;
 					game.idToPlayer[obj.playerId] = 0;
 					break;
@@ -62,8 +61,8 @@ GameEngine.prototype.connect = function(url, name) {
 					debugLog('new player joined the game');
 					break;
 				case 'startGame':
-					// TODO: set starting positions/ angles for each player
-					game.start();
+					//alert(' ' + obj.startPositions.length);
+					game.start(obj.startPositions);
 					break;
 				case 'newInput':
 					player[ idToPlayer[obj.playerId] ].turn = obj.turn;
@@ -107,12 +106,11 @@ GameEngine.prototype.requestGame = function() {
 }
 
 GameEngine.prototype.sendMsg = function(mode, data) {
-	// disabled for testing reasons
-	/*
+	// re-enabled!
 	if(this.connected === false) {
 		debugLog('tried to send msg, but no websocket connection');
 		return;
-	} */
+	}
 
 	data.mode = mode;
 	// we assume for now the human player is always first
@@ -130,7 +128,8 @@ GameEngine.prototype.draw = function(callback) {
 
 GameEngine.prototype.update = function() {
 	for(var i = 0; i < this.players.length; i++)
-		this.gameOver |= this.players[i].update(this.deltaTime);
+		//this.gameOver |= 
+		this.players[i].update(this.deltaTime);
 }
 
 GameEngine.prototype.loop = function() {
@@ -155,7 +154,7 @@ GameEngine.prototype.stop = function() {
 	debugLog("game ended");
 }
 
-GameEngine.prototype.start = function() {
+GameEngine.prototype.start = function(startPositions) {
 	debugLog("starting game");
 	this.lastUpdateTimestamp = Date.now();
 	this.gameStartTimestamp = this.lastUpdateTimestamp;
@@ -166,8 +165,11 @@ GameEngine.prototype.start = function() {
 	this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
 	/* init players */
-	for(var i = 0; i < this.players.length; i++)
-		this.players[i].initialise();
+	for(var i = 0; i < startPositions.length; i++) {
+		var index = this.idToPlayer[ startPositions[i].playerId ];
+		this.players[index].initialise(startPositions[i].startX,
+		 startPositions[i].startY, startPositions[i].startAngle);
+	}
 
 	var that = this;
 
@@ -211,17 +213,16 @@ function Player(velocity, turnSpeed, color) {
 	debugLog("creating player");
 }
 
-Player.prototype.initialise = function() {
+Player.prototype.initialise = function(x, y, angle) {
 	var radius = 2 * this.velocity/ this.turnSpeed; // twice radius of circle
 
 	this.segments = [];
 	this.undrawnSegs = [];
 	this.turn = 0;
 
-	/* this should be given by server */
-	this.x = Math.floor(radius + Math.random() * (this.game.canvas.width - 2 * radius));
-	this.y = Math.floor(radius + Math.random() * (this.game.canvas.height - 2 * radius));
-	this.angle = Math.random() * 2 * 3.141592;
+	this.x = x;
+	this.y = y;
+	this.angle = angle;
 	this.alive = true;
 
 	debugLog("initialising player at (" + this.x + ", " + this.y + "), angle = " + this.angle);
@@ -241,11 +242,11 @@ Player.prototype.update = function(deltaTime) {
 	this.angle += this.turn * this.turnSpeed * deltaTime/ 1000;
 	this.undrawnSegs.push(segment);
 
-	// this logic should not be in this place here. this is server business
+	/* this logic should not be in this place here. this is server business
 	if(newX > 800 || newX < 0 || newY > 400 || newY < 0) {
 		this.alive = false;
 		return true;
-	}
+	} */
 	return false;
 }
 
@@ -373,5 +374,4 @@ window.onload = function() {
 	var startButton = document.getElementById('start');
 	startButton.addEventListener('click', startGame, false);
 	game.connect(serverURL, "game-protocol");
-	//
 }
