@@ -9,12 +9,12 @@ struct game{
 		nmin, nmax, 	// desired number of players
 		tilew, tileh, 	// tile width & height
 		htiles, vtiles, // number of horizontal tiles & vertical tiles
-		state;			// game state, 0: waiting for more players, 1: 
+		state;			// game state, 0: in lobby, 1: started
 	double t;			// start time
 	struct seg **seg;	// two dimensional array of linked lists, one for each tile
 	struct usern *usrn;	// user list
 	struct game *nxt;
-} *headgame;
+};
 
 struct user{
 	int id;
@@ -39,9 +39,10 @@ struct usern{			// user node
 #define TURN_SPEED 3
 #define DEBUG_MODE 1
 
-#include "helper.c"
-
 static int usrc= 0;	// user count
+static struct game *headgame = 0;
+
+#include "helper.c"
 
 void randomizePlayerStarts(struct game *gm, float *buf) {
 	// diameter of your circle in pixels when you turn at max rate
@@ -64,7 +65,7 @@ void startgame(struct game *gm){
 	float *player_locations = smalloc(3 * gm->n * sizeof(float));
 	randomizePlayerStarts(gm, player_locations);
 
-	gm->state= GS_STARTED;
+	gm->state = GS_STARTED;
 
 	// create JSON object
 	cJSON *root = jsoncreate("startGame");
@@ -115,11 +116,17 @@ void remgame(struct game *gm){
 
 	/* freeing up player nodes. */
 	struct usern *next, *current;
+
+	if(DEBUG_MODE)
+		printf("freeing up player nodes\n");
 	
 	for(current = gm->usrn; current; current = next) {
 		next = current->nxt;
 		free(current);
-	}		
+	}
+
+	if(DEBUG_MODE)
+		printf("freeing up segments\n");
 
 	/* freeing up segments */
 	if(gm->seg){
@@ -137,7 +144,13 @@ void remgame(struct game *gm){
 		free(gm->seg);
 	}
 
+	if(DEBUG_MODE)
+		printf("freeing up game\n");
+
 	free(gm);
+
+	if(DEBUG_MODE)
+		printf("end of remgame\n");
 }
 
 struct game* findgame(int nmin, int nmax) {
@@ -257,8 +270,8 @@ struct game* creategame(int nmin, int nmax) {
 
 	gm->nmin = nmin; gm->nmax = nmax;
 	gm->t = 0.0;
-	gm->n= 0;
-	gm->usrn= 0;
+	gm->n = 0;
+	gm->usrn = 0;
 	gm->w= GAME_WIDTH;
 	gm->h= GAME_HEIGHT;
 	gm->tilew = TILE_WIDTH;
@@ -268,7 +281,11 @@ struct game* creategame(int nmin, int nmax) {
 	gm->state= GS_LOBBY;
 	gm->nxt = headgame;
 	headgame = gm;
-	gm->seg = smalloc(gm->htiles * gm->vtiles * sizeof(struct seg*));
+	gm->seg = calloc(gm->htiles * gm->vtiles, sizeof(struct seg*));
+	if(!gm->seg) {
+		printf("Calloc failed in creategame!\n");
+		exit(500);
+	}
 
 	return gm;
 }
