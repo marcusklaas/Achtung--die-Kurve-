@@ -39,7 +39,7 @@ GameEngine.prototype.connect = function(url, name) {
 			game.connected = true;
 		}
 		this.websocket.onmessage = function got_packet(msg) {
-			//debugLog('received data: ' + msg.data);
+			debugLog('received data: ' + msg.data);
 
 			try {
 				var obj = JSON.parse(msg.data);
@@ -58,21 +58,13 @@ GameEngine.prototype.connect = function(url, name) {
 					newPlayer.playerId = obj.playerId;
 					newPlayer.playerName = obj.playerName;
 					game.addPlayer(newPlayer);
-					debugLog('new player joined the game');
+					debugLog(obj.playername + ' joined the game (id = ' + ob.playerId + ')');
 					break;
 				case 'startGame':
 					game.start(obj.startPositions);
 					break;
 				case 'newInput':
 					game.players[ game.idToPlayer[obj.playerId] ].turn = obj.turn;
-
-					// for testing
-					for(var i = 0; i < game.players.length; i++)
-						game.players[i].turn = obj.turn;
-
-					debugLog("turn " + typeof obj.turn + obj.turn);
-
-					//debugLog("turn " + game.players[ game.idToPlayer[obj.playerId] ].turn);
 					break;
 				case 'playerDied':
 					player[ game.idToPlayer[obj.playerId] ].alive = false;

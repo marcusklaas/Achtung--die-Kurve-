@@ -5,8 +5,8 @@ var serverURL = (location.href.indexOf('localhost') != -1) ?
 	"ws://marcusklaas.nl:7681"; // websocket game server
 
 /* those variables we should probably get from server */
-var speed = 90;
-var turnSpeed = 3;
+var speed = 50;
+var turnSpeed = 6;
 
 /* these are the segment colors for the players. in client order, so the 
  * first one is always for the human player */
