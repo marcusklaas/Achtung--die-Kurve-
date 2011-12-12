@@ -55,8 +55,8 @@ cJSON* jsoncreate(char *mode){
 char* jsongetpacket(cJSON *json){
 	char *tmp, *buf;
 	tmp= cJSON_PrintUnformatted(json);
-	buf= smalloc(lwsprepadding + strlen(tmp) + lwspostpadding);
-	memcpy(buf + lwsprepadding, tmp, strlen(tmp));
+	buf= smalloc(lwsprepadding + strlen(tmp) + 1 + lwspostpadding);
+	memcpy(buf + lwsprepadding, tmp, strlen(tmp) + 1);
 	free(tmp);
 	return buf;
 }
@@ -69,8 +69,8 @@ void sendstr(char *buf, struct user *u){
 		return;
 	}
 	// tmp is being freed inside the callback
-	tmp= smalloc(lwsprepadding + strlen(buf + lwsprepadding) + lwspostpadding);
-	memcpy(tmp, buf, lwsprepadding + strlen(buf + lwsprepadding) + lwspostpadding);
+	tmp= smalloc(lwsprepadding + strlen(buf + lwsprepadding) + 1 + lwspostpadding);
+	memcpy(tmp, buf, lwsprepadding + strlen(buf + lwsprepadding) + 1 + lwspostpadding);
 	u->sb[u->sbat++]= tmp;
 	if(debug) printf("queued msg %s, will be send to user %d\n", tmp + lwsprepadding, u->id);
 	libwebsocket_callback_on_writable(ctx, u->wsi);
