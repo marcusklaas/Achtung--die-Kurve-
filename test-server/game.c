@@ -31,13 +31,58 @@ struct usern{			// user node
 };
 
 #define EPS 0.001
+#define GAME_WIDTH 800
+#define GAME_HEIGHT 800
+#define TILE_WIDTH 80
+#define TILE_HEIGHT 80
+#define VELOCITY 90
+#define TURN_SPEED 3
 
 #include "helper.c"
 
 static int usrc= 0;	// user count
 
+void randomizePlayerStarts(struct game *gm, float *buf) {
+	// diameter of your circle in pixels when you turn at max rate
+	int i, turningCircle = ceil(2 * VELOCITY/ TURN_SPEED);
+
+	for(i = 0; i < gm->n; i++) {
+		buf[3 * i] = turningCircle + rand() % (gm->w - 2 * turningCircle);
+		buf[3 * i + 1] = turningCircle + rand() % (gm->h - 2 * turningCircle);
+		buf[3 * i + 2] = rand() % 618 / 100;
+	}
+}
+
 void startgame(struct game *gm){
-	//unsigned char buf[LWS_SEND_BUFFER_PRE_PADDING + 1024 + LWS_SEND_BUFFER_POST_PADDING];	
+	//unsigned char buf[LWS_SEND_BUFFER_PRE_PADDING + 1024 + LWS_SEND_BUFFER_POST_PADDING];
+
+	float *player_locations = smalloc(3 * gm->n * sizeof(float));
+	randomizePlayerStarts(gm, player_locations);
+
+	// create JSON object
+	cJSON *root = cJSON_CreateObject();
+	cJSON_AddStringToObject(root, "mode", "startGame");
+
+	cJSON *start_locations = cJSON_CreateArray();
+	struct usern *usrn;
+	int i = 0;
+
+	for(usrn = gm->usrn; usrn; usrn = usrn->nxt) {
+		cJSON *player = cJSON_CreateObject();
+		cJSON_AddNumberToObject(player, "playerId", usrn->usr->id);
+		cJSON_AddNumberToObject(player, "startX", player_locations[3 * i]);
+		cJSON_AddNumberToObject(player, "startY", player_locations[3 * i + 1]);
+		cJSON_AddNumberToObject(player, "startAngle", player_locations[3 * ++i - 1]);
+
+		cJSON_AddItemToArray(start_locations, player);
+	}
+
+	// sendMsgToGame(root, gm);
+
+	/* as the server, we probably want to save those starting positions somewhere 
+	 * as well */
+
+	cJSON_Delete(root);
 }
 
 void remgame(struct game *gm){
@@ -149,9 +194,12 @@ struct game* creategame(int nmin, int nmax) {
 	gm->t = 0.0;
 	gm->n= 0;
 	gm->usrn= 0;
-	gm->w= 800; gm->h= 800; // FIXME: these numbers should be defined as constant
-	gm->tilew = 100; gm->tileh = 100; //ditto
-	gm->htiles= gm->w / gm->tilew; gm->vtiles= gm->h / gm->tileh; // FIXME: round up, not down!
+	gm->w= GAME_WIDTH;
+	gm->h= GAME_HEIGHT;
+	gm->tilew = TILE_WIDTH;
+	gm->tileh = TILE_HEIGHT;
+	gm->htiles= ceil(gm->w / gm->tilew);
+	gm->vtiles= ceil(gm->h / gm->tileh);
 	gm->state= gs_lobby;
 	gm->nxt = headgame;
 	headgame = gm;

@@ -12,3 +12,5 @@ win32port/zlib/Release*/
 *.vcxproj.user
 *.sdf
 *.suo
+Makefile.in
+Makefile
