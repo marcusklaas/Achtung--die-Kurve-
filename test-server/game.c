@@ -183,7 +183,7 @@ void leavegame(struct user *u) {
 		// send message to group: this player left
 		cJSON *json = jsoncreate("playerLeft");
 		jsonaddint(json, "playerId", u->id);
-		sendjsontogame(json, gm);
+		sendjsontogame(json, gm, 0);
 		cJSON_Delete(json);
 	}
 
