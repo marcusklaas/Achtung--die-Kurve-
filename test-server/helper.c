@@ -35,13 +35,12 @@ cJSON* jsoncreate(char *mode){
 
 char* jsongetpacket(cJSON *json){
 	char *tmp, *buf;
-	tmp= cJSON_PrintUnformatted(json); // jammer dat dit nodig is
+	tmp= cJSON_PrintUnformatted(json); // jammer dat dit nodig is - idd, maar da's C nu 1maal
 	buf= malloc(lwsprepadding + strlen(tmp) + lwspostpadding);
 	memcpy(buf + lwsprepadding, tmp, strlen(tmp));
 	free(tmp);
 	return buf;
 }
-
 
 void sendstr(char *buf, struct user *u){
 	if(u->sbat==sbmax){
@@ -53,5 +52,20 @@ void sendstr(char *buf, struct user *u){
 }
 
 void sendjson(cJSON *json, struct user *u){
-	sendstr(jsongetpacket(json), u);
+	char *buf = jsongetpacket(json);
+	sendstr(buf, u);
+	//free(buf); should we free?
 }
+
+/* sends a message to all in game, except for given user. to send message to
+ * all, set u = 0 */
+void sendjsontogame(cJSON *json, struct game *gm, struct user *u) {
+	struct usern *a;
+	char *buf = jsongetpacket(json);
+	
+	for(a= gm->usrn; a; a= a->nxt)
+		if(a->usr != u)
+			sendstr(buf, a->usr);
+
+	//free(buf); should we free?
+}	

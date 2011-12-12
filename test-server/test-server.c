@@ -24,9 +24,7 @@ static int close_testing;
 struct libwebsocket_context *ctx; //mag dit?
 
 #include "../cjson/cJSON.c"
-//#include "helper.c"
 #include "game.c"
-
 
 enum demo_protocols {
 	PROTOCOL_HTTP = 0, //always first
@@ -117,9 +115,10 @@ callback_game(struct libwebsocket_context * context,
 		u->sbat= 0;
 		u->gm= 0;
 		u->name= 0;
+
 		json= jsoncreate("accept");
 		jsonaddint(json, "playerId", u->id);
-		//sendmsg(json, u);
+		sendjson(json, u);
 		jsondel(json);
 		break;
 		
@@ -166,30 +165,26 @@ callback_game(struct libwebsocket_context * context,
 		}
 		mode= getjsonstr(json, "mode");
 
-		if(u->gm==0) {
-			if(strcmp(mode, "requestGame")==0){
-				int nmin, nmax;
-				if(debug) printf("requested game\n");
-				nmin= getjsonint(json, "minPlayers");
-				nmax= getjsonint(json, "maxPlayers");
-				u->name= getjsonstr(json, "playerName");
-				if(0<nmin && nmin<nmax && nmax<17){
-					struct game *gm= findgame(nmin, nmax);
-					if(gm==0)
-						gm= creategame(nmin, nmax);
-					joingame(gm, u);
-					//libwebsocket_callback_on_writable(context, wsi);
-
-					//this logic is now in adduser()
-					//if(gm->n >= gm->nmin) 
-					//	startgame(gm);
-				}
+		if(u->gm==0 && strcmp(mode, "requestGame")==0) {
+			int nmin, nmax;
+			if(debug) printf("requested game\n");
+			nmin= getjsonint(json, "minPlayers");
+			nmax= getjsonint(json, "maxPlayers");
+			u->name= getjsonstr(json, "playerName");
+			if(0<nmin && nmin<nmax && nmax<17){
+				struct game *gm= findgame(nmin, nmax);
+				if(gm==0)
+					gm= creategame(nmin, nmax);
+				joingame(gm, u);
+				//libwebsocket_callback_on_writable(context, wsi);
 			}
 		}
-		else if(u->gm->state==gs_lobby){
-			if(strcmp(mode, "leaveGame")==0){
-				leavegame(u);
-			}
+		else if(u->gm && strcmp(mode, "newInput") == 0) {
+			/* parrot the input to rest of game, but not u */
+			sendjsontogame(json, u->gm, u); 
+		}
+		else if(u->gm->state==gs_lobby && strcmp(mode, "leaveGame")==0){
+			leavegame(u);
 		}
 		break;
 

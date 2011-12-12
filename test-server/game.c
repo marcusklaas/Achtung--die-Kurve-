@@ -37,6 +37,7 @@ struct usern{			// user node
 #define TILE_HEIGHT 80
 #define VELOCITY 90
 #define TURN_SPEED 3
+#define DEBUG_MODE 1
 
 #include "helper.c"
 
@@ -56,6 +57,9 @@ void randomizePlayerStarts(struct game *gm, float *buf) {
 void startgame(struct game *gm){
 	//unsigned char buf[LWS_SEND_BUFFER_PRE_PADDING + 1024 + LWS_SEND_BUFFER_POST_PADDING];
 
+	if(DEBUG_MODE)
+		printf("startgame called!\n");
+
 	float *player_locations = smalloc(3 * gm->n * sizeof(float));
 	randomizePlayerStarts(gm, player_locations);
 
@@ -67,25 +71,37 @@ void startgame(struct game *gm){
 	struct usern *usrn;
 	int i = 0;
 
+	/* we might SEGFAULT here, but only if gm->n < the actual number of players 
+	 * in game */
 	for(usrn = gm->usrn; usrn; usrn = usrn->nxt) {
+		if(i == gm->n) {
+			fprintf(stderr, "\"Nu sta ik voor de ruines van mijn wereldbeeld\"\n");
+			exit(300); //exit to prevent imminent SEGFAULT
+		}
+
 		cJSON *player = cJSON_CreateObject();
 		cJSON_AddNumberToObject(player, "playerId", usrn->usr->id);
 		cJSON_AddNumberToObject(player, "startX", player_locations[3 * i]);
 		cJSON_AddNumberToObject(player, "startY", player_locations[3 * i + 1]);
-		cJSON_AddNumberToObject(player, "startAngle", player_locations[3 * ++i - 1]);
-
+		cJSON_AddNumberToObject(player, "startAngle", player_locations[3 * i + 2]);
 		cJSON_AddItemToArray(start_locations, player);
+
+		i++;
 	}
 
-	// sendMsgToGame(root, gm);
+	/* spreading the word to all in the game */
+	sendjsontogame(root, gm, 0);	
 
-	/* as the server, we probably want to save those starting positions somewhere 
-	 * as well */
+	/* TODO: being the server, we probably want to save those
+	 * starting positions somewhere as well */
 
 	cJSON_Delete(root);
 }
 
 void remgame(struct game *gm){
+	if(DEBUG_MODE)
+		printf("remgame called\n");
+
 	if(headgame == gm)
 		headgame = gm->nxt;
 	else {
@@ -124,6 +140,9 @@ void remgame(struct game *gm){
 struct game* findgame(int nmin, int nmax) {
 	struct game *gm;
 
+	if(DEBUG_MODE)
+		printf("findgame called \n");
+
 	for(gm = headgame; gm; gm = gm->nxt)
 		if(gm->nmin <= nmax && gm->nmax >= nmin) {
 			gm->nmin = (gm->nmin > nmin) ? gm->nmin : nmin;
@@ -149,32 +168,38 @@ void leavegame(struct user *u) {
 	for(current = gm->usrn; current->nxt && current->nxt->usr != u; current = current->nxt);
 
 	// this should never be the case
-	if(!current->nxt)
+	if(!current->nxt) {
+		fprintf(stderr, "this is not possible!\n");
 		return;
+	}
 
 	tmp = current->nxt;
 	current->nxt = tmp->nxt;
 	free(tmp);
 
-	if(!--gm->n)
+	if(--gm->n == 0)
 		remgame(gm);
 
 	u->gm = NULL;
 
-	/* TODO: send message to group: this player left */
+	// send message to group: this player left
+	cJSON *json = jsoncreate("playerLeft");
+	jsonaddint(json, "playerId", u->id);
 }
 
 void joingame(struct game *gm, struct user *u) {
-	struct usern *new, *a;
+	struct usern *new;
 	cJSON *json;
-	char *buf;
+
+	if(DEBUG_MODE)
+		printf("join game called \n");
 	
+	// tell players of game someone new joined
 	json= jsoncreate("newPlayer");
 	jsonaddint(json, "playerId", u->id);
 	jsonaddstr(json, "playerName", u->name);
-	buf= jsongetpacket(json);
-	for(a= gm->usrn; a; a= a->nxt)
-		sendstr(buf, a->usr);
+	sendjsontogame(json, gm, 0);
+	cJSON_Delete(json);
 
 	// TODO: send a message to the new player for every other player
 	// that is already in the game
@@ -192,6 +217,9 @@ void joingame(struct game *gm, struct user *u) {
 
 struct game* creategame(int nmin, int nmax) {
 	struct game *gm = smalloc(sizeof(struct game));
+
+	if(DEBUG_MODE)
+		printf("creategame called \n");
 
 	gm->nmin = nmin; gm->nmax = nmax;
 	gm->t = 0.0;

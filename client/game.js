@@ -73,6 +73,9 @@ GameEngine.prototype.connect = function(url, name) {
 					player[ idToPlayer[obj.playerId] ].alive = false;
 					debugLog(player[ idToPlayer[obj.playerId] ].playerName + ' died');
 					break;
+				case 'playerLeft':
+					// do something. at the least stop his worm
+					break;
 				case 'gameEnded':
 					this.gameOver = true;
 					debugLog('game ended. ' +
