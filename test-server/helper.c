@@ -36,7 +36,7 @@ cJSON* jsoncreate(char *mode){
 char* jsongetpacket(cJSON *json){
 	char *tmp, *buf;
 	tmp= cJSON_PrintUnformatted(json); // jammer dat dit nodig is - idd, maar da's C nu 1maal
-	buf= malloc(lwsprepadding + strlen(tmp) + lwspostpadding);
+	buf= calloc(lwsprepadding + strlen(tmp) + lwspostpadding, sizeof(char));
 	memcpy(buf + lwsprepadding, tmp, strlen(tmp));
 	free(tmp);
 	return buf;

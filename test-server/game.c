@@ -45,13 +45,19 @@ static int usrc= 0;	// user count
 
 void randomizePlayerStarts(struct game *gm, float *buf) {
 	// diameter of your circle in pixels when you turn at max rate
-	int i, turningCircle = ceil(2 * VELOCITY/ TURN_SPEED);
+	int i, turningCircle = ceil(2.0 * VELOCITY/ TURN_SPEED);
+
+	if(DEBUG_MODE)
+		printf("Entered randomization\n");
 
 	for(i = 0; i < gm->n; i++) {
 		buf[3 * i] = turningCircle + rand() % (gm->w - 2 * turningCircle);
 		buf[3 * i + 1] = turningCircle + rand() % (gm->h - 2 * turningCircle);
 		buf[3 * i + 2] = rand() % 618 / 100;
 	}
+
+	if(DEBUG_MODE)
+		printf("Survived randomization\n");
 }
 
 void startgame(struct game *gm){
@@ -67,12 +73,13 @@ void startgame(struct game *gm){
 	cJSON *root = cJSON_CreateObject();
 	cJSON_AddStringToObject(root, "mode", "startGame");
 
-	cJSON *start_locations = cJSON_CreateArray();
-	struct usern *usrn;
-	int i = 0;
+	//cJSON *start_locations = cJSON_CreateArray();
+	//struct usern *usrn;
+	//int i = 0;
+
 
 	/* we might SEGFAULT here, but only if gm->n < the actual number of players 
-	 * in game */
+	 * in game 
 	for(usrn = gm->usrn; usrn; usrn = usrn->nxt) {
 		if(i == gm->n) {
 			fprintf(stderr, "\"Nu sta ik voor de ruines van mijn wereldbeeld\"\n");
@@ -87,14 +94,15 @@ void startgame(struct game *gm){
 		cJSON_AddItemToArray(start_locations, player);
 
 		i++;
-	}
+	} */
 
 	/* spreading the word to all in the game */
-	sendjsontogame(root, gm, 0);	
+	//sendjsontogame(root, gm, 0);	
 
 	/* TODO: being the server, we probably want to save those
 	 * starting positions somewhere as well */
 
+	free(player_locations);
 	cJSON_Delete(root);
 }
 
@@ -156,6 +164,9 @@ struct game* findgame(int nmin, int nmax) {
 void leavegame(struct user *u) {
 	struct game *gm;
 	struct usern *current, *tmp;
+
+	if(DEBUG_MODE)
+		printf("leavegame called \n");
 
 	if(!u || !(gm = u->gm))
 		return;
