@@ -132,13 +132,16 @@ callback_game(struct libwebsocket_context * context,
 		break;
 		
 	case LWS_CALLBACK_SERVER_WRITEABLE:
-		if(debug) printf("LWS_CALLBACK_SERVER_WRITEABLE\n");
-		while(--u->sbat >= 0){
-			char *s= u->sb[u->sbat];
+		if(debug) printf("LWS_CALLBACK_SERVER_WRITEABLE. %d queued messages\n", u->sbat);
+
+		for(int i = 0; i < u->sbat; i++) {
+			char *s= u->sb[i];
 			if(debug) printf("send msg %s to user %d\n", s + lwsprepadding, u->id);
 			libwebsocket_write(wsi, (unsigned char*) s + lwsprepadding, strlen(s + lwsprepadding), LWS_WRITE_TEXT);
 			free(s);
 		}
+		u->sbat = 0;
+
 		break;
 
 	case LWS_CALLBACK_BROADCAST:
