@@ -11,8 +11,6 @@
 #define showwarning 1
 #define sbmax 10	// sendbuffer max size
 
-#define gs_lobby 0	// gamestate_lobby
-#define gs_running 1
 #define jsonaddint cJSON_AddNumberToObject
 #define jsonaddstr cJSON_AddStringToObject
 #define jsonaddfalse cJSON_AddFalseToObject
@@ -20,6 +18,10 @@
 #define jsondel	cJSON_Delete
 #define lwsprepadding	LWS_SEND_BUFFER_PRE_PADDING
 #define lwspostpadding	LWS_SEND_BUFFER_POST_PADDING
+
+/* game states */
+#define GS_LOBBY 0
+#define GS_STARTED 1
 
 struct libwebsocket_context *ctx; // mag dit?
 
@@ -176,11 +178,11 @@ callback_game(struct libwebsocket_context * context,
 				}
 			}
 		}
-		else if(u->gm->state == gs_lobby){
+		else if(u->gm->state == GS_LOBBY){
 			if(!strcmp(mode, "leaveGame"))
 				leavegame(u);
 		}
-		else if(u->gm->state == gs_running){
+		else if(u->gm->state == GS_STARTED){
 			if(strcmp(mode, "newInput") == 0) {
 				/* parrot the input to rest of game, but not u */
 				sendjsontogame(json, u->gm, u); 

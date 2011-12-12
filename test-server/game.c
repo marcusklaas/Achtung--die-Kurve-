@@ -39,6 +39,10 @@ struct usern{			// user node
 #define TURN_SPEED 3
 #define DEBUG_MODE 1
 
+/* game states */
+#define GS_LOBBY 0
+#define GS_STARTED 1
+
 #include "helper.c"
 
 static int usrc= 0;	// user count
@@ -67,7 +71,7 @@ void startgame(struct game *gm){
 	float *player_locations = smalloc(3 * gm->n * sizeof(float));
 	randomizePlayerStarts(gm, player_locations);
 
-	gm->state= gs_running;
+	gm->state= GS_STARTED;
 
 	// create JSON object
 	cJSON *root = jsoncreate("startGame");
@@ -151,7 +155,7 @@ struct game* findgame(int nmin, int nmax) {
 		printf("findgame called \n");
 
 	for(gm = headgame; gm; gm = gm->nxt)
-		if(gm->nmin <= nmax && gm->nmax >= nmin) {
+		if(gm->state == GS_LOBBY && gm->nmin <= nmax && gm->nmax >= nmin) {
 			gm->nmin = (gm->nmin > nmin) ? gm->nmin : nmin;
 			gm->nmax = (gm->nmax < nmax) ? gm->nmax : nmax;
 			return gm;
@@ -220,7 +224,6 @@ void joingame(struct game *gm, struct user *u) {
 	jsonaddint(json, "playerId", u->id);
 	jsonaddstr(json, "playerName", u->name);
 	sendjsontogame(json, gm, 0);
-	//jsondel(json);
 	
 	// send a message to the new player for every other player that is already in the game
 	for(usrn = gm->usrn; usrn; usrn = usrn->nxt) {
@@ -229,7 +232,7 @@ void joingame(struct game *gm, struct user *u) {
 		sendjson(json, u);
 	}
 	
-	//jsondel(json);
+	jsondel(json);
 	
 	usrn = smalloc(sizeof(struct usern));
 	usrn->usr = u;
@@ -238,7 +241,7 @@ void joingame(struct game *gm, struct user *u) {
 	u->gm = gm;
 
 	if(++gm->n >= gm->nmin)
-		;//startgame(gm);
+		startgame(gm);
 	
 	if(debug){
 		printf("user %d joined game %p\n", u->id, (void *)gm);
@@ -262,7 +265,7 @@ struct game* creategame(int nmin, int nmax) {
 	gm->tileh = TILE_HEIGHT;
 	gm->htiles= ceil(1.0 * gm->w / gm->tilew);
 	gm->vtiles= ceil(1.0 * gm->h / gm->tileh);
-	gm->state= gs_lobby;
+	gm->state= GS_LOBBY;
 	gm->nxt = headgame;
 	headgame = gm;
 	gm->seg = smalloc(gm->htiles * gm->vtiles * sizeof(struct seg*));
