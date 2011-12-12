@@ -191,7 +191,7 @@ void leavegame(struct user *u) {
 }
 
 void joingame(struct game *gm, struct user *u) {
-	struct usern *new;
+	struct usern *usrn;
 	cJSON *json;
 
 	if(DEBUG_MODE)
@@ -203,15 +203,23 @@ void joingame(struct game *gm, struct user *u) {
 	jsonaddstr(json, "playerName", u->name);
 	sendjsontogame(json, gm, 0);
 	cJSON_Delete(json);
-
-	// TODO: send a message to the new player for every other player
-	// that is already in the game
 	
-	new = smalloc(sizeof(struct usern));
+	// send a message to the new player for every other player that is already in the game
+	for(usrn = gm->usrn; usrn; usrn = usrn->nxt) {
+		// i am not sure if we can overwrite properties of a cJSON object
+		// so for now, lets just create a new one for every player
 
-	new->usr = u;
-	new->nxt = gm->usrn;
-	gm->usrn = new;
+		json= jsoncreate("newPlayer");
+		jsonaddint(json, "playerId", usrn->usr->id);
+		jsonaddstr(json, "playerName", usrn->usr->name);
+		sendjson(json, u);
+		jsondel(json);
+	}
+	
+	usrn = smalloc(sizeof(struct usern));
+	usrn->usr = u;
+	usrn->nxt = gm->usrn;
+	gm->usrn = usrn;
 	u->gm = gm;
 
 	if(++gm->n >= gm->nmin)
@@ -232,8 +240,8 @@ struct game* creategame(int nmin, int nmax) {
 	gm->h= GAME_HEIGHT;
 	gm->tilew = TILE_WIDTH;
 	gm->tileh = TILE_HEIGHT;
-	gm->htiles= ceil(gm->w / gm->tilew);
-	gm->vtiles= ceil(gm->h / gm->tileh);
+	gm->htiles= ceil(1.0 * gm->w / gm->tilew);
+	gm->vtiles= ceil(1.0 * gm->h / gm->tileh);
 	gm->state= gs_lobby;
 	gm->nxt = headgame;
 	headgame = gm;
