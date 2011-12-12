@@ -32,7 +32,7 @@ struct usern{			// user node
 
 #define EPS 0.001
 #define GAME_WIDTH 800
-#define GAME_HEIGHT 800
+#define GAME_HEIGHT 400
 #define TILE_WIDTH 80
 #define TILE_HEIGHT 80
 #define VELOCITY 90
@@ -217,12 +217,16 @@ void joingame(struct game *gm, struct user *u) {
 	jsonaddint(json, "playerId", u->id);
 	jsonaddstr(json, "playerName", lastusedname = u->name);
 	sendjsontogame(json, gm, 0);
+
+	printf("user %d has name %s\n", u->id, u->name);
 	
 	// send a message to the new player for every other player that is already in the game
 	for(usrn = gm->usrn; usrn; usrn = usrn->nxt) {
 		jsonsetint(json, "playerId", usrn->usr->id);
 		jsonsetstr(json, "playerName", lastusedname = usrn->usr->name);
 		sendjson(json, u);
+
+		printf("user %d has name %s\n", usrn->usr->id, usrn->usr->name);
 	}
 	
 	// here we replace the playername by a duplicate so that the original

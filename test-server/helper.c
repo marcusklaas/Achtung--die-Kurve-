@@ -42,7 +42,7 @@ void jsonsetint(cJSON *json, char* obj, int val){
 		if(debug) printf("json parse error! object '%s' not found!\n", obj);
 		return ;
 	}
-	json->valueint= val;
+	json->valuedouble = json->valueint= val;
 }
 
 cJSON* jsoncreate(char *mode){

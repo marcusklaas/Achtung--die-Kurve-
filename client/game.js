@@ -39,7 +39,7 @@ GameEngine.prototype.connect = function(url, name) {
 			game.connected = true;
 		}
 		this.websocket.onmessage = function got_packet(msg) {
-			debugLog('received data: ' + msg.data);
+			//debugLog('received data: ' + msg.data);
 
 			try {
 				var obj = JSON.parse(msg.data);
@@ -54,22 +54,29 @@ GameEngine.prototype.connect = function(url, name) {
 					game.idToPlayer[obj.playerId] = 0;
 					break;
 				case 'newPlayer':
-					var newPlayer = new Player(speed, turnSpeed, playerColors[this.players.length]);
-					newPlayer.playerId = obj.players[i].playerId;
-					newPlayer.playerName = obj.players[i].playerName;
+					var newPlayer = new Player(speed, turnSpeed, playerColors[game.players.length]);
+					newPlayer.playerId = obj.playerId;
+					newPlayer.playerName = obj.playerName;
 					game.addPlayer(newPlayer);
 					debugLog('new player joined the game');
 					break;
 				case 'startGame':
-					//alert(' ' + obj.startPositions.length);
 					game.start(obj.startPositions);
 					break;
 				case 'newInput':
-					player[ idToPlayer[obj.playerId] ].turn = obj.turn;
+					game.players[ game.idToPlayer[obj.playerId] ].turn = obj.turn;
+
+					// for testing
+					for(var i = 0; i < game.players.length; i++)
+						game.players[i].turn = obj.turn;
+
+					debugLog("turn " + typeof obj.turn + obj.turn);
+
+					//debugLog("turn " + game.players[ game.idToPlayer[obj.playerId] ].turn);
 					break;
 				case 'playerDied':
-					player[ idToPlayer[obj.playerId] ].alive = false;
-					debugLog(player[ idToPlayer[obj.playerId] ].playerName + ' died');
+					player[ game.idToPlayer[obj.playerId] ].alive = false;
+					debugLog(player[ game.idToPlayer[obj.playerId] ].playerName + ' died');
 					break;
 				case 'playerLeft':
 					// do something. at the least stop his worm
@@ -77,7 +84,7 @@ GameEngine.prototype.connect = function(url, name) {
 				case 'gameEnded':
 					game.gameOver = true;
 					debugLog('game ended. ' +
-					 player[ idToPlayer[obj.winnerId] ].playerName + ' won');
+					 player[ game.idToPlayer[obj.winnerId] ].playerName + ' won');
 					break;
 				default:
 					debugLog('unknown mode!');
@@ -118,7 +125,7 @@ GameEngine.prototype.sendMsg = function(mode, data) {
 
 	var str = JSON.stringify(data);
 	this.websocket.send(str);
-	debugLog('sending data: ' + str);
+	//debugLog('sending data: ' + str);
 }
 
 GameEngine.prototype.draw = function(callback) {
@@ -239,7 +246,11 @@ Player.prototype.update = function(deltaTime) {
 	this.x = newX;
 	this.y = newY;
 
-	this.angle += this.turn * this.turnSpeed * deltaTime/ 1000;
+	var angleChange = this.turn * this.turnSpeed * deltaTime/ 1000;
+	//if(this.turn != 0)
+	//	debugLog("angleChange: " + angleChange);
+
+	this.angle += angleChange;
 	this.undrawnSegs.push(segment);
 
 	/* this logic should not be in this place here. this is server business
