@@ -224,8 +224,6 @@ void joingame(struct game *gm, struct user *u) {
 	
 	// send a message to the new player for every other player that is already in the game
 	for(usrn = gm->usrn; usrn; usrn = usrn->nxt) {
-		// create new node, just to be sure
-		json= jsoncreate("newPlayer");
 		jsonsetint(json, "playerId", usrn->usr->id);
 		jsonsetstr(json, "playerName", usrn->usr->name);
 		sendjson(json, u);

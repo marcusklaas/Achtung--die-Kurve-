@@ -158,11 +158,16 @@ callback_game(struct libwebsocket_context * context,
 
 		if(!u->gm){	// do not combine these ifs. we handle the messages according to gamestate.
 			if(!strcmp(mode, "requestGame")) {
-				int nmin, nmax;
+				int nmin, nmax, namelen;
 				if(debug) printf("requested game\n");
+
 				nmin= jsongetint(json, "minPlayers");
 				nmax= jsongetint(json, "maxPlayers");
-				u->name= jsongetstr(json, "playerName");
+				char *playername = jsongetstr(json, "playerName");
+				namelen = strlen(playername);
+				u->name = smalloc(namelen + 1);
+				strcpy(u->name, playername);
+
 				if(0<nmin && nmin<nmax && nmax<17){
 					struct game *gm= findgame(nmin, nmax);
 					if(gm==0)
@@ -183,7 +188,6 @@ callback_game(struct libwebsocket_context * context,
 		}
 		
 		jsondel(json);
-		free(mode);
 		break;
 
 	default:
