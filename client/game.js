@@ -31,14 +31,12 @@ GameEngine.prototype.connect = function(url, name) {
 		this.websocket = new WebSocket(url, name);
 	
 	this.websocket.parent = this;
+	var game = this;
 	
 	try {
 		this.websocket.onopen = function() {
 			debugLog('Connected to websocket server');
-			this.connected = true;
-			
-			// for testing purposes
-			//this.parent.requestGame();
+			game.connected = true;
 		}
 		this.websocket.onmessage = function got_packet(msg) {
 			debugLog('received data: ' + msg.data);
@@ -53,19 +51,19 @@ GameEngine.prototype.connect = function(url, name) {
 			switch(obj.mode) {
 				case 'accept':
 					// TODO: geeft error! player not defined!
-					player[0].playerId = obj.playerId;
-					this.idToPlayer[obj.playerId] = 0;
+					game.players[0].playerId = obj.playerId;
+					game.idToPlayer[obj.playerId] = 0;
 					break;
 				case 'newPlayer':
 					var newPlayer = new Player(speed, turnSpeed, playerColors[this.players.length]);
 					newPlayer.playerId = obj.players[i].playerId;
 					newPlayer.playerName = obj.players[i].playerName;
-					this.addPlayer(newPlayer);
+					game.addPlayer(newPlayer);
 					debugLog('new player joined the game');
 					break;
-				case 'start':
+				case 'startGame':
 					// TODO: set starting positions/ angles for each player
-					this.start();
+					game.start();
 					break;
 				case 'newInput':
 					player[ idToPlayer[obj.playerId] ].turn = obj.turn;
@@ -78,7 +76,7 @@ GameEngine.prototype.connect = function(url, name) {
 					// do something. at the least stop his worm
 					break;
 				case 'gameEnded':
-					this.gameOver = true;
+					game.gameOver = true;
 					debugLog('game ended. ' +
 					 player[ idToPlayer[obj.winnerId] ].playerName + ' won');
 					break;
@@ -88,7 +86,7 @@ GameEngine.prototype.connect = function(url, name) {
 		}
 		this.websocket.onclose = function() {
 			debugLog('Websocket connection closed!');
-			this.connected = false;
+			game.connected = false;
 		}
 	} catch(exception) {
 		debugLog('websocket exception! name = ' + exception.name + ", message = "

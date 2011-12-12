@@ -93,7 +93,12 @@ void sendjsontogame(cJSON *json, struct game *gm, struct user *u) {
 			sendstr(buf, a->usr);
 			
 	free(buf);
-}	
+}
+
+char* duplicatestring(char *orig) {
+	char *duplicate = smalloc(strlen(orig) + 1);
+	return strcpy(duplicate, orig);
+}
 
 void printuser(struct user *u){
 	printf("user %d: name = %s, in game = %p\n", u->id, u->name ? u->name : "(null)", (void *)u->gm);

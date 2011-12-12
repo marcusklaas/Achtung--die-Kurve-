@@ -39,10 +39,6 @@ struct usern{			// user node
 #define TURN_SPEED 3
 #define DEBUG_MODE 1
 
-/* game states */
-#define GS_LOBBY 0
-#define GS_STARTED 1
-
 #include "helper.c"
 
 static int usrc= 0;	// user count
@@ -57,11 +53,8 @@ void randomizePlayerStarts(struct game *gm, float *buf) {
 	for(i = 0; i < gm->n; i++) {
 		buf[3 * i] = turningCircle + rand() % (gm->w - 2 * turningCircle);
 		buf[3 * i + 1] = turningCircle + rand() % (gm->h - 2 * turningCircle);
-		buf[3 * i + 2] = rand() % 618 / 100;
+		buf[3 * i + 2] = rand() % 618 / 100.0;
 	}
-
-	if(DEBUG_MODE)
-		printf("Survived randomization\n");
 }
 
 void startgame(struct game *gm){ 
@@ -75,14 +68,12 @@ void startgame(struct game *gm){
 
 	// create JSON object
 	cJSON *root = jsoncreate("startGame");
-
-	//cJSON *start_locations = cJSON_CreateArray();
-	//struct usern *usrn;
-	//int i = 0;
-
+	cJSON *start_locations = cJSON_CreateArray();
+	struct usern *usrn;
+	int i = 0;
 
 	/* we might SEGFAULT here, but only if gm->n < the actual number of players 
-	 * in game 
+	 * in game */
 	for(usrn = gm->usrn; usrn; usrn = usrn->nxt) {
 		if(i == gm->n) {
 			fprintf(stderr, "\"Nu sta ik voor de ruines van mijn wereldbeeld\"\n");
@@ -97,10 +88,11 @@ void startgame(struct game *gm){
 		cJSON_AddItemToArray(start_locations, player);
 
 		i++;
-	} */
+	}
 
 	/* spreading the word to all in the game */
-	//sendjsontogame(root, gm, 0);	
+	cJSON_AddItemToObject(root, "startPositions", start_locations);
+	sendjsontogame(root, gm, 0);	
 
 	/* TODO: being the server, we probably want to save those
 	 * starting positions somewhere as well */
@@ -215,6 +207,7 @@ void leavegame(struct user *u) {
 void joingame(struct game *gm, struct user *u) {
 	struct usern *usrn;
 	cJSON *json;
+	char *lastusedname;
 
 	if(DEBUG_MODE)
 		printf("join game called \n");
@@ -222,16 +215,19 @@ void joingame(struct game *gm, struct user *u) {
 	// tell players of game someone new joined
 	json= jsoncreate("newPlayer");
 	jsonaddint(json, "playerId", u->id);
-	jsonaddstr(json, "playerName", u->name);
+	jsonaddstr(json, "playerName", lastusedname = u->name);
 	sendjsontogame(json, gm, 0);
 	
 	// send a message to the new player for every other player that is already in the game
 	for(usrn = gm->usrn; usrn; usrn = usrn->nxt) {
 		jsonsetint(json, "playerId", usrn->usr->id);
-		jsonsetstr(json, "playerName", usrn->usr->name);
+		jsonsetstr(json, "playerName", lastusedname = usrn->usr->name);
 		sendjson(json, u);
 	}
 	
+	// here we replace the playername by a duplicate so that the original
+	// name doesnt get freed
+	jsonsetstr(json, "playerName", duplicatestring(lastusedname));
 	jsondel(json);
 	
 	usrn = smalloc(sizeof(struct usern));
