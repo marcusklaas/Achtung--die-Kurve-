@@ -179,12 +179,15 @@ void leavegame(struct user *u) {
 
 	if(--gm->n == 0)
 		remgame(gm);
+	else {
+		// send message to group: this player left
+		cJSON *json = jsoncreate("playerLeft");
+		jsonaddint(json, "playerId", u->id);
+		sendjsontogame(json, gm);
+		cJSON_Delete(json);
+	}
 
-	u->gm = NULL;
-
-	// send message to group: this player left
-	cJSON *json = jsoncreate("playerLeft");
-	jsonaddint(json, "playerId", u->id);
+	u->gm = NULL;	
 }
 
 void joingame(struct game *gm, struct user *u) {
