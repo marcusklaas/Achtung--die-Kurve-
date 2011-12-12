@@ -175,6 +175,9 @@ void joingame(struct game *gm, struct user *u) {
 	buf= jsongetpacket(json);
 	for(a= gm->usrn; a; a= a->nxt)
 		sendstr(buf, a->usr);
+
+	// TODO: send a message to the new player for every other player
+	// that is already in the game
 	
 	new = smalloc(sizeof(struct usern));
 
