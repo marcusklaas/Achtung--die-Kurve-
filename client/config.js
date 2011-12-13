@@ -6,6 +6,7 @@ var serverURL = (location.href.indexOf('localhost') != -1) ?
 
 var lineWidth = 3; // only visual, does not influence collisions
 var ultraVerbose = false;
+var simStep = 30; // in milliseconds
 
 /* those variables we now get from server 
 var speed = 50;

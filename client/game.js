@@ -255,6 +255,7 @@ function Player(color) {
 	this.y = 0;
 	this.lcx = 0; // last confirmed x
 	this.lcy = 0;
+	this.lca = 0; // last confirmed angle
 	this.lct = 0; // game time of last confirmed location (in millisec)
 	this.color = color;
 	this.turn = 0; // -1 is turn left, 0 is straight, 1 is turn right
@@ -267,11 +268,35 @@ function Player(color) {
 }
 
 Player.prototype.turn = function(obj) {
-	/* TODO: rum simulation from lcx, lcy on the conclusive canvas from time 
+	/* run simulation from lcx, lcy on the conclusive canvas from time 
 	 * lct to timestamp in object */
+	var x = this.lcx;
+	var y = this.lcy;
+	var t = this.lct;
+	var a = this.lca;
+	var step = step = Math.min(simStep, obj.gameTime - t);
+	var ctx = this.game.baseContext;
+	
+	ctx.strokeStyle = this.color;
+	ctx.beginPath();
+	ctx.moveTo(this.lcx, this.lcy);
+	
+	while(t < obj.gameTime) {
+		x += this.velocity * step/ 1000 * Math.cos(a);
+		y += this.velocity * step/ 1000 * Math.sin(a);
+		a += this.turn * this.turnSpeed * step/ 1000;
+		ctx.lineTo(x, y);
 
+		step = Math.min(simStep, obj.gameTime - t);
+		t += step;
+	}
+	ctx.closePath();
+	ctx.stroke();
+
+	/* here we sync with server */
 	this.lcx = this.x = obj.x;
 	this.lcy = this.y = obj.y;
+	this.lca = this.angle = obj.angle;
 	this.lct = obj.gameTime;
 	this.turn = obj.turn;
 
@@ -321,7 +346,7 @@ Player.prototype.draw = function() {
 	this.context.closePath();
 	this.context.stroke();
 
-	this.undrawnPts
+	this.undrawnPts = [];
 }
 
 /* input control */
