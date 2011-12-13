@@ -290,6 +290,10 @@ Player.prototype.turn = function(obj) {
 		step = Math.min(simStep, obj.gameTime - t);
 		t += step;
 	}
+
+	// connect to sync point
+	ctx.lineTo(obj.x, obj.y);
+
 	ctx.closePath();
 	ctx.stroke();
 
