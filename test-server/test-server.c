@@ -6,16 +6,13 @@
 #include <sys/time.h>
 
 #include "../lib/libwebsockets.h"
+#include "../cjson/cJSON.c"
+#include "server.h"
 
 #define debug 1
 #define showwarning 1
 #define sbmax 10	// sendbuffer max size
 
-#define jsonaddint cJSON_AddNumberToObject
-#define jsonaddstr cJSON_AddStringToObject
-#define jsonaddfalse cJSON_AddFalseToObject
-#define jsonaddtrue cJSON_AddTrueToObject
-#define jsondel	cJSON_Delete
 #define lwsprepadding	LWS_SEND_BUFFER_PRE_PADDING
 #define lwspostpadding	LWS_SEND_BUFFER_POST_PADDING
 
@@ -25,7 +22,6 @@
 
 struct libwebsocket_context *ctx; // mag dit?
 
-#include "../cjson/cJSON.c"
 #include "game.c"
 
 enum demo_protocols {
@@ -116,8 +112,8 @@ callback_game(struct libwebsocket_context * context,
 		u->name= 0;
 		if(debug) printf("new user created:\n"); printuser(u); printf("\n");
 
-		json= jsoncreate("accept");
-		jsonaddint(json, "playerId", u->id);
+		json= jsoncreate("acceptUser");
+		jsonaddnum(json, "playerId", u->id);
 		sendjson(json, u);
 		jsondel(json);
 		break;

@@ -1,35 +1,3 @@
-struct seg{
-	float x1, y1, x2, y2;
-	int uid;		// van welke user dit segment is (miss handig?)
-	struct seg *nxt;
-};
-
-struct game{
-	int n, w, h, 		// number of players, width, height
-		nmin, nmax, 	// desired number of players
-		tilew, tileh, 	// tile width & height
-		htiles, vtiles, // number of horizontal tiles & vertical tiles
-		state;			// game state, 0: in lobby, 1: started
-	double t;			// start time
-	struct seg **seg;	// two dimensional array of linked lists, one for each tile
-	struct usern *usrn;	// user list
-	struct game *nxt;
-};
-
-struct user{
-	int id;
-	struct game *gm;
-	char *name;
-	char **sb;			// sendbuffer
-	int sbat;			// sendbuffer at
-	struct libwebsocket *wsi; // mag dit?
-};
-
-struct usern{			// user node
-	struct user *usr;
-	struct usern *nxt;
-};
-
 #define EPS 0.001
 #define GAME_WIDTH 800
 #define GAME_HEIGHT 400
@@ -153,7 +121,7 @@ void remgame(struct game *gm){
 		printf("end of remgame\n");
 }
 
-struct game* findgame(int nmin, int nmax) {
+struct game *findgame(int nmin, int nmax) {
 	struct game *gm;
 
 	if(DEBUG_MODE)
@@ -207,7 +175,7 @@ void leavegame(struct user *u) {
 	else {
 		// send message to group: this player left
 		cJSON *json = jsoncreate("playerLeft");
-		jsonaddint(json, "playerId", u->id);
+		jsonaddnum(json, "playerId", u->id);
 		sendjsontogame(json, gm, 0);
 		cJSON_Delete(json);
 	}
@@ -224,10 +192,20 @@ void joingame(struct game *gm, struct user *u) {
 
 	if(DEBUG_MODE)
 		printf("join game called \n");
+		
+	// tell user s/he joined a game. 
+	json= jsoncreate("joinedGame");
+	sendjson(json, u);
+	jsondel(json);
 	
+	json= getjsongamepars(gm);
+	sendjson(json, u);
+	jsondel(json);
+	
+		
 	// tell players of game someone new joined
 	json= jsoncreate("newPlayer");
-	jsonaddint(json, "playerId", u->id);
+	jsonaddnum(json, "playerId", u->id);
 	jsonaddstr(json, "playerName", lastusedname = u->name);
 	sendjsontogame(json, gm, 0);
 
@@ -262,7 +240,7 @@ void joingame(struct game *gm, struct user *u) {
 	}
 }
 
-struct game* creategame(int nmin, int nmax) {
+struct game *creategame(int nmin, int nmax) {
 	struct game *gm = smalloc(sizeof(struct game));
 
 	if(DEBUG_MODE)
@@ -280,6 +258,8 @@ struct game* creategame(int nmin, int nmax) {
 	gm->vtiles= ceil(1.0 * gm->h / gm->tileh);
 	gm->state= GS_LOBBY;
 	gm->nxt = headgame;
+	gm->v= VELOCITY;
+	gm->ts= TURN_SPEED;
 	headgame = gm;
 	gm->seg = calloc(gm->htiles * gm->vtiles, sizeof(struct seg*));
 	if(!gm->seg) {
@@ -399,4 +379,15 @@ int addsegment(struct game *gm, struct seg *seg) {
 
 void mainloop(){
 	
+}
+
+cJSON *getjsongamepars(struct game *gm){
+	cJSON *json= jsoncreate("gameParameters");
+	jsonaddnum(json, "w", gm->w);
+	jsonaddnum(json, "h", gm->h);
+	jsonaddnum(json, "nmin", gm->nmin);
+	jsonaddnum(json, "nmax", gm->nmax);
+	jsonaddnum(json, "v", gm->v);
+	jsonaddnum(json, "ts", gm->ts);
+	return json;
 }
