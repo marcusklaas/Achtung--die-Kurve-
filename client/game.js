@@ -65,24 +65,24 @@ GameEngine.prototype.connect = function(url, name) {
 					newPlayer.playerId = obj.playerId;
 					newPlayer.playerName = obj.playerName;
 					game.addPlayer(newPlayer);
-					debugLog(obj.playerName + ' joined the game (id = ' + ob.playerId + ')');
+					debugLog(obj.playerName + ' joined the game (id = ' + obj.playerId + ')');
 					break;
 				case 'startGame':
 					game.start(obj.startPositions);
 					break;
 				case 'newInput':
-					game.players[ game.idToPlayer[obj.playerId] ].turn = obj.turn;
+					game.players[game.idToPlayer[obj.playerId]].turn(obj);
 					break;
 				case 'playerDied':
 				case 'playerLeft':
-					player[ game.idToPlayer[obj.playerId] ].alive = false;
-					debugLog(player[ game.idToPlayer[obj.playerId] ].playerName +
+					player[game.idToPlayer[obj.playerId]].alive = false;
+					debugLog(player[game.idToPlayer[obj.playerId]].playerName +
 					 obj.mode.substr(5));
 					break;
 				case 'gameEnded':
 					game.gameOver = true;
 					debugLog('game ended. ' +
-					 player[ game.idToPlayer[obj.winnerId] ].playerName + ' won');
+					 player[game.idToPlayer[obj.winnerId]].playerName + ' won');
 					break;
 				default:
 					debugLog('unknown mode!');
@@ -115,10 +115,12 @@ GameEngine.prototype.init = function(obj) {
 	 * on this layer (only clear for new game) */
 	var canvas = document.getObjectById(this.canvasStack.getBackgroundCanvasId());
 	this.baseContext = canvas.getContext('2d');
+	this.baseContext.lineWidth = lineWidth;
 
 	/* create context for human player */
 	canvas = document.getObjectById(this.canvasStack.createLayer());
 	this.players[0].context = canvas.getContext('2d');
+	this.players[0].context.lineWidth = lineWidth;
 
 	/* Set game variables */
 	this.velocity = obj.velocity;
@@ -178,6 +180,7 @@ GameEngine.prototype.addPlayer = function(player) {
 		/* internet player */
 		var canvas = document.getObjectById(this.canvasStack.createLayer());
 		this.context = canvas.getContext('2d');
+		this.context.lineWidth = lineWidth;
 		this.idToPlayer[player.playerId] = this.players.length;
 	}
 
@@ -234,6 +237,9 @@ function Player(color) {
 	this.angle = 0; // radians
 	this.x = 0;
 	this.y = 0;
+	this.lcx = 0; // last confirmed x
+	this.lcy = 0;
+	this.lct = 0; // game time of last confirmed location (in millisec)
 	this.color = color;
 	this.turn = 0; // -1 is turn left, 0 is straight, 1 is turn right
 	this.undrawnSegs = []; // list of undrawn segments
@@ -244,16 +250,30 @@ function Player(color) {
 	debugLog("creating player");
 }
 
+Player.prototype.turn = function(obj) {
+	/* TODO: rum simulation from lcx, lcy on the conclusive canvas from time 
+	 * lct to timestamp in object */
+
+	this.lcx = this.x = obj.x;
+	this.lcy = this.y = obj.y;
+	this.lct = obj.gameTime;
+	this.turn = obj.turn;
+
+	/* TODO: clear this players canvas and run simulation on this player's
+	 * context from timestamp in object to NOW */
+}
+
 Player.prototype.initialise = function(x, y, angle) {
-	var radius = 2 * this.velocity/ this.turnSpeed; // twice radius of circle
-
+	this.velocity = this.game.velocity;
+	this.turnSpeed = this.game.turnSpeed;
 	this.undrawnSegs = [];
-	this.turn = 0;
-
-	this.x = x;
-	this.y = y;
-	this.angle = angle;
 	this.alive = true;
+
+	this.lcx = this.x = x;
+	this.lcy = this.y = y;
+	this.lct = 0;
+	this.angle = angle;
+	this.turn = 0;
 
 	debugLog("initialising player at (" + this.x + ", " + this.y + "), angle = " + this.angle);
 }
@@ -279,10 +299,9 @@ Player.prototype.draw = function() {
 		return;
 
 	var len = this.undrawnSegs.length;
-	var ctx = this.game.ctx;
+	var ctx = this.context;
 
 	ctx.strokeStyle = this.color;
-	ctx.lineWidth = 2;
 	ctx.beginPath();
 
 	for(var i = 0; i < len; i++)
