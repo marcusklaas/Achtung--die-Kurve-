@@ -10,18 +10,26 @@ function debugLog(msg) {
 /* game engine */
 function GameEngine(container) {
 	debugLog("creating game");
+
+	// game variables
 	this.players = [];
 	this.idToPlayer = []; // maps playerId to index of this.players
-	this.container = container; // DOM object that contains canvas layers
-	this.canvasStack = null; // object that manages canvas layers
 	this.gameStartTimestamp = null;
 	this.lastUpdateTimestamp = null;
 	this.gameOver = true;
+
+	// game properties
+	this.velocity = null;
+	this.turnSpeed = null;
+
+	// connection state
 	this.websocket = null;
 	this.connected = false;
 
-	this.velocity = null;
-	this.turnSpeed = null;
+	// canvas related
+	this.container = container; // DOM object that contains canvas layers
+	this.canvasStack = null; // object that manages canvas layers
+	this.baseContext = null; // on this we draw conclusive segments	
 }
 
 GameEngine.prototype.connect = function(url, name) {
@@ -57,7 +65,7 @@ GameEngine.prototype.connect = function(url, name) {
 					newPlayer.playerId = obj.playerId;
 					newPlayer.playerName = obj.playerName;
 					game.addPlayer(newPlayer);
-					debugLog(obj.playername + ' joined the game (id = ' + ob.playerId + ')');
+					debugLog(obj.playerName + ' joined the game (id = ' + ob.playerId + ')');
 					break;
 				case 'startGame':
 					game.start(obj.startPositions);
@@ -103,6 +111,15 @@ GameEngine.prototype.init = function(obj) {
 	this.container.style.height = obj.gameHeight;
 	this.canvasStack = new CanvasStack(this.container, canvasBgcolor);
 
+	/* draw on background context, since we never need to redraw anything 
+	 * on this layer (only clear for new game) */
+	var canvas = document.getObjectById(this.canvasStack.getBackgroundCanvasId());
+	this.baseContext = canvas.getContext('2d');
+
+	/* create context for human player */
+	canvas = document.getObjectById(this.canvasStack.createLayer());
+	this.players[0].context = canvas.getContext('2d');
+
 	/* Set game variables */
 	this.velocity = obj.velocity;
 	this.turnSpeed = obj.turnSpeed;
@@ -128,7 +145,6 @@ GameEngine.prototype.sendMsg = function(mode, data) {
 	}
 
 	data.mode = mode;
-	// we assume for now the human player is always first
 	data.playerId = this.players[0].playerId;
 
 	var str = JSON.stringify(data);
@@ -158,8 +174,12 @@ GameEngine.prototype.loop = function() {
 GameEngine.prototype.addPlayer = function(player) {
 	player.game = this;
 
-	if(player.playerId != null)
+	if(player.playerId != null) {
+		/* internet player */
+		var canvas = document.getObjectById(this.canvasStack.createLayer());
+		this.context = canvas.getContext('2d');
 		this.idToPlayer[player.playerId] = this.players.length;
+	}
 
 	this.players.push(player);
 	debugLog("adding player to game");
@@ -216,9 +236,9 @@ function Player(color) {
 	this.y = 0;
 	this.color = color;
 	this.turn = 0; // -1 is turn left, 0 is straight, 1 is turn right
-	this.segments = []; // list of drawn segments
 	this.undrawnSegs = []; // list of undrawn segments
-	this.game = null; //to which game does this player belong
+	this.game = null; // to which game does this player belong
+	this.context = null; // this is the canvas context in which we draw simulation
 	this.alive = false;
 
 	debugLog("creating player");
@@ -227,7 +247,6 @@ function Player(color) {
 Player.prototype.initialise = function(x, y, angle) {
 	var radius = 2 * this.velocity/ this.turnSpeed; // twice radius of circle
 
-	this.segments = [];
 	this.undrawnSegs = [];
 	this.turn = 0;
 
@@ -267,7 +286,7 @@ Player.prototype.draw = function() {
 	ctx.beginPath();
 
 	for(var i = 0; i < len; i++)
-		this.segments.push(this.undrawnSegs.shift().draw(ctx));
+		this.undrawnSegs.shift().draw(ctx);
 
 	ctx.closePath();
 }
