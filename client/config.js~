@@ -9,6 +9,8 @@ var speed = 50;
 var turnSpeed = 6;
 */
 
+var canvasBackground = "#D0D0D0";
+
 /* these are the segment colors for the players. in client order, so the 
  * first one is always for the human player */
 var playerColors = ["#FF0000", "#0000FF", "#FFFF00", "#00FF00", "#FF00FF",

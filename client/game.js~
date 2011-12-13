@@ -12,13 +12,16 @@ function GameEngine(container) {
 	debugLog("creating game");
 	this.players = [];
 	this.idToPlayer = []; // maps playerId to index of this.players
-	this.container = null; // DOM object that contains canvas layers
+	this.container = container; // DOM object that contains canvas layers
 	this.canvasStack = null; // object that manages canvas layers
 	this.gameStartTimestamp = null;
 	this.lastUpdateTimestamp = null;
 	this.gameOver = true;
 	this.websocket = null;
 	this.connected = false;
+
+	this.velocity = null;
+	this.turnspeed = null;
 }
 
 GameEngine.prototype.connect = function(url, name) {
@@ -63,12 +66,10 @@ GameEngine.prototype.connect = function(url, name) {
 					game.players[ game.idToPlayer[obj.playerId] ].turn = obj.turn;
 					break;
 				case 'playerDied':
-					player[ game.idToPlayer[obj.playerId] ].alive = false;
-					debugLog(player[ game.idToPlayer[obj.playerId] ].playerName + ' died');
-					break;
 				case 'playerLeft':
-					debugLog(player[ game.idToPlayer[obj.playerId] ].playerName + ' left');
-					// do something. at the least stop his worm
+					player[ game.idToPlayer[obj.playerId] ].alive = false;
+					debugLog(player[ game.idToPlayer[obj.playerId] ].playerName +
+					 obj.mode.substr(5));
 					break;
 				case 'gameEnded':
 					game.gameOver = true;
@@ -90,13 +91,21 @@ GameEngine.prototype.connect = function(url, name) {
 }
 
 /* initialises the game */ 
-Game.prototype.init = function() {
-	
-
+GameEngine.prototype.init = function(obj) {
+	/* Give human player its playerId */
 	this.players[0].playerId = obj.playerId;
 	this.idToPlayer[obj.playerId] = 0;
 
+	/* Create CanvasStack */
+	this.container.style.margin = 0;
+	this.container.style.padding = 0;
+	this.container.style.width = obj.gameWidth;
+	this.container.style.height = obj.gameHeight;
+	this.canvasStack = new CanvasStack(this.container, canvasBgcolor);
+
+	/* Set game variables */
 	
+}	
 
 GameEngine.prototype.requestGame = function() {
 	//var playerName = prompt('Enter your nickname');
@@ -164,10 +173,6 @@ GameEngine.prototype.start = function(startPositions) {
 	this.lastUpdateTimestamp = Date.now();
 	this.gameStartTimestamp = this.lastUpdateTimestamp;
 	this.gameOver = false;
-
-	/* background color */
-	this.ctx.fillStyle = "rgba(230, 230, 230, 1)";
-	this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
 	/* init players */
 	for(var i = 0; i < startPositions.length; i++) {
@@ -333,8 +338,8 @@ InputController.prototype.keyUp = function(keyCode) {
 window.onload = function() {
 
 	/* some constants */
-	var canvas = document.getElementById('game');
-	var game = new GameEngine(canvas);
+	var container = document.getElementById('container');
+	var game = new GameEngine(container);
 	var player = new Player(playerColors[0]);
 	var inputControl = new InputController(keyCodeLeft, keyCodeRight);
 
