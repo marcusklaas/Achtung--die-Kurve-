@@ -258,7 +258,7 @@ function Player(color) {
 	this.lct = 0; // game time of last confirmed location (in millisec)
 	this.color = color;
 	this.turn = 0; // -1 is turn left, 0 is straight, 1 is turn right
-	this.undrawnSegs = []; // list of undrawn segments
+	this.undrawnPts = []; // list of undrawn points x1, y1, x2, y2, ...
 	this.game = null; // to which game does this player belong
 	this.context = null; // this is the canvas context in which we draw simulation
 	this.alive = false;
@@ -287,6 +287,9 @@ Player.prototype.initialise = function(x, y, angle) {
 
 	this.lcx = this.x = x;
 	this.lcy = this.y = y;
+	this.context.moveTo(x, y);
+	this.context.strokeStyle = this.color;
+
 	this.lct = 0;
 	this.angle = angle;
 	this.turn = 0;
@@ -298,49 +301,27 @@ Player.prototype.update = function(deltaTime) {
 	if(!this.alive)
 		return false;
 
-	var newX = this.x + this.velocity * deltaTime/ 1000 * Math.cos(this.angle);
-	var newY = this.y + this.velocity * deltaTime/ 1000 * Math.sin(this.angle);
-	var segment = new Segment(this.x, this.y, newX, newY);
+	this.x += this.velocity * deltaTime/ 1000 * Math.cos(this.angle);
+	this.y += this.velocity * deltaTime/ 1000 * Math.sin(this.angle);
+	this.undrawnPts.push(newX);
+	this.undrawnPts.push(newY);
 
-	this.x = newX;
-	this.y = newY;
-
-	var angleChange = this.turn * this.turnSpeed * deltaTime/ 1000;
-	this.angle += angleChange;
-	this.undrawnSegs.push(segment);
+	this.angle += this.turn * this.turnSpeed * deltaTime/ 1000;
 }
 
 Player.prototype.draw = function() {
 	if(!this.alive)
 		return;
 
-	var len = this.undrawnSegs.length;
-	var ctx = this.context;
+	var len = this.undrawnPts.length/ 2;
 
-	ctx.strokeStyle = this.color;
-	ctx.beginPath();
-
+	this.context.beginPath();
 	for(var i = 0; i < len; i++)
-		this.undrawnSegs.shift().draw(ctx);
+		this.context.lineTo(this.undrawnPts[i], this.undrawnPts[i + 1]);
+	this.context.closePath();
+	this.context.stroke();
 
-	ctx.closePath();
-}
-
-/* segments */
-function Segment(x1, y1, x2, y2) {
-	this.x1 = x1;
-	this.y1 = y1;
-	this.x2 = x2;
-	this.y2 = y2;
-	this.color = null;
-}
-
-Segment.prototype.draw = function(ctx) {
-	ctx.moveTo(this.x1, this.y1);
-	ctx.lineTo(this.x2, this.y2);
-	ctx.stroke();
-
-	return this;
+	this.undrawnPts
 }
 
 /* input control */
