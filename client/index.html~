@@ -2,7 +2,7 @@
 <html>
 	<head>
 		<meta charset="utf-8">
-		<title>Achtung, die Kurve!</title>
+		<title>Achtung, die kurve!</title>
 		<script src="config.js"></script>
 		<script src="canvaslayers.js"></script>
 		<script src="game.js"></script>
