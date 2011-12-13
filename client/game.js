@@ -272,7 +272,7 @@ Player.prototype.turn = function(obj) {
 	/* run simulation from lcx, lcy on the conclusive canvas from time 
 	 * lct to timestamp in object */
 	this.simulate(this.lcx, this.lcy, this.lca, this.turn,
-	 obj.gameTime - this.lct, this.game.baseContext);
+	 obj.gameTime - this.lct, this.game.baseContext, obj.x, obj.y);
 
 	/* here we sync with server */
 	this.lcx = this.x = obj.x;
@@ -285,10 +285,10 @@ Player.prototype.turn = function(obj) {
 	 * context from timestamp in object to NOW */
 	this.context.clear(); // might not work -- must test
 	this.simulate(this.lcx, this.lcy, this.lca, this.turn,
-	 Date.now() - obj.gameTime, this.context);
+	 Date.now() - obj.gameTime, this.context, null, null);
 }
 
-Player.prototype.simulate = function(x, y, angle, turn, time, ctx) {
+Player.prototype.simulate = function(x, y, angle, turn, time, ctx, destX, destY) {
 	ctx.strokeStyle = this.color;
 	ctx.beginPath();
 	ctx.moveTo(x, y);
@@ -305,6 +305,9 @@ Player.prototype.simulate = function(x, y, angle, turn, time, ctx) {
 		step = Math.min(simStep, obj.gameTime - t);
 		t -= step;
 	}
+
+	if(destX != null)
+		ctx.lineTo(destX, destY);
 
 	ctx.closePath();
 	ctx.stroke();
@@ -334,8 +337,8 @@ Player.prototype.update = function(deltaTime) {
 
 	this.x += this.velocity * deltaTime/ 1000 * Math.cos(this.angle);
 	this.y += this.velocity * deltaTime/ 1000 * Math.sin(this.angle);
-	this.undrawnPts.push(newX);
-	this.undrawnPts.push(newY);
+	this.undrawnPts.push(this.x);
+	this.undrawnPts.push(this.y);
 
 	this.angle += this.turn * this.turnSpeed * deltaTime/ 1000;
 }
