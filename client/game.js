@@ -84,6 +84,7 @@ GameEngine.prototype.connect = function(url, name) {
 					break;
 
 				// TODO: handle case where player leaves before game start
+				// its gonna be ugly.. restructure game.players and game.idToPlayer
 
 				case 'playerDied':
 				case 'playerLeft':
@@ -270,32 +271,8 @@ function Player(color) {
 Player.prototype.turn = function(obj) {
 	/* run simulation from lcx, lcy on the conclusive canvas from time 
 	 * lct to timestamp in object */
-	var x = this.lcx;
-	var y = this.lcy;
-	var t = this.lct;
-	var a = this.lca;
-	var step = step = Math.min(simStep, obj.gameTime - t);
-	var ctx = this.game.baseContext;
-	
-	ctx.strokeStyle = this.color;
-	ctx.beginPath();
-	ctx.moveTo(this.lcx, this.lcy);
-	
-	while(t < obj.gameTime) {
-		x += this.velocity * step/ 1000 * Math.cos(a);
-		y += this.velocity * step/ 1000 * Math.sin(a);
-		a += this.turn * this.turnSpeed * step/ 1000;
-		ctx.lineTo(x, y);
-
-		step = Math.min(simStep, obj.gameTime - t);
-		t += step;
-	}
-
-	// connect to sync point
-	ctx.lineTo(obj.x, obj.y);
-
-	ctx.closePath();
-	ctx.stroke();
+	this.simulate(this.lcx, this.lcy, this.lca, this.turn,
+	 obj.gameTime - this.lct, this.game.baseContext);
 
 	/* here we sync with server */
 	this.lcx = this.x = obj.x;
@@ -304,8 +281,33 @@ Player.prototype.turn = function(obj) {
 	this.lct = obj.gameTime;
 	this.turn = obj.turn;
 
-	/* TODO: clear this players canvas and run simulation on this player's
+	/* clear this players canvas and run simulation on this player's
 	 * context from timestamp in object to NOW */
+	this.context.clear(); // might not work -- must test
+	this.simulate(this.lcx, this.lcy, this.lca, this.turn,
+	 Date.now() - obj.gameTime, this.context);
+}
+
+Player.prototype.simulate = function(x, y, angle, turn, time, ctx) {
+	ctx.strokeStyle = this.color;
+	ctx.beginPath();
+	ctx.moveTo(x, y);
+
+	var step = Math.min(simStep, time);
+
+	while(time > 0) {
+		x += this.velocity * step/ 1000 * Math.cos(angle);
+		y += this.velocity * step/ 1000 * Math.sin(angle);
+		angle += turn * this.turnSpeed * step/ 1000;
+		
+		ctx.lineTo(x, y);
+
+		step = Math.min(simStep, obj.gameTime - t);
+		t -= step;
+	}
+
+	ctx.closePath();
+	ctx.stroke();
 }
 
 Player.prototype.initialise = function(x, y, angle) {
