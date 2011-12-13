@@ -47,7 +47,8 @@ GameEngine.prototype.connect = function(url, name) {
 			game.connected = true;
 		}
 		this.websocket.onmessage = function got_packet(msg) {
-			debugLog('received data: ' + msg.data);
+			if(ultraVerbose)
+				debugLog('received data: ' + msg.data);
 
 			try {
 				var obj = JSON.parse(msg.data);
@@ -58,8 +59,16 @@ GameEngine.prototype.connect = function(url, name) {
 
 			switch(obj.mode) {
 				case 'accept':
-					game.init(obj);
+					this.players[0].playerId = obj.playerId;
+					this.idToPlayer[obj.playerId] = 0;
 					break;
+				case 'joinGame':
+					debugLog('you joined game.');
+					break;
+				case 'gameParameters':
+					game.setParams(obj);
+					debugLog('received game params.');
+					break;				
 				case 'newPlayer':
 					var newPlayer = new Player(playerColors[game.players.length]);
 					newPlayer.playerId = obj.playerId;
@@ -73,6 +82,9 @@ GameEngine.prototype.connect = function(url, name) {
 				case 'newInput':
 					game.players[game.idToPlayer[obj.playerId]].turn(obj);
 					break;
+
+				// TODO: handle case where player leaves before game start
+
 				case 'playerDied':
 				case 'playerLeft':
 					player[game.idToPlayer[obj.playerId]].alive = false;
@@ -99,32 +111,18 @@ GameEngine.prototype.connect = function(url, name) {
 }
 
 /* initialises the game */ 
-GameEngine.prototype.init = function(obj) {
-	/* Give human player its playerId */
-	this.players[0].playerId = obj.playerId;
-	this.idToPlayer[obj.playerId] = 0;
-
+GameEngine.prototype.setParams = function(obj) {
 	/* Create CanvasStack */
 	this.container.style.margin = 0;
 	this.container.style.padding = 0;
-	this.container.style.width = obj.gameWidth;
-	this.container.style.height = obj.gameHeight;
-	this.canvasStack = new CanvasStack(this.container, canvasBgcolor);
-
-	/* draw on background context, since we never need to redraw anything 
-	 * on this layer (only clear for new game) */
-	var canvas = document.getObjectById(this.canvasStack.getBackgroundCanvasId());
-	this.baseContext = canvas.getContext('2d');
-	this.baseContext.lineWidth = lineWidth;
-
-	/* create context for human player */
-	canvas = document.getObjectById(this.canvasStack.createLayer());
-	this.players[0].context = canvas.getContext('2d');
-	this.players[0].context.lineWidth = lineWidth;
+	this.container.style.width = obj.w;
+	this.container.style.height = obj.h;
 
 	/* Set game variables */
-	this.velocity = obj.velocity;
-	this.turnSpeed = obj.turnSpeed;
+	this.velocity = obj.v;
+	this.turnSpeed = obj.ts;
+
+	debugLog("this game is for " + obj.nmin + " to " + obj.nmax + " players");
 }	
 
 GameEngine.prototype.requestGame = function() {
@@ -151,7 +149,9 @@ GameEngine.prototype.sendMsg = function(mode, data) {
 
 	var str = JSON.stringify(data);
 	this.websocket.send(str);
-	//debugLog('sending data: ' + str);
+
+	if(ultraVerbose)
+		debugLog('sending data: ' + str);
 }
 
 GameEngine.prototype.draw = function(callback) {
@@ -194,9 +194,20 @@ GameEngine.prototype.stop = function() {
 
 GameEngine.prototype.start = function(startPositions) {
 	debugLog("starting game");
-	this.lastUpdateTimestamp = Date.now();
-	this.gameStartTimestamp = this.lastUpdateTimestamp;
-	this.gameOver = false;
+
+	/* create canvas stack */
+	this.canvasStack = new CanvasStack(this.container, canvasBgcolor);
+
+	/* draw on background context, since we never need to redraw anything 
+	 * on this layer (only clear for new game) */
+	var canvas = document.getObjectById(this.canvasStack.getBackgroundCanvasId());
+	this.baseContext = canvas.getContext('2d');
+	this.baseContext.lineWidth = lineWidth;
+
+	/* create context for human player */
+	canvas = document.getObjectById(this.canvasStack.createLayer());
+	this.players[0].context = canvas.getContext('2d');
+	this.players[0].context.lineWidth = lineWidth;
 
 	/* init players */
 	for(var i = 0; i < startPositions.length; i++) {

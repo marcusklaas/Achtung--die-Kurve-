@@ -5,6 +5,7 @@ var serverURL = (location.href.indexOf('localhost') != -1) ?
 	"ws://marcusklaas.nl:7681"; // websocket game server
 
 var lineWidth = 3; // only visual, does not influence collisions
+var ultraVerbose = false;
 
 /* those variables we now get from server 
 var speed = 50;
