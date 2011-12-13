@@ -293,19 +293,17 @@ Player.prototype.simulate = function(x, y, angle, turn, time, ctx, destX, destY)
 	ctx.beginPath();
 	ctx.moveTo(x, y);
 
-	var step = Math.min(simStep, time);
-
 	if(destX != null)
-		time -= step;
+		time -= simStep;
 
 	while(time > 0) {
+		var step = Math.min(simStep, time);
 		x += this.velocity * step/ 1000 * Math.cos(angle);
 		y += this.velocity * step/ 1000 * Math.sin(angle);
 		angle += turn * this.turnSpeed * step/ 1000;
 		
 		ctx.lineTo(x, y);
 
-		step = Math.min(simStep, obj.gameTime - time);
 		time -= step;
 	}
 
