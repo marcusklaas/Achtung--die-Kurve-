@@ -295,6 +295,9 @@ Player.prototype.simulate = function(x, y, angle, turn, time, ctx, destX, destY)
 
 	var step = Math.min(simStep, time);
 
+	if(destX != null)
+		t -= step;
+
 	while(time > 0) {
 		x += this.velocity * step/ 1000 * Math.cos(angle);
 		y += this.velocity * step/ 1000 * Math.sin(angle);
