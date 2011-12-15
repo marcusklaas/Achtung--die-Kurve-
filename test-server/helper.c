@@ -61,6 +61,16 @@ char *jsongetpacket(cJSON *json){
 	return buf;
 }
 
+cJSON *getjsongamepars(struct game *gm){
+	cJSON *json= jsoncreate("gameParameters");
+	jsonaddnum(json, "w", gm->w);
+	jsonaddnum(json, "h", gm->h);
+	jsonaddnum(json, "nmin", gm->nmin);
+	jsonaddnum(json, "nmax", gm->nmax);
+	jsonaddnum(json, "v", gm->v);
+	jsonaddnum(json, "ts", gm->ts);
+	return json;
+}
 
 /******************************************************************
  * LIBWEBSOCKETS HELP FUNCTIONS
@@ -69,7 +79,7 @@ char *jsongetpacket(cJSON *json){
 // will not free buf
 void sendstr(char *buf, struct user *u){
 	char *tmp;
-	if(u->sbat==sbmax){
+	if(u->sbat==SB_MAX){
 		if(showwarning) printf("send-buffer full.\n");
 		return;
 	}
@@ -120,10 +130,15 @@ void *smalloc(size_t size){
 	return a;
 }
 
-long epochmsecs() {
+long epochmsecs(){
 	struct timeval tv;
+	static long serverstart= -1;
+	if(serverstart == -1){
+		serverstart= 0;
+		serverstart= epochmsecs();
+	}
 	gettimeofday(&tv, 0);
-	return 1000 * tv.tv_sec + tv.tv_usec/ 1000;
+	return 1000 * tv.tv_sec + tv.tv_usec/ 1000 - serverstart;
 }
 
 void printuser(struct user *u){

@@ -9,19 +9,13 @@
 #include "../cjson/cJSON.c"
 #include "server.h"
 
-#define debug 1
-#define showwarning 1
-#define sbmax 10	// sendbuffer max size
+struct libwebsocket_context *ctx;
+static struct game *headgame = 0;
+static int usrc= 0;	// user count
+//static long serverstart = 0; // server start in msec since epoch
+static unsigned long serverticks = 0; // yes this will underflow, but not fast ;p
 
-#define lwsprepadding	LWS_SEND_BUFFER_PRE_PADDING
-#define lwspostpadding	LWS_SEND_BUFFER_POST_PADDING
-
-/* game states */
-#define GS_LOBBY 0
-#define GS_STARTED 1
-
-struct libwebsocket_context *ctx; // mag dit?
-
+#include "helper.c"
 #include "game.c"
 
 enum demo_protocols {
@@ -106,11 +100,11 @@ callback_game(struct libwebsocket_context * context,
 		if(debug) printf("LWS_CALLBACK_ESTABLISHED\n");
 		u->id= usrc++;
 		u->wsi= wsi;
-		u->sb= smalloc(sbmax * sizeof(char**));
 		u->sbat= 0;
 		u->gm= 0;
 		u->name= 0;
 		u->inputhead = u->inputtail = 0;
+		u->deltaon= u->deltaat= 0;
 		if(debug) printf("new user created:\n"); printuser(u); printf("\n");
 
 		json= jsoncreate("acceptUser");
@@ -157,8 +151,13 @@ callback_game(struct libwebsocket_context * context,
 			printf("no mode specified!\n");
 			break;
 		}
-
-		if(!u->gm){	// do not combine these ifs. we handle the messages according to gamestate.
+		if(!strcmp(mode, "getTime")){
+			cJSON *j= jsoncreate("time");
+			jsonaddnum(j, "time", (int)epochmsecs());
+			sendjson(j, u);
+			jsondel(j);
+		}
+		else if(!u->gm){
 			if(!strcmp(mode, "requestGame")) {
 				int nmin, nmax;
 				if(debug) printf("requested game\n");
@@ -239,7 +238,7 @@ int main(int argc, char **argv)
 	unsigned int oldus = 0;
 #endif
 
-	serverstart = epochmsecs();
+	//serverstart = epochmsecs();
 	
 	/*printf("HI\n");
 	if(root!=0)
@@ -283,8 +282,10 @@ int main(int argc, char **argv)
 #ifdef LWS_NO_FORK
 
 	fprintf(stderr, " Using no-fork service loop\n");
-
-	while (1) {
+	printf("not yet supported\n");
+	return 1;
+	
+	/*while (1) {
 		struct timeval tv;
 
 		gettimeofday(&tv, NULL);
@@ -295,7 +296,7 @@ int main(int argc, char **argv)
 		}
 
 		libwebsocket_service(context, 50);
-	}
+	}*/
 
 #else
 
@@ -307,10 +308,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	while (1) {
-		mainloop();
-		usleep(dt*1000);
-	}
+	mainloop();
 
 #endif
 

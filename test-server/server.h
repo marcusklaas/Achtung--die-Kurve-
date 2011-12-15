@@ -1,3 +1,26 @@
+#define EPS 0.001
+#define GAME_WIDTH 800
+#define GAME_HEIGHT 400
+#define TILE_WIDTH 80
+#define TILE_HEIGHT 80
+#define VELOCITY 90 // pixels per sec
+#define TURN_SPEED 3 // radians per sec
+#define DEBUG_MODE 1
+#define TICK_LENGTH 15 // in msecs
+#define SERVER_DELAY 495 // in msecs, preferably veelvoud of TICK_LENGTH
+#define COUNTDOWN	3000
+#define SB_MAX 10	// sendbuffer max size
+#define DELTA_COUNT 6
+#define DELTA_MAX 25
+#define debug 1
+#define showwarning 1
+#define lwsprepadding	LWS_SEND_BUFFER_PRE_PADDING
+#define lwspostpadding	LWS_SEND_BUFFER_POST_PADDING
+
+/* game states */
+#define GS_LOBBY 0
+#define GS_STARTED 1
+
 struct seg{
 	float x1, y1, x2, y2;
 	int uid;		// van welke user dit segment is (miss handig?)
@@ -29,7 +52,7 @@ struct user{
 	int id;
 	struct game *gm;
 	char *name;
-	char **sb;			// sendbuffer
+	char *sb[SB_MAX];	// sendbuffer
 	int sbat;			// sendbuffer at
 
 	float x, y, angle;	// last confirmed (these are thus ~500msec behind)
@@ -38,7 +61,10 @@ struct user{
 	struct userinput *inputhead, // store unhandled user inputs in queue
 					 *inputtail; // insert at tail, remove at head
 
-	struct libwebsocket *wsi; // mag dit?
+	struct libwebsocket *wsi;
+	int delta[DELTA_COUNT];
+	int deltaat;
+	char deltaon;
 };
 
 struct usern{			// user node

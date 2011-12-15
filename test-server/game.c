@@ -1,22 +1,3 @@
-#define EPS 0.001
-#define GAME_WIDTH 800
-#define GAME_HEIGHT 400
-#define TILE_WIDTH 80
-#define TILE_HEIGHT 80
-#define VELOCITY 90 // pixels per sec
-#define TURN_SPEED 3 // radians per sec
-#define DEBUG_MODE 1
-#define TICK_LENGTH 15 // in msecs
-#define SERVER_DELAY 495 // in msecs, preferably veelvoud of TICK_LENGTH
-
-static struct game *headgame = 0;
-
-#include "helper.c"
-
-static int usrc= 0;	// user count
-static long serverstart = 0; // server start in msec since epoch
-static unsigned long serverticks = 0; // yes this will underflow, but not fast ;p
-
 void randomizePlayerStarts(struct game *gm, float *buf) {
 	// diameter of your circle in pixels when you turn at max rate
 	int i, turningCircle = ceil(2.0 * VELOCITY/ TURN_SPEED);
@@ -38,11 +19,12 @@ void startgame(struct game *gm){
 	float *player_locations = smalloc(3 * gm->n * sizeof(float));
 	randomizePlayerStarts(gm, player_locations);
 
-	gm->start = epochmsecs();
+	gm->start = epochmsecs() + COUNTDOWN;
 	gm->state = GS_STARTED;
 
 	// create JSON object
 	cJSON *root = jsoncreate("startGame");
+	jsonaddnum(root, "startTime", (int)gm->start);
 	cJSON *start_locations = cJSON_CreateArray();
 	struct usern *usrn;
 	struct user *usr;
@@ -436,9 +418,6 @@ void simgame(struct game *gm) {
 	}
 }
 
-// FIXME: the mainloop itself is actually in a loop with sleep. this is not
-// the 'bedoeling' -- fix this (this may be slightly harder for non-forking
-// servers, but they are stupid anyway!!)
 void mainloop() {
 	int sleeptime;
 	struct game *gm;
@@ -448,7 +427,7 @@ void mainloop() {
 			if(gm->state == GS_STARTED)
 				simgame(gm);
 
-		sleeptime = serverstart +++serverticks * TICK_LENGTH - epochmsecs();
+		sleeptime = ++serverticks * TICK_LENGTH - epochmsecs();
 		if(sleeptime > 0)
 			usleep(1000 * sleeptime);
 	}
@@ -468,6 +447,29 @@ void interpretinput(cJSON *json, struct user *usr) {
 		usr->inputhead = usr->inputtail = input;
 	else
 		usr->inputtail = usr->inputtail->nxt = input; // ingenious or wat
+	
+	usr->delta[usr->deltaat++]= input->time - (epochmsecs() - usr->gm->start);
+	if(usr->deltaat == DELTA_COUNT){
+		usr->deltaat= 0;
+		usr->deltaon= 1;
+	}
+	if(usr->deltaon){
+		int max= 0, i, tot= 0;
+		for(i= 0;i < DELTA_COUNT; i++){
+			if(usr->delta[i] > max){
+				tot += max;
+				max= usr->delta[i];
+			}else
+				tot += usr->delta[i];
+		}
+		tot /= DELTA_COUNT - 1;
+		if(tot > DELTA_MAX || tot < DELTA_MAX * -1){
+			cJSON *j= jsoncreate("adjustGameTime");
+			jsonaddnum(j, "forward", tot);
+			usr->deltaon= 0;
+			usr->deltaat= 0;
+		}
+	}
 
 	// TODO: create new json object with some more info (last confirmed x, y, angle + 
 	// current gametime), send it to all (even usr?)
@@ -475,13 +477,3 @@ void interpretinput(cJSON *json, struct user *usr) {
 	jsondel(json);
 }
 
-cJSON *getjsongamepars(struct game *gm){
-	cJSON *json= jsoncreate("gameParameters");
-	jsonaddnum(json, "w", gm->w);
-	jsonaddnum(json, "h", gm->h);
-	jsonaddnum(json, "nmin", gm->nmin);
-	jsonaddnum(json, "nmax", gm->nmax);
-	jsonaddnum(json, "v", gm->v);
-	jsonaddnum(json, "ts", gm->ts);
-	return json;
-}
