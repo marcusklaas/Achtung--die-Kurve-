@@ -59,6 +59,12 @@ static int callback_http(struct libwebsocket_context * context,
 				fprintf(stderr, "Failed http request\n");
 			break;
 		}
+		if (in && strcmp(in, "/canvaslayers.js") == 0) {
+			if (libwebsockets_serve_http_file(wsi,
+			     LOCAL_RESOURCE_PATH"/canvaslayers.js", "text/javascript"))
+				fprintf(stderr, "Failed http request\n");
+			break;
+		}
 		if (libwebsockets_serve_http_file(wsi,
 				  LOCAL_RESOURCE_PATH"/index.html", "text/html"))
 			fprintf(stderr, "Failed to send HTTP file\n");

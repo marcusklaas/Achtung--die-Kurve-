@@ -25,6 +25,11 @@ function GameEngine(container) {
 	// connection state
 	this.websocket = null;
 	this.connected = false;
+	this.bestSyncPing = 9999;
+	this.worstSyncPing = 0;
+	this.syncTries = 0;
+	this.serverTimeDifference = 0;
+	this.ping = 0;
 
 	// canvas related
 	this.container = container; // DOM object that contains canvas layers
@@ -45,6 +50,7 @@ GameEngine.prototype.connect = function(url, name) {
 		this.websocket.onopen = function() {
 			debugLog('Connected to websocket server');
 			game.connected = true;
+			game.syncWithServer();
 		}
 		this.websocket.onmessage = function got_packet(msg) {
 			if(ultraVerbose)
@@ -58,7 +64,7 @@ GameEngine.prototype.connect = function(url, name) {
 			}
 
 			switch(obj.mode) {
-				case 'accept':
+				case 'acceptUser':
 					this.players[0].playerId = obj.playerId;
 					this.idToPlayer[obj.playerId] = 0;
 					break;
@@ -77,13 +83,14 @@ GameEngine.prototype.connect = function(url, name) {
 					debugLog(obj.playerName + ' joined the game (id = ' + obj.playerId + ')');
 					break;
 				case 'startGame':
-					game.start(obj.startPositions);
+					game.start(obj.startPositions, obj.startTime);
 					break;
 				case 'newInput':
 					game.players[game.idToPlayer[obj.playerId]].turn(obj);
 					break;
 
 				// TODO: handle case where player leaves before game start
+				// its gonna be ugly.. restructure game.players and game.idToPlayer
 
 				case 'playerDied':
 				case 'playerLeft':
@@ -95,6 +102,9 @@ GameEngine.prototype.connect = function(url, name) {
 					game.gameOver = true;
 					debugLog('game ended. ' +
 					 player[game.idToPlayer[obj.winnerId]].playerName + ' won');
+					break;
+				case 'time':
+					game.handleSyncResponse(obj.time);
 					break;
 				default:
 					debugLog('unknown mode!');
@@ -108,6 +118,31 @@ GameEngine.prototype.connect = function(url, name) {
 		debugLog('websocket exception! name = ' + exception.name + ", message = "
 		 + exception.message);
 	}
+}
+
+GameEngine.prototype.syncWithServer = function(){
+	game.syncSendTime = Date.now();
+	game.sendMsg('getTime', {});
+}
+GameEngine.prototype.handleSyncResponse = function(serverTime){
+	var ping = (Date.now() - game.syncSendTime) / 2;
+	if(ping < game.bestSyncPing){
+		game.bestSyncPing = ping;
+		game.serverTimeDifference = serverTime - Date.now() + ping;
+	}
+	if(ping > game.worstSyncPing){
+		game.ping += game.worstSyncPing / (syncTries - 1);
+		game.worstSyncPing = ping;
+	}else
+		game.ping += ping / (syncTries - 1);
+	if(game.syncTries++ < syncTries)
+		window.setTimeout(game.syncWithServer, game.syncTries * 50);
+	else
+		debugLog('synced with server with a maximum error of ' + game.bestSyncPing + ' msec'
+		+ ', and average ping of ' + game.ping + ' msec');
+}
+GameEngine.prototype.getServerTime = function(){
+	return this.serverTimeDifference + Date.now();
 }
 
 /* initialises the game */ 
@@ -145,7 +180,6 @@ GameEngine.prototype.sendMsg = function(mode, data) {
 	}
 
 	data.mode = mode;
-	data.playerId = this.players[0].playerId;
 
 	var str = JSON.stringify(data);
 	this.websocket.send(str);
@@ -176,13 +210,9 @@ GameEngine.prototype.loop = function() {
 GameEngine.prototype.addPlayer = function(player) {
 	player.game = this;
 
-	if(player.playerId != null) {
-		/* internet player */
-		var canvas = document.getObjectById(this.canvasStack.createLayer());
-		this.context = canvas.getContext('2d');
-		this.context.lineWidth = lineWidth;
+	/* internet player */
+	if(player.playerId != null)
 		this.idToPlayer[player.playerId] = this.players.length;
-	}
 
 	this.players.push(player);
 	debugLog("adding player to game");
@@ -192,13 +222,12 @@ GameEngine.prototype.stop = function() {
 	debugLog("game ended");
 }
 
-GameEngine.prototype.start = function(startPositions) {
-	debugLog("starting game");
-
-	/* init some vals */
+GameEngine.prototype.start = function(startPositions, startTime) {
+	this.gameStartTimestamp = startTime - this.getServerTime() - this.ping;
 	this.lastUpdateTimestamp = Date.now();
-	this.gameStartTimestamp = this.lastUpdateTimestamp;
 	this.gameOver = false;
+	
+	debugLog("starting game in " + Date.now() - this.gameStartTimestamp);
 
 	/* create canvas stack */
 	this.canvasStack = new CanvasStack(this.container, canvasBgcolor);
@@ -208,11 +237,6 @@ GameEngine.prototype.start = function(startPositions) {
 	var canvas = document.getObjectById(this.canvasStack.getBackgroundCanvasId());
 	this.baseContext = canvas.getContext('2d');
 	this.baseContext.lineWidth = lineWidth;
-
-	/* create context for human player */
-	canvas = document.getObjectById(this.canvasStack.createLayer());
-	this.players[0].context = canvas.getContext('2d');
-	this.players[0].context.lineWidth = lineWidth;
 
 	/* init players */
 	for(var i = 0; i < startPositions.length; i++) {
@@ -233,15 +257,11 @@ GameEngine.prototype.start = function(startPositions) {
 	})();
 }
 
+// not sure if it works like this ;p
 window.requestAnimFrame = (function() {
-	return  window.requestAnimationFrame       ||
-			window.webkitRequestAnimationFrame ||
-			window.mozRequestAnimationFrame    ||
-			window.oRequestAnimationFrame      ||
-			window.msRequestAnimationFrame     ||
-			function(/* function */ callback, /* DOMElement */ element) {
-				window.setTimeout(callback, 1000 / 60);
-			};
+	return function(/* function */ callback, /* DOMElement */ element) {
+		window.setTimeout(callback, 1000 / 60);
+	};
 })();
 
 /* players */
@@ -271,7 +291,7 @@ Player.prototype.turn = function(obj) {
 	/* run simulation from lcx, lcy on the conclusive canvas from time 
 	 * lct to timestamp in object */
 	this.simulate(this.lcx, this.lcy, this.lca, this.turn,
-	 obj.gameTime - this.lct, this.game.baseContext);
+	 obj.gameTime - this.lct, this.game.baseContext, obj.x, obj.y);
 
 	/* here we sync with server */
 	this.lcx = this.x = obj.x;
@@ -284,26 +304,30 @@ Player.prototype.turn = function(obj) {
 	 * context from timestamp in object to NOW */
 	this.context.clear(); // might not work -- must test
 	this.simulate(this.lcx, this.lcy, this.lca, this.turn,
-	 Date.now() - obj.gameTime, this.context);
+	 Date.now() - obj.gameTime, this.context, null, null);
 }
 
-Player.prototype.simulate = function(x, y, angle, turn, time, ctx) {
+Player.prototype.simulate = function(x, y, angle, turn, time, ctx, destX, destY) {
 	ctx.strokeStyle = this.color;
 	ctx.beginPath();
 	ctx.moveTo(x, y);
 
-	var step = Math.min(simStep, time);
+	if(destX != null)
+		time -= simStep;
 
 	while(time > 0) {
+		var step = Math.min(simStep, time);
 		x += this.velocity * step/ 1000 * Math.cos(angle);
 		y += this.velocity * step/ 1000 * Math.sin(angle);
 		angle += turn * this.turnSpeed * step/ 1000;
 		
 		ctx.lineTo(x, y);
 
-		step = Math.min(simStep, obj.gameTime - t);
-		t -= step;
+		time -= step;
 	}
+
+	if(destX != null)
+		ctx.lineTo(destX, destY);
 
 	ctx.closePath();
 	ctx.stroke();
@@ -314,15 +338,18 @@ Player.prototype.initialise = function(x, y, angle) {
 	this.turnSpeed = this.game.turnSpeed;
 	this.undrawnSegs = [];
 	this.alive = true;
-
 	this.lcx = this.x = x;
 	this.lcy = this.y = y;
-	this.context.moveTo(x, y);
-	this.context.strokeStyle = this.color;
-
 	this.lct = 0;
 	this.angle = angle;
 	this.turn = 0;
+
+	/* create canvas */
+	var canvas = document.getObjectById(this.game.canvasStack.createLayer());
+	this.context = canvas.getContext('2d');
+	this.context.lineWidth = lineWidth;
+	this.context.strokeStyle = this.color;
+	this.context.moveTo(x, y);
 
 	debugLog("initialising player at (" + this.x + ", " + this.y + "), angle = " + this.angle);
 }
@@ -333,8 +360,8 @@ Player.prototype.update = function(deltaTime) {
 
 	this.x += this.velocity * deltaTime/ 1000 * Math.cos(this.angle);
 	this.y += this.velocity * deltaTime/ 1000 * Math.sin(this.angle);
-	this.undrawnPts.push(newX);
-	this.undrawnPts.push(newY);
+	this.undrawnPts.push(this.x);
+	this.undrawnPts.push(this.y);
 
 	this.angle += this.turn * this.turnSpeed * deltaTime/ 1000;
 }
@@ -405,10 +432,12 @@ window.onload = function() {
 
 	/* some constants */
 	var container = document.getElementById('container');
-	var game = new GameEngine(container);
+	game = new GameEngine(container);
 	var player = new Player(playerColors[0]);
 	var inputControl = new InputController(keyCodeLeft, keyCodeRight);
-
+	
+	
+	
 	inputControl.setGame(game);
 	game.addPlayer(player);
 	inputControl.setPlayer(player);

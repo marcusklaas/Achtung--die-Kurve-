@@ -25,6 +25,11 @@ function GameEngine(container) {
 	// connection state
 	this.websocket = null;
 	this.connected = false;
+	this.bestSyncPing = 9999;
+	this.worstSyncPing = 0;
+	this.syncTries = 0;
+	this.serverTimeDifference = 0;
+	this.ping = 0;
 
 	// canvas related
 	this.container = container; // DOM object that contains canvas layers
@@ -45,6 +50,7 @@ GameEngine.prototype.connect = function(url, name) {
 		this.websocket.onopen = function() {
 			debugLog('Connected to websocket server');
 			game.connected = true;
+			game.syncWithServer();
 		}
 		this.websocket.onmessage = function got_packet(msg) {
 			if(ultraVerbose)
@@ -58,12 +64,12 @@ GameEngine.prototype.connect = function(url, name) {
 			}
 
 			switch(obj.mode) {
-				case 'accept':
+				case 'acceptUser':
 					this.players[0].playerId = obj.playerId;
 					this.idToPlayer[obj.playerId] = 0;
 					break;
-				case 'joinGame':
-					debugLog('you joined game.');
+				case 'joinedGame':
+					debugLog('you joined a game.');
 					break;
 				case 'gameParameters':
 					game.setParams(obj);
@@ -77,7 +83,7 @@ GameEngine.prototype.connect = function(url, name) {
 					debugLog(obj.playerName + ' joined the game (id = ' + obj.playerId + ')');
 					break;
 				case 'startGame':
-					game.start(obj.startPositions);
+					game.start(obj.startPositions, obj.startTime);
 					break;
 				case 'newInput':
 					game.players[game.idToPlayer[obj.playerId]].turn(obj);
@@ -97,6 +103,9 @@ GameEngine.prototype.connect = function(url, name) {
 					debugLog('game ended. ' +
 					 player[game.idToPlayer[obj.winnerId]].playerName + ' won');
 					break;
+				case 'time':
+					game.handleSyncResponse(obj.time);
+					break;
 				default:
 					debugLog('unknown mode!');
 			}
@@ -109,6 +118,31 @@ GameEngine.prototype.connect = function(url, name) {
 		debugLog('websocket exception! name = ' + exception.name + ", message = "
 		 + exception.message);
 	}
+}
+
+GameEngine.prototype.syncWithServer = function(){
+	game.syncSendTime = Date.now();
+	game.sendMsg('getTime', {});
+}
+GameEngine.prototype.handleSyncResponse = function(serverTime){
+	var ping = (Date.now() - game.syncSendTime) / 2;
+	if(ping < game.bestSyncPing){
+		game.bestSyncPing = ping;
+		game.serverTimeDifference = serverTime - Date.now() + ping;
+	}
+	if(ping > game.worstSyncPing){
+		game.ping += game.worstSyncPing / (syncTries - 1);
+		game.worstSyncPing = ping;
+	}else
+		game.ping += ping / (syncTries - 1);
+	if(game.syncTries++ < syncTries)
+		window.setTimeout(game.syncWithServer, game.syncTries * 50);
+	else
+		debugLog('synced with server with a maximum error of ' + game.bestSyncPing + ' msec'
+		+ ', and average ping of ' + game.ping + ' msec');
+}
+GameEngine.prototype.getServerTime = function(){
+	return this.serverTimeDifference + Date.now();
 }
 
 /* initialises the game */ 
@@ -146,7 +180,6 @@ GameEngine.prototype.sendMsg = function(mode, data) {
 	}
 
 	data.mode = mode;
-	data.playerId = this.players[0].playerId;
 
 	var str = JSON.stringify(data);
 	this.websocket.send(str);
@@ -189,13 +222,12 @@ GameEngine.prototype.stop = function() {
 	debugLog("game ended");
 }
 
-GameEngine.prototype.start = function(startPositions) {
-	debugLog("starting game");
-
-	/* init some vals */
+GameEngine.prototype.start = function(startPositions, startTime) {
+	this.gameStartTimestamp = startTime - this.getServerTime() - this.ping;
 	this.lastUpdateTimestamp = Date.now();
-	this.gameStartTimestamp = this.lastUpdateTimestamp;
 	this.gameOver = false;
+	
+	debugLog("starting game in " + Date.now() - this.gameStartTimestamp);
 
 	/* create canvas stack */
 	this.canvasStack = new CanvasStack(this.container, canvasBgcolor);
@@ -400,10 +432,12 @@ window.onload = function() {
 
 	/* some constants */
 	var container = document.getElementById('container');
-	var game = new GameEngine(container);
+	game = new GameEngine(container);
 	var player = new Player(playerColors[0]);
 	var inputControl = new InputController(keyCodeLeft, keyCodeRight);
-
+	
+	
+	
 	inputControl.setGame(game);
 	game.addPlayer(player);
 	inputControl.setPlayer(player);
