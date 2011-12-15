@@ -180,8 +180,7 @@ callback_game(struct libwebsocket_context * context,
 		}
 		else if(u->gm->state == GS_STARTED){
 			if(strcmp(mode, "newInput") == 0) {
-				/* parrot the input to rest of game, but not u */
-				sendjsontogame(json, u->gm, u); 
+				interpretinput(json, u); 
 			}
 		}
 		
@@ -228,8 +227,8 @@ static struct option options[] = {
 int main(int argc, char **argv)
 {
 	int n = 0;
-	int dt= 50;
 	int port = 7681;
+	int dt = 50;
 	struct libwebsocket_context *context;
 	int opts = 0;
 	char interface_name[128] = "";
@@ -238,6 +237,8 @@ int main(int argc, char **argv)
 #ifdef LWS_NO_FORK
 	unsigned int oldus = 0;
 #endif
+
+	serverstart = epochmsecs();
 	
 	/*printf("HI\n");
 	if(root!=0)

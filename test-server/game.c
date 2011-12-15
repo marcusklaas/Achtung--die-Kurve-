@@ -3,14 +3,18 @@
 #define GAME_HEIGHT 400
 #define TILE_WIDTH 80
 #define TILE_HEIGHT 80
-#define VELOCITY 90
-#define TURN_SPEED 3
+#define VELOCITY 90 // pixels per sec
+#define TURN_SPEED 3 // radians per sec
 #define DEBUG_MODE 1
+#define TICK_LENGTH 15 // in msecs
 
-static int usrc= 0;	// user count
 static struct game *headgame = 0;
 
 #include "helper.c"
+
+static int usrc= 0;	// user count
+static long serverstart = 0; // server start in msec since epoch
+static unsigned long serverticks = 0; // yes this will underflow, but not fast ;p
 
 void randomizePlayerStarts(struct game *gm, float *buf) {
 	// diameter of your circle in pixels when you turn at max rate
@@ -33,27 +37,29 @@ void startgame(struct game *gm){
 	float *player_locations = smalloc(3 * gm->n * sizeof(float));
 	randomizePlayerStarts(gm, player_locations);
 
+	gm->start = epochmsecs();
 	gm->state = GS_STARTED;
 
 	// create JSON object
 	cJSON *root = jsoncreate("startGame");
 	cJSON *start_locations = cJSON_CreateArray();
 	struct usern *usrn;
+	struct user *usr;
 	int i = 0;
 
-	/* we might SEGFAULT here, but only if gm->n < the actual number of players 
-	 * in game */
+	/* set the players locs and fill json object */
 	for(usrn = gm->usrn; usrn; usrn = usrn->nxt) {
-		if(i == gm->n) {
-			fprintf(stderr, "\"Nu sta ik voor de ruines van mijn wereldbeeld\"\n");
-			exit(300); //exit to prevent imminent SEGFAULT
-		}
+		usr = usrn->usr;
+
+		usr->x = player_locations[3 * i];
+		usr->y = player_locations[3 * i + 1];
+		usr->angle = player_locations[3 * i + 2];
 
 		cJSON *player = cJSON_CreateObject();
-		cJSON_AddNumberToObject(player, "playerId", usrn->usr->id);
-		cJSON_AddNumberToObject(player, "startX", player_locations[3 * i]);
-		cJSON_AddNumberToObject(player, "startY", player_locations[3 * i + 1]);
-		cJSON_AddNumberToObject(player, "startAngle", player_locations[3 * i + 2]);
+		cJSON_AddNumberToObject(player, "playerId", usr->id);
+		cJSON_AddNumberToObject(player, "startX", usr->x);
+		cJSON_AddNumberToObject(player, "startY", usr->y);
+		cJSON_AddNumberToObject(player, "startAngle", usr->angle);
 		cJSON_AddItemToArray(start_locations, player);
 
 		i++;
@@ -62,10 +68,7 @@ void startgame(struct game *gm){
 	/* spreading the word to all in the game */
 	cJSON_AddItemToObject(root, "startPositions", start_locations);
 	sendjsontogame(root, gm, 0);	
-
-	/* TODO: being the server, we probably want to save those
-	 * starting positions somewhere as well */
-
+	
 	free(player_locations);
 	jsondel(root);
 }
@@ -247,9 +250,11 @@ struct game *creategame(int nmin, int nmax) {
 		printf("creategame called \n");
 
 	gm->nmin = nmin; gm->nmax = nmax;
-	gm->t = 0.0;
+	gm->start = 0;
 	gm->n = 0;
 	gm->usrn = 0;
+	gm->tick = 0;
+	gm->alive = 0;
 	gm->w= GAME_WIDTH;
 	gm->h= GAME_HEIGHT;
 	gm->tilew = TILE_WIDTH;
@@ -377,8 +382,85 @@ int addsegment(struct game *gm, struct seg *seg) {
 	return 0;
 }
 
-void mainloop(){
-	
+// returns 1 if player dies during this tick, 0 otherwise
+int simuser(struct user *usr, struct game *gm, long simend) {
+	/* usr sent us more than 1 input in a single tick? that's weird! might be
+	 * possible though. ignore all but last */
+	struct userinput *curr;
+
+	for(curr = usr->inputhead; curr; curr = curr->nxt) {
+		if(curr->time > simend)
+			break;
+
+		usr->turn = curr->turn;
+		free(curr);
+	}
+
+	struct seg *newseg = smalloc(sizeof(struct seg));
+	newseg->nxt = 0;
+	newseg->x1 = usr->x;
+	newseg->y1 = usr->y;
+
+	// WE TURN FIRST THEN STEP AHEAD!! this important.. i choose this for now
+	// because we work in ticks and this somewhat counters the (slight) delay
+	usr->angle += usr->turn * gm->ts * TICK_LENGTH / 1000.0;
+	usr->x += cos(usr->angle) * gm->v * TICK_LENGTH / 1000.0;
+	usr->y += sin(usr->angle) * gm->v * TICK_LENGTH / 1000.0;
+
+	newseg->x2 = usr->x;
+	newseg->y2 = usr->y;
+
+	return addsegment(gm, newseg);
+}
+
+void simgame(struct game *gm) {
+	struct usern *usrn;
+	long simend = gm->start +++gm->tick * TICK_LENGTH;
+
+	for(usrn = gm->usrn; usrn; usrn = usrn->nxt)
+		gm->alive -= simuser(usrn->usr, gm, simend);
+
+	if(gm->alive <= 1) {
+		// TODO: game over! send msg to players who won
+		remgame(gm);
+	}
+}
+
+// FIXME: the mainloop itself is actually in a loop with sleep. this is not
+// the 'bedoeling' -- fix this (this may be slightly harder for non-forking
+// servers, but they are stupid anyway!!)
+void mainloop() {
+	int sleeptime;
+	struct game *gm;
+
+	while(5000) {
+		for(gm = headgame; gm; gm = gm->nxt)
+			if(gm->state == GS_STARTED)
+				simgame(gm);
+
+		sleeptime = serverstart +++serverticks * TICK_LENGTH - epochmsecs();
+		if(sleeptime > 0)
+			usleep(1000 * sleeptime);
+	}
+}
+
+// okay here we handle the msg user sent us
+void interpretinput(cJSON *json, struct user *usr) {
+	// put it in user queue
+	struct userinput *input = smalloc(sizeof(struct userinput));
+	input->time = cJSON_GetObjectItem(json, "gameTime")->valueint;
+	input->turn = cJSON_GetObjectItem(json, "turn")->valueint;
+	input->nxt = 0;
+
+	if(!usr->inputtail)
+		usr->inputhead = usr->inputtail = input;
+	else
+		usr->inputtail = usr->inputtail->nxt = input; // ingenious or wat
+
+	// TODO: create new json object with some more info (last confirmed x, y, angle + 
+	// current gametime), send it to all (even usr?)
+	sendjsontogame(json, usr->gm, usr);
+	jsondel(json);
 }
 
 cJSON *getjsongamepars(struct game *gm){

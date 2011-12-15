@@ -42,7 +42,7 @@ void jsonsetint(cJSON *json, char* obj, int val){
 		if(debug) printf("json parse error! object '%s' not found!\n", obj);
 		return ;
 	}
-	json->valuedouble = json->valueint= val;
+	json->valuedouble = json->valueint = val;
 }
 
 cJSON *jsoncreate(char *mode){
@@ -118,6 +118,12 @@ void *smalloc(size_t size){
 		exit(500);
 	}
 	return a;
+}
+
+long epochmsecs() {
+	struct timeval tv;
+	gettimeofday(&tv, 0);
+	return 1000 * tv.tv_sec + tv.tv_usec/ 1000;
 }
 
 void printuser(struct user *u){
