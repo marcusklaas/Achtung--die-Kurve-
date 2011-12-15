@@ -110,6 +110,7 @@ callback_game(struct libwebsocket_context * context,
 		u->sbat= 0;
 		u->gm= 0;
 		u->name= 0;
+		u->inputhead = u->inputtail = 0;
 		if(debug) printf("new user created:\n"); printuser(u); printf("\n");
 
 		json= jsoncreate("acceptUser");

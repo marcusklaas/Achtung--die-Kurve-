@@ -278,6 +278,10 @@ struct game *creategame(int nmin, int nmax) {
 
 // returns 1 if collision, 0 if no collision
 int segcollision(struct seg *seg1, struct seg *seg2) {
+	// ok we dont want two consecutive segments from player to collide
+	if(seg1->x2 == seg2->x1 && seg1->y2 == seg2->y1)
+		return 0;
+
 	int denom = (seg1->x1 - seg1->x2) * (seg2->y1 - seg2->y2) -
 	 (seg1->y1 - seg1->y2) * (seg2->x1 - seg2->x2);
 
@@ -368,7 +372,7 @@ int addsegment(struct game *gm, struct seg *seg) {
 				continue;
 
 			for(current = gm->seg[gm->htiles * j + i]; current; current = current->nxt)
-				if(segcollision(seg, current))
+				if(segcollision(current, seg))
 					return 1;
 
 			copy = smalloc(sizeof(struct seg));
@@ -384,15 +388,20 @@ int addsegment(struct game *gm, struct seg *seg) {
 }
 
 // returns 1 if player dies during this tick, 0 otherwise
-int simuser(struct user *usr, struct game *gm, long simend) {
+int simuser(struct user *usr, long simend) {
 	/* usr sent us more than 1 input in a single tick? that's weird! might be
 	 * possible though. ignore all but last */
-	struct userinput *curr;
+	struct userinput *prev;
 
-	for(curr = usr->inputhead; curr && curr->time <= simend; curr = curr->nxt) {
-		usr->turn = curr->turn;
-		free(curr);
+	while(usr->inputhead && usr->inputhead->time <= simend) {
+		usr->turn = usr->inputhead->turn;
+		prev = usr->inputhead;
+		usr->inputhead = usr->inputhead->nxt;
+		free(prev);
 	}
+
+	if(!usr->inputhead)
+		usr->inputtail = 0;
 
 	struct seg *newseg = smalloc(sizeof(struct seg));
 	newseg->nxt = 0;
@@ -401,14 +410,14 @@ int simuser(struct user *usr, struct game *gm, long simend) {
 
 	// WE TURN FIRST THEN STEP AHEAD!! this important.. i choose this for now
 	// because we work in ticks and this somewhat counters the (slight) delay
-	usr->angle += usr->turn * gm->ts * TICK_LENGTH / 1000.0;
-	usr->x += cos(usr->angle) * gm->v * TICK_LENGTH / 1000.0;
-	usr->y += sin(usr->angle) * gm->v * TICK_LENGTH / 1000.0;
+	usr->angle += usr->turn * usr->gm->ts * TICK_LENGTH / 1000.0;
+	usr->x += cos(usr->angle) * usr->gm->v * TICK_LENGTH / 1000.0;
+	usr->y += sin(usr->angle) * usr->gm->v * TICK_LENGTH / 1000.0;
 
 	newseg->x2 = usr->x;
 	newseg->y2 = usr->y;
 
-	return addsegment(gm, newseg);
+	return addsegment(usr->gm, newseg);
 }
 
 void simgame(struct game *gm) {
@@ -419,7 +428,7 @@ void simgame(struct game *gm) {
 		return;
 
 	for(usrn = gm->usrn; usrn; usrn = usrn->nxt)
-		gm->alive -= simuser(usrn->usr, gm, simend);
+		gm->alive -= simuser(usrn->usr, simend);
 
 	if(gm->alive <= 1) {
 		// TODO: game over! send msg to players who won
