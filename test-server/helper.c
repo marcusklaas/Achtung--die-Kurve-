@@ -36,13 +36,14 @@ void jsonsetstr(cJSON *json, char* obj, char* str){
 	json->valuestring= str;
 }
 
-void jsonsetint(cJSON *json, char* obj, int val){
+void jsonsetnum(cJSON *json, char* obj, double val){
 	json= cJSON_GetObjectItem(json,obj);
 	if(!json){
 		if(debug) printf("json parse error! object '%s' not found!\n", obj);
 		return ;
 	}
-	json->valuedouble = json->valueint = val;
+	json->valuedouble = val;
+	json->valueint = (int)val;
 }
 
 cJSON *jsoncreate(char *mode){

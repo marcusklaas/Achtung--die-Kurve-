@@ -21,6 +21,7 @@ void startgame(struct game *gm){
 
 	gm->start = epochmsecs() + COUNTDOWN;
 	gm->state = GS_STARTED;
+	gm->alive= gm->n;
 
 	// create JSON object
 	cJSON *root = jsoncreate("startGame");
@@ -37,6 +38,10 @@ void startgame(struct game *gm){
 		usr->x = player_locations[3 * i];
 		usr->y = player_locations[3 * i + 1];
 		usr->angle = player_locations[3 * i + 2];
+		usr->turn= 0; usr->cturn= 0;
+		usr->alive= 1;
+		usr->cx= usr->x; usr->cy= usr->y; usr->cangle= usr->angle;
+		usr->ctick= 0;
 
 		cJSON *player = cJSON_CreateObject();
 		cJSON_AddNumberToObject(player, "playerId", usr->id);
@@ -155,7 +160,7 @@ void leavegame(struct user *u) {
 		current->nxt = tmp->nxt;
 		free(tmp);
 	}
-
+	gm->alive--;
 	if(--gm->n == 0)
 		remgame(gm);
 	else {
@@ -199,7 +204,7 @@ void joingame(struct game *gm, struct user *u) {
 	
 	// send a message to the new player for every other player that is already in the game
 	for(usrn = gm->usrn; usrn; usrn = usrn->nxt) {
-		jsonsetint(json, "playerId", usrn->usr->id);
+		jsonsetnum(json, "playerId", usrn->usr->id);
 		jsonsetstr(json, "playerName", lastusedname = usrn->usr->name);
 		sendjson(json, u);
 
@@ -369,13 +374,13 @@ int addsegment(struct game *gm, struct seg *seg) {
 	return 0;
 }
 
-// returns 1 if player dies during this tick, 0 otherwise
-int simuser(struct user *usr, long simend) {
+// simulate user tick. returns 1 if player dies during this tick, 0 otherwise
+int simuser(struct user *usr, long simstart) {
 	/* usr sent us more than 1 input in a single tick? that's weird! might be
 	 * possible though. ignore all but last */
 	struct userinput *prev;
 
-	while(usr->inputhead && usr->inputhead->time <= simend) {
+	while(usr->inputhead && usr->inputhead->time < simstart) {
 		usr->turn = usr->inputhead->turn;
 		prev = usr->inputhead;
 		usr->inputhead = usr->inputhead->nxt;
@@ -398,26 +403,49 @@ int simuser(struct user *usr, long simend) {
 
 	newseg->x2 = usr->x;
 	newseg->y2 = usr->y;
-
+	
 	return addsegment(usr->gm, newseg);
 }
 
+// simulate game tick
 void simgame(struct game *gm) {
 	struct usern *usrn;
-	long simend = gm->start +++gm->tick * TICK_LENGTH - SERVER_DELAY;
-
-	if(simend < 0)
+	long simstart;
+	
+	// we beginnen te ticken na gm->start + SERVER_DELAY
+	if(epochmsecs() < gm->start + SERVER_DELAY)
 		return;
 
-	for(usrn = gm->usrn; usrn; usrn = usrn->nxt)
-		gm->alive -= simuser(usrn->usr, simend);
+	simstart= gm->tick * TICK_LENGTH;		
+	gm->tick++;
 
+	for(usrn = gm->usrn; usrn; usrn = usrn->nxt){
+		struct user *u= usrn->usr;
+		if(u->alive){
+			int userdied= simuser(u, simstart);
+			if(userdied){
+				u->alive= 0;
+				gm->alive--;
+			}
+		}
+	}
+	
 	if(gm->alive <= 1) {
-		// TODO: game over! send msg to players who won
+		cJSON *json= jsoncreate("endGame");
+		struct user *winner;
+		for(usrn = gm->usrn; usrn; usrn = usrn->nxt)
+			if(usrn->usr->alive){
+				winner= usrn->usr;
+				break;
+			}
+		jsonaddnum(json, "winnerId", winner ? winner->id : -1);
+		sendjsontogame(json, gm, 0);
+		jsondel(json);
 		remgame(gm);
 	}
 }
 
+// deze functie called simgame zo goed als mogelijk elke TICK_LENGTH msec (voor elke game)
 void mainloop() {
 	int sleeptime;
 	struct game *gm;
@@ -433,21 +461,38 @@ void mainloop() {
 	}
 }
 
-// okay here we handle the msg user sent us. TODO: note that currently we just 
-// assume that the inputs in the inputqueue are increasing in time because we use 
-// TCP. but client could try to cheat and this may no longer be case!
 void interpretinput(cJSON *json, struct user *usr) {
+	struct userinput *input;
+	int time= jsongetint(json, "gameTime");
+	int turn= jsongetint(json, "turn");
+	
+	if(turn < -1 || turn > 1){
+		if(showwarning)
+			printf("invalid user input received from user %d.\n", usr->id);
+			return;
+	}else if(usr->inputtail && input->time < usr->inputtail->time){
+		if(showwarning)
+			printf("input messages of user %d are being received out of order!\n", usr->id);
+		return;
+	}else if(epochmsecs() - usr->gm->start - input->time > MAX_MESSAGE_DELAY){
+		if(showwarning)
+			printf("received msg from user %d of %d msec old! modifying message..\n", usr->id,
+				(int) (epochmsecs() - usr->gm->start - input->time));
+		time= epochmsecs() - usr->gm->start - MAX_MESSAGE_DELAY;
+	}
+	
 	// put it in user queue
-	struct userinput *input = smalloc(sizeof(struct userinput));
-	input->time = cJSON_GetObjectItem(json, "gameTime")->valueint;
-	input->turn = cJSON_GetObjectItem(json, "turn")->valueint;
+	input = smalloc(sizeof(struct userinput));
+	input->time = time;
+	input->turn = turn;
 	input->nxt = 0;
-
+	
 	if(!usr->inputtail)
 		usr->inputhead = usr->inputtail = input;
 	else
 		usr->inputtail = usr->inputtail->nxt = input; // ingenious or wat
-	
+		
+	// check if user needs to adjust her gametime
 	usr->delta[usr->deltaat++]= input->time - (epochmsecs() - usr->gm->start);
 	if(usr->deltaat == DELTA_COUNT){
 		usr->deltaat= 0;
@@ -470,10 +515,29 @@ void interpretinput(cJSON *json, struct user *usr) {
 			usr->deltaat= 0;
 		}
 	}
-
-	// TODO: create new json object with some more info (last confirmed x, y, angle + 
-	// current gametime), send it to all (even usr?)
-	sendjsontogame(json, usr->gm, usr);
-	jsondel(json);
+	
+	// send to other players
+	{
+		int simstart= usr->ctick * TICK_LENGTH;
+		// we maken nieuwe json voor het geval dat de user allemaal shit
+		// mee heeft gestuurd in de json die we anders naar de rest zouden
+		// spammen
+		cJSON *j= jsoncreate("newInput");
+		while(simstart <= input->time){
+			usr->cangle += usr->cturn * usr->gm->ts * TICK_LENGTH / 1000.0;
+			usr->cx += cos(usr->cangle) * usr->gm->v * TICK_LENGTH / 1000.0;
+			usr->cy += sin(usr->cangle) * usr->gm->v * TICK_LENGTH / 1000.0;
+			usr->ctick++;
+			simstart += TICK_LENGTH;
+		}
+		usr->cturn= input->turn;
+		jsonaddnum(j, "gameTime", time);
+		jsonaddnum(j, "turn", turn);
+		jsonaddnum(j, "x", usr->cx);
+		jsonaddnum(j, "y", usr->cy);
+		jsonaddnum(j, "angle", usr->cangle);
+		sendjsontogame(j, usr->gm, usr);
+		jsondel(j);
+	}
 }
 

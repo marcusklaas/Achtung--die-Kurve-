@@ -8,6 +8,7 @@
 #define DEBUG_MODE 1
 #define TICK_LENGTH 15 // in msecs
 #define SERVER_DELAY 495 // in msecs, preferably veelvoud of TICK_LENGTH
+#define MAX_MESSAGE_DELAY 300
 #define COUNTDOWN	3000
 #define SB_MAX 10	// sendbuffer max size
 #define DELTA_COUNT 6
@@ -51,12 +52,16 @@ struct userinput {
 struct user{
 	int id;
 	struct game *gm;
-	char *name;
+	char *name;			// kan null blijven
 	char *sb[SB_MAX];	// sendbuffer
 	int sbat;			// sendbuffer at
 
-	float x, y, angle;	// last confirmed (these are thus ~500msec behind)
+	float x, y, angle;	// used in simulation (these are thus ~500msec behind)
 	int turn;			// -1, 0 or 1
+	char alive;
+	
+	float cx, cy, cangle;	// current location as of last received input
+	int cturn, ctick;
 
 	struct userinput *inputhead, // store unhandled user inputs in queue
 					 *inputtail; // insert at tail, remove at head
