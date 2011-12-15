@@ -177,13 +177,9 @@ GameEngine.prototype.loop = function() {
 GameEngine.prototype.addPlayer = function(player) {
 	player.game = this;
 
-	if(player.playerId != null) {
-		/* internet player */
-		var canvas = document.getObjectById(this.canvasStack.createLayer());
-		this.context = canvas.getContext('2d');
-		this.context.lineWidth = lineWidth;
+	/* internet player */
+	if(player.playerId != null)
 		this.idToPlayer[player.playerId] = this.players.length;
-	}
 
 	this.players.push(player);
 	debugLog("adding player to game");
@@ -210,11 +206,6 @@ GameEngine.prototype.start = function(startPositions) {
 	this.baseContext = canvas.getContext('2d');
 	this.baseContext.lineWidth = lineWidth;
 
-	/* create context for human player */
-	canvas = document.getObjectById(this.canvasStack.createLayer());
-	this.players[0].context = canvas.getContext('2d');
-	this.players[0].context.lineWidth = lineWidth;
-
 	/* init players */
 	for(var i = 0; i < startPositions.length; i++) {
 		var index = this.idToPlayer[ startPositions[i].playerId ];
@@ -234,15 +225,11 @@ GameEngine.prototype.start = function(startPositions) {
 	})();
 }
 
+// not sure if it works like this ;p
 window.requestAnimFrame = (function() {
-	return  window.requestAnimationFrame       ||
-			window.webkitRequestAnimationFrame ||
-			window.mozRequestAnimationFrame    ||
-			window.oRequestAnimationFrame      ||
-			window.msRequestAnimationFrame     ||
-			function(/* function */ callback, /* DOMElement */ element) {
-				window.setTimeout(callback, 1000 / 60);
-			};
+	return function(/* function */ callback, /* DOMElement */ element) {
+		window.setTimeout(callback, 1000 / 60);
+	};
 })();
 
 /* players */
@@ -319,15 +306,18 @@ Player.prototype.initialise = function(x, y, angle) {
 	this.turnSpeed = this.game.turnSpeed;
 	this.undrawnSegs = [];
 	this.alive = true;
-
 	this.lcx = this.x = x;
 	this.lcy = this.y = y;
-	this.context.moveTo(x, y);
-	this.context.strokeStyle = this.color;
-
 	this.lct = 0;
 	this.angle = angle;
 	this.turn = 0;
+
+	/* create canvas */
+	var canvas = document.getObjectById(this.game.canvasStack.createLayer());
+	this.context = canvas.getContext('2d');
+	this.context.lineWidth = lineWidth;
+	this.context.strokeStyle = this.color;
+	this.context.moveTo(x, y);
 
 	debugLog("initialising player at (" + this.x + ", " + this.y + "), angle = " + this.angle);
 }
