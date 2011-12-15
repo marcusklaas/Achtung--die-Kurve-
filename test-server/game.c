@@ -7,6 +7,7 @@
 #define TURN_SPEED 3 // radians per sec
 #define DEBUG_MODE 1
 #define TICK_LENGTH 15 // in msecs
+#define SERVER_DELAY 495 // in msecs, preferably veelvoud of TICK_LENGTH
 
 static struct game *headgame = 0;
 
@@ -388,10 +389,7 @@ int simuser(struct user *usr, struct game *gm, long simend) {
 	 * possible though. ignore all but last */
 	struct userinput *curr;
 
-	for(curr = usr->inputhead; curr; curr = curr->nxt) {
-		if(curr->time > simend)
-			break;
-
+	for(curr = usr->inputhead; curr && curr->time <= simend; curr = curr->nxt) {
 		usr->turn = curr->turn;
 		free(curr);
 	}
@@ -415,7 +413,10 @@ int simuser(struct user *usr, struct game *gm, long simend) {
 
 void simgame(struct game *gm) {
 	struct usern *usrn;
-	long simend = gm->start +++gm->tick * TICK_LENGTH;
+	long simend = gm->start +++gm->tick * TICK_LENGTH - SERVER_DELAY;
+
+	if(simend < 0)
+		return;
 
 	for(usrn = gm->usrn; usrn; usrn = usrn->nxt)
 		gm->alive -= simuser(usrn->usr, gm, simend);
@@ -444,7 +445,9 @@ void mainloop() {
 	}
 }
 
-// okay here we handle the msg user sent us
+// okay here we handle the msg user sent us. TODO: note that currently we just 
+// assume that the inputs in the inputqueue are increasing in time because we use 
+// TCP. but client could try to cheat and this may no longer be case!
 void interpretinput(cJSON *json, struct user *usr) {
 	// put it in user queue
 	struct userinput *input = smalloc(sizeof(struct userinput));
