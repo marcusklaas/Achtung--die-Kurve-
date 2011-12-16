@@ -9,7 +9,7 @@ var ultraVerbose = true;
 var simStep = 30; // in milliseconds
 
 var game;
-var syncTries = 5;
+var syncTries = 2;
 
 /* those variables we now get from server 
 var speed = 50;

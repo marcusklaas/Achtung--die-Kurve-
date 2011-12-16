@@ -32,6 +32,7 @@ function GameEngine(container) {
 	this.ping = 0;
 
 	// canvas related
+	debugLog(container);
 	this.container = container; // DOM object that contains canvas layers
 	this.canvasStack = null; // object that manages canvas layers
 	this.baseContext = null; // on this we draw conclusive segments	
@@ -65,8 +66,8 @@ GameEngine.prototype.connect = function(url, name) {
 
 			switch(obj.mode) {
 				case 'acceptUser':
-					this.players[0].playerId = obj.playerId;
-					this.idToPlayer[obj.playerId] = 0;
+					game.players[0].playerId = obj.playerId;
+					game.idToPlayer[obj.playerId] = 0;
 					break;
 				case 'joinedGame':
 					debugLog('you joined a game.');
@@ -94,14 +95,14 @@ GameEngine.prototype.connect = function(url, name) {
 
 				case 'playerDied':
 				case 'playerLeft':
-					player[game.idToPlayer[obj.playerId]].alive = false;
-					debugLog(player[game.idToPlayer[obj.playerId]].playerName +
+					game.players[game.idToPlayer[obj.playerId]].alive = false;
+					debugLog(game.players[game.idToPlayer[obj.playerId]].playerName +
 					 obj.mode.substr(5));
 					break;
 				case 'gameEnded':
 					game.gameOver = true;
-					debugLog('game ended. ' +
-					 player[game.idToPlayer[obj.winnerId]].playerName + ' won');
+					debugLog('game ended. ' + obj.winnerId != -1 ?
+					 game.players[game.idToPlayer[obj.winnerId]].playerName + ' won' : 'draw!');
 					break;
 				case 'time':
 					game.handleSyncResponse(obj.time);
@@ -135,7 +136,7 @@ GameEngine.prototype.handleSyncResponse = function(serverTime){
 		game.worstSyncPing = ping;
 	}else
 		game.ping += ping / (syncTries - 1);
-	if(game.syncTries++ < syncTries)
+	if(++game.syncTries < syncTries)
 		window.setTimeout(game.syncWithServer, game.syncTries * 50);
 	else
 		debugLog('synced with server with a maximum error of ' + game.bestSyncPing + ' msec'
@@ -150,8 +151,8 @@ GameEngine.prototype.setParams = function(obj) {
 	/* Create CanvasStack */
 	this.container.style.margin = 0;
 	this.container.style.padding = 0;
-	this.container.style.width = obj.w;
-	this.container.style.height = obj.h;
+	this.container.style.width = obj.w + 'px';
+	this.container.style.height = obj.h + 'px';
 
 	/* Set game variables */
 	this.velocity = obj.v;
@@ -169,7 +170,7 @@ GameEngine.prototype.requestGame = function() {
 		return;
 
 	this.players[0].playerName = playerName;
-	this.sendMsg('requestGame', {'playerName': playerName, 'minPlayers': 2, 'maxPlayers': 8});
+	this.sendMsg('requestGame', {'playerName': playerName, 'minPlayers': 1, 'maxPlayers': 8});
 }
 
 GameEngine.prototype.sendMsg = function(mode, data) {
@@ -223,18 +224,18 @@ GameEngine.prototype.stop = function() {
 }
 
 GameEngine.prototype.start = function(startPositions, startTime) {
-	this.gameStartTimestamp = startTime - this.getServerTime() - this.ping;
+	this.gameStartTimestamp = Date.now();// replace by startTime - this.getServerTime() - this.ping + Date.now();
 	this.lastUpdateTimestamp = Date.now();
 	this.gameOver = false;
 	
-	debugLog("starting game in " + Date.now() - this.gameStartTimestamp);
+	debugLog("starting game in " + (this.gameStartTimestamp - Date.now()));
 
 	/* create canvas stack */
-	this.canvasStack = new CanvasStack(this.container, canvasBgcolor);
+	this.canvasStack = new CanvasStack('canvasContainer', canvasBgcolor);
 
 	/* draw on background context, since we never need to redraw anything 
 	 * on this layer (only clear for new game) */
-	var canvas = document.getObjectById(this.canvasStack.getBackgroundCanvasId());
+	var canvas = document.getElementById(this.canvasStack.getBackgroundCanvasId());
 	this.baseContext = canvas.getContext('2d');
 	this.baseContext.lineWidth = lineWidth;
 
@@ -253,7 +254,8 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 		if(that.gameOver)
 			that.stop();
 		else
-			requestAnimFrame(gameLoop, that.canvas);
+			window.setTimeout(gameLoop, 1000 / 60);
+			//requestAnimFrame(gameLoop, that.canvas);
 	})();
 }
 
@@ -345,7 +347,7 @@ Player.prototype.initialise = function(x, y, angle) {
 	this.turn = 0;
 
 	/* create canvas */
-	var canvas = document.getObjectById(this.game.canvasStack.createLayer());
+	var canvas = document.getElementById(this.game.canvasStack.createLayer());
 	this.context = canvas.getContext('2d');
 	this.context.lineWidth = lineWidth;
 	this.context.strokeStyle = this.color;
@@ -431,7 +433,7 @@ InputController.prototype.keyUp = function(keyCode) {
 window.onload = function() {
 
 	/* some constants */
-	var container = document.getElementById('container');
+	var container = document.getElementById('canvasContainer');debugLog(container);
 	game = new GameEngine(container);
 	var player = new Player(playerColors[0]);
 	var inputControl = new InputController(keyCodeLeft, keyCodeRight);
