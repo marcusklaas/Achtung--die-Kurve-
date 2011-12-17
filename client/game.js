@@ -32,7 +32,6 @@ function GameEngine(container) {
 	this.ping = 0;
 
 	// canvas related
-	debugLog(container);
 	this.container = container; // DOM object that contains canvas layers
 	this.canvasStack = null; // object that manages canvas layers
 	this.baseContext = null; // on this we draw conclusive segments	
@@ -161,7 +160,7 @@ GameEngine.prototype.setParams = function(obj) {
 	debugLog("this game is for " + obj.nmin + " to " + obj.nmax + " players");
 }	
 
-GameEngine.prototype.requestGame = function() {
+GameEngine.prototype.requestGame = function(minPlayers) {
 	//var playerName = prompt('Enter your nickname');
 	// for testing reasons, we will use constant name
 	var playerName = "testPlayer" + Math.floor(Math.random() * 1000);
@@ -170,7 +169,7 @@ GameEngine.prototype.requestGame = function() {
 		return;
 
 	this.players[0].playerName = playerName;
-	this.sendMsg('requestGame', {'playerName': playerName, 'minPlayers': 1, 'maxPlayers': 8});
+	this.sendMsg('requestGame', {'playerName': playerName, 'minPlayers': minPlayers, 'maxPlayers': 8});
 }
 
 GameEngine.prototype.sendMsg = function(mode, data) {
@@ -311,7 +310,7 @@ Player.prototype.turn = function(obj) {
 
 Player.prototype.simulate = function(x, y, angle, turn, time, ctx, destX, destY) {
 	ctx.strokeStyle = this.color;
-	ctx.beginPath();
+	//ctx.beginPath();
 	ctx.moveTo(x, y);
 
 	if(destX != null)
@@ -331,7 +330,7 @@ Player.prototype.simulate = function(x, y, angle, turn, time, ctx, destX, destY)
 	if(destX != null)
 		ctx.lineTo(destX, destY);
 
-	ctx.closePath();
+	//ctx.closePath();
 	ctx.stroke();
 }
 
@@ -374,10 +373,10 @@ Player.prototype.draw = function() {
 
 	var len = this.undrawnPts.length/ 2;
 
-	this.context.beginPath();
+	//this.context.beginPath();
 	for(var i = 0; i < len; i++)
 		this.context.lineTo(this.undrawnPts[i], this.undrawnPts[i + 1]);
-	this.context.closePath();
+	//this.context.closePath();
 	this.context.stroke();
 
 	this.undrawnPts = [];
@@ -433,7 +432,7 @@ InputController.prototype.keyUp = function(keyCode) {
 window.onload = function() {
 
 	/* some constants */
-	var container = document.getElementById('canvasContainer');debugLog(container);
+	var container = document.getElementById('canvasContainer');
 	game = new GameEngine(container);
 	var player = new Player(playerColors[0]);
 	var inputControl = new InputController(keyCodeLeft, keyCodeRight);
@@ -467,12 +466,11 @@ window.onload = function() {
 		inputControl.keyUp(keyCode);
 	}
 
-	/* start! */
-	function startGame() {
-		game.requestGame();
-	};
-
-	var startButton = document.getElementById('start');
-	startButton.addEventListener('click', startGame, false);
+	var startButton = document.getElementById('start1');
+	startButton.addEventListener('click', function(){game.requestGame(1);}, false);
+	startButton = document.getElementById('start2');
+	startButton.addEventListener('click', function(){game.requestGame(2);}, false);
+	startButton = document.getElementById('start3');
+	startButton.addEventListener('click', function(){game.requestGame(3);}, false);
 	game.connect(serverURL, "game-protocol");
 }
