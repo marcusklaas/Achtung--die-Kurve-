@@ -58,7 +58,7 @@ struct user{
 
 	float x, y, angle;	// used in simulation (these are thus ~500msec behind)
 	int turn;			// -1, 0 or 1
-	char alive;
+	char alive;			// 1 for alive, 0 else
 	
 	float cx, cy, cangle;	// current location as of last received input
 	int cturn, ctick;

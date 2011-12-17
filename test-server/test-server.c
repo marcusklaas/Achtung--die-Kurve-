@@ -242,7 +242,7 @@ int main(int argc, char **argv)
 {
 	int n = 0;
 	int port = 7681;
-	int dt = 50;
+	//int dt = 50;
 	struct libwebsocket_context *context;
 	int opts = 0;
 	char interface_name[128] = "";

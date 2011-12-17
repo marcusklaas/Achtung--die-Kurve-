@@ -88,7 +88,7 @@ void sendstr(char *buf, struct user *u){
 	tmp= smalloc(lwsprepadding + strlen(buf + lwsprepadding) + 1 + lwspostpadding);
 	memcpy(tmp, buf, lwsprepadding + strlen(buf + lwsprepadding) + 1 + lwspostpadding);
 	u->sb[u->sbat++]= tmp;
-	if(debug) printf("queued msg %s, will be send to user %d\n", tmp + lwsprepadding, u->id);
+	if(debug) printf("queued msg %s, will be sent to user %d\n", tmp + lwsprepadding, u->id);
 	libwebsocket_callback_on_writable(ctx, u->wsi);
 }
 
