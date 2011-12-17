@@ -365,6 +365,7 @@ int addsegment(struct game *gm, struct seg *seg) {
 			for(current = gm->seg[gm->htiles * j + i]; current; current = current->nxt)
 				if(segcollision(current, seg)) {
 					collision = 1;
+					if(DEBUG_MODE) printf("collision!\n");
 					break;
 				}
 
@@ -372,6 +373,7 @@ int addsegment(struct game *gm, struct seg *seg) {
 			copy = smalloc(sizeof(struct seg));
 			memcpy(copy, seg, sizeof(struct seg));
 			copy->nxt = gm->seg[gm->htiles * j + i];
+			*(gm->seg + gm->htiles * j + i) = copy;
 		}
 	}
 
@@ -460,10 +462,15 @@ void mainloop() {
 	int sleeptime;
 	struct game *gm;
 
-	while(5000) {
+	printf("entered main loop!\n");
+
+	while(1) {
 		for(gm = headgame; gm; gm = gm->nxt)
 			if(gm->state == GS_STARTED)
 				simgame(gm);
+
+		if(DEBUG_MODE)
+			printf("servertick!\n");
 
 		sleeptime = ++serverticks * TICK_LENGTH - epochmsecs();
 		if(sleeptime > 0)

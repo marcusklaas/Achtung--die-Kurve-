@@ -173,7 +173,7 @@ GameEngine.prototype.requestGame = function() {
 		return;
 
 	this.players[0].playerName = playerName;
-	this.sendMsg('requestGame', {'playerName': playerName, 'minPlayers': 2, 'maxPlayers': 8});
+	this.sendMsg('requestGame', {'playerName': playerName, 'minPlayers': 1, 'maxPlayers': 8});
 }
 
 GameEngine.prototype.sendMsg = function(mode, data) {
