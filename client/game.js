@@ -91,7 +91,10 @@ GameEngine.prototype.connect = function(url, name) {
 				case 'newInput':
 					game.players[game.idToPlayer[obj.playerId]].steer(obj);
 					break;
-
+				case 'adjustGameTime':
+					debugLog('adjusted game time by ' + obj.forward + ' msec');
+					game.gameStartTimestamp += obj.forward;
+					break;
 				// TODO: handle case where player leaves before game start
 				// its gonna be ugly.. restructure game.players and game.idToPlayer
 

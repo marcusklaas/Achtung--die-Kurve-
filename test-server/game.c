@@ -81,6 +81,7 @@ void remgame(struct game *gm){
 	
 	for(current = gm->usrn; current; current = next) {
 		next = current->nxt;
+		current->usr->gm= 0;
 		free(current);
 	}
 
@@ -280,9 +281,20 @@ int segcollision(struct seg *seg1, struct seg *seg2) {
 	int numer_b = (seg1->x2 - seg1->x1) * (seg1->y1 - seg2->y1) -
 	 (seg1->y2 - seg1->y1) * (seg1->x1 - seg2->x1);
 
-	/* lines coincide */
-	if(abs(numer_a) < EPS && abs(numer_b) < EPS && abs(denom) < EPS)
-		return 1;
+	/* lines are colinear */
+	if(abs(numer_a) < EPS && abs(numer_b) < EPS && abs(denom) < EPS){
+		int a, b, c, d, e;
+		
+		if(seg1->x1 - seg1->x2 < EPS){
+			a= seg1->y1; b= seg1->y2; c= seg2->y1; d= seg2->y2;
+		}else{
+			a= seg1->x1; b= seg1->x2; c= seg2->x1; d= seg2->x2;
+		}
+		if(a>b) { e=a; a=b; b=e; }
+		if(c>d) { e=c; c=d; d=c; }
+		
+		return (c < b && d > a);
+	}
 
 	/* lines parallel */
 	if(abs(denom) < EPS)
@@ -364,6 +376,7 @@ int addsegment(struct game *gm, struct seg *seg) {
 
 			for(current = gm->seg[gm->htiles * j + i]; current; current = current->nxt)
 				if(segcollision(current, seg)) {
+					printseg(current);printf(" collided with ");printseg(seg);printf("\n");
 					collision = 1;
 					break;
 				}
@@ -372,6 +385,7 @@ int addsegment(struct game *gm, struct seg *seg) {
 			copy = smalloc(sizeof(struct seg));
 			memcpy(copy, seg, sizeof(struct seg));
 			copy->nxt = gm->seg[gm->htiles * j + i];
+			gm->seg[gm->htiles * j + i] = copy;
 		}
 	}
 
@@ -418,7 +432,7 @@ int simuser(struct user *usr, long simstart) {
 void simgame(struct game *gm) {
 	struct usern *usrn;
 	long simstart;
-	
+
 	// we beginnen te ticken na gm->start + SERVER_DELAY
 	if(epochmsecs() < gm->start + SERVER_DELAY)
 		return;
@@ -440,9 +454,10 @@ void simgame(struct game *gm) {
 		}
 	}
 	
-	if(gm->alive <= 1) {
+	if(gm->alive <= 1 && (gm->nmin > 1 || gm->alive < 1)) {
 		cJSON *json= jsoncreate("endGame");
 		struct user *winner = 0;
+
 		for(usrn = gm->usrn; usrn; usrn = usrn->nxt)
 			if(usrn->usr->alive){
 				winner= usrn->usr;
@@ -451,23 +466,32 @@ void simgame(struct game *gm) {
 		jsonaddnum(json, "winnerId", winner ? winner->id : -1);
 		sendjsontogame(json, gm, 0);
 		jsondel(json);
+		
+		printf("game %p ended. winnerId = %d\n", (void*)gm, winner ? winner->id : -1);
 		remgame(gm);
 	}
 }
 
 // deze functie called simgame zo goed als mogelijk elke TICK_LENGTH msec (voor elke game)
 void mainloop() {
-	int sleeptime;
-	struct game *gm;
+	int sleepuntil;
+	struct game *gm, *nxtgm;
 
-	while(5000) {
-		for(gm = headgame; gm; gm = gm->nxt)
+	while(1) {
+		for(gm = headgame; gm; gm = nxtgm){
+			nxtgm= gm->nxt; // in the case that gm get freed
 			if(gm->state == GS_STARTED)
 				simgame(gm);
-
-		sleeptime = ++serverticks * TICK_LENGTH - epochmsecs();
-		if(sleeptime > 0)
-			usleep(1000 * sleeptime);
+		}
+		
+		sleepuntil= ++serverticks * TICK_LENGTH;
+		do{
+			libwebsocket_service(ctx, sleepuntil - epochmsecs());
+		}while(sleepuntil - epochmsecs() > 0);
+		
+		//sleeptime = ++serverticks * TICK_LENGTH - epochmsecs();
+		//if(sleeptime > 0)
+		//	usleep(1000 * sleeptime);
 	}
 }
 
