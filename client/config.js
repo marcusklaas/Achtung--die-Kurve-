@@ -8,13 +8,9 @@ var lineWidth = 3; // only visual, does not influence collisions
 var ultraVerbose = true;
 var simStep = 30; // in milliseconds
 
-var game;
+// var game; uhh why?
 var syncTries = 2;
-
-/* those variables we now get from server 
-var speed = 50;
-var turnSpeed = 6;
-*/
+var syncDelays = 50;
 
 var canvasBgcolor = "#D0D0D0";
 
