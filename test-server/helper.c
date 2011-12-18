@@ -165,5 +165,5 @@ void printgames(){
 }
 
 void printseg(struct seg *seg){
-	printf("(%f, %f)->(%f, %f)",seg->x1,seg->y1,seg->x2,seg->y2);
+	printf("(%.1f, %.1f)->(%.1f, %.1f)",seg->x1,seg->y1,seg->x2,seg->y2);
 }

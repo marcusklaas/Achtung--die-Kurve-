@@ -68,78 +68,11 @@ GameEngine.prototype.connect = function(url, name) {
 			game.connected = true;
 			game.syncWithServer();
 		}
-		this.websocket.onmessage = function got_packet(msg) {
-			if(ultraVerbose)
-				debugLog('received data: ' + msg.data);
-
-			try {
-				var obj = JSON.parse(msg.data);
-			}
-			catch(ex) {
-				debugLog('JSON parse exception!');
-			}
-
-			switch(obj.mode) {
-				case 'acceptUser':
-					game.players[0].playerId = obj.playerId;
-					game.idToPlayer[obj.playerId] = 0;
-					break;
-				case 'joinedGame':
-					debugLog('you joined a game.');
-					break;
-				case 'gameParameters':
-					game.setParams(obj);
-					debugLog('received game params.');
-					break;				
-				case 'newPlayer':
-					var newPlayer = new Player(playerColors[game.players.length], false);
-					newPlayer.playerId = obj.playerId;
-					newPlayer.playerName = obj.playerName;
-					game.addPlayer(newPlayer);
-					debugLog(obj.playerName + ' joined the game (id = ' + obj.playerId + ')');
-					break;
-				case 'startGame':
-					game.start(obj.startPositions, obj.startTime);
-					break;
-				case 'newInput':
-					game.players[game.idToPlayer[obj.playerId]].steer(obj);
-					break;
-				case 'adjustGameTime':
-					debugLog('adjusted game time by ' + obj.forward + ' msec');
-					game.gameStartTimestamp += obj.forward;
-					break;
-				case 'playerLeft':
-					var index = game.idToPlayer[obj.playerId];
-					debugLog(game.players[index].playerName + " left game");
-
-					if(game.gameOver) {
-						for(var i = index + 1; i < game.players.length; i++)
-							game.idToPlayer[game.players[i].playerId] = i - 1;
-
-						game.players.splice(index, 1);
-					}
-					else
-						game.players[index].alive = false;
-
-					break;
-				case 'playerDied':
-					game.players[game.idToPlayer[obj.playerId]].alive = false;
-					debugLog(game.players[game.idToPlayer[obj.playerId]].playerName +
-					 " died");
-					break;
-				case 'endGame':
-					var winner = (obj.winnerId != -1)
-					 ? (game.players[game.idToPlayer[obj.winnerId]].playerName + ' won')
-					 : 'draw!';
-					game.gameOver = true;
-					debugLog('game ended. ' + winner);
-					break;
-				case 'time':
-					game.handleSyncResponse(obj.time);
-					break;
-				default:
-					debugLog('unknown mode!');
-			}
+		this.websocket.onmessage = function(msg) {
+			if(simulatedPing > 0)
+				window.setTimeout(function(){got_packet(msg);}, simulatedPing);
+			else
+				got_packet(msg);
 		}
 		this.websocket.onclose = function() {
 			debugLog('Websocket connection closed!');
@@ -148,6 +81,79 @@ GameEngine.prototype.connect = function(url, name) {
 	} catch(exception) {
 		debugLog('websocket exception! name = ' + exception.name + ", message = "
 		 + exception.message);
+	}
+}
+function got_packet(msg) {
+	if(ultraVerbose)
+		debugLog('received data: ' + msg.data);
+
+	try {
+		var obj = JSON.parse(msg.data);
+	}
+	catch(ex) {
+		debugLog('JSON parse exception!');
+	}
+
+	switch(obj.mode) {
+		case 'acceptUser':
+			game.players[0].playerId = obj.playerId;
+			game.idToPlayer[obj.playerId] = 0;
+			break;
+		case 'joinedGame':
+			debugLog('you joined a game.');
+			break;
+		case 'gameParameters':
+			game.setParams(obj);
+			debugLog('received game params.');
+			break;				
+		case 'newPlayer':
+			var newPlayer = new Player(playerColors[game.players.length], false);
+			newPlayer.playerId = obj.playerId;
+			newPlayer.playerName = obj.playerName;
+			game.addPlayer(newPlayer);
+			debugLog(obj.playerName + ' joined the game (id = ' + obj.playerId + ')');
+			break;
+		case 'startGame':
+			game.start(obj.startPositions, obj.startTime);
+			break;
+		case 'newInput':
+			game.players[game.idToPlayer[obj.playerId]].steer(obj);
+			break;
+		case 'adjustGameTime':
+			debugLog('adjusted game time by ' + obj.forward + ' msec');
+			game.gameStartTimestamp += obj.forward;
+			break;
+		case 'playerLeft':
+			var index = game.idToPlayer[obj.playerId];
+			debugLog(game.players[index].playerName + " left game");
+
+			if(game.gameOver) {
+				for(var i = index + 1; i < game.players.length; i++)
+					game.idToPlayer[game.players[i].playerId] = i - 1;
+
+				game.players.splice(index, 1);
+			}
+			else
+				game.players[index].alive = false;
+
+			break;
+		case 'playerDied':
+			game.players[game.idToPlayer[obj.playerId]].alive = false;
+			debugLog(game.players[game.idToPlayer[obj.playerId]].playerName +
+			 " died");
+			break;
+		case 'endGame':
+			var winner = (obj.winnerId != -1)
+			 ? (game.players[game.idToPlayer[obj.winnerId]].playerName + ' won')
+			 : 'draw!';
+			game.gameOver = true;
+			debugLog('game ended. ' + winner);
+			break;
+		case 'time':
+			game.handleSyncResponse(obj.time);
+			break;
+		default:
+			debugLog('unknown mode!');
 	}
 }
 
@@ -212,10 +218,20 @@ GameEngine.prototype.sendMsg = function(mode, data) {
 	data.mode = mode;
 
 	var str = JSON.stringify(data);
-	this.websocket.send(str);
-
-	if(ultraVerbose)
-		debugLog('sending data: ' + str);
+	
+	if(simulatedPing > 0){
+		var that = this;
+		window.setTimeout(function(){
+			that.websocket.send(str);
+			if(ultraVerbose)
+				debugLog('sending data: ' + str);
+		}, simulatedPing);	
+	}
+	else{
+		this.websocket.send(str);
+		if(ultraVerbose)
+			debugLog('sending data: ' + str);
+	}
 }
 
 GameEngine.prototype.syncWithServer = function(){

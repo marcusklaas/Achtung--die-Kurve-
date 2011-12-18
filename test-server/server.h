@@ -1,4 +1,4 @@
-#define EPS 0.001
+#define EPS 0.00000001
 #define GAME_WIDTH 800
 #define GAME_HEIGHT 400
 #define TILE_WIDTH 80
