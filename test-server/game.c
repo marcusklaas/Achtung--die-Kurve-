@@ -19,7 +19,7 @@ void startgame(struct game *gm){
 	float *player_locations = smalloc(3 * gm->n * sizeof(float));
 	randomizePlayerStarts(gm, player_locations);
 
-	gm->start = epochmsecs() + COUNTDOWN;
+	gm->start = servermsecs() + COUNTDOWN;
 	gm->state = GS_STARTED;
 	gm->alive= gm->n;
 
@@ -368,6 +368,17 @@ int addsegment(struct game *gm, struct seg *seg) {
 		swap = bottom_tile; bottom_tile = top_tile; top_tile = swap;
 	}
 
+	/* run off screen */
+	if(left_tile < 0 || right_tile >= gm->htiles
+	 || bottom_tile < 0 || top_tile >= gm->vtiles) {
+		collision = 1;
+
+		left_tile = (left_tile < 0) ? 0 : left_tile;
+		right_tile = (right_tile >= gm->htiles) ? (gm->htiles - 1) : right_tile;
+		bottom_tile = (bottom_tile < 0) ? 0 : bottom_tile;
+		top_tile = (top_tile >= gm->vtiles) ? (gm->vtiles - 1) : top_tile;
+	}		
+
 	for(int i = left_tile; i <= right_tile; i++) {
 		for(int j = bottom_tile; j <= top_tile; j++) {
 			if(!lineboxcollision(seg, i * gm->tilew, j * gm->tileh,
@@ -378,7 +389,6 @@ int addsegment(struct game *gm, struct seg *seg) {
 				if(segcollision(current, seg)) {
 					printseg(current);printf(" collided with ");printseg(seg);printf("\n");
 					collision = 1;
-					if(DEBUG_MODE) printf("collision!\n");
 					break;
 				}
 
@@ -435,7 +445,7 @@ void simgame(struct game *gm) {
 	long simstart;
 
 	// we beginnen te ticken na gm->start + SERVER_DELAY
-	if(epochmsecs() < gm->start + SERVER_DELAY)
+	if(servermsecs() < gm->start + SERVER_DELAY)
 		return;
 
 	simstart= gm->tick * TICK_LENGTH;		
@@ -487,8 +497,8 @@ void mainloop() {
 		
 		sleepuntil= ++serverticks * TICK_LENGTH;
 		do{
-			libwebsocket_service(ctx, sleepuntil - epochmsecs());
-		}while(sleepuntil - epochmsecs() > 0);
+			libwebsocket_service(ctx, sleepuntil - servermsecs());
+		}while(sleepuntil - servermsecs() > 0);
 	}
 }
 
@@ -505,11 +515,11 @@ void interpretinput(cJSON *json, struct user *usr) {
 		if(showwarning)
 			printf("input messages of user %d are being received out of order!\n", usr->id);
 		return;
-	}else if(epochmsecs() - usr->gm->start - time > MAX_MESSAGE_DELAY){
+	}else if(servermsecs() - usr->gm->start - time > MAX_MESSAGE_DELAY){
 		if(showwarning)
 			printf("received msg from user %d of %d msec old! modifying message..\n", usr->id,
-				(int) (epochmsecs() - usr->gm->start - time));
-		time= epochmsecs() - usr->gm->start - MAX_MESSAGE_DELAY;
+				(int) (servermsecs() - usr->gm->start - time));
+		time= servermsecs() - usr->gm->start - MAX_MESSAGE_DELAY;
 	}
 	
 	// put it in user queue
@@ -524,7 +534,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 		usr->inputtail = usr->inputtail->nxt = input; // ingenious or wat
 		
 	// check if user needs to adjust her gametime
-	usr->delta[usr->deltaat++]= input->time - (epochmsecs() - usr->gm->start);
+	usr->delta[usr->deltaat++]= input->time - (servermsecs() - usr->gm->start);
 	if(usr->deltaat == DELTA_COUNT){
 		usr->deltaat= 0;
 		usr->deltaon= 1;

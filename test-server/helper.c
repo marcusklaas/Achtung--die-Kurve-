@@ -131,12 +131,14 @@ void *smalloc(size_t size){
 	return a;
 }
 
-long epochmsecs(){
+/* renamed to servermsecs because by epochmsecs i meant milliseconds since epoch
+ * which is 00:00 january 1st 1970 */
+long servermsecs(){
 	struct timeval tv;
 	static long serverstart= -1;
 	if(serverstart == -1){
 		serverstart= 0;
-		serverstart= epochmsecs();
+		serverstart= servermsecs();
 	}
 	gettimeofday(&tv, 0);
 	return 1000 * tv.tv_sec + tv.tv_usec/ 1000 - serverstart;

@@ -164,7 +164,7 @@ callback_game(struct libwebsocket_context * context,
 		}
 		if(!strcmp(mode, "getTime")){
 			cJSON *j= jsoncreate("time");
-			jsonaddnum(j, "time", (int)epochmsecs());
+			jsonaddnum(j, "time", (int)servermsecs());
 			sendjson(j, u);
 			jsondel(j);
 		}

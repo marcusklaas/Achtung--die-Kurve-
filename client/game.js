@@ -169,8 +169,8 @@ GameEngine.prototype.setParams = function(obj) {
 	/* Create CanvasStack */
 	container.style.margin = 0;
 	container.style.padding = 0;
-	container.style.width = this.width = obj.w + 'px';
-	container.style.height = this.height = obj.h + 'px';
+	container.style.width = (this.width = obj.w) + 'px';
+	container.style.height = (this.height = obj.h) + 'px';
 
 	/* Set game variables */
 	this.velocity = obj.v;
@@ -187,6 +187,7 @@ GameEngine.prototype.requestGame = function(minPlayers) {
 	if(typeof playerName != "string" || playerName.length < 1)
 		return;
 
+	this.players[0].playerName = playerName;
 	this.sendMsg('requestGame', {'playerName': playerName, 'minPlayers': minPlayers, 'maxPlayers': 8});
 }
 
@@ -237,10 +238,11 @@ GameEngine.prototype.addPlayer = function(player) {
 
 GameEngine.prototype.start = function(startPositions, startTime) {
 	this.gameStartTimestamp = startTime - this.getServerTime() - this.ping + Date.now();
-	this.lastUpdateTimestamp = Date.now();
+	this.lastUpdateTimestamp = this.gameStartTimestamp;
 	this.gameOver = false;
+	var delay = this.gameStartTimestamp - Date.now();
 	
-	debugLog("starting game in " + (this.gameStartTimestamp - Date.now()));
+	debugLog("starting game in " + delay);
 
 	/* create canvas stack */
 	this.canvasStack = new CanvasStack(this.containerId, canvasBgcolor);
@@ -253,19 +255,21 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 
 	/* init players */
 	for(var i = 0; i < startPositions.length; i++) {
-		var index = this.idToPlayer[ startPositions[i].playerId ];
+		var index = this.idToPlayer[startPositions[i].playerId];
 		this.players[index].initialise(startPositions[i].startX,
 		 startPositions[i].startY, startPositions[i].startAngle);
 	}
 
 	var that = this;
 
-	(function gameLoop() {
+	var gameloop = function() {
 		that.loop();
 
 		if(!that.gameOver)
-			window.setTimeout(gameLoop, 1000 / 60);
-	})();
+			window.setTimeout(gameloop, 1000 / 60);
+	}
+
+	window.setTimeout(gameloop, delay);
 }
 
 /* players */
