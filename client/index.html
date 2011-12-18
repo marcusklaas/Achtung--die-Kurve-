@@ -9,9 +9,12 @@
 	</head>
 	<body>
 		<div id="canvasContainer"></div>
-		<button id="start1">Start 1 player game!</button>
-		<button id="start2">Start 2 player game!</button>
-		<button id="start3">Start 3 player game!</button>	
+		<div id="controls">
+			<input type="text" id="playername" placeholder="playername" />
+			minplayers: <input type="number" min="1" max="8" steps="1" value="2" id="minplayers" />
+			maxplayers: <input type="number" min="1" max="8" steps="1" value="8" id="maxplayers" />
+			<button id="start">Request Game</button>
+		</div>
 		<ul id="debugLog"></ul>
 	</body>
 </html>

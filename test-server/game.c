@@ -12,6 +12,19 @@ void randomizePlayerStarts(struct game *gm, float *buf) {
 	}
 }
 
+/* this is neccesary because when user joins second game, s/he gets 
+ * INPUT MESSAGE OUT OF ORDER errors */
+void clearinputqueue(struct user *usr) {
+	struct userinput *inp, *nxt;
+
+	for(inp = usr->inputhead; inp; inp = nxt) {
+		nxt = inp->nxt;
+		free(inp);
+	}
+
+	usr->inputhead = usr->inputtail = 0;
+}
+
 void startgame(struct game *gm){ 
 	if(DEBUG_MODE)
 		printf("startgame called!\n");
@@ -35,12 +48,11 @@ void startgame(struct game *gm){
 	for(usrn = gm->usrn; usrn; usrn = usrn->nxt) {
 		usr = usrn->usr;
 
-		usr->x = player_locations[3 * i];
-		usr->y = player_locations[3 * i + 1];
-		usr->angle = player_locations[3 * i + 2];
-		usr->turn= 0; usr->cturn= 0;
+		usr->cx = usr->x = player_locations[3 * i];
+		usr->cy = usr->y = player_locations[3 * i + 1];
+		usr->cangle= usr->angle = player_locations[3 * i + 2];
+		usr->turn = usr->cturn= 0;
 		usr->alive= 1;
-		usr->cx= usr->x; usr->cy= usr->y; usr->cangle= usr->angle;
 		usr->ctick= 0;
 
 		cJSON *player = cJSON_CreateObject();
@@ -82,6 +94,7 @@ void remgame(struct game *gm){
 	for(current = gm->usrn; current; current = next) {
 		next = current->nxt;
 		current->usr->gm= 0;
+		clearinputqueue(current->usr);
 		free(current);
 	}
 
@@ -136,13 +149,7 @@ void leavegame(struct user *u) {
 	if(DEBUG_MODE)
 		printf("leavegame called \n");
 
-	if(!u || !(gm = u->gm))
-		return;
-		
-	if(!gm->usrn){
-		fprintf(stderr, "no users!\n");
-		return;
-	}
+	clearinputqueue(u);
 	
 	if(gm->usrn->usr == u){
 		tmp= gm->usrn;
@@ -150,13 +157,6 @@ void leavegame(struct user *u) {
 		free(tmp);
 	}else{
 		for(current = gm->usrn; current->nxt && current->nxt->usr != u; current = current->nxt);
-
-		// this should never be the case
-		if(!current->nxt) {
-			printf("this is not possible!\n");
-			return;
-		}
-
 		tmp = current->nxt;
 		current->nxt = tmp->nxt;
 		free(tmp);
@@ -172,6 +172,9 @@ void leavegame(struct user *u) {
 		jsonaddnum(json, "playerId", u->id);
 		sendjsontogame(json, gm, 0);
 		cJSON_Delete(json);
+
+		if(gm->alive <= 1);
+			//send_message_game_over
 	}
 
 	u->gm = NULL;	
@@ -272,36 +275,38 @@ int segcollision(struct seg *seg1, struct seg *seg2) {
 	if(seg1->x2 == seg2->x1 && seg1->y2 == seg2->y1)
 		return 0;
 
-	int denom = (seg1->x1 - seg1->x2) * (seg2->y1 - seg2->y2) -
+	float denom = (seg1->x1 - seg1->x2) * (seg2->y1 - seg2->y2) -
 	 (seg1->y1 - seg1->y2) * (seg2->x1 - seg2->x2);
 
-	int numer_a = (seg2->x2 - seg2->x1) * (seg1->y1 - seg2->y1) -
+	float numer_a = (seg2->x2 - seg2->x1) * (seg1->y1 - seg2->y1) -
 	 (seg2->y2 - seg2->y1) * (seg1->x1 - seg2->x1);
 
-	int numer_b = (seg1->x2 - seg1->x1) * (seg1->y1 - seg2->y1) -
+	float numer_b = (seg1->x2 - seg1->x1) * (seg1->y1 - seg2->y1) -
 	 (seg1->y2 - seg1->y1) * (seg1->x1 - seg2->x1);
 
-	/* lines are colinear */
-	if(abs(numer_a) < EPS && abs(numer_b) < EPS && abs(denom) < EPS){
-		int a, b, c, d, e;
+	/* segments are parallel */
+	if(fabs(denom) < EPS){
+		/* segments are on same line */
+		if(fabs(numer_a) < EPS && fabs(numer_b) < EPS) {
+			float a, b, c, d, e;
 		
-		if(seg1->x1 - seg1->x2 < EPS){
-			a= seg1->y1; b= seg1->y2; c= seg2->y1; d= seg2->y2;
-		}else{
-			a= seg1->x1; b= seg1->x2; c= seg2->x1; d= seg2->x2;
+			if(seg1->x1 - seg1->x2 < EPS) {
+				a= seg1->y1; b= seg1->y2; c= seg2->y1; d= seg2->y2;
+			} else {
+				a= seg1->x1; b= seg1->x2; c= seg2->x1; d= seg2->x2;
+			}
+		
+			if(a>b) { e=a; a=b; b=e; }
+			if(c>d) { e=c; c=d; d=c; }
+		
+			return (c < b && d > a);
 		}
-		if(a>b) { e=a; a=b; b=e; }
-		if(c>d) { e=c; c=d; d=c; }
-		
-		return (c < b && d > a);
+
+		return 0;
 	}
 
-	/* lines parallel */
-	if(abs(denom) < EPS)
-		return 0;
-
-	int a = numer_a/ denom;
-	int b = numer_b/ denom;
+	float a = numer_a/ denom;
+	float b = numer_b/ denom;
 
 	if(a < 0 || a > 1 || b < 0 || b > 1)
 		return 0;
@@ -369,8 +374,7 @@ int addsegment(struct game *gm, struct seg *seg) {
 	}
 
 	/* run off screen */
-	if(left_tile < 0 || right_tile >= gm->htiles
-	 || bottom_tile < 0 || top_tile >= gm->vtiles) {
+	if(seg->x2 < 0 || seg->x2 >= gm->w || seg->y2 < 0 || seg->y2 >= gm->h) {
 		collision = 1;
 
 		left_tile = (left_tile < 0) ? 0 : left_tile;
@@ -490,7 +494,7 @@ void mainloop() {
 
 	while(1) {
 		for(gm = headgame; gm; gm = nxtgm){
-			nxtgm= gm->nxt; // in the case that gm get freed
+			nxtgm= gm->nxt; // in the case that gm gets freed
 			if(gm->state == GS_STARTED)
 				simgame(gm);
 		}

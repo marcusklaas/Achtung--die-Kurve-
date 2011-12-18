@@ -39,6 +39,20 @@ function GameEngine(containerId) {
 	this.baseContext = null; // on this we draw conclusive segments	
 }
 
+/* a lot of values we do not clear, but we do not care for them as they 
+ * will get overwritten as soon as new game starts */
+GameEngine.prototype.reset = function() {
+	var localPlayer = this.players[0];
+	this.players = [];
+	this.players.push(localPlayer);
+	this.canvasStack = null;
+	this.baseContext = null;
+
+	var container = document.getElementById(this.containerId);
+	while(container.hasChildNodes())
+		container.removeChild(container.firstChild);
+}
+
 GameEngine.prototype.connect = function(url, name) {
 	if(typeof MozWebSocket != "undefined")
 		this.websocket = new MozWebSocket(url, name);
@@ -179,16 +193,13 @@ GameEngine.prototype.setParams = function(obj) {
 	debugLog("this game is for " + obj.nmin + " to " + obj.nmax + " players");
 }	
 
-GameEngine.prototype.requestGame = function(minPlayers) {
-	//var playerName = prompt('Enter your nickname');
-	// for testing reasons, we will use constant name
-	var playerName = "testPlayer" + Math.floor(Math.random() * 1000);
-
-	if(typeof playerName != "string" || playerName.length < 1)
+GameEngine.prototype.requestGame = function(playerName, minPlayers, maxPlayers) {
+	if(!this.gameOver)
 		return;
 
+	this.reset();
 	this.players[0].playerName = playerName;
-	this.sendMsg('requestGame', {'playerName': playerName, 'minPlayers': minPlayers, 'maxPlayers': 8});
+	this.sendMsg('requestGame', {'playerName': playerName, 'minPlayers': minPlayers, 'maxPlayers': maxPlayers});
 }
 
 GameEngine.prototype.sendMsg = function(mode, data) {
@@ -309,23 +320,29 @@ Player.prototype.steer = function(obj) {
 	this.lcy = this.y = obj.y;
 	this.lca = this.angle = obj.angle;
 	this.lct = obj.gameTime;
-	this.lcturn = this.turn = obj.turn;		
+	this.lcturn = obj.turn;	
+
+	if(!this.isLocal)
+		this.turn = obj.turn;
 
 	/* clear this players canvas and run simulation on this player's
 	 * context from timestamp in object to NOW */
 	this.context.clearRect(0, 0, this.game.width, this.game.height);
 	var simtime = (Date.now() - this.game.gameStartTimestamp) - this.lct;
-	var end = this.simulate(this.lcx, this.lcy, this.lca, this.turn,
-	 simtime, this.context, null, null);
 
-	this.x = end[0];
-	this.y = end[1];
-	this.angle = end[2];
+	if(!this.isLocal) {
+		var end = this.simulate(this.lcx, this.lcy, this.lca, this.turn,
+		 simtime, this.context, null, null);
+
+		this.x = end[0];
+		this.y = end[1];
+		this.angle = end[2];
+	}
 }
 
 Player.prototype.simulate = function(x, y, angle, turn, time, ctx, destX, destY) {
 	ctx.strokeStyle = this.color;
-	//ctx.beginPath();
+	ctx.beginPath();
 	ctx.moveTo(x, y);
 
 	if(destX != null)
@@ -356,7 +373,7 @@ Player.prototype.initialise = function(x, y, angle) {
 	this.lcx = this.x = x;
 	this.lcy = this.y = y;
 	this.lct = 0;
-	this.angle = angle;
+	this.lca = this.angle = angle;
 	this.turn = 0;
 
 	/* create canvas */
@@ -464,11 +481,21 @@ window.onload = function() {
 		inputControl.keyUp(keyCode);
 	}
 
-	var startButton = document.getElementById('start1');
-	startButton.addEventListener('click', function(){game.requestGame(1);}, false);
-	startButton = document.getElementById('start2');
-	startButton.addEventListener('click', function(){game.requestGame(2);}, false);
-	startButton = document.getElementById('start3');
-	startButton.addEventListener('click', function(){game.requestGame(3);}, false);
+	var startButton = document.getElementById('start');
+	startButton.addEventListener('click', function() {
+		var maxPlayers = parseInt(document.getElementById('maxplayers').value);
+		var minPlayers = parseInt(document.getElementById('minplayers').value);
+		var playerName = document.getElementById('playername').value;
+		
+		if(typeof playerName != "string" || playerName.length < 1)
+			debugLog('enter a cool playername please');
+
+		if(maxPlayers > 8 || maxPlayers < 1 || minPlayers > 8 || minPlayers < 1
+		 || minPlayers > maxPlayers)
+			debugLog('min/ maxplayers unacceptable!');
+
+		game.requestGame(playerName, minPlayers, maxPlayers);
+	}, false);
+
 	game.connect(serverURL, "game-protocol");
 }
