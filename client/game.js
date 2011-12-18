@@ -78,7 +78,7 @@ GameEngine.prototype.connect = function(url, name) {
 					debugLog('received game params.');
 					break;				
 				case 'newPlayer':
-					var newPlayer = new Player(playerColors[game.players.length]);
+					var newPlayer = new Player(playerColors[game.players.length], false);
 					newPlayer.playerId = obj.playerId;
 					newPlayer.playerName = obj.playerName;
 					game.addPlayer(newPlayer);
@@ -273,7 +273,8 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 }
 
 /* players */
-function Player(color) {
+function Player(color, local) {
+	this.isLocal = local;
 	this.playerId = null;
 	this.playerName = null;
 	this.velocity = null; //pixels per sec
@@ -291,13 +292,16 @@ function Player(color) {
 	this.context = null; // this is the canvas context in which we draw simulation
 	this.alive = false;
 
+	//only for local player
+	this.lcturn = 0;
+
 	debugLog("creating player");
 }
 
 Player.prototype.steer = function(obj) {
 	/* run simulation from lcx, lcy on the conclusive canvas from time 
 	 * lct to timestamp in object */
-	this.simulate(this.lcx, this.lcy, this.lca, this.turn,
+	this.simulate(this.lcx, this.lcy, this.lca, this.lcturn,
 	 obj.gameTime - this.lct, this.game.baseContext, obj.x, obj.y);
 
 	/* here we sync with server */
@@ -305,7 +309,7 @@ Player.prototype.steer = function(obj) {
 	this.lcy = this.y = obj.y;
 	this.lca = this.angle = obj.angle;
 	this.lct = obj.gameTime;
-	this.turn = obj.turn;
+	this.lcturn = this.turn = obj.turn;		
 
 	/* clear this players canvas and run simulation on this player's
 	 * context from timestamp in object to NOW */
@@ -430,7 +434,7 @@ window.onload = function() {
 
 	/* some constants */
 	game = new GameEngine('canvasContainer');
-	var player = new Player(playerColors[0]);
+	var player = new Player(playerColors[0], true);
 	var inputControl = new InputController(keyCodeLeft, keyCodeRight);
 	
 	inputControl.setGame(game);
