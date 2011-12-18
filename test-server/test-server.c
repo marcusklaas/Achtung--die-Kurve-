@@ -134,11 +134,11 @@ callback_game(struct libwebsocket_context * context,
 		break;
 		
 	case LWS_CALLBACK_SERVER_WRITEABLE:
-		if(debug) printf("LWS_CALLBACK_SERVER_WRITEABLE. %d queued messages\n", u->sbat);
+		if(ULTRA_VERBOSE) printf("LWS_CALLBACK_SERVER_WRITEABLE. %d queued messages\n", u->sbat);
 
 		for(int i = 0; i < u->sbat; i++) {
 			char *s= u->sb[i];
-			if(debug) printf("send msg %s to user %d\n", s + lwsprepadding, u->id);
+			if(ULTRA_VERBOSE) printf("send msg %s to user %d\n", s + lwsprepadding, u->id);
 			libwebsocket_write(wsi, (unsigned char*) s + lwsprepadding, strlen(s + lwsprepadding), LWS_WRITE_TEXT);
 			free(s);
 		}
@@ -150,7 +150,7 @@ callback_game(struct libwebsocket_context * context,
 		break;
 
 	case LWS_CALLBACK_RECEIVE:
-		if(debug) printf("received: %s\n", inchar);
+		if(ULTRA_VERBOSE) printf("received: %s\n", inchar);
 		
 		json= cJSON_Parse(inchar);
 		if(!json){
@@ -247,18 +247,6 @@ int main(int argc, char **argv)
 	int opts = 0;
 	char interface_name[128] = "";
 	const char * interface = NULL;
-	//cJSON *root = cJSON_Parse("{\"a\":3}");
-#ifdef LWS_NO_FORK
-	unsigned int oldus = 0;
-#endif
-
-	//serverstart = epochmsecs();
-	
-	/*printf("HI\n");
-	if(root!=0)
-		n= cJSON_GetObjectItem(root,"a")->valueint;
-	if(root!=0)printf("%d", n);
-	return 0;*/
 
 	while (n >= 0) {
 		n = getopt_long(argc, argv, "ci:khsp:", options, NULL);
@@ -290,41 +278,19 @@ int main(int argc, char **argv)
 		printf("libwebsocket init failed\n");
 		return -1;
 	}
-	ctx= context;
-	//printf("server started on port %d\n", port);
-
-#ifdef LWS_NO_FORK
-
-	fprintf(stderr, " Using no-fork service loop\n");
-	printf("not yet supported\n");
-	return 1;
 	
-	/*while (1) {
-		struct timeval tv;
+	ctx= context;
+	printf("server started on port %d\n", port);
+	mainloop();
 
-		gettimeofday(&tv, NULL);
-
-		if (((unsigned int)tv.tv_usec - oldus) > dt*1000) {
-			mainloop();
-			oldus = tv.tv_usec;
-		}
-
-		libwebsocket_service(context, 50);
-	}*/
-
-#else
-
-	fprintf(stderr, " Using forked service loop\n");
-
+	/* fork code
 	n = libwebsockets_fork_service_loop(context);
 	if (n < 0) {
 		fprintf(stderr, "Unable to fork service loop %d\n", n);
 		return 1;
 	}
+	mainloop();*/
 
-	mainloop();
-
-#endif
 
 	libwebsocket_context_destroy(context);
 
