@@ -489,10 +489,6 @@ void mainloop() {
 		do{
 			libwebsocket_service(ctx, sleepuntil - epochmsecs());
 		}while(sleepuntil - epochmsecs() > 0);
-		
-		//sleeptime = ++serverticks * TICK_LENGTH - epochmsecs();
-		//if(sleeptime > 0)
-		//	usleep(1000 * sleeptime);
 	}
 }
 

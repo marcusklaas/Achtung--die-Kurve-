@@ -34,7 +34,6 @@ function GameEngine(containerId) {
 	this.ping = 0;
 
 	// canvas related
-
 	this.containerId = containerId; // id of DOM object that contains canvas layers
 	this.canvasStack = null; // object that manages canvas layers
 	this.baseContext = null; // on this we draw conclusive segments	
@@ -95,19 +94,31 @@ GameEngine.prototype.connect = function(url, name) {
 					debugLog('adjusted game time by ' + obj.forward + ' msec');
 					game.gameStartTimestamp += obj.forward;
 					break;
-				// TODO: handle case where player leaves before game start
-				// its gonna be ugly.. restructure game.players and game.idToPlayer
-
-				case 'playerDied':
 				case 'playerLeft':
+					var index = game.idToPlayer[obj.playerId];
+					debugLog(game.players[index].playerName + " left game");
+
+					if(game.gameOver) {
+						for(var i = index + 1; i < game.players.length; i++)
+							game.idToPlayer[game.players[i].playerId] = i - 1;
+
+						game.players.splice(index, 1);
+					}
+					else
+						game.players[index].alive = false;
+
+					break;
+				case 'playerDied':
 					game.players[game.idToPlayer[obj.playerId]].alive = false;
 					debugLog(game.players[game.idToPlayer[obj.playerId]].playerName +
-					 obj.mode.substr(5));
+					 " died");
 					break;
-				case 'gameEnded':
+				case 'endGame':
+					var winner = (obj.winnerId != -1)
+					 ? (game.players[game.idToPlayer[obj.winnerId]].playerName + ' won')
+					 : 'draw!';
 					game.gameOver = true;
-					debugLog('game ended. ' + obj.winnerId != -1 ?
-					 game.players[game.idToPlayer[obj.winnerId]].playerName + ' won' : 'draw!');
+					debugLog('game ended. ' + winner);
 					break;
 				case 'time':
 					game.handleSyncResponse(obj.time);
@@ -224,12 +235,8 @@ GameEngine.prototype.addPlayer = function(player) {
 	debugLog("adding player to game");
 }
 
-GameEngine.prototype.stop = function() {
-	debugLog("game ended");
-}
-
 GameEngine.prototype.start = function(startPositions, startTime) {
-	this.gameStartTimestamp = Date.now();// replace by startTime - this.getServerTime() - this.ping + Date.now();
+	this.gameStartTimestamp = startTime - this.getServerTime() - this.ping + Date.now();
 	this.lastUpdateTimestamp = Date.now();
 	this.gameOver = false;
 	
@@ -256,9 +263,7 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	(function gameLoop() {
 		that.loop();
 
-		if(that.gameOver)
-			that.stop();
-		else
+		if(!that.gameOver)
 			window.setTimeout(gameLoop, 1000 / 60);
 	})();
 }
@@ -302,8 +307,12 @@ Player.prototype.steer = function(obj) {
 	 * context from timestamp in object to NOW */
 	this.context.clearRect(0, 0, this.game.width, this.game.height);
 	var simtime = (Date.now() - this.game.gameStartTimestamp) - this.lct;
-	this.simulate(this.lcx, this.lcy, this.lca, this.turn,
+	var end = this.simulate(this.lcx, this.lcy, this.lca, this.turn,
 	 simtime, this.context, null, null);
+
+	this.x = end[0];
+	this.y = end[1];
+	this.angle = end[2];
 }
 
 Player.prototype.simulate = function(x, y, angle, turn, time, ctx, destX, destY) {
@@ -328,6 +337,8 @@ Player.prototype.simulate = function(x, y, angle, turn, time, ctx, destX, destY)
 
 	//ctx.closePath();
 	ctx.stroke();
+
+	return [x, y, angle];
 }
 
 Player.prototype.initialise = function(x, y, angle) {
