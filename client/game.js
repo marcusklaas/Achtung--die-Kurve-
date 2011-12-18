@@ -305,6 +305,7 @@ function Player(color, local) {
 
 	//only for local player
 	this.lcturn = 0;
+	this.inputQueue = [];
 
 	debugLog("creating player");
 }
@@ -325,28 +326,46 @@ Player.prototype.steer = function(obj) {
 	if(!this.isLocal)
 		this.turn = obj.turn;
 
-	/* clear this players canvas and run simulation on this player's
+	/* clear this players canvas and run extrapolation on this player's
 	 * context from timestamp in object to NOW */
 	this.context.clearRect(0, 0, this.game.width, this.game.height);
-	var simtime = (Date.now() - this.game.gameStartTimestamp) - this.lct;
+	var starttime = Date.now() - this.game.gameStartTimestamp;
+	var simduration = starttime - this.lct;
+	this.extrapolate(obj.turn, starttime, simduration);
+}
 
-	if(!this.isLocal) {
-		var end = this.simulate(this.lcx, this.lcy, this.lca, this.turn,
-		 simtime, this.context, null, null);
+Player.prototype.extrapolate = function(turn, start, dur) {
+	var input;
+	var step;
 
-		this.x = end[0];
-		this.y = end[1];
-		this.angle = end[2];
+	this.context.beginPath();
+	this.context.moveTo(this.x, this.y);
+
+	for(var time = 0; time < dur; time += step) {
+		while(input = this.inputQueue.pop()) {
+			if(input.time > start + time) {
+				this.inputQueue.push(input);
+				break;
+			}
+
+			turn = input.turn;
+		}
+
+		step = Math.min(simStep, dur - time);
+		this.angle += turn * this.turnSpeed * step/ 1000;
+		this.x += this.velocity * step/ 1000 * Math.cos(this.angle);
+		this.y += this.velocity * step/ 1000 * Math.sin(this.angle);
+		this.context.lineTo(this.x, this.y);
 	}
+
+	this.context.stroke();
 }
 
 Player.prototype.simulate = function(x, y, angle, turn, time, ctx, destX, destY) {
 	ctx.strokeStyle = this.color;
 	ctx.beginPath();
 	ctx.moveTo(x, y);
-
-	if(destX != null)
-		time -= simStep;
+	time -= simStep;
 
 	while(time > 0) {
 		var step = Math.min(simStep, time);
@@ -357,12 +376,8 @@ Player.prototype.simulate = function(x, y, angle, turn, time, ctx, destX, destY)
 		time -= step;
 	}
 
-	if(destX != null)
-		ctx.lineTo(destX, destY);
-
-	//ctx.closePath();
+	ctx.lineTo(destX, destY);
 	ctx.stroke();
-
 	return [x, y, angle];
 }
 
@@ -424,13 +439,15 @@ InputController.prototype.keyDown = function(keyCode) {
 
 	if(keyCode == this.rightKeyCode && this.player.turn != -1) {
 		this.player.turn = -1;
-		this.game.sendMsg('newInput', {'turn': -1,
-		 'gameTime': Date.now() - this.game.gameStartTimestamp});
+		var obj = {'turn': -1, 'gameTime': Date.now() - this.game.gameStartTimestamp}
+		this.player.inputQueue.unshift(obj);
+		this.game.sendMsg('newInput', obj);
 	}
 	else if(keyCode == this.leftKeyCode && this.player.turn != 1){
 		this.player.turn = 1;
-		this.game.sendMsg('newInput', {'turn': 1,
-		 'gameTime': Date.now() - this.game.gameStartTimestamp});
+		var obj = {'turn': 1, 'gameTime': Date.now() - this.game.gameStartTimestamp}
+		this.player.inputQueue.unshift(obj);
+		this.game.sendMsg('newInput', obj);
 	}
 }
 
@@ -441,8 +458,9 @@ InputController.prototype.keyUp = function(keyCode) {
 	if((keyCode == this.rightKeyCode && this.player.turn == -1) ||
 	 (keyCode == this.leftKeyCode && this.player.turn == 1)) {
 		this.player.turn = 0;
-		this.game.sendMsg('newInput', {'turn': 0,
-		 'gameTime': Date.now() - this.game.gameStartTimestamp});
+		var obj = {'turn': 0, 'gameTime': Date.now() - this.game.gameStartTimestamp};
+		this.player.inputQueue.unshift(obj);
+		this.game.sendMsg('newInput', obj);
 	}
 }
 

@@ -143,7 +143,7 @@ struct game *findgame(int nmin, int nmax) {
 }
 
 void leavegame(struct user *u) {
-	struct game *gm;
+	struct game *gm = u->gm;
 	struct usern *current, *tmp;
 
 	if(DEBUG_MODE)
