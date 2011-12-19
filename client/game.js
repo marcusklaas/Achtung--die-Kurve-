@@ -82,6 +82,7 @@ GameEngine.prototype.connect = function(url, name) {
 			debugLog('Websocket connection closed!');
 			game.connected = false;
 			game.gameOver = true;
+			game.reset();
 		}
 	} catch(exception) {
 		debugLog('websocket exception! name = ' + exception.name + ", message = "
@@ -163,6 +164,8 @@ function got_packet(msg) {
 }
 
 GameEngine.prototype.handleSyncResponse = function(serverTime){
+	if(this.syncTries == 0)
+		this.ping = 0;
 	var ping = (Date.now() - this.syncSendTime) / 2;
 	if(ping < this.bestSyncPing){
 		this.bestSyncPing = ping;
@@ -178,9 +181,13 @@ GameEngine.prototype.handleSyncResponse = function(serverTime){
 		window.setTimeout(function(){self.syncWithServer();},
 		 this.syncTries * syncDelays);
 	}
-	else
+	else{
 		debugLog('synced with server with a maximum error of ' + this.bestSyncPing + ' msec'
 		+ ', and average ping of ' + this.ping + ' msec');
+		this.bestSyncPing = 9999;
+		this.worstSyncPing = 0;
+		this.syncTries = 0;
+	}
 }
 
 GameEngine.prototype.getServerTime = function(){
@@ -361,17 +368,21 @@ Player.prototype.extrapolate = function(turn, start, dur) {
 
 	this.context.beginPath();
 	this.context.moveTo(this.x, this.y);
-
+	
+	var i = this.inputQueue.length - 1;
 	for(var time = 0; time < dur; time += step) {
 		
-		for(var i = this.inputQueue.length - 1; i >= 0; i--){
+		while(i >= 0){
 			input = this.inputQueue[i];
+			
 			if(input.gameTime > start + time) 
 				break;
+				
 			if(input.gameTime < start)
 				this.inputQueue.pop();
 
 			turn = input.turn;
+			i--;
 		}
 
 		step = Math.min(simStep, dur - time);
