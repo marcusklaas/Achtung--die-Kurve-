@@ -106,10 +106,11 @@ callback_game(struct libwebsocket_context * context,
 		if(DEBUG_MODE) printf("LWS_CALLBACK_ESTABLISHED\n");
 		u->id= usrc++;
 		u->wsi= wsi;
-		u->sbat= 0;
-		u->gm= 0;
-		u->name= 0;
-		u->alive= 0;
+		u->sbat = 0;
+		u->gm = 0;
+		u->name = 0;
+		u->alive = 0;
+		u->nxt = 0;
 		u->inputhead = u->inputtail = 0;
 		u->deltaon= u->deltaat= 0;
 		if(DEBUG_MODE) printf("new user created:\n"); printuser(u); printf("\n");
