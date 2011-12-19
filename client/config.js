@@ -12,6 +12,8 @@ var syncTries = 2;
 var syncDelays = 50;
 var simulatedPing = 100;
 
+var onConnect = null;
+
 var canvasBgcolor = "#D0D0D0";
 
 /* these are the segment colors for the players. in client order, so the 

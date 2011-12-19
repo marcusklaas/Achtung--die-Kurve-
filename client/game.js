@@ -67,6 +67,10 @@ GameEngine.prototype.connect = function(url, name) {
 			debugLog('Connected to websocket server');
 			game.connected = true;
 			game.syncWithServer();
+			if(onConnect != null){
+				onConnect();
+				onConnect = null;
+			}
 		}
 		this.websocket.onmessage = function(msg) {
 			if(simulatedPing > 0)
@@ -77,6 +81,7 @@ GameEngine.prototype.connect = function(url, name) {
 		this.websocket.onclose = function() {
 			debugLog('Websocket connection closed!');
 			game.connected = false;
+			game.gameOver = true;
 		}
 	} catch(exception) {
 		debugLog('websocket exception! name = ' + exception.name + ", message = "
@@ -347,7 +352,7 @@ Player.prototype.steer = function(obj) {
 	this.context.clearRect(0, 0, this.game.width, this.game.height);
 	var starttime = Date.now() - this.game.gameStartTimestamp;
 	var simduration = starttime - this.lct;
-	this.extrapolate(obj.turn, starttime, simduration);
+	this.extrapolate(obj.turn, this.lct, simduration);
 }
 
 Player.prototype.extrapolate = function(turn, start, dur) {
@@ -358,11 +363,13 @@ Player.prototype.extrapolate = function(turn, start, dur) {
 	this.context.moveTo(this.x, this.y);
 
 	for(var time = 0; time < dur; time += step) {
-		while(input = this.inputQueue.pop()) {
-			if(input.time > start + time) {
-				this.inputQueue.push(input);
+		
+		for(var i = this.inputQueue.length - 1; i >= 0; i--){
+			input = this.inputQueue[i];
+			if(input.gameTime > start + time) 
 				break;
-			}
+			if(input.gameTime < start)
+				this.inputQueue.pop();
 
 			turn = input.turn;
 		}
@@ -521,15 +528,60 @@ window.onload = function() {
 		var minPlayers = parseInt(document.getElementById('minplayers').value);
 		var playerName = document.getElementById('playername').value;
 		
+		setCookie('maxPlayers',maxPlayers,30);
+		setCookie('minPlayers',minPlayers,30);
+		setCookie('playerName',playerName,30);
+		
 		if(typeof playerName != "string" || playerName.length < 1)
 			debugLog('enter a cool playername please');
 
 		if(maxPlayers > 8 || maxPlayers < 1 || minPlayers > 8 || minPlayers < 1
 		 || minPlayers > maxPlayers)
 			debugLog('min/ maxplayers unacceptable!');
-
-		game.requestGame(playerName, minPlayers, maxPlayers);
+		
+		if(game.connected === false){
+			game.connect(serverURL, "game-protocol");
+			onConnect = function(){
+				game.requestGame(playerName, minPlayers, maxPlayers);
+			};
+		}
+		else
+			game.requestGame(playerName, minPlayers, maxPlayers);
 	}, false);
+	
+	var playerName = getCookie('playerName');
+	if(playerName != null && playerName != "")
+		document.getElementById('playername').value = playerName;
+	var minPlayers = getCookie('minPlayers');
+	if(minPlayers != null)
+		document.getElementById('minplayers').value = minPlayers;
+	var maxPlayers = getCookie('maxPlayers');
+	if(maxPlayers != null)
+		document.getElementById('maxplayers').value = maxPlayers;
 
 	game.connect(serverURL, "game-protocol");
+}
+
+/* cookies */
+function setCookie(c_name,value,exdays)
+{
+	var exdate=new Date();
+	exdate.setDate(exdate.getDate() + exdays);
+	var c_value=escape(value) + ((exdays==null) ? "" : "; expires="+exdate.toUTCString());
+	document.cookie=c_name + "=" + c_value;
+}
+
+function getCookie(c_name)
+{
+	var i,x,y,ARRcookies=document.cookie.split(";");
+	for (i=0;i<ARRcookies.length;i++)
+	{
+		x=ARRcookies[i].substr(0,ARRcookies[i].indexOf("="));
+		y=ARRcookies[i].substr(ARRcookies[i].indexOf("=")+1);
+		x=x.replace(/^\s+|\s+$/g,"");
+		if (x==c_name)
+		{
+			return unescape(y);
+		}
+	}
 }
