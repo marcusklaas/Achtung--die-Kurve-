@@ -100,13 +100,13 @@ void sendjson(cJSON *json, struct user *u){
 
 /* sends a message to all in game, except for given user. to send message to
  * all, set u = 0 */
-void sendjsontogame(cJSON *json, struct game *gm, struct user *u) {
-	struct usern *a;
+void sendjsontogame(cJSON *json, struct game *gm, struct user *outsider) {
+	struct user *usr;
 	char *buf = jsongetpacket(json);
 	
-	for(a= gm->usrn; a; a= a->nxt)
-		if(a->usr != u)
-			sendstr(buf, a->usr);
+	for(usr = gm->usr; usr; usr = usr->nxt)
+		if(usr != outsider)
+			sendstr(buf, usr);
 			
 	free(buf);
 }
@@ -149,11 +149,11 @@ void printuser(struct user *u){
 }
 
 void printgame(struct game *gm){
-	struct usern *a;
+	struct user *usr;
 	printf("game %p: n = %d, state = %d, users =\n", (void *)gm, gm->n, gm->state);
-	for(a= gm->usrn; a; a= a->nxt){
+	for(usr = gm->usr; usr; usr = usr->nxt){
 		printf("\t");
-		printuser(a->usr);
+		printuser(usr);
 	}
 }
 

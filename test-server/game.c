@@ -40,14 +40,11 @@ void startgame(struct game *gm){
 	cJSON *root = jsoncreate("startGame");
 	jsonaddnum(root, "startTime", (int)gm->start);
 	cJSON *start_locations = cJSON_CreateArray();
-	struct usern *usrn;
 	struct user *usr;
 	int i = 0;
 
 	/* set the players locs and fill json object */
-	for(usrn = gm->usrn; usrn; usrn = usrn->nxt) {
-		usr = usrn->usr;
-
+	for(usr = gm->usr; usr; usr = usr->nxt) {
 		usr->cx = usr->x = player_locations[3 * i];
 		usr->cy = usr->y = player_locations[3 * i + 1];
 		usr->cangle= usr->angle = player_locations[3 * i + 2];
@@ -86,13 +83,12 @@ void remgame(struct game *gm){
 	}
 
 	/* freeing up player nodes. */
-	struct usern *next, *current;
+	struct user *usr, *nxt;
 	
-	for(current = gm->usrn; current; current = next) {
-		next = current->nxt;
-		current->usr->gm= 0;
-		clearinputqueue(current->usr);
-		free(current);
+	for(usr = gm->usr; usr; usr = nxt) {
+		nxt = usr->nxt;
+		usr->gm = 0;
+		usr->nxt = 0;
 	}
 
 	/* freeing up segments */
@@ -127,45 +123,41 @@ struct game *findgame(int nmin, int nmax) {
 	return NULL;
 }
 
-void leavegame(struct user *u) {
-	struct game *gm = u->gm;
-	struct usern *current, *tmp;
+void leavegame(struct user *usr) {
+	struct game *gm = usr->gm;
+	struct user *curr;
 
 	if(DEBUG_MODE)
 		printf("leavegame called \n");
 
-	clearinputqueue(u);
+	clearinputqueue(usr);
 	
-	if(gm->usrn->usr == u){
-		tmp= gm->usrn;
-		gm->usrn= gm->usrn->nxt;
-		free(tmp);
+	if(gm->usr == usr) {
+		gm->usr = usr->nxt;
 	}else{
-		for(current = gm->usrn; current->nxt && current->nxt->usr != u; current = current->nxt);
-		tmp = current->nxt;
-		current->nxt = tmp->nxt;
-		free(tmp);
+		for(curr = gm->usr; curr->nxt && curr->nxt != usr; curr = curr->nxt);
+		curr->nxt = usr->nxt;
 	}
 
-	gm->alive -= u->alive;
+	gm->alive -= usr->alive;
+	usr->nxt = 0;
+	usr->gm = 0;
 
 	if(--gm->n == 0)
 		remgame(gm);
 	else {
 		// send message to group: this player left
 		cJSON *json = jsoncreate("playerLeft");
-		jsonaddnum(json, "playerId", u->id);
+		jsonaddnum(json, "playerId", usr->id);
 		sendjsontogame(json, gm, 0);
 		cJSON_Delete(json);
 	}
 
-	u->gm = NULL;	
-	
 	if(DEBUG_MODE) printgames();
 }
 
-void joingame(struct game *gm, struct user *u) {
-	struct usern *usrn;
+void joingame(struct game *gm, struct user *newusr) {
+	struct user *usr;
 	cJSON *json;
 	char *lastusedname;
 
@@ -174,28 +166,27 @@ void joingame(struct game *gm, struct user *u) {
 		
 	// tell user s/he joined a game. 
 	json= jsoncreate("joinedGame");
-	sendjson(json, u);
+	sendjson(json, newusr);
 	jsondel(json);
 	
 	json= getjsongamepars(gm);
-	sendjson(json, u);
+	sendjson(json, newusr);
 	jsondel(json);
 		
 	// tell players of game someone new joined
 	json= jsoncreate("newPlayer");
-	jsonaddnum(json, "playerId", u->id);
-	jsonaddstr(json, "playerName", lastusedname = u->name);
+	jsonaddnum(json, "playerId", newusr->id);
+	jsonaddstr(json, "playerName", lastusedname = newusr->name);
 	sendjsontogame(json, gm, 0);
 
-	printf("user %d has name %s\n", u->id, u->name);
+	if(DEBUG_MODE)
+		printf("user %d has name %s\n", newusr->id, newusr->name);
 	
 	// send a message to the new player for every other player that is already in the game
-	for(usrn = gm->usrn; usrn; usrn = usrn->nxt) {
-		jsonsetnum(json, "playerId", usrn->usr->id);
-		jsonsetstr(json, "playerName", lastusedname = usrn->usr->name);
-		sendjson(json, u);
-
-		printf("user %d has name %s\n", usrn->usr->id, usrn->usr->name);
+	for(usr = gm->usr; usr; usr = usr->nxt) {
+		jsonsetnum(json, "playerId", usr->id);
+		jsonsetstr(json, "playerName", lastusedname = usr->name);
+		sendjson(json, newusr);
 	}
 	
 	// here we replace the playername by a duplicate so that the original
@@ -203,17 +194,15 @@ void joingame(struct game *gm, struct user *u) {
 	jsonsetstr(json, "playerName", duplicatestring(lastusedname));
 	jsondel(json);
 	
-	usrn = smalloc(sizeof(struct usern));
-	usrn->usr = u;
-	usrn->nxt = gm->usrn;
-	gm->usrn = usrn;
-	u->gm = gm;
+	newusr->nxt = gm->usr;
+	gm->usr = newusr;
+	newusr->gm = gm;
 
 	if(++gm->n >= gm->nmin)
 		startgame(gm);
 	
 	if(DEBUG_MODE){
-		printf("user %d joined game %p\n", u->id, (void *)gm);
+		printf("user %d joined game %p\n", newusr->id, (void *)gm);
 		printgames();
 	}
 }
@@ -227,7 +216,7 @@ struct game *creategame(int nmin, int nmax) {
 	gm->nmin = nmin; gm->nmax = nmax;
 	gm->start = 0;
 	gm->n = 0;
-	gm->usrn = 0;
+	gm->usr = 0;
 	gm->tick = 0;
 	gm->alive = 0;
 	gm->w= GAME_WIDTH;
@@ -425,7 +414,7 @@ int simuser(struct user *usr, long simstart) {
 
 // simulate game tick
 void simgame(struct game *gm) {
-	struct usern *usrn;
+	struct user *usr;
 	long simstart;
 
 	// we beginnen te ticken na gm->start + SERVER_DELAY
@@ -434,18 +423,17 @@ void simgame(struct game *gm) {
 
 	simstart= gm->tick++ * TICK_LENGTH;
 
-	for(usrn = gm->usrn; usrn; usrn = usrn->nxt){
-		struct user *u= usrn->usr;
-		if(u->alive && simuser(u, simstart)){
+	for(usr = gm->usr; usr; usr = usr->nxt) {
+		if(usr->alive && simuser(usr, simstart)) {
 			if(DEBUG_MODE)
-				printf("Player %d died\n", u->id);
+				printf("Player %d died\n", usr->id);
 
-			u->alive= 0;
+			usr->alive = 0;
 			gm->alive--;
 
 			// send message to group: this player died
 			cJSON *json = jsoncreate("playerDied");
-			jsonaddnum(json, "playerId", u->id);
+			jsonaddnum(json, "playerId", usr->id);
 			sendjsontogame(json, gm, 0);
 			cJSON_Delete(json);
 		}
@@ -453,18 +441,11 @@ void simgame(struct game *gm) {
 	
 	if(gm->alive <= 1 && (gm->nmin > 1 || gm->alive < 1)) {
 		cJSON *json= jsoncreate("endGame");
-		struct user *winner = 0;
-
-		for(usrn = gm->usrn; usrn; usrn = usrn->nxt)
-			if(usrn->usr->alive){
-				winner= usrn->usr;
-				break;
-			}
-		jsonaddnum(json, "winnerId", winner ? winner->id : -1);
+		for(usr = gm->usr; usr && !usr->alive; usr = usr->nxt);
+		jsonaddnum(json, "winnerId", usr ? usr->id : -1);
 		sendjsontogame(json, gm, 0);
-		jsondel(json);
-		
-		printf("game %p ended. winnerId = %d\n", (void*)gm, winner ? winner->id : -1);
+		jsondel(json);		
+		printf("game %p ended. winnerId = %d\n", (void*)gm, usr ? usr->id : -1);
 		remgame(gm);
 	}
 }

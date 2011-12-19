@@ -39,7 +39,7 @@ struct game{
 
 	long start;			// start time in milliseconds after epoch
 	struct seg **seg;	// two dimensional array of linked lists, one for each tile
-	struct usern *usrn;	// user list
+	struct user *usr;	// user list
 	struct game *nxt;
 };
 
@@ -52,6 +52,8 @@ struct userinput {
 struct user{
 	int id;
 	struct game *gm;
+	struct user *nxt;
+
 	char *name;			// kan null blijven
 	char *sb[SB_MAX];	// sendbuffer
 	int sbat;			// sendbuffer at
@@ -59,7 +61,6 @@ struct user{
 	float x, y, angle;	// used in simulation (these are thus ~500msec behind)
 	int turn;			// -1, 0 or 1
 	char alive;			// 1 for alive, 0 else
-	
 	float cx, cy, cangle;	// current location as of last received input
 	int cturn, ctick;
 
@@ -71,12 +72,6 @@ struct user{
 	int deltaat;
 	char deltaon;
 };
-
-struct usern{			// user node
-	struct user *usr;
-	struct usern *nxt;
-};
-
 
 void *smalloc(size_t size);
 cJSON *getjsongamepars(struct game *gm);
