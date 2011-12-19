@@ -74,9 +74,9 @@ GameEngine.prototype.connect = function(url, name) {
 		}
 		this.websocket.onmessage = function(msg) {
 			if(simulatedPing > 0)
-				window.setTimeout(function(){got_packet(msg);}, simulatedPing);
+				window.setTimeout(function(){game.interpretMsg(msg);}, simulatedPing);
 			else
-				got_packet(msg);
+				game.interpretMsg(msg);
 		}
 		this.websocket.onclose = function() {
 			debugLog('Websocket connection closed!');
@@ -89,7 +89,8 @@ GameEngine.prototype.connect = function(url, name) {
 		 + exception.message);
 	}
 }
-function got_packet(msg) {
+
+GameEngine.prototype.interpretMsg = function(msg) {
 	if(ultraVerbose)
 		debugLog('received data: ' + msg.data);
 
@@ -102,61 +103,61 @@ function got_packet(msg) {
 
 	switch(obj.mode) {
 		case 'acceptUser':
-			game.players[0].playerId = obj.playerId;
-			game.idToPlayer[obj.playerId] = 0;
+			this.players[0].playerId = obj.playerId;
+			this.idToPlayer[obj.playerId] = 0;
 			break;
 		case 'joinedGame':
 			debugLog('you joined a game.');
 			break;
 		case 'gameParameters':
-			game.setParams(obj);
+			this.setParams(obj);
 			debugLog('received game params.');
 			break;				
 		case 'newPlayer':
-			var newPlayer = new Player(playerColors[game.players.length], false);
+			var newPlayer = new Player(playerColors[this.players.length], false);
 			newPlayer.playerId = obj.playerId;
 			newPlayer.playerName = obj.playerName;
-			game.addPlayer(newPlayer);
+			this.addPlayer(newPlayer);
 			debugLog(obj.playerName + ' joined the game (id = ' + obj.playerId + ')');
 			break;
 		case 'startGame':
-			game.start(obj.startPositions, obj.startTime);
+			this.start(obj.startPositions, obj.startTime);
 			break;
 		case 'newInput':
-			game.players[game.idToPlayer[obj.playerId]].steer(obj);
+			this.players[this.idToPlayer[obj.playerId]].steer(obj);
 			break;
 		case 'adjustGameTime':
 			debugLog('adjusted game time by ' + obj.forward + ' msec');
-			game.gameStartTimestamp += obj.forward;
+			this.gameStartTimestamp += obj.forward;
 			break;
 		case 'playerLeft':
-			var index = game.idToPlayer[obj.playerId];
-			debugLog(game.players[index].playerName + " left game");
+			var index = this.idToPlayer[obj.playerId];
+			debugLog(this.players[index].playerName + " left game");
 
-			if(game.gameOver) {
-				for(var i = index + 1; i < game.players.length; i++)
-					game.idToPlayer[game.players[i].playerId] = i - 1;
+			if(this.gameOver) {
+				for(var i = index + 1; i < this.players.length; i++)
+					this.idToPlayer[this.players[i].playerId] = i - 1;
 
-				game.players.splice(index, 1);
+				this.players.splice(index, 1);
 			}
 			else
-				game.players[index].alive = false;
+				this.players[index].alive = false;
 
 			break;
 		case 'playerDied':
-			game.players[game.idToPlayer[obj.playerId]].alive = false;
-			debugLog(game.players[game.idToPlayer[obj.playerId]].playerName +
+			this.players[this.idToPlayer[obj.playerId]].alive = false;
+			debugLog(this.players[this.idToPlayer[obj.playerId]].playerName +
 			 " died");
 			break;
 		case 'endGame':
 			var winner = (obj.winnerId != -1)
-			 ? (game.players[game.idToPlayer[obj.winnerId]].playerName + ' won')
+			 ? (this.players[this.idToPlayer[obj.winnerId]].playerName + ' won')
 			 : 'draw!';
-			game.gameOver = true;
+			this.gameOver = true;
 			debugLog('game ended. ' + winner);
 			break;
 		case 'time':
-			game.handleSyncResponse(obj.time);
+			this.handleSyncResponse(obj.time);
 			break;
 		default:
 			debugLog('unknown mode!');
@@ -221,14 +222,12 @@ GameEngine.prototype.requestGame = function(playerName, minPlayers, maxPlayers) 
 }
 
 GameEngine.prototype.sendMsg = function(mode, data) {
-	// re-enabled!
 	if(this.connected === false) {
 		debugLog('tried to send msg, but no websocket connection');
 		return;
 	}
 
 	data.mode = mode;
-
 	var str = JSON.stringify(data);
 	
 	if(simulatedPing > 0){

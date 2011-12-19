@@ -3,19 +3,18 @@
 #define GAME_HEIGHT 400
 #define TILE_WIDTH 80
 #define TILE_HEIGHT 80
-#define VELOCITY 90 // pixels per sec
-#define TURN_SPEED 6 // radians per sec
+#define VELOCITY 50 // pixels per sec
+#define TURN_SPEED 2 // radians per sec
 #define DEBUG_MODE 1
 #define TICK_LENGTH 15 // in msecs
 #define SERVER_DELAY 495 // in msecs, preferably veelvoud of TICK_LENGTH
-#define MAX_MESSAGE_DELAY 300
+#define MAX_MESSAGE_DELAY 500
 #define COUNTDOWN	500
 #define SB_MAX 10	// sendbuffer max size
 #define DELTA_COUNT 6
 #define DELTA_MAX 25
-#define debug 1
 #define ULTRA_VERBOSE 0
-#define showwarning 1
+#define SHOW_WARNING 1
 #define lwsprepadding	LWS_SEND_BUFFER_PRE_PADDING
 #define lwspostpadding	LWS_SEND_BUFFER_POST_PADDING
 

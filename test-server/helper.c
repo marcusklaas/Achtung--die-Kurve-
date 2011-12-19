@@ -12,7 +12,7 @@
 char *jsongetstr(cJSON *json, char* obj){
 	json= cJSON_GetObjectItem(json,obj);
 	if(!json){
-		if(debug) printf("json parse error! object '%s' not found!\n", obj);
+		if(DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
 		return 0;
 	}
 	return json->valuestring;
@@ -21,7 +21,7 @@ char *jsongetstr(cJSON *json, char* obj){
 int jsongetint(cJSON *json, char* obj){
 	json= cJSON_GetObjectItem(json,obj);
 	if(!json){
-		if(debug) printf("json parse error! object '%s' not found!\n", obj);
+		if(DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
 		return -1;
 	}
 	return json->valueint;
@@ -30,7 +30,7 @@ int jsongetint(cJSON *json, char* obj){
 void jsonsetstr(cJSON *json, char* obj, char* str){
 	json= cJSON_GetObjectItem(json,obj);
 	if(!json){
-		if(debug) printf("json parse error! object '%s' not found!\n", obj);
+		if(DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
 		return ;
 	}
 	json->valuestring= str;
@@ -39,7 +39,7 @@ void jsonsetstr(cJSON *json, char* obj, char* str){
 void jsonsetnum(cJSON *json, char* obj, double val){
 	json= cJSON_GetObjectItem(json,obj);
 	if(!json){
-		if(debug) printf("json parse error! object '%s' not found!\n", obj);
+		if(DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
 		return ;
 	}
 	json->valuedouble = val;
@@ -81,7 +81,7 @@ cJSON *getjsongamepars(struct game *gm){
 void sendstr(char *buf, struct user *u){
 	char *tmp;
 	if(u->sbat==SB_MAX){
-		if(showwarning) printf("send-buffer full.\n");
+		if(SHOW_WARNING) printf("send-buffer full.\n");
 		return;
 	}
 	// tmp is being freed inside the callback

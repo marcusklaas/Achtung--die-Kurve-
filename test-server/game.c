@@ -34,7 +34,7 @@ void startgame(struct game *gm){
 
 	gm->start = servermsecs() + COUNTDOWN;
 	gm->state = GS_STARTED;
-	gm->alive= gm->n;
+	gm->alive = gm->n;
 
 	// create JSON object
 	cJSON *root = jsoncreate("startGame");
@@ -87,9 +87,6 @@ void remgame(struct game *gm){
 
 	/* freeing up player nodes. */
 	struct usern *next, *current;
-
-	if(DEBUG_MODE)
-		printf("freeing up player nodes\n");
 	
 	for(current = gm->usrn; current; current = next) {
 		next = current->nxt;
@@ -98,32 +95,20 @@ void remgame(struct game *gm){
 		free(current);
 	}
 
-	if(DEBUG_MODE)
-		printf("freeing up segments\n");
-
 	/* freeing up segments */
-	if(gm->seg){
-		int i, num_tiles = gm->htiles * gm->vtiles;
+	int i, num_tiles = gm->htiles * gm->vtiles;
 
-		for(i=0; i < num_tiles; i++) {
-			struct seg *a, *b;
+	for(i=0; i < num_tiles; i++) {
+		struct seg *a, *b;
 
-			for(a = gm->seg[i]; a; a = b) {
-				b = a->nxt;
-				free(a);
-			}
+		for(a = gm->seg[i]; a; a = b) {
+			b = a->nxt;
+			free(a);
 		}
-
-		free(gm->seg);
 	}
 
-	if(DEBUG_MODE)
-		printf("freeing up game\n");
-
+	free(gm->seg);
 	free(gm);
-
-	if(DEBUG_MODE)
-		printf("end of remgame\n");
 }
 
 struct game *findgame(int nmin, int nmax) {
@@ -172,14 +157,11 @@ void leavegame(struct user *u) {
 		jsonaddnum(json, "playerId", u->id);
 		sendjsontogame(json, gm, 0);
 		cJSON_Delete(json);
-
-		if(gm->alive <= 1);
-			//send_message_game_over
 	}
 
 	u->gm = NULL;	
 	
-	if(debug) printgames();
+	if(DEBUG_MODE) printgames();
 }
 
 void joingame(struct game *gm, struct user *u) {
@@ -198,7 +180,6 @@ void joingame(struct game *gm, struct user *u) {
 	json= getjsongamepars(gm);
 	sendjson(json, u);
 	jsondel(json);
-	
 		
 	// tell players of game someone new joined
 	json= jsoncreate("newPlayer");
@@ -231,7 +212,7 @@ void joingame(struct game *gm, struct user *u) {
 	if(++gm->n >= gm->nmin)
 		startgame(gm);
 	
-	if(debug){
+	if(DEBUG_MODE){
 		printf("user %d joined game %p\n", u->id, (void *)gm);
 		printgames();
 	}
@@ -256,9 +237,9 @@ struct game *creategame(int nmin, int nmax) {
 	gm->htiles= ceil(1.0 * gm->w / gm->tilew);
 	gm->vtiles= ceil(1.0 * gm->h / gm->tileh);
 	gm->state= GS_LOBBY;
-	gm->nxt = headgame;
 	gm->v= VELOCITY;
 	gm->ts= TURN_SPEED;
+	gm->nxt = headgame;
 	headgame = gm;
 	gm->seg = calloc(gm->htiles * gm->vtiles, sizeof(struct seg*));
 	if(!gm->seg) {
@@ -431,8 +412,7 @@ int simuser(struct user *usr, long simstart) {
 	newseg->x1 = usr->x;
 	newseg->y1 = usr->y;
 
-	// WE TURN FIRST THEN STEP AHEAD!! this important.. i choose this for now
-	// because we work in ticks and this somewhat counters the (slight) delay
+	// turn first
 	usr->angle += usr->turn * usr->gm->ts * TICK_LENGTH / 1000.0;
 	usr->x += cos(usr->angle) * usr->gm->v * TICK_LENGTH / 1000.0;
 	usr->y += sin(usr->angle) * usr->gm->v * TICK_LENGTH / 1000.0;
@@ -452,20 +432,22 @@ void simgame(struct game *gm) {
 	if(servermsecs() < gm->start + SERVER_DELAY)
 		return;
 
-	simstart= gm->tick * TICK_LENGTH;		
-	gm->tick++;
+	simstart= gm->tick++ * TICK_LENGTH;
 
 	for(usrn = gm->usrn; usrn; usrn = usrn->nxt){
 		struct user *u= usrn->usr;
-		if(u->alive){
-			int userdied= simuser(u, simstart);
-			if(userdied){
-				if(DEBUG_MODE)
-					printf("Player %d died\n", u->id);
+		if(u->alive && simuser(u, simstart)){
+			if(DEBUG_MODE)
+				printf("Player %d died\n", u->id);
 
-				u->alive= 0;
-				gm->alive--;
-			}
+			u->alive= 0;
+			gm->alive--;
+
+			// send message to group: this player died
+			cJSON *json = jsoncreate("playerDied");
+			jsonaddnum(json, "playerId", u->id);
+			sendjsontogame(json, gm, 0);
+			cJSON_Delete(json);
 		}
 	}
 	
@@ -511,19 +493,30 @@ void interpretinput(cJSON *json, struct user *usr) {
 	int time= jsongetint(json, "gameTime");
 	int turn= jsongetint(json, "turn");
 	
+	// some checks
 	if(turn < -1 || turn > 1){
-		if(showwarning)
+		if(SHOW_WARNING)
 			printf("invalid user input received from user %d.\n", usr->id);
-			return;
-	}else if(usr->inputtail && time < usr->inputtail->time){
-		if(showwarning)
+		return;
+	}
+
+	if(usr->inputtail && time < usr->inputtail->time){
+		if(SHOW_WARNING)
 			printf("input messages of user %d are being received out of order!\n", usr->id);
 		return;
-	}else if(servermsecs() - usr->gm->start - time > MAX_MESSAGE_DELAY){
-		if(showwarning)
-			printf("received msg from user %d of %d msec old! modifying message..\n", usr->id,
-				(int) (servermsecs() - usr->gm->start - time));
-		time= servermsecs() - usr->gm->start - MAX_MESSAGE_DELAY;
+	}
+
+	if(!usr->alive) {
+		if(SHOW_WARNING)
+			printf("received input for dead user %d? ignoring..\n", usr->id);
+		return;
+	}
+
+	if(servermsecs() - usr->gm->start - time > MAX_MESSAGE_DELAY){
+		if(SHOW_WARNING)
+			printf("received msg from user %d of %d msec old! modifying message..\n",
+			 usr->id, (int) (servermsecs() - usr->gm->start - time));
+		time = servermsecs() - usr->gm->start - MAX_MESSAGE_DELAY;
 	}
 	
 	// put it in user queue
@@ -539,7 +532,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 		
 	// check if user needs to adjust her gametime
 	usr->delta[usr->deltaat++]= input->time - (servermsecs() - usr->gm->start);
-	if(usr->deltaat == DELTA_COUNT){
+	if(usr->deltaat == DELTA_COUNT) {
 		usr->deltaat= 0;
 		usr->deltaon= 1;
 	}

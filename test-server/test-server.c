@@ -103,7 +103,7 @@ callback_game(struct libwebsocket_context * context,
 	switch (reason) {
 
 	case LWS_CALLBACK_ESTABLISHED:
-		if(debug) printf("LWS_CALLBACK_ESTABLISHED\n");
+		if(DEBUG_MODE) printf("LWS_CALLBACK_ESTABLISHED\n");
 		u->id= usrc++;
 		u->wsi= wsi;
 		u->sbat= 0;
@@ -112,7 +112,7 @@ callback_game(struct libwebsocket_context * context,
 		u->alive= 0;
 		u->inputhead = u->inputtail = 0;
 		u->deltaon= u->deltaat= 0;
-		if(debug) printf("new user created:\n"); printuser(u); printf("\n");
+		if(DEBUG_MODE) printf("new user created:\n"); printuser(u); printf("\n");
 
 		json= jsoncreate("acceptUser");
 		jsonaddnum(json, "playerId", u->id);
@@ -121,7 +121,7 @@ callback_game(struct libwebsocket_context * context,
 		break;
 		
 	case LWS_CALLBACK_CLOSED:
-		if(debug) printf("LWS_CALLBACK_CLOSED\n");
+		if(DEBUG_MODE) printf("LWS_CALLBACK_CLOSED\n");
 		if(u->gm)
 			leavegame(u);
 		while(u->inputhead){
@@ -154,7 +154,7 @@ callback_game(struct libwebsocket_context * context,
 		
 		json= cJSON_Parse(inchar);
 		if(!json){
-			if(debug) printf("invalid json!\n");
+			if(DEBUG_MODE) printf("invalid json!\n");
 			break;
 		}
 		mode= jsongetstr(json, "mode");
@@ -172,7 +172,7 @@ callback_game(struct libwebsocket_context * context,
 			if(!strcmp(mode, "requestGame")) {
 				int nmin, nmax;
 				char *s;
-				if(debug) printf("requested game\n");
+				if(DEBUG_MODE) printf("requested game\n");
 
 				nmin= jsongetint(json, "minPlayers");
 				nmax= jsongetint(json, "maxPlayers");
@@ -195,7 +195,8 @@ callback_game(struct libwebsocket_context * context,
 			if(strcmp(mode, "newInput") == 0) {
 				interpretinput(json, u); 
 			}
-		}else if(showwarning)
+		}
+		else if(SHOW_WARNING)
 			printf("unkown mode!\n");
 		
 		jsondel(json);
