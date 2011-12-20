@@ -6,13 +6,14 @@ var serverURL = (location.href.indexOf('localhost') != -1) ?
 
 var lineWidth = 3; // only visual, does not influence collisions
 var ultraVerbose = false;
-var simStep = 30; // in milliseconds
+var simStep = 24; // in milliseconds
 
 var syncTries = 2;
 var syncDelays = 50;
-var simulatedPing = 100;
+var simulatedPing = 0;
 var maxPositionError = .75;
 var maxAngleError = .01;
+var behind = 2; // desired difference between tock and tick
 
 var onConnect = null;
 

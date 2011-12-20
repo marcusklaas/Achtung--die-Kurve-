@@ -3,10 +3,10 @@
 #define GAME_HEIGHT 400
 #define TILE_WIDTH 80
 #define TILE_HEIGHT 80
-#define VELOCITY 50 // pixels per sec
-#define TURN_SPEED 2 // radians per sec
+#define VELOCITY 90 // pixels per sec
+#define TURN_SPEED 3 // radians per sec
 #define DEBUG_MODE 1
-#define TICK_LENGTH 15 // in msecs
+#define TICK_LENGTH 24 // in msecs
 #define SERVER_DELAY 495 // in msecs, preferably veelvoud of TICK_LENGTH
 #define MAX_MESSAGE_DELAY 500
 #define COUNTDOWN	500
@@ -17,6 +17,7 @@
 #define SHOW_WARNING 1
 #define lwsprepadding	LWS_SEND_BUFFER_PRE_PADDING
 #define lwspostpadding	LWS_SEND_BUFFER_POST_PADDING
+#define SEND_SEGMENTS 0 // om de hoeveel ticks het moet gebeuren (0=nooit)
 
 /* game states */
 #define GS_LOBBY 0
@@ -41,10 +42,11 @@ struct game{
 	struct seg **seg;	// two dimensional array of linked lists, one for each tile
 	struct user *usr;	// user list
 	struct game *nxt;
+	struct seg *tosend;
 };
 
 struct userinput {
-	long time;
+	int tick;
 	int turn;
 	struct userinput *nxt;
 };
@@ -74,4 +76,5 @@ struct user{
 };
 
 void *smalloc(size_t size);
+void *scalloc(size_t num, size_t size);
 cJSON *getjsongamepars(struct game *gm);

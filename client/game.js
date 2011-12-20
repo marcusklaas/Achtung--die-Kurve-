@@ -17,10 +17,16 @@ function GameEngine(containerId) {
 	this.gameStartTimestamp = null;
 	this.tick = 0;
 	this.tock = 0; // seperate tick for the other clients
-	this.behind = 1; // desired difference between tock and tick
+	this.behind = behind;
 	this.gameOver = true;
 	this.width = -1;
 	this.height = -1;
+	
+	// debug counters
+	this.redraws = 0;
+	this.redrawsPossible = 0;
+	this.adjustGameTimeMessagesReceived = 0;
+	this.modifiedInputs = 0;
 
 	// game properties
 	this.velocity = null;
@@ -47,6 +53,11 @@ GameEngine.prototype.reset = function() {
 	this.baseContext = null;
 	this.tick = 0;
 	this.tock = 0;
+	
+	this.redraws = 0;
+	this.redrawsPossible = 0;
+	this.adjustGameTimeMessagesReceived = 0;
+	this.modifiedInputs = 0;
 
 	var container = document.getElementById(this.containerId);
 	while(container.hasChildNodes())
@@ -128,6 +139,8 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'adjustGameTime':
 			debugLog('adjusted game time by ' + obj.forward + ' msec');
 			this.gameStartTimestamp += obj.forward;
+			this.adjustGameTimeMessagesReceived++;
+			this.displayDebugStatus();
 			break;
 		case 'playerLeft':
 			var index = this.idToPlayer[obj.playerId];
@@ -158,9 +171,27 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'time':
 			this.handleSyncResponse(obj.time);
 			break;
+		case 'segments':
+			handleSegmentsMessage(obj.segments);
+			break;
 		default:
 			debugLog('unknown mode!');
 	}
+}
+
+GameEngine.prototype.handleSegmentsMessage = function(segments){
+	if(this.segctx == undefined){
+		this.segctx = document.getElementById(this.canvasStack.createLayer()).getContext('2d');
+		this.segctx.lineWidth = 1;
+		this.segctx.strokeStyle = 'black';
+	}
+	this.segctx.beginPath();
+	for(var i = 0; i < segments.length; i++){
+		var s = segments[i];
+		this.segctx.move(s.x1, s.y1);
+		this.segctx.lineTo(s.x2, s.y2);
+	}
+	this.segctx.stroke();
 }
 
 GameEngine.prototype.handleSyncResponse = function(serverTime){
@@ -252,29 +283,35 @@ GameEngine.prototype.syncWithServer = function() {
 
 
 GameEngine.prototype.draw = function() {
-	for(var i = 0; i < this.players.length; i++)
+	for(var i = 0; i < this.players.length; i++){
 		this.players[i].context.stroke();
-	this.baseContext.stroke();
+			this.players[i].context.beginPath();
+	}
+	//this.baseContext.stroke();
+	//this.baseContext.beginPath();
 }
 
 GameEngine.prototype.doTick = function() {
 	this.players[0].simulate(this.tick, this.tick + 1, 
-	 this.players[0].context, false);
+	 false, null);
 	this.tick++;
 }
 GameEngine.prototype.doTock = function() {
 	for(var i = 1; i < this.players.length; i++){
 		var player = this.players[i];
-		if(player.inputQueue.length > 0){
+		/*if(player.inputQueue.length > 0){
 			for(var j = player.inputQueue.length - 1; j >= 0; j--){
 				if(player.inputQueue[j].tick > this.tock)
 					break;
 				var obj = player.inputQueue.pop();
 				player.steer(obj);
 			}
-		}
+		}*/
+		var len = player.inputQueue.length;
+		if(len > 0 && player.inputQueue[len - 1].tick == this.tock)
+			player.turn = player.inputQueue.pop().turn;
 		player.simulate(this.tock, this.tock + 1,
-		 player.context, false);
+		 false, null);
 	}
 	this.tock++;
 }
@@ -312,7 +349,7 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 		this.players[index].initialise(startPositions[i].startX,
 		 startPositions[i].startY, startPositions[i].startAngle);
 	}
-
+	
 	var that = this;
 
 	var gameloop = function() {
@@ -351,70 +388,104 @@ function Player(color, local) {
 	this.context = null; // this is the canvas context in which we draw simulation
 	this.alive = false;
 	this.inputQueue = [];
+	this.baseQueue = [];
 
 	debugLog("creating player");
 }
 
 Player.prototype.steer = function(obj) {
 	var localTick = this.isLocal ? this.game.tick : this.game.tock;
-	if(obj.tick > localTick){
-		// handle message another time
-		this.inputQueue.unshift(obj);
+	if(obj.tick >= localTick || (this.isLocal && !obj.hasOwnProperty('modified'))){
+		//this.inputQueue.unshift(obj);
+		this.baseQueue.unshift(obj);
+		if(!this.isLocal){
+		
+			if(this.lastSteerTick == obj.tick)
+				this.inputQueue[0] = obj;
+			else{
+				this.inputQueue.unshift(obj);
+				this.lastSteerTick = obj.tick;
+			}
+			
+			this.game.redrawsPossible++;
+			this.game.displayDebugStatus();
+		}
 		return;
 	}
-
+	
+	if(this.isLocal && obj.hasOwnProperty('modified')){
+		this.game.modifiedInputs ++;
+		this.game.displayDebugStatus();
+	}
+	
 	/* run simulation from lcx, lcy on the conclusive canvas from tick 
 	 * lctick to obj.tick */
 	this.x = this.lcx;
 	this.y = this.lcy;
 	this.angle = this.lca;
 	this.turn = this.lcturn;
-	this.simulate(this.lctick, obj.tick, this.game.baseContext, false);
-
-	var redraw = true;
+	this.simulate(this.lctick, obj.tick, true, this.baseQueue);
+	this.lcx = this.x;
+	this.lcy = this.y;
+	this.lca = this.angle;
+	this.lcturn = this.turn = obj.turn;	
+	this.lctick = obj.tick;
+	this.baseQueue = [];
+	/*var redraw = true;
 	if(this.isLocal && Math.abs(this.x - obj.x) < maxPositionError
 	 && Math.abs(this.y - obj.y) < maxPositionError
 	 && Math.abs(this.angle - obj.angle) < maxAngleError)
-		redraw = false;
+		redraw = false;*/
 		 
-	/* here we sync with server */
+	/* here we sync with server 
 	this.lcx = this.x = obj.x;
 	this.lcy = this.y = obj.y;
 	this.lca = this.angle = obj.angle;
 	this.lcturn = this.turn = obj.turn;	
-	this.lctick = obj.tick;
+	*/
 
 	/* clear this players canvas and run extrapolation on this player's
 	 * context from timestamp in object to NOW */
-	if(localTick - obj.tick > 0 && redraw)
-		this.context.clearRect(0, 0, this.game.width, this.game.height);
+	//if(localTick - obj.tick > 0 && redraw)
+	this.context.clearRect(0, 0, this.game.width, this.game.height);
+	if(!this.isLocal){
+		this.game.redraws++;
+		this.game.redrawsPossible++;
+		this.game.displayDebugStatus();
+	}
 	
-	this.simulate(obj.tick, localTick, redraw ? this.context : null, this.isLocal);
+	this.simulate(obj.tick, localTick, false, this.isLocal ? this.inputQueue : null);
 }
 
-Player.prototype.simulate = function(startTick, endTick, ctx, useInputQueue) {
-	if(ctx != null){
+Player.prototype.simulate = function(startTick, endTick, baseContext, queue) {
+	var ctx = baseContext ? this.game.baseContext : this.context;
+	if(ctx != null){ // kan weg?
+		if(baseContext)
+			ctx.beginPath();
 		ctx.strokeStyle = this.color;
 		//ctx.beginPath();
 		ctx.moveTo(this.x, this.y);
 	}
+	
 	var i, input;
-	if(useInputQueue){
-		// remove inputs from before startTick (and set i and input)
+	if(queue!=null){
+		// remove inputs from before startTick
 		// we assume this is what we want
-		for(i = this.inputQueue.length - 1; i >= 0; i--)
-			if(this.inputQueue[i].tick > startTick){
-				this.inputQueue.length = i + 1;
+		// also set input and i
+		for(i = queue.length - 1; i >= 0; i--)
+			if(queue[i].tick > startTick){
+				queue.length = i + 1;
 				break;
 			}
-		input = this.inputQueue[i];
-	}
+		input = queue[i];
+	}else
+		input = null;
 	
 	for(var tick=startTick;tick<endTick;tick++) {
-		if(useInputQueue && input != null && input.tick == tick){
+		if(input != null && input.tick == tick){
 			this.turn = input.turn;
 			if(--i >= 0)
-				input = this.inputQueue[i];
+				input = queue[i];
 			else
 				input = null;
 		}
@@ -424,8 +495,8 @@ Player.prototype.simulate = function(startTick, endTick, ctx, useInputQueue) {
 		if(ctx != null)
 			ctx.lineTo(this.x, this.y);
 	}
-
-	//ctx.stroke();
+	if(baseContext)
+		ctx.stroke();
 }
 
 Player.prototype.initialise = function(x, y, angle) {
@@ -439,6 +510,7 @@ Player.prototype.initialise = function(x, y, angle) {
 	this.lca = this.angle = angle;
 	this.turn = 0;
 	this.inputQueue = [];
+	this.baseQueue = [];
 
 	/* create canvas */
 	var canvas = document.getElementById(this.game.canvasStack.createLayer());
@@ -495,9 +567,10 @@ InputController.prototype.steerLocal = function(turn){
 	 'gameTime': Date.now() - this.game.gameStartTimestamp};
 	if(this.lastSteerTick == this.game.tick)
 		this.player.inputQueue[0] = obj;
-	else
+	else{
 		this.player.inputQueue.unshift(obj);
-	this.lastSteerTick = this.game.tick;
+		this.lastSteerTick = this.game.tick;
+	}
 	this.game.sendMsg('newInput', obj);
 }
 
@@ -598,4 +671,11 @@ function getCookie(c_name)
 			return unescape(y);
 		}
 	}
+}
+
+GameEngine.prototype.displayDebugStatus = function(){
+	document.getElementById('status').innerHTML = 
+	 'redraws: ' + this.redraws + ' / ' + this.redrawsPossible +
+	 ', modified inputs: ' + this.modifiedInputs +
+	 ', game time adjustments: ' + this.adjustGameTimeMessagesReceived;
 }
