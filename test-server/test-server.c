@@ -11,7 +11,7 @@
 
 struct libwebsocket_context *ctx;
 static struct game *headgame = 0;
-static int usrc= 0;	// user count
+static int usrc = 0;	// user count
 //static long serverstart = 0; // server start in msec since epoch
 static unsigned long serverticks = 0; // yes this will underflow, but not fast ;p
 

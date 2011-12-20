@@ -452,7 +452,7 @@ void simgame(struct game *gm) {
 
 // deze functie called simgame zo goed als mogelijk elke TICK_LENGTH msec (voor elke game)
 void mainloop() {
-	int sleepuntil;
+	int sleeptime;
 	struct game *gm, *nxtgm;
 
 	while(1) {
@@ -462,10 +462,9 @@ void mainloop() {
 				simgame(gm);
 		}
 		
-		sleepuntil= ++serverticks * TICK_LENGTH;
-		do{
-			libwebsocket_service(ctx, sleepuntil - servermsecs());
-		}while(sleepuntil - servermsecs() > 0);
+		sleeptime = ++serverticks * TICK_LENGTH - servermsecs();
+		sleeptime = (sleeptime >= 1) ? sleeptime : 1;
+		libwebsocket_service(ctx, sleeptime);
 	}
 }
 
