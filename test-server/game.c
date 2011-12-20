@@ -45,6 +45,8 @@ void startgame(struct game *gm){
 
 	/* set the players locs and fill json object */
 	for(usr = gm->usr; usr; usr = usr->nxt) {
+		clearinputqueue(usr);
+
 		usr->cx = usr->x = player_locations[3 * i];
 		usr->cy = usr->y = player_locations[3 * i + 1];
 		usr->cangle= usr->angle = player_locations[3 * i + 2];
@@ -72,7 +74,7 @@ void startgame(struct game *gm){
 
 void remgame(struct game *gm){
 	if(DEBUG_MODE)
-		printf("remgame called\n");
+		printf("deleting game %p\n", (void *) gm);
 
 	if(headgame == gm)
 		headgame = gm->nxt;
@@ -130,8 +132,6 @@ void leavegame(struct user *usr) {
 	if(DEBUG_MODE)
 		printf("leavegame called \n");
 
-	clearinputqueue(usr);
-	
 	if(gm->usr == usr) {
 		gm->usr = usr->nxt;
 	}else{
@@ -324,10 +324,10 @@ int lineboxcollision(struct seg *seg, int left, int bottom, int right, int top) 
 	return 0;
 }
 
-// returns 1 in case of collision, 0 other wise
+// returns 1 in case of collision, 0 other wise (note how we free seg only if for_real)
 // TODO: it would be super nice if we would cut of the latter part of the segment 
 // if it intersects an existing segment
-int addsegment(struct game *gm, struct seg *seg) {
+int addsegment(struct game *gm, struct seg *seg, char for_real) {
 	int left_tile, right_tile, bottom_tile, top_tile, swap, collision = 0;
 	struct seg *current, *copy;
 
@@ -345,8 +345,10 @@ int addsegment(struct game *gm, struct seg *seg) {
 
 	/* run off screen */
 	if(seg->x2 < 0 || seg->x2 >= gm->w || seg->y2 < 0 || seg->y2 >= gm->h) {
-		collision = 1;
+		if(!for_real)
+			return 1;
 
+		collision = 1;
 		left_tile = (left_tile < 0) ? 0 : left_tile;
 		right_tile = (right_tile >= gm->htiles) ? (gm->htiles - 1) : right_tile;
 		bottom_tile = (bottom_tile < 0) ? 0 : bottom_tile;
@@ -361,21 +363,26 @@ int addsegment(struct game *gm, struct seg *seg) {
 
 			for(current = gm->seg[gm->htiles * j + i]; current; current = current->nxt)
 				if(segcollision(current, seg)) {
-					printseg(current);printf(" collided with ");printseg(seg);printf("\n");
+					if(DEBUG_MODE) {
+						printseg(current);printf(" collided with ");printseg(seg);printf("\n");
+					}
 					collision = 1;
+					if(!for_real)
+						return 1;
 					break;
 				}
 
-			// add the seg to the list, even if it intersects
-			copy = smalloc(sizeof(struct seg));
-			memcpy(copy, seg, sizeof(struct seg));
-			copy->nxt = gm->seg[gm->htiles * j + i];
-			gm->seg[gm->htiles * j + i] = copy;
+			if(for_real) {
+				copy = smalloc(sizeof(struct seg));
+				memcpy(copy, seg, sizeof(struct seg));
+				copy->nxt = gm->seg[gm->htiles * j + i];
+				gm->seg[gm->htiles * j + i] = copy;
+			}
 		}
 	}
 
-	// we dont need the original any more: free it
-	free(seg);
+	if(for_real)
+		free(seg);
 
 	return collision;
 }
@@ -409,7 +416,15 @@ int simuser(struct user *usr, long simstart) {
 	newseg->x2 = usr->x;
 	newseg->y2 = usr->y;
 	
-	return addsegment(usr->gm, newseg);
+	return addsegment(usr->gm, newseg, 1);
+}
+
+// send message to group: this player died
+void deadplayermsg(struct user *usr) {
+	cJSON *json = jsoncreate("playerDied");
+	jsonaddnum(json, "playerId", usr->id);
+	sendjsontogame(json, usr->gm, 0);
+	cJSON_Delete(json);
 }
 
 // simulate game tick
@@ -431,11 +446,7 @@ void simgame(struct game *gm) {
 			usr->alive = 0;
 			gm->alive--;
 
-			// send message to group: this player died
-			cJSON *json = jsoncreate("playerDied");
-			jsonaddnum(json, "playerId", usr->id);
-			sendjsontogame(json, gm, 0);
-			cJSON_Delete(json);
+			deadplayermsg(usr);
 		}
 	}
 	
@@ -452,7 +463,7 @@ void simgame(struct game *gm) {
 
 // deze functie called simgame zo goed als mogelijk elke TICK_LENGTH msec (voor elke game)
 void mainloop() {
-	int sleeptime;
+	int sleepuntil;
 	struct game *gm, *nxtgm;
 
 	while(1) {
@@ -462,9 +473,10 @@ void mainloop() {
 				simgame(gm);
 		}
 		
-		sleeptime = ++serverticks * TICK_LENGTH - servermsecs();
-		sleeptime = (sleeptime >= 1) ? sleeptime : 1;
-		libwebsocket_service(ctx, sleeptime);
+		sleepuntil= ++serverticks * TICK_LENGTH;
+		do{
+			libwebsocket_service(ctx, sleepuntil - servermsecs());
+		}while(sleepuntil - servermsecs() > 0);
 	}
 }
 
@@ -536,29 +548,46 @@ void interpretinput(cJSON *json, struct user *usr) {
 	
 	// send to other players
 	{
-		int simstart= usr->ctick * TICK_LENGTH;
-		// we maken nieuwe json voor het geval dat de user allemaal shit
-		// mee heeft gestuurd in de json die we anders naar de rest zouden
-		// spammen
-		cJSON *j= jsoncreate("newInput");
-		while(simstart <= input->time){
+		struct seg seg;
+		int simstart = usr->ctick * TICK_LENGTH;
+		int playerDead = 0;
+
+		for(; simstart <= input->time; simstart += TICK_LENGTH){
+			seg.x1 = usr->cx;
+			seg.y1 = usr->cy;
 			usr->cangle += usr->cturn * usr->gm->ts * TICK_LENGTH / 1000.0;
 			usr->cx += cos(usr->cangle) * usr->gm->v * TICK_LENGTH / 1000.0;
 			usr->cy += sin(usr->cangle) * usr->gm->v * TICK_LENGTH / 1000.0;
 			usr->ctick++;
-			simstart += TICK_LENGTH;
+			seg.x2 = usr->cx;
+			seg.y2 = usr->cy;
+
+			/* if collision, send message that player died, but dont set him
+			 * to dead because that way some other play may be declared winner
+			 * when he actually died before this player. send it after the
+			 * newInput message or the client will render glitchy */
+			if(usr->ctick > usr->gm->tick && addsegment(usr->gm, &seg, 0)) {
+				playerDead = 1;
+				break;
+			}
 		}
 		usr->cturn= input->turn;
+
+		// we maken nieuwe json voor het geval dat de user allemaal shit
+		// mee heeft gestuurd in de json die we anders naar de rest zouden
+		// spammen
+		cJSON *j= jsoncreate("newInput");
 		jsonaddnum(j, "gameTime", time);
 		jsonaddnum(j, "playerId", usr->id);
 		jsonaddnum(j, "turn", turn);
 		jsonaddnum(j, "x", usr->cx);
 		jsonaddnum(j, "y", usr->cy);
 		jsonaddnum(j, "angle", usr->cangle);
-
-		// FOR TESTING (only?): send to usr too
 		sendjsontogame(j, usr->gm, 0); //usr);
 		jsondel(j);
+
+		if(playerDead)
+			deadplayermsg(usr);
 	}
 }
 

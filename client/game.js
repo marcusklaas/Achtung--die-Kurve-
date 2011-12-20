@@ -422,7 +422,7 @@ Player.prototype.initialise = function(x, y, angle) {
 	this.lcy = this.y = y;
 	this.lct = 0;
 	this.lca = this.angle = angle;
-	this.turn = 0;
+	this.turn = this.lcturn = 0;
 
 	/* create canvas */
 	var canvas = document.getElementById(this.game.canvasStack.createLayer());
