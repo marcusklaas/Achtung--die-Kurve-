@@ -17,7 +17,7 @@
 #define SHOW_WARNING 1
 #define lwsprepadding	LWS_SEND_BUFFER_PRE_PADDING
 #define lwspostpadding	LWS_SEND_BUFFER_POST_PADDING
-#define SEND_SEGMENTS 0 // om de hoeveel ticks het moet gebeuren (0=nooit)
+#define SEND_SEGMENTS 30 // om de hoeveel ticks het moet gebeuren (0=nooit)
 
 /* game states */
 #define GS_LOBBY 0

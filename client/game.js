@@ -172,7 +172,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.handleSyncResponse(obj.time);
 			break;
 		case 'segments':
-			handleSegmentsMessage(obj.segments);
+			this.handleSegmentsMessage(obj.segments);
 			break;
 		default:
 			debugLog('unknown mode!');
@@ -188,7 +188,7 @@ GameEngine.prototype.handleSegmentsMessage = function(segments){
 	this.segctx.beginPath();
 	for(var i = 0; i < segments.length; i++){
 		var s = segments[i];
-		this.segctx.move(s.x1, s.y1);
+		this.segctx.moveTo(s.x1, s.y1);
 		this.segctx.lineTo(s.x2, s.y2);
 	}
 	this.segctx.stroke();
