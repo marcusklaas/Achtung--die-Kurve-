@@ -11,6 +11,8 @@ var simStep = 30; // in milliseconds
 var syncTries = 2;
 var syncDelays = 50;
 var simulatedPing = 100;
+var maxPositionError = .75;
+var maxAngleError = .01;
 
 var onConnect = null;
 
