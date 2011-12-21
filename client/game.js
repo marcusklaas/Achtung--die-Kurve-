@@ -1,12 +1,3 @@
-/* debugging */
-function debugLog(msg) {
-	var container = document.getElementById('debugLog');
-	var elt = document.createElement('li');
-
-	elt.innerHTML = msg;
-    container.insertBefore(elt, container.firstChild);
-}
-
 /* game engine */
 function GameEngine(containerId) {
 	debugLog("creating game");
@@ -179,12 +170,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 	}
 }
 
-GameEngine.prototype.handleSegmentsMessage = function(segments){
-	if(this.segctx == undefined){
-		this.segctx = document.getElementById(this.canvasStack.createLayer()).getContext('2d');
-		this.segctx.lineWidth = 1;
-		this.segctx.strokeStyle = 'black';
-	}
+GameEngine.prototype.handleSegmentsMessage = function(segments) {
 	this.segctx.beginPath();
 	for(var i = 0; i < segments.length; i++){
 		var s = segments[i];
@@ -194,7 +180,7 @@ GameEngine.prototype.handleSegmentsMessage = function(segments){
 	this.segctx.stroke();
 }
 
-GameEngine.prototype.handleSyncResponse = function(serverTime){
+GameEngine.prototype.handleSyncResponse = function(serverTime) {
 	if(this.syncTries == 0){
 		this.ping = 0;
 		this.bestSyncPing = 9999;
@@ -222,7 +208,7 @@ GameEngine.prototype.handleSyncResponse = function(serverTime){
 	}
 }
 
-GameEngine.prototype.getServerTime = function(){
+GameEngine.prototype.getServerTime = function() {
 	return this.serverTimeDifference + Date.now();
 }
 
@@ -281,37 +267,18 @@ GameEngine.prototype.syncWithServer = function() {
 	this.sendMsg('getTime', {});
 }
 
-
-GameEngine.prototype.draw = function() {
-	for(var i = 0; i < this.players.length; i++){
-		this.players[i].context.stroke();
-			this.players[i].context.beginPath();
-	}
-	//this.baseContext.stroke();
-	//this.baseContext.beginPath();
-}
-
 GameEngine.prototype.doTick = function() {
-	this.players[0].simulate(this.tick, this.tick + 1, 
-	 false, null);
-	this.tick++;
+	var player = this.players[0];
+	player.simulate(this.tick, ++this.tick, player.context, null);
 }
+
 GameEngine.prototype.doTock = function() {
 	for(var i = 1; i < this.players.length; i++){
 		var player = this.players[i];
-		/*if(player.inputQueue.length > 0){
-			for(var j = player.inputQueue.length - 1; j >= 0; j--){
-				if(player.inputQueue[j].tick > this.tock)
-					break;
-				var obj = player.inputQueue.pop();
-				player.steer(obj);
-			}
-		}*/
 		var len = player.inputQueue.length;
 		if(len > 0 && player.inputQueue[len - 1].tick == this.tock)
 			player.turn = player.inputQueue.pop().turn;
-		player.simulate(this.tock, this.tock + 1,
-		 false, null);
+		player.simulate(this.tock, this.tock + 1, player.context, null);
 	}
 	this.tock++;
 }
@@ -337,11 +304,12 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	/* create canvas stack */
 	this.canvasStack = new CanvasStack(this.containerId, canvasBgcolor);
 
-	/* draw on background context, since we never need to redraw anything 
-	 * on this layer (only clear for new game) */
+	/* create background context */
 	var canvas = document.getElementById(this.canvasStack.getBackgroundCanvasId());
 	this.baseContext = canvas.getContext('2d');
+	this.baseContext.fillStyle = '#000';
 	this.baseContext.lineWidth = lineWidth;
+	this.baseContext.lineCap = lineCapStyle;
 
 	/* init players */
 	for(var i = 0; i < startPositions.length; i++) {
@@ -349,22 +317,41 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 		this.players[index].initialise(startPositions[i].startX,
 		 startPositions[i].startY, startPositions[i].startAngle);
 	}
+
+	/* create segment canvas */
+	canvas = document.getElementById(this.canvasStack.createLayer());
+	this.segctx = canvas.getContext('2d');
+	this.segctx.lineWidth = 1;
+	this.segctx.strokeStyle = 'black';
+	this.segctx.lineCap = lineCapStyle;
 	
-	var that = this;
+	var self = this;
+	window.setTimeout(function() { self.realStart(); }, delay + simStep);
+}
 
+GameEngine.prototype.realStart = function() {
+	/* clear angle indicators from base layer */
+	this.baseContext.clearRect(0, 0, this.width, this.height);
+
+	var self = this;
 	var gameloop = function() {
-		while(that.tick - that.tock >= that.behind)
-			that.doTock();
-		that.doTick();
+		while(self.tick - self.tock >= self.behind)
+			self.doTock();
+		self.doTick();
+		//self.draw();
 		
-		that.draw();
-		
-		if(!that.gameOver)
+		if(!self.gameOver)
 			window.setTimeout(gameloop, Math.max(0,
-				that.tick * simStep - (Date.now() - that.gameStartTimestamp)));
+			 self.tick * simStep - (Date.now() - self.gameStartTimestamp)));
 	}
+	gameloop();
+}
 
-	window.setTimeout(gameloop, delay + simStep);
+GameEngine.prototype.displayDebugStatus = function(){
+	document.getElementById('status').innerHTML = 
+	 'redraws: ' + this.redraws + ' / ' + this.redrawsPossible +
+	 ', modified inputs: ' + this.modifiedInputs +
+	 ', game time adjustments: ' + this.adjustGameTimeMessagesReceived;
 }
 
 /* players */
@@ -424,7 +411,7 @@ Player.prototype.steer = function(obj) {
 	this.y = this.lcy;
 	this.angle = this.lca;
 	this.turn = this.lcturn;
-	this.simulate(this.lctick, obj.tick, true, this.baseQueue);
+	this.simulate(this.lctick, obj.tick, this.game.baseContext, this.baseQueue);
 	this.lcx = this.x;
 	this.lcy = this.y;
 	this.lca = this.angle;
@@ -454,18 +441,13 @@ Player.prototype.steer = function(obj) {
 		this.game.displayDebugStatus();
 	}
 	
-	this.simulate(obj.tick, localTick, false, this.isLocal ? this.inputQueue : null);
+	this.simulate(obj.tick, localTick, this.context, this.isLocal ? this.inputQueue : null);
 }
 
-Player.prototype.simulate = function(startTick, endTick, baseContext, queue) {
-	var ctx = baseContext ? this.game.baseContext : this.context;
-	if(ctx != null){ // kan weg?
-		if(baseContext)
-			ctx.beginPath();
-		ctx.strokeStyle = this.color;
-		//ctx.beginPath();
-		ctx.moveTo(this.x, this.y);
-	}
+Player.prototype.simulate = function(startTick, endTick, ctx, queue) {
+	ctx.beginPath();
+	ctx.strokeStyle = this.color;
+	ctx.moveTo(this.x, this.y);
 	
 	var i, input;
 	if(queue!=null){
@@ -495,8 +477,8 @@ Player.prototype.simulate = function(startTick, endTick, baseContext, queue) {
 		if(ctx != null)
 			ctx.lineTo(this.x, this.y);
 	}
-	if(baseContext)
-		ctx.stroke();
+
+	ctx.stroke();
 }
 
 Player.prototype.initialise = function(x, y, angle) {
@@ -518,7 +500,19 @@ Player.prototype.initialise = function(x, y, angle) {
 	this.context = canvas.getContext('2d');
 	this.context.lineWidth = lineWidth;
 	this.context.strokeStyle = this.color;
+	this.context.lineCap = lineCapStyle;
 	this.context.moveTo(x, y);
+
+	/* draw angle indicator on base layer */
+	var ctx = this.game.baseContext;
+	ctx.strokeStyle = this.color;
+	ctx.beginPath();
+	ctx.moveTo(x, y);
+	ctx.lineTo(x += Math.cos(angle) * indicatorLength, y += Math.sin(angle) * indicatorLength);
+	ctx.stroke();
+	ctx.beginPath();
+    ctx.arc(x, y, indicatorDotSize, 0, 2 * Math.PI, false);
+    ctx.fill();
 
 	debugLog("initialising player at (" + this.x + ", " + this.y + "), angle = " + this.angle);
 }
@@ -651,32 +645,29 @@ window.onload = function() {
 }
 
 /* cookies */
-function setCookie(c_name,value,exdays)
-{
+function setCookie(c_name,value,exdays) {
 	var exdate=new Date();
 	exdate.setDate(exdate.getDate() + exdays);
 	var c_value=escape(value) + ((exdays==null) ? "" : "; expires="+exdate.toUTCString());
 	document.cookie=c_name + "=" + c_value;
 }
 
-function getCookie(c_name)
-{
+function getCookie(c_name) {
 	var i,x,y,ARRcookies=document.cookie.split(";");
-	for (i=0;i<ARRcookies.length;i++)
-	{
+	for (i=0;i<ARRcookies.length;i++) {
 		x=ARRcookies[i].substr(0,ARRcookies[i].indexOf("="));
 		y=ARRcookies[i].substr(ARRcookies[i].indexOf("=")+1);
 		x=x.replace(/^\s+|\s+$/g,"");
 		if (x==c_name)
-		{
 			return unescape(y);
-		}
 	}
 }
 
-GameEngine.prototype.displayDebugStatus = function(){
-	document.getElementById('status').innerHTML = 
-	 'redraws: ' + this.redraws + ' / ' + this.redrawsPossible +
-	 ', modified inputs: ' + this.modifiedInputs +
-	 ', game time adjustments: ' + this.adjustGameTimeMessagesReceived;
+/* debugging */
+function debugLog(msg) {
+	var container = document.getElementById('debugLog');
+	var elt = document.createElement('li');
+
+	elt.innerHTML = msg;
+    container.insertBefore(elt, container.firstChild);
 }

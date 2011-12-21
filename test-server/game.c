@@ -425,6 +425,8 @@ void deadplayermsg(struct user *usr) {
 	cJSON_Delete(json);
 }
 
+/* ik zag in addsegment free niet als SEND_SEGMENTS, maar ik zie je freet
+ * ze hier in dat geval (Y) */
 void sendsegments(struct game *gm){
 	if(gm->tosend){
 		cJSON *json= jsoncreate("segments");
