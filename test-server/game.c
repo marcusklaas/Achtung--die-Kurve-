@@ -32,7 +32,7 @@ void startgame(struct game *gm){
 	float *player_locations = smalloc(3 * gm->n * sizeof(float));
 	randomizePlayerStarts(gm, player_locations);
 
-	gm->start = serverticks() * TICK_LENGTH + COUNTDOWN;
+	gm->start = serverticks * TICK_LENGTH + COUNTDOWN;
 	gm->tick = -(COUNTDOWN + SERVER_DELAY) / TICK_LENGTH;
 	gm->state = GS_STARTED;
 	gm->alive = gm->n;
