@@ -514,6 +514,8 @@ void interpretinput(cJSON *json, struct user *usr) {
 	int tick= jsongetint(json, "tick");
 	int time= tick * TICK_LENGTH + TICK_LENGTH/ 2;
 	int modified= 0;
+	int minimumTick = max(usr->gm->tick, 
+	 (servermsecs() - usr->gm->start - MAX_MESSAGE_DELAY) / TICK_LENGTH);
 	
 	// some checks
 	if(turn < -1 || turn > 1){
@@ -521,24 +523,22 @@ void interpretinput(cJSON *json, struct user *usr) {
 			printf("invalid user input received from user %d.\n", usr->id);
 		return;
 	}
-
-	if(usr->inputtail && tick < usr->inputtail->tick){
-		if(SHOW_WARNING)
-			printf("input messages of user %d are being received out of order!\n", usr->id);
-		return;
-	}
-
 	if(!usr->alive) {
 		if(SHOW_WARNING)
 			printf("received input for dead user %d? ignoring..\n", usr->id);
 		return;
 	}
-	if(servermsecs() - usr->gm->start - time > MAX_MESSAGE_DELAY){
+	if(tick < minimumTick ){
 		if(SHOW_WARNING)
-			printf("received msg from user %d of %d msec old! modifying message..\n",
-			 usr->id, (int) (servermsecs() - usr->gm->start - time));
-		tick = (servermsecs() - usr->gm->start - MAX_MESSAGE_DELAY)/ TICK_LENGTH;
+			printf("received msg from user %d of %d msec old! tick incremented by %d\n",
+			 usr->id, (int) (servermsecs() - usr->gm->start - time), minimumTick - tick);
+		tick = minimumTick;
 		modified= 1;
+	}
+	if(usr->inputtail && tick < usr->inputtail->tick){
+		if(SHOW_WARNING)
+			printf("input messages of user %d are being received out of order!\n", usr->id);
+		return;
 	}
 	
 	// put it in user queue
@@ -553,13 +553,14 @@ void interpretinput(cJSON *json, struct user *usr) {
 		usr->inputtail = usr->inputtail->nxt = input; // ingenious or wat
 		
 	// check if user needs to adjust her gametime
-	usr->delta[usr->deltaat++]= time - (servermsecs() - usr->gm->start);
+	usr->delta[usr->deltaat++]= (servermsecs() - usr->gm->start) - time;
 	if(usr->deltaat == DELTA_COUNT) {
 		usr->deltaat= 0;
 		usr->deltaon= 1;
 	}
 	if(usr->deltaon){
 		int max= 0, i, tot= 0;
+		usr->deltaon= 0;
 		for(i= 0;i < DELTA_COUNT; i++){
 			if(usr->delta[i] > max){
 				tot += max;
@@ -567,12 +568,14 @@ void interpretinput(cJSON *json, struct user *usr) {
 			}else
 				tot += usr->delta[i];
 		}
-		tot /= DELTA_COUNT - 1;
-		if(tot > DELTA_MAX || tot < DELTA_MAX * -1){
+		tot /= (DELTA_COUNT - 1);
+		if(abs(tot) > DELTA_MAX){
 			cJSON *j= jsoncreate("adjustGameTime");
 			jsonaddnum(j, "forward", tot);
-			usr->deltaon= 0;
-			usr->deltaat= 0;
+			sendjson(j, usr);
+			jsondel(j);
+			if(SHOW_WARNING)
+				printf("asked user %d to adjust gametime by %d\n", usr->id, tot);
 		}
 	}
 	

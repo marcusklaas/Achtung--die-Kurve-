@@ -130,7 +130,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;
 		case 'adjustGameTime':
 			debugLog('adjusted game time by ' + obj.forward + ' msec');
-			this.gameStartTimestamp += obj.forward;
+			//this.gameStartTimestamp -= obj.forward;
 			this.adjustGameTimeMessagesReceived++;
 			this.displayDebugStatus();
 			break;
@@ -327,7 +327,7 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	this.segctx.lineCap = lineCapStyle;
 	
 	var self = this;
-	window.setTimeout(function() { self.realStart(); }, delay + simStep);
+	window.setTimeout(function() { self.realStart(); }, delay);
 }
 
 GameEngine.prototype.realStart = function() {
@@ -344,7 +344,7 @@ GameEngine.prototype.realStart = function() {
 			window.setTimeout(gameloop, Math.max(0,
 			 self.tick * simStep - (Date.now() - self.gameStartTimestamp)));
 	}
-	gameloop();
+	window.setTimeout(gameloop, simStep);
 }
 
 GameEngine.prototype.displayDebugStatus = function(){
@@ -382,25 +382,26 @@ function Player(color, local) {
 
 Player.prototype.steer = function(obj) {
 	var localTick = this.isLocal ? this.game.tick : this.game.tock;
-	if(obj.tick >= localTick || (this.isLocal && !obj.hasOwnProperty('modified'))){
-		//this.inputQueue.unshift(obj);
+	if(obj.tick >= localTick){
+		if(this.isLocal && obj.modified != undefined)
+			debugLog("server is playing with you! now you are out of sync");
 		this.baseQueue.unshift(obj);
 		if(!this.isLocal){
-		
 			if(this.lastSteerTick == obj.tick)
 				this.inputQueue[0] = obj;
 			else{
 				this.inputQueue.unshift(obj);
 				this.lastSteerTick = obj.tick;
 			}
-			
 			this.game.redrawsPossible++;
 			this.game.displayDebugStatus();
 		}
 		return;
 	}
 	
-	if(this.isLocal && obj.hasOwnProperty('modified')){
+	var currentTurn = this.turn;
+	
+	if(this.isLocal && obj.modified != undefined){
 		this.game.modifiedInputs ++;
 		this.game.displayDebugStatus();
 	}
@@ -412,24 +413,13 @@ Player.prototype.steer = function(obj) {
 	this.angle = this.lca;
 	this.turn = this.lcturn;
 	this.simulate(this.lctick, obj.tick, this.game.baseContext, this.baseQueue);
+	this.turn = obj.turn;
+	this.baseQueue = [];
 	this.lcx = this.x;
 	this.lcy = this.y;
 	this.lca = this.angle;
-	this.lcturn = this.turn = obj.turn;	
+	this.lcturn = this.turn;	
 	this.lctick = obj.tick;
-	this.baseQueue = [];
-	/*var redraw = true;
-	if(this.isLocal && Math.abs(this.x - obj.x) < maxPositionError
-	 && Math.abs(this.y - obj.y) < maxPositionError
-	 && Math.abs(this.angle - obj.angle) < maxAngleError)
-		redraw = false;*/
-		 
-	/* here we sync with server 
-	this.lcx = this.x = obj.x;
-	this.lcy = this.y = obj.y;
-	this.lca = this.angle = obj.angle;
-	this.lcturn = this.turn = obj.turn;	
-	*/
 
 	/* clear this players canvas and run extrapolation on this player's
 	 * context from timestamp in object to NOW */
@@ -442,9 +432,13 @@ Player.prototype.steer = function(obj) {
 	}
 	
 	this.simulate(obj.tick, localTick, this.context, this.isLocal ? this.inputQueue : null);
+	if(this.isLocal)
+		this.turn = currentTurn;
 }
 
 Player.prototype.simulate = function(startTick, endTick, ctx, queue) {
+	if(startTick == endTick)
+		return;
 	ctx.beginPath();
 	ctx.strokeStyle = this.color;
 	ctx.moveTo(this.x, this.y);
@@ -508,7 +502,7 @@ Player.prototype.initialise = function(x, y, angle) {
 	ctx.strokeStyle = this.color;
 	ctx.beginPath();
 	ctx.moveTo(x, y);
-	ctx.lineTo(x += Math.cos(angle) * indicatorLength, y += Math.sin(angle) * indicatorLength);
+	ctx.lineTo(x + Math.cos(angle) * indicatorLength, y + Math.sin(angle) * indicatorLength);
 	ctx.stroke();
 	ctx.beginPath();
     ctx.arc(x, y, indicatorDotSize, 0, 2 * Math.PI, false);

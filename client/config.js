@@ -11,9 +11,11 @@ var simStep = 24; // in milliseconds
 var syncTries = 2;
 var syncDelays = 50;
 var simulatedPing = 0;
-var maxPositionError = .75;
-var maxAngleError = .01;
 var behind = 2; // desired difference between tock and tick
+
+var lineCapStyle = 'round';
+var indicatorDotSize = 2;
+var indicatorLength = 10;
 
 var onConnect = null;
 

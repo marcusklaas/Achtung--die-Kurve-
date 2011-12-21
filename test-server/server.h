@@ -7,12 +7,12 @@
 #define TURN_SPEED 3 // radians per sec
 #define DEBUG_MODE 1
 #define TICK_LENGTH 24 // in msecs
-#define SERVER_DELAY 250 // in msecs, preferably veelvoud of TICK_LENGTH
-#define MAX_MESSAGE_DELAY 250
-#define COUNTDOWN 1000
+#define SERVER_DELAY 250
+#define MAX_MESSAGE_DELAY 200
+#define COUNTDOWN 1008
 #define SB_MAX 10	// sendbuffer max size
-#define DELTA_COUNT 6
-#define DELTA_MAX 1
+#define DELTA_COUNT 3
+#define DELTA_MAX 25
 #define ULTRA_VERBOSE 0
 #define SHOW_WARNING 1
 #define lwsprepadding	LWS_SEND_BUFFER_PRE_PADDING
