@@ -130,7 +130,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;
 		case 'adjustGameTime':
 			debugLog('adjusted game time by ' + obj.forward + ' msec');
-			//this.gameStartTimestamp -= obj.forward;
+			this.gameStartTimestamp -= obj.forward;
 			this.adjustGameTimeMessagesReceived++;
 			this.displayDebugStatus();
 			break;
@@ -190,7 +190,7 @@ GameEngine.prototype.handleSyncResponse = function(serverTime) {
 	var ping = (Date.now() - this.syncSendTime) / 2;
 	if(ping < this.bestSyncPing){
 		this.bestSyncPing = ping;
-		this.serverTimeDifference = serverTime - Date.now() + ping;
+		this.serverTimeDifference = Date.now() - (serverTime + ping);
 	}
 	if(ping > this.worstSyncPing){
 		this.ping += this.worstSyncPing / (syncTries - 1);
@@ -207,10 +207,6 @@ GameEngine.prototype.handleSyncResponse = function(serverTime) {
 		 + ' msec' + ', and average ping of ' + this.ping + ' msec');
 		this.syncTries = 0;
 	}
-}
-
-GameEngine.prototype.getServerTime = function() {
-	return this.serverTimeDifference + Date.now();
 }
 
 /* initialises the game */ 
@@ -296,7 +292,7 @@ GameEngine.prototype.addPlayer = function(player) {
 }
 
 GameEngine.prototype.start = function(startPositions, startTime) {
-	this.gameStartTimestamp = startTime - this.getServerTime() - this.ping + Date.now();
+	this.gameStartTimestamp = startTime + this.serverTimeDifference - this.ping;
 	this.gameOver = false;
 	var delay = this.gameStartTimestamp - Date.now();
 	
@@ -342,7 +338,7 @@ GameEngine.prototype.realStart = function() {
 		
 		if(!self.gameOver)
 			window.setTimeout(gameloop, Math.max(0,
-			 self.tick * simStep - (Date.now() - self.gameStartTimestamp)));
+			 (self.tick + 1) * simStep - (Date.now() - self.gameStartTimestamp)));
 	}
 	window.setTimeout(gameloop, simStep);
 }
@@ -382,7 +378,7 @@ function Player(color, local) {
 
 Player.prototype.steer = function(obj) {
 	var localTick = this.isLocal ? this.game.tick : this.game.tock;
-	if(obj.tick >= localTick){
+	if(obj.tick >= localTick || (this.isLocal && obj.modified == undefined)){
 		if(this.isLocal && obj.modified != undefined)
 			debugLog("server is playing with you! now you are out of sync");
 		this.baseQueue.unshift(obj);

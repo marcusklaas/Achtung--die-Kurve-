@@ -7,9 +7,8 @@
 #define TURN_SPEED 3 // radians per sec
 #define DEBUG_MODE 1
 #define TICK_LENGTH 24 // in msecs
-#define SERVER_DELAY 250
-#define MAX_MESSAGE_DELAY 200
-#define COUNTDOWN 1008
+#define SERVER_DELAY 120 // multiple of TICK_LENGTH
+#define COUNTDOWN 1008 // multiple of TICK_LENGTH
 #define SB_MAX 10	// sendbuffer max size
 #define DELTA_COUNT 3
 #define DELTA_MAX 25

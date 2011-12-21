@@ -32,7 +32,8 @@ void startgame(struct game *gm){
 	float *player_locations = smalloc(3 * gm->n * sizeof(float));
 	randomizePlayerStarts(gm, player_locations);
 
-	gm->start = servermsecs() + COUNTDOWN;
+	gm->start = serverticks() * TICK_LENGTH + COUNTDOWN;
+	gm->tick = -(COUNTDOWN + SERVER_DELAY) / TICK_LENGTH;
 	gm->state = GS_STARTED;
 	gm->alive = gm->n;
 
@@ -453,9 +454,10 @@ void sendsegments(struct game *gm){
 void simgame(struct game *gm) {
 	struct user *usr;
 
-	// we beginnen te ticken na gm->start + SERVER_DELAY
-	if(servermsecs() < gm->start + SERVER_DELAY)
+	if(gm->tick < 0){
+		gm->tick++;
 		return;
+	}
 
 	for(usr = gm->usr; usr; usr = usr->nxt) {
 		if(usr->alive && simuser(usr, gm->tick)) {
