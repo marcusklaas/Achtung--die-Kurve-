@@ -516,8 +516,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 	int tick= jsongetint(json, "tick");
 	int time= tick * TICK_LENGTH + TICK_LENGTH/ 2;
 	int modified= 0;
-	int minimumTick = max(usr->gm->tick, 
-	 (servermsecs() - usr->gm->start - MAX_MESSAGE_DELAY) / TICK_LENGTH);
+	int minimumTick = usr->gm->tick;
 	
 	// some checks
 	if(turn < -1 || turn > 1){
