@@ -6,6 +6,7 @@
 #define jsonaddstr cJSON_AddStringToObject
 #define jsonaddfalse cJSON_AddFalseToObject
 #define jsonaddtrue cJSON_AddTrueToObject
+#define jsonaddjson cJSON_AddItemToObject
 #define jsondel	cJSON_Delete
 
 // returns NULL on error
@@ -124,6 +125,14 @@ char *duplicatestring(char *orig) {
 // safe malloc, exit(500) on error
 void *smalloc(size_t size){
 	void* a= malloc(size);
+	if(!a){
+		printf("malloc failed, exiting..\n");
+		exit(500);
+	}
+	return a;
+}
+void *scalloc(size_t num, size_t size){
+	void* a= calloc(num, size);
 	if(!a){
 		printf("malloc failed, exiting..\n");
 		exit(500);

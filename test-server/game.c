@@ -208,7 +208,7 @@ void joingame(struct game *gm, struct user *newusr) {
 }
 
 struct game *creategame(int nmin, int nmax) {
-	struct game *gm = smalloc(sizeof(struct game));
+	struct game *gm = scalloc(1, sizeof(struct game));
 
 	if(DEBUG_MODE)
 		printf("creategame called \n");
@@ -235,6 +235,7 @@ struct game *creategame(int nmin, int nmax) {
 		printf("Calloc failed in creategame!\n");
 		exit(500);
 	}
+	gm->tosend= 0;
 
 	return gm;
 }
@@ -324,10 +325,10 @@ int lineboxcollision(struct seg *seg, int left, int bottom, int right, int top) 
 	return 0;
 }
 
-// returns 1 in case of collision, 0 other wise (note how we free seg only if for_real)
+// returns 1 in case of collision, 0 other wise
 // TODO: it would be super nice if we would cut of the latter part of the segment 
 // if it intersects an existing segment
-int addsegment(struct game *gm, struct seg *seg, char for_real) {
+int addsegment(struct game *gm, struct seg *seg) {
 	int left_tile, right_tile, bottom_tile, top_tile, swap, collision = 0;
 	struct seg *current, *copy;
 
@@ -345,9 +346,6 @@ int addsegment(struct game *gm, struct seg *seg, char for_real) {
 
 	/* run off screen */
 	if(seg->x2 < 0 || seg->x2 >= gm->w || seg->y2 < 0 || seg->y2 >= gm->h) {
-		if(!for_real)
-			return 1;
-
 		collision = 1;
 		left_tile = (left_tile < 0) ? 0 : left_tile;
 		right_tile = (right_tile >= gm->htiles) ? (gm->htiles - 1) : right_tile;
@@ -367,33 +365,33 @@ int addsegment(struct game *gm, struct seg *seg, char for_real) {
 						printseg(current);printf(" collided with ");printseg(seg);printf("\n");
 					}
 					collision = 1;
-					if(!for_real)
-						return 1;
 					break;
 				}
 
-			if(for_real) {
-				copy = smalloc(sizeof(struct seg));
-				memcpy(copy, seg, sizeof(struct seg));
-				copy->nxt = gm->seg[gm->htiles * j + i];
-				gm->seg[gm->htiles * j + i] = copy;
-			}
+			copy = smalloc(sizeof(struct seg));
+			memcpy(copy, seg, sizeof(struct seg));
+			copy->nxt = gm->seg[gm->htiles * j + i];
+			gm->seg[gm->htiles * j + i] = copy;
 		}
 	}
 
-	if(for_real)
+	// we dont need the original any more: free it
+	if(SEND_SEGMENTS){
+		seg->nxt= gm->tosend;
+		gm->tosend= seg;
+	}else
 		free(seg);
 
 	return collision;
 }
 
 // simulate user tick. returns 1 if player dies during this tick, 0 otherwise
-int simuser(struct user *usr, long simstart) {
+int simuser(struct user *usr, int tick) {
 	/* usr sent us more than 1 input in a single tick? that's weird! might be
 	 * possible though. ignore all but last */
 	struct userinput *prev;
 
-	while(usr->inputhead && usr->inputhead->time < simstart) {
+	while(usr->inputhead && usr->inputhead->tick <= tick) {
 		usr->turn = usr->inputhead->turn;
 		prev = usr->inputhead;
 		usr->inputhead = usr->inputhead->nxt;
@@ -416,7 +414,7 @@ int simuser(struct user *usr, long simstart) {
 	newseg->x2 = usr->x;
 	newseg->y2 = usr->y;
 	
-	return addsegment(usr->gm, newseg, 1);
+	return addsegment(usr->gm, newseg);
 }
 
 // send message to group: this player died
@@ -427,19 +425,38 @@ void deadplayermsg(struct user *usr) {
 	cJSON_Delete(json);
 }
 
+void sendsegments(struct game *gm){
+	if(gm->tosend){
+		cJSON *json= jsoncreate("segments");
+		cJSON *ar= cJSON_CreateArray();
+		struct seg *seg= gm->tosend;
+		while(seg){
+			struct seg *nxt= seg->nxt;
+			cJSON *a= cJSON_CreateObject();
+			jsonaddnum(a,"x1", seg->x1);
+			jsonaddnum(a,"y1", seg->y1);
+			jsonaddnum(a,"x2", seg->x2);
+			jsonaddnum(a,"y2", seg->y2);
+			cJSON_AddItemToArray(ar, a);
+			free(seg);
+			seg= nxt;
+		}
+		gm->tosend= 0;
+		jsonaddjson(json, "segments", ar);
+		sendjsontogame(json, gm, 0);
+	}
+}
+
 // simulate game tick
 void simgame(struct game *gm) {
 	struct user *usr;
-	long simstart;
 
 	// we beginnen te ticken na gm->start + SERVER_DELAY
 	if(servermsecs() < gm->start + SERVER_DELAY)
 		return;
 
-	simstart= gm->tick++ * TICK_LENGTH;
-
 	for(usr = gm->usr; usr; usr = usr->nxt) {
-		if(usr->alive && simuser(usr, simstart)) {
+		if(usr->alive && simuser(usr, gm->tick)) {
 			if(DEBUG_MODE)
 				printf("Player %d died\n", usr->id);
 
@@ -450,8 +467,16 @@ void simgame(struct game *gm) {
 		}
 	}
 	
+	gm->tick++;
+	if(SEND_SEGMENTS && gm->tick % SEND_SEGMENTS == 0)
+		sendsegments(gm);
+	
 	if(gm->alive <= 1 && (gm->nmin > 1 || gm->alive < 1)) {
 		cJSON *json= jsoncreate("endGame");
+		
+		if(SEND_SEGMENTS)
+			sendsegments(gm);
+		
 		for(usr = gm->usr; usr && !usr->alive; usr = usr->nxt);
 		jsonaddnum(json, "winnerId", usr ? usr->id : -1);
 		sendjsontogame(json, gm, 0);
@@ -482,8 +507,11 @@ void mainloop() {
 
 void interpretinput(cJSON *json, struct user *usr) {
 	struct userinput *input;
-	int time= jsongetint(json, "gameTime");
+	//int time= jsongetint(json, "gameTime");
 	int turn= jsongetint(json, "turn");
+	int tick= jsongetint(json, "tick");
+	int time= tick * TICK_LENGTH + TICK_LENGTH/ 2;
+	int modified= 0;
 	
 	// some checks
 	if(turn < -1 || turn > 1){
@@ -492,7 +520,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 		return;
 	}
 
-	if(usr->inputtail && time < usr->inputtail->time){
+	if(usr->inputtail && tick < usr->inputtail->tick){
 		if(SHOW_WARNING)
 			printf("input messages of user %d are being received out of order!\n", usr->id);
 		return;
@@ -503,17 +531,17 @@ void interpretinput(cJSON *json, struct user *usr) {
 			printf("received input for dead user %d? ignoring..\n", usr->id);
 		return;
 	}
-
 	if(servermsecs() - usr->gm->start - time > MAX_MESSAGE_DELAY){
 		if(SHOW_WARNING)
 			printf("received msg from user %d of %d msec old! modifying message..\n",
 			 usr->id, (int) (servermsecs() - usr->gm->start - time));
-		time = servermsecs() - usr->gm->start - MAX_MESSAGE_DELAY;
+		tick = (servermsecs() - usr->gm->start - MAX_MESSAGE_DELAY)/ TICK_LENGTH;
+		modified= 1;
 	}
 	
 	// put it in user queue
 	input = smalloc(sizeof(struct userinput));
-	input->time = time;
+	input->tick = tick;
 	input->turn = turn;
 	input->nxt = 0;
 	
@@ -523,7 +551,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 		usr->inputtail = usr->inputtail->nxt = input; // ingenious or wat
 		
 	// check if user needs to adjust her gametime
-	usr->delta[usr->deltaat++]= input->time - (servermsecs() - usr->gm->start);
+	usr->delta[usr->deltaat++]= time - (servermsecs() - usr->gm->start);
 	if(usr->deltaat == DELTA_COUNT) {
 		usr->deltaat= 0;
 		usr->deltaon= 1;
@@ -548,46 +576,15 @@ void interpretinput(cJSON *json, struct user *usr) {
 	
 	// send to other players
 	{
-		struct seg seg;
-		int simstart = usr->ctick * TICK_LENGTH;
-		int playerDead = 0;
-
-		for(; simstart <= input->time; simstart += TICK_LENGTH){
-			seg.x1 = usr->cx;
-			seg.y1 = usr->cy;
-			usr->cangle += usr->cturn * usr->gm->ts * TICK_LENGTH / 1000.0;
-			usr->cx += cos(usr->cangle) * usr->gm->v * TICK_LENGTH / 1000.0;
-			usr->cy += sin(usr->cangle) * usr->gm->v * TICK_LENGTH / 1000.0;
-			usr->ctick++;
-			seg.x2 = usr->cx;
-			seg.y2 = usr->cy;
-
-			/* if collision, send message that player died, but dont set him
-			 * to dead because that way some other play may be declared winner
-			 * when he actually died before this player. send it after the
-			 * newInput message or the client will render glitchy */
-			if(usr->ctick > usr->gm->tick && addsegment(usr->gm, &seg, 0)) {
-				playerDead = 1;
-				break;
-			}
-		}
-		usr->cturn= input->turn;
-
-		// we maken nieuwe json voor het geval dat de user allemaal shit
-		// mee heeft gestuurd in de json die we anders naar de rest zouden
-		// spammen
 		cJSON *j= jsoncreate("newInput");
-		jsonaddnum(j, "gameTime", time);
+		usr->cturn= input->turn;
+		jsonaddnum(j, "tick", tick);
 		jsonaddnum(j, "playerId", usr->id);
 		jsonaddnum(j, "turn", turn);
-		jsonaddnum(j, "x", usr->cx);
-		jsonaddnum(j, "y", usr->cy);
-		jsonaddnum(j, "angle", usr->cangle);
-		sendjsontogame(j, usr->gm, 0); //usr);
+		if(modified)
+			jsonaddnum(j, "modified", 0);
+		sendjsontogame(j, usr->gm, 0);
 		jsondel(j);
-
-		if(playerDead)
-			deadplayermsg(usr);
 	}
 }
 
