@@ -91,6 +91,7 @@ GameEngine.prototype.connect = function(url, name) {
 		 + exception.message);
 	}
 }
+
 GameEngine.prototype.interpretMsg = function(msg) {
 	if(ultraVerbose)
 		debugLog('received data: ' + msg.data);
@@ -202,8 +203,8 @@ GameEngine.prototype.handleSyncResponse = function(serverTime) {
 		 this.syncTries * syncDelays);
 	}
 	else{
-		debugLog('synced with server with a maximum error of ' + this.bestSyncPing + ' msec'
-		+ ', and average ping of ' + this.ping + ' msec');
+		debugLog('synced with server with a maximum error of ' + this.bestSyncPing
+		 + ' msec' + ', and average ping of ' + this.ping + ' msec');
 		this.syncTries = 0;
 	}
 }
@@ -338,7 +339,6 @@ GameEngine.prototype.realStart = function() {
 		while(self.tick - self.tock >= self.behind)
 			self.doTock();
 		self.doTick();
-		//self.draw();
 		
 		if(!self.gameOver)
 			window.setTimeout(gameloop, Math.max(0,
@@ -558,8 +558,7 @@ InputController.prototype.keyUp = function(keyCode) {
 
 InputController.prototype.steerLocal = function(turn){
 	this.player.turn = turn;
-	var obj = {'turn': turn, 'tick': game.tick,
-	 'gameTime': Date.now() - this.game.gameStartTimestamp};
+	var obj = {'turn': turn, 'tick': game.tick};
 	if(this.lastSteerTick == this.game.tick)
 		this.player.inputQueue[0] = obj;
 	else{
