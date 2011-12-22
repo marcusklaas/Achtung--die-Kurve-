@@ -479,7 +479,7 @@ void simgame(struct game *gm) {
 		sendjsontogame(json, gm, 0);
 		jsondel(json);		
 		printf("game %p ended. winnerId = %d\n", (void*)gm, usr ? usr->id : -1);
-		stopgame(gm);
+		remgame(gm); // voorlopig, later stopgame(gm);
 	}
 }
 
