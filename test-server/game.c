@@ -1,14 +1,17 @@
-void randomizePlayerStarts(struct game *gm, float *buf) {
+void randomizePlayerStarts(struct game *gm) {
 	// diameter of your circle in pixels when you turn at max rate
-	int i, turningCircle = ceil(2.0 * VELOCITY/ TURN_SPEED);
+	int turningCircle = ceil(2.0 * gm->v/ gm->ts);
+	struct user *usr;
 
 	if(DEBUG_MODE)
 		printf("Entered randomization\n");
 
-	for(i = 0; i < gm->n; i++) {
-		buf[3 * i] = turningCircle + rand() % (gm->w - 2 * turningCircle);
-		buf[3 * i + 1] = turningCircle + rand() % (gm->h - 2 * turningCircle);
-		buf[3 * i + 2] = rand() % 618 / 100.0;
+	/* set the players locs and hstart */
+	for(usr = gm->usr; usr; usr = usr->nxt) {
+		usr->x = turningCircle + rand() % (gm->w - 2 * turningCircle);
+		usr->y =  turningCircle + rand() % (gm->h - 2 * turningCircle);
+		usr->angle = rand() % 628 / 100.0;
+		usr->hstart = gm->hmin + rand() % (gm->hmax - gm->hmin + 1);
 	}
 }
 
@@ -29,8 +32,7 @@ void startgame(struct game *gm){
 	if(DEBUG_MODE)
 		printf("startgame called!\n");
 
-	float *player_locations = smalloc(3 * gm->n * sizeof(float));
-	randomizePlayerStarts(gm, player_locations);
+	randomizePlayerStarts(gm);
 
 	gm->start = serverticks * TICK_LENGTH + COUNTDOWN;
 	gm->tick = -(COUNTDOWN + SERVER_DELAY) / TICK_LENGTH;
@@ -39,18 +41,12 @@ void startgame(struct game *gm){
 
 	// create JSON object
 	cJSON *root = jsoncreate("startGame");
-	jsonaddnum(root, "startTime", (int)gm->start);
 	cJSON *start_locations = cJSON_CreateArray();
 	struct user *usr;
-	int i = 0;
 
 	/* set the players locs and fill json object */
 	for(usr = gm->usr; usr; usr = usr->nxt) {
 		clearinputqueue(usr);
-
-		usr->x = player_locations[3 * i];
-		usr->y = player_locations[3 * i + 1];
-		usr->angle = player_locations[3 * i + 2];
 		usr->turn = 0;
 		usr->alive= 1;
 
@@ -59,16 +55,14 @@ void startgame(struct game *gm){
 		cJSON_AddNumberToObject(player, "startX", usr->x);
 		cJSON_AddNumberToObject(player, "startY", usr->y);
 		cJSON_AddNumberToObject(player, "startAngle", usr->angle);
+		cJSON_AddNumberToObject(player, "holeStart", usr->hstart);
 		cJSON_AddItemToArray(start_locations, player);
-
-		i++;
 	}
 
 	/* spreading the word to all in the game */
+	jsonaddnum(root, "startTime", (int)gm->start);
 	cJSON_AddItemToObject(root, "startPositions", start_locations);
 	sendjsontogame(root, gm, 0);	
-	
-	free(player_locations);
 	jsondel(root);
 }
 
@@ -169,7 +163,7 @@ void joingame(struct game *gm, struct user *newusr) {
 	sendjson(json, newusr);
 	jsondel(json);
 	
-	json= getjsongamepars(gm);
+	json = getjsongamepars(gm);
 	sendjson(json, newusr);
 	jsondel(json);
 		
@@ -189,14 +183,15 @@ void joingame(struct game *gm, struct user *newusr) {
 		sendjson(json, newusr);
 	}
 	
-	// here we replace the playername by a duplicate so that the original
-	// name doesnt get freed
 	jsonsetstr(json, "playerName", duplicatestring(lastusedname));
 	jsondel(json);
 	
 	newusr->nxt = gm->usr;
 	gm->usr = newusr;
 	newusr->gm = gm;
+
+	newusr->hsize = gm->hsize;
+	newusr->hfreq = gm->hfreq;
 
 	if(++gm->n >= gm->nmin)
 		startgame(gm);
@@ -216,23 +211,24 @@ struct game *creategame(int nmin, int nmax) {
 	gm->nmin = nmin; gm->nmax = nmax;
 	gm->w= GAME_WIDTH;
 	gm->h= GAME_HEIGHT;
-	gm->tilew = TILE_WIDTH;
-	gm->tileh = TILE_HEIGHT;
-	gm->htiles= ceil(1.0 * gm->w / gm->tilew);
-	gm->vtiles= ceil(1.0 * gm->h / gm->tileh);
 	gm->state= GS_LOBBY;
 	gm->v= VELOCITY;
 	gm->ts= TURN_SPEED;
 	gm->nxt = headgame;
-	headgame = gm;
-	gm->seg = calloc(gm->htiles * gm->vtiles, sizeof(struct seg*));
-	if(!gm->seg) {
-		printf("Calloc failed in creategame!\n");
-		exit(500);
-	}
-	gm->tosend= 0;
 
-	return gm;
+	gm->hsize = HOLE_SIZE;
+	gm->hfreq = HOLE_FREQ;
+	gm->hmin = HOLE_START_MIN;
+	gm->hmax = HOLE_START_MAX;
+
+	// how big we should choose our tiles should depend only on segment length
+	float seglen = gm->v * TICK_LENGTH / 1000.0;
+	gm->tilew = gm->tileh = TILE_SIZE_MULTIPLIER * seglen;
+	gm->htiles= ceil(1.0 * gm->w / gm->tilew);
+	gm->vtiles= ceil(1.0 * gm->h / gm->tileh);
+	gm->seg = scalloc(gm->htiles * gm->vtiles, sizeof(struct seg*));
+
+	return headgame = gm;
 }
 
 // returns 1 if collision, 0 if no collision
@@ -382,7 +378,6 @@ int addsegment(struct game *gm, struct seg *seg) {
 
 // simulate user tick. returns 1 if player dies during this tick, 0 otherwise
 int simuser(struct user *usr, int tick) {
-	
 	if(usr->inputhead && usr->inputhead->tick == tick) {
 		struct userinput *input = usr->inputhead;
 		usr->turn = input->turn;
@@ -392,15 +387,20 @@ int simuser(struct user *usr, int tick) {
 			usr->inputtail = 0;
 	}
 
-	struct seg *newseg = smalloc(sizeof(struct seg));
-	newseg->nxt = 0;
-	newseg->x1 = usr->x;
-	newseg->y1 = usr->y;
-
+	float oldx = usr->x, oldy = usr->y;
 	usr->angle += usr->turn * usr->gm->ts * TICK_LENGTH / 1000.0;
 	usr->x += cos(usr->angle) * usr->gm->v * TICK_LENGTH / 1000.0;
 	usr->y += sin(usr->angle) * usr->gm->v * TICK_LENGTH / 1000.0;
 
+	// check if usr in a hole. hole starts _AFTER_ hstart
+	if(tick > usr->hstart
+	 && ((tick + usr->hstart) % (usr->hsize + usr->hfreq)) < usr->hsize)
+		return 0;
+
+	struct seg *newseg = smalloc(sizeof(struct seg));
+	newseg->nxt = 0;
+	newseg->x1 = oldx;
+	newseg->y1 = oldy;
 	newseg->x2 = usr->x;
 	newseg->y2 = usr->y;
 	

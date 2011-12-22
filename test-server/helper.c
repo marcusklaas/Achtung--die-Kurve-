@@ -66,6 +66,8 @@ char *jsongetpacket(cJSON *json){
 
 cJSON *getjsongamepars(struct game *gm){
 	cJSON *json= jsoncreate("gameParameters");
+	jsonaddnum(json, "hsize", gm->hsize);
+	jsonaddnum(json, "hfreq", gm->hfreq);
 	jsonaddnum(json, "w", gm->w);
 	jsonaddnum(json, "h", gm->h);
 	jsonaddnum(json, "nmin", gm->nmin);
@@ -132,6 +134,7 @@ void *smalloc(size_t size){
 	}
 	return a;
 }
+
 void *scalloc(size_t num, size_t size){
 	void* a= calloc(num, size);
 	if(!a){

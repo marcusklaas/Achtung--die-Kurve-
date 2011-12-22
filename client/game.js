@@ -12,6 +12,8 @@ function GameEngine(containerId) {
 	this.gameOver = true;
 	this.width = -1;
 	this.height = -1;
+	this.holeSize = 0; // default game values, may be overwritten during game
+	this.holeFreq = 0; // for certain players by powerups or whatever
 	
 	// debug counters
 	this.redraws = 0;
@@ -69,7 +71,7 @@ GameEngine.prototype.connect = function(url, name) {
 			debugLog('Connected to websocket server');
 			game.connected = true;
 			game.syncWithServer();
-			if(onConnect != null){
+			if(onConnect != null) {
 				onConnect();
 				onConnect = null;
 			}
@@ -173,7 +175,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 
 GameEngine.prototype.handleSegmentsMessage = function(segments) {
 	this.segctx.beginPath();
-	for(var i = 0; i < segments.length; i++){
+	for(var i = 0; i < segments.length; i++) {
 		var s = segments[i];
 		this.segctx.moveTo(s.x1, s.y1);
 		this.segctx.lineTo(s.x2, s.y2);
@@ -182,21 +184,24 @@ GameEngine.prototype.handleSegmentsMessage = function(segments) {
 }
 
 GameEngine.prototype.handleSyncResponse = function(serverTime) {
-	if(this.syncTries == 0){
+	if(this.syncTries == 0) {
 		this.ping = 0;
 		this.bestSyncPing = 9999;
 		this.worstSyncPing = 0;
 	}
+
 	var ping = (Date.now() - this.syncSendTime) / 2;
-	if(ping < this.bestSyncPing){
+	if(ping < this.bestSyncPing) {
 		this.bestSyncPing = ping;
 		this.serverTimeDifference = Date.now() - (serverTime + ping);
 	}
-	if(ping > this.worstSyncPing){
+
+	if(ping > this.worstSyncPing) {
 		this.ping += this.worstSyncPing / (syncTries - 1);
 		this.worstSyncPing = ping;
 	}else
 		this.ping += ping / (syncTries - 1);
+
 	if(++this.syncTries < syncTries) {
 		var self = this;
 		window.setTimeout(function(){self.syncWithServer();},
@@ -222,6 +227,8 @@ GameEngine.prototype.setParams = function(obj) {
 	/* Set game variables */
 	this.velocity = obj.v;
 	this.turnSpeed = obj.ts;
+	this.holeSize = obj.hsize;
+	this.holeFreq = obj.hfreq;
 
 	debugLog("this game is for " + obj.nmin + " to " + obj.nmax + " players");
 }	
@@ -244,9 +251,9 @@ GameEngine.prototype.sendMsg = function(mode, data) {
 	data.mode = mode;
 	var str = JSON.stringify(data);
 	
-	if(simulatedPing > 0){
+	if(simulatedPing > 0) {
 		var that = this;
-		window.setTimeout(function(){
+		window.setTimeout(function() {
 			that.websocket.send(str);
 			if(ultraVerbose)
 				debugLog('sending data: ' + str);
@@ -270,7 +277,7 @@ GameEngine.prototype.doTick = function() {
 }
 
 GameEngine.prototype.doTock = function() {
-	for(var i = 1; i < this.players.length; i++){
+	for(var i = 1; i < this.players.length; i++) {
 		var player = this.players[i];
 		var len = player.inputQueue.length;
 		if(len > 0 && player.inputQueue[len - 1].tick == this.tock)
@@ -312,7 +319,8 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	for(var i = 0; i < startPositions.length; i++) {
 		var index = this.idToPlayer[startPositions[i].playerId];
 		this.players[index].initialise(startPositions[i].startX,
-		 startPositions[i].startY, startPositions[i].startAngle);
+		 startPositions[i].startY, startPositions[i].startAngle,
+		 startPositions[i].holeStart);
 	}
 
 	/* create segment canvas */
@@ -343,7 +351,7 @@ GameEngine.prototype.realStart = function() {
 	window.setTimeout(gameloop, simStep);
 }
 
-GameEngine.prototype.displayDebugStatus = function(){
+GameEngine.prototype.displayDebugStatus = function() {
 	document.getElementById('status').innerHTML = 
 	 'redraws: ' + this.redraws + ' / ' + this.redrawsPossible +
 	 ', modified inputs: ' + this.modifiedInputs +
@@ -372,17 +380,20 @@ function Player(color, local) {
 	this.alive = false;
 	this.inputQueue = [];
 	this.baseQueue = [];
+	this.holeStart = 0;
+	this.holeSize = 0;
+	this.holeFreq = 0;
 
 	debugLog("creating player");
 }
 
 Player.prototype.steer = function(obj) {
 	var localTick = this.isLocal ? this.game.tick : this.game.tock;
-	if(obj.tick >= localTick || (this.isLocal && obj.modified == undefined)){
+	if(obj.tick >= localTick || (this.isLocal && obj.modified == undefined)) {
 		if(this.isLocal && obj.modified != undefined)
 			debugLog("server is playing with you! now you are out of sync");
 		this.baseQueue.unshift(obj);
-		if(!this.isLocal){
+		if(!this.isLocal) { 
 			if(this.lastSteerTick == obj.tick)
 				this.inputQueue[0] = obj;
 			else{
@@ -397,7 +408,7 @@ Player.prototype.steer = function(obj) {
 	
 	var currentTurn = this.turn;
 	
-	if(this.isLocal && obj.modified != undefined){
+	if(this.isLocal && obj.modified != undefined) {
 		this.game.modifiedInputs ++;
 		this.game.displayDebugStatus();
 	}
@@ -421,7 +432,7 @@ Player.prototype.steer = function(obj) {
 	 * context from timestamp in object to NOW */
 	//if(localTick - obj.tick > 0 && redraw)
 	this.context.clearRect(0, 0, this.game.width, this.game.height);
-	if(!this.isLocal){
+	if(!this.isLocal) {
 		this.game.redraws++;
 		this.game.redrawsPossible++;
 		this.game.displayDebugStatus();
@@ -435,17 +446,21 @@ Player.prototype.steer = function(obj) {
 Player.prototype.simulate = function(startTick, endTick, ctx, queue) {
 	if(startTick == endTick)
 		return;
+
+	var inHole = (startTick > this.holeStart && (startTick + this.holeStart)
+	 % (this.holeSize + this.holeFreq) < this.holeSize);
+
 	ctx.beginPath();
-	ctx.strokeStyle = this.color;
+	setLineColor(ctx, this.color, inHole ? gapAlpha : 1);
 	ctx.moveTo(this.x, this.y);
 	
 	var i, input;
-	if(queue!=null){
+	if(queue != null) {
 		// remove inputs from before startTick
 		// we assume this is what we want
 		// also set input and i
 		for(i = queue.length - 1; i >= 0; i--)
-			if(queue[i].tick > startTick){
+			if(queue[i].tick > startTick) {
 				queue.length = i + 1;
 				break;
 			}
@@ -453,8 +468,12 @@ Player.prototype.simulate = function(startTick, endTick, ctx, queue) {
 	}else
 		input = null;
 	
-	for(var tick=startTick;tick<endTick;tick++) {
-		if(input != null && input.tick == tick){
+	for(var tick = startTick; tick < endTick; tick++) {
+		if(inHole !== (tick > this.holeStart && (tick + this.holeStart)
+		 % (this.holeSize + this.holeFreq) < this.holeSize))
+			return this.simulate(tick, endTick, ctx, queue);
+
+		if(input != null && input.tick == tick) {
 			this.turn = input.turn;
 			if(--i >= 0)
 				input = queue[i];
@@ -464,16 +483,18 @@ Player.prototype.simulate = function(startTick, endTick, ctx, queue) {
 		this.angle += this.turn * this.turnSpeed * simStep/ 1000;
 		this.x += this.velocity * simStep/ 1000 * Math.cos(this.angle);
 		this.y += this.velocity * simStep/ 1000 * Math.sin(this.angle);
-		if(ctx != null)
-			ctx.lineTo(this.x, this.y);
+		ctx.lineTo(this.x, this.y);
 	}
 
 	ctx.stroke();
 }
 
-Player.prototype.initialise = function(x, y, angle) {
+Player.prototype.initialise = function(x, y, angle, holeStart) {
 	this.velocity = this.game.velocity;
 	this.turnSpeed = this.game.turnSpeed;
+	this.holeStart = holeStart;
+	this.holeSize = this.game.holeSize;
+	this.holeFreq = this.game.holeFreq;
 	this.alive = true;
 	this.lcx = this.x = x;
 	this.lcy = this.y = y;
@@ -489,13 +510,13 @@ Player.prototype.initialise = function(x, y, angle) {
 	var canvas = document.getElementById(this.game.canvasStack.createLayer());
 	this.context = canvas.getContext('2d');
 	this.context.lineWidth = lineWidth;
-	this.context.strokeStyle = this.color;
+	//this.context.strokeStyle = this.color;
 	this.context.lineCap = lineCapStyle;
 	this.context.moveTo(x, y);
 
 	/* draw angle indicator on base layer */
 	var ctx = this.game.baseContext;
-	ctx.strokeStyle = this.color;
+	setLineColor(ctx, this.color, 1);
 	ctx.beginPath();
 	ctx.moveTo(x, y);
 	ctx.lineTo(x + Math.cos(angle) * indicatorLength, y + Math.sin(angle) * indicatorLength);
@@ -546,7 +567,7 @@ InputController.prototype.keyUp = function(keyCode) {
 		this.steerLocal(0);
 }
 
-InputController.prototype.steerLocal = function(turn){
+InputController.prototype.steerLocal = function(turn) {
 	this.player.turn = turn;
 	var obj = {'turn': turn, 'tick': game.tick};
 	if(this.lastSteerTick == this.game.tick)
@@ -610,9 +631,9 @@ window.onload = function() {
 		 || minPlayers > maxPlayers)
 			debugLog('min/ maxplayers unacceptable!');
 		
-		if(game.connected === false){
+		if(game.connected === false) {
 			game.connect(serverURL, "game-protocol");
-			onConnect = function(){
+			onConnect = function() {
 				game.requestGame(playerName, minPlayers, maxPlayers);
 			};
 		}
@@ -633,21 +654,27 @@ window.onload = function() {
 	game.connect(serverURL, "game-protocol");
 }
 
+/* canvas context color setter */
+function setLineColor(ctx, color, alpha) {
+	ctx.strokeStyle = "rgba(" + color[0] + ", " + color[1] + ", "
+	 + color[2] + ", " + alpha + ")";
+}
+
 /* cookies */
 function setCookie(c_name,value,exdays) {
-	var exdate=new Date();
+	var exdate = new Date();
 	exdate.setDate(exdate.getDate() + exdays);
-	var c_value=escape(value) + ((exdays==null) ? "" : "; expires="+exdate.toUTCString());
-	document.cookie=c_name + "=" + c_value;
+	var c_value = escape(value) + ((exdays==null) ? "" : "; expires="+exdate.toUTCString());
+	document.cookie = c_name + "=" + c_value;
 }
 
 function getCookie(c_name) {
-	var i,x,y,ARRcookies=document.cookie.split(";");
-	for (i=0;i<ARRcookies.length;i++) {
-		x=ARRcookies[i].substr(0,ARRcookies[i].indexOf("="));
-		y=ARRcookies[i].substr(ARRcookies[i].indexOf("=")+1);
-		x=x.replace(/^\s+|\s+$/g,"");
-		if (x==c_name)
+	var i, x, y, ARRcookies=document.cookie.split(";");
+	for (i = 0; i<ARRcookies.length; i++) {
+		x = ARRcookies[i].substr(0,ARRcookies[i].indexOf("="));
+		y = ARRcookies[i].substr(ARRcookies[i].indexOf("=")+1);
+		x = x.replace(/^\s+|\s+$/g,"");
+		if (x == c_name)
 			return unescape(y);
 	}
 }

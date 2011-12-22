@@ -7,22 +7,20 @@ var serverURL = (location.href.indexOf('localhost') != -1) ?
 var lineWidth = 3; // only visual, does not influence collisions
 var ultraVerbose = false;
 var simStep = 24; // in milliseconds
+var gapAlpha = 0.2;
+var canvasBgcolor = '#D0D0D0';
+var lineCapStyle = 'round';
+var indicatorDotSize = 2;
+var indicatorLength = 10;
 
 var syncTries = 2;
 var syncDelays = 50;
 var simulatedPing = 0;
 var behind = 2; // desired difference between tock and tick
-
-var lineCapStyle = 'round';
-var indicatorDotSize = 2;
-var indicatorLength = 10;
-
 var onConnect = null;
 
-var canvasBgcolor = "#D0D0D0";
-
-/* these are the segment colors for the players. in client order, so the 
+/* these are the segment RGBs for the players. in client order, so the 
  * first one is always for the human player */
-var playerColors = ["#FF0000", "#0000FF", "#FFFF00", "#00FF00", "#FF00FF",
- "#E55BB0", "#4E2A04", "#1CB619", "#7EBFF1", "#000000", "#FE8A0E", "#959697",
- "#106246"];
+var playerColors = [[255, 0, 0], [0, 0, 255], [255, 255, 0], [0, 255, 0],
+ [255, 0, 255], [229, 91, 176], [78, 42, 4], [28, 182, 25], [126, 191, 241],
+ [0, 0, 0], [254, 138, 14], [149, 150, 151], [16, 98, 70]];
