@@ -54,12 +54,12 @@ cJSON *jsoncreate(char *mode){
 	return json;
 }
 
-// returns string with on position lwsprepadding the message
+// returns string with on position PRE_PADDING the message
 char *jsongetpacket(cJSON *json){
 	char *tmp, *buf;
 	tmp= cJSON_PrintUnformatted(json);
-	buf= smalloc(lwsprepadding + strlen(tmp) + 1 + lwspostpadding);
-	memcpy(buf + lwsprepadding, tmp, strlen(tmp) + 1);
+	buf= smalloc(PRE_PADDING + strlen(tmp) + 1 + POST_PADDING);
+	memcpy(buf + PRE_PADDING, tmp, strlen(tmp) + 1);
 	free(tmp);
 	return buf;
 }
@@ -87,10 +87,10 @@ void sendstr(char *buf, struct user *u){
 		return;
 	}
 	// tmp is being freed inside the callback
-	tmp= smalloc(lwsprepadding + strlen(buf + lwsprepadding) + 1 + lwspostpadding);
-	memcpy(tmp, buf, lwsprepadding + strlen(buf + lwsprepadding) + 1 + lwspostpadding);
+	tmp= smalloc(PRE_PADDING + strlen(buf + PRE_PADDING) + 1 + POST_PADDING);
+	memcpy(tmp, buf, PRE_PADDING + strlen(buf + PRE_PADDING) + 1 + POST_PADDING);
 	u->sb[u->sbat++]= tmp;
-	if(ULTRA_VERBOSE) printf("queued msg %s, will be sent to user %d\n", tmp + lwsprepadding, u->id);
+	if(ULTRA_VERBOSE) printf("queued msg %s, will be sent to user %d\n", tmp + PRE_PADDING, u->id);
 	libwebsocket_callback_on_writable(ctx, u->wsi);
 }
 

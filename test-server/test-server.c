@@ -139,8 +139,8 @@ callback_game(struct libwebsocket_context * context,
 
 		for(int i = 0; i < u->sbat; i++) {
 			char *s= u->sb[i];
-			if(ULTRA_VERBOSE) printf("send msg %s to user %d\n", s + lwsprepadding, u->id);
-			libwebsocket_write(wsi, (unsigned char*) s + lwsprepadding, strlen(s + lwsprepadding), LWS_WRITE_TEXT);
+			if(ULTRA_VERBOSE) printf("send msg %s to user %d\n", s + PRE_PADDING, u->id);
+			libwebsocket_write(wsi, (unsigned char*) s + PRE_PADDING, strlen(s + PRE_PADDING), LWS_WRITE_TEXT);
 			free(s);
 		}
 		u->sbat = 0;
@@ -169,33 +169,32 @@ callback_game(struct libwebsocket_context * context,
 			sendjson(j, u);
 			jsondel(j);
 		}
-		else if(!u->gm){
-			if(!strcmp(mode, "requestGame")) {
-				int nmin, nmax;
-				char *s;
-				if(DEBUG_MODE) printf("requested game\n");
-
-				nmin= jsongetint(json, "minPlayers");
-				nmax= jsongetint(json, "maxPlayers");
-				s= jsongetstr(json, "playerName");
-				if(strlen(s) < 50)
-					u->name = duplicatestring(s);
-				if(0<nmin && nmin<nmax && nmax<17){
-					struct game *gm= findgame(nmin, nmax);
-					if(gm==0)
-						gm= creategame(nmin, nmax);
-					joingame(gm, u);
-				}
+		else if(!strcmp(mode, "requestGame")) {
+			int nmin, nmax;
+			char *s;
+			if(u->gm)
+				leavegame(u);
+			if(DEBUG_MODE) printf("user %d requested game\n", u->id);
+			
+			nmin= jsongetint(json, "minPlayers");
+			nmax= jsongetint(json, "maxPlayers");
+			s= jsongetstr(json, "playerName");
+			if(strlen(s) < 50)
+				u->name = duplicatestring(s);
+			if(0<nmin && nmin<nmax && nmax<17){
+				struct game *gm= findgame(nmin, nmax);
+				if(gm==0)
+					gm= creategame(nmin, nmax);
+				joingame(gm, u);
 			}
 		}
-		else if(u->gm->state == GS_LOBBY){
-			if(!strcmp(mode, "leaveGame"))
+		else if(!strcmp(mode, "leaveGame")){
+			if(u->gm)
 				leavegame(u);
 		}
-		else if(u->gm->state == GS_STARTED){
-			if(strcmp(mode, "newInput") == 0) {
-				interpretinput(json, u); 
-			}
+		else if(strcmp(mode, "newInput") == 0) {
+			if(u->gm && u->gm->state == GS_STARTED)
+				interpretinput(json, u); 		
 		}
 		else if(SHOW_WARNING)
 			printf("unkown mode!\n");

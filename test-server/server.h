@@ -14,8 +14,8 @@
 #define DELTA_MAX 25
 #define ULTRA_VERBOSE 0
 #define SHOW_WARNING 1
-#define lwsprepadding	LWS_SEND_BUFFER_PRE_PADDING
-#define lwspostpadding	LWS_SEND_BUFFER_POST_PADDING
+#define PRE_PADDING	LWS_SEND_BUFFER_PRE_PADDING
+#define POST_PADDING	LWS_SEND_BUFFER_POST_PADDING
 #define SEND_SEGMENTS 30 // om de hoeveel ticks het moet gebeuren (0=nooit)
 
 /* game states */
@@ -62,8 +62,6 @@ struct user{
 	float x, y, angle;	// used in simulation (these are thus ~500msec behind)
 	int turn;			// -1, 0 or 1
 	char alive;			// 1 for alive, 0 else
-	float cx, cy, cangle;	// current location as of last received input
-	int cturn, ctick;
 
 	struct userinput *inputhead, // store unhandled user inputs in queue
 					 *inputtail; // insert at tail, remove at head

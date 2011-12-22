@@ -48,12 +48,11 @@ void startgame(struct game *gm){
 	for(usr = gm->usr; usr; usr = usr->nxt) {
 		clearinputqueue(usr);
 
-		usr->cx = usr->x = player_locations[3 * i];
-		usr->cy = usr->y = player_locations[3 * i + 1];
-		usr->cangle= usr->angle = player_locations[3 * i + 2];
-		usr->turn = usr->cturn= 0;
+		usr->x = player_locations[3 * i];
+		usr->y = player_locations[3 * i + 1];
+		usr->angle = player_locations[3 * i + 2];
+		usr->turn = 0;
 		usr->alive= 1;
-		usr->ctick= 0;
 
 		cJSON *player = cJSON_CreateObject();
 		cJSON_AddNumberToObject(player, "playerId", usr->id);
@@ -215,11 +214,6 @@ struct game *creategame(int nmin, int nmax) {
 		printf("creategame called \n");
 
 	gm->nmin = nmin; gm->nmax = nmax;
-	gm->start = 0;
-	gm->n = 0;
-	gm->usr = 0;
-	gm->tick = 0;
-	gm->alive = 0;
 	gm->w= GAME_WIDTH;
 	gm->h= GAME_HEIGHT;
 	gm->tilew = TILE_WIDTH;
@@ -388,26 +382,21 @@ int addsegment(struct game *gm, struct seg *seg) {
 
 // simulate user tick. returns 1 if player dies during this tick, 0 otherwise
 int simuser(struct user *usr, int tick) {
-	/* usr sent us more than 1 input in a single tick? that's weird! might be
-	 * possible though. ignore all but last */
-	struct userinput *prev;
-
-	while(usr->inputhead && usr->inputhead->tick <= tick) {
-		usr->turn = usr->inputhead->turn;
-		prev = usr->inputhead;
-		usr->inputhead = usr->inputhead->nxt;
-		free(prev);
+	
+	if(usr->inputhead && usr->inputhead->tick == tick) {
+		struct userinput *input = usr->inputhead;
+		usr->turn = input->turn;
+		usr->inputhead = input->nxt;
+		free(input);
+		if(!usr->inputhead)
+			usr->inputtail = 0;
 	}
-
-	if(!usr->inputhead)
-		usr->inputtail = 0;
 
 	struct seg *newseg = smalloc(sizeof(struct seg));
 	newseg->nxt = 0;
 	newseg->x1 = usr->x;
 	newseg->y1 = usr->y;
 
-	// turn first
 	usr->angle += usr->turn * usr->gm->ts * TICK_LENGTH / 1000.0;
 	usr->x += cos(usr->angle) * usr->gm->v * TICK_LENGTH / 1000.0;
 	usr->y += sin(usr->angle) * usr->gm->v * TICK_LENGTH / 1000.0;
@@ -450,6 +439,10 @@ void sendsegments(struct game *gm){
 	}
 }
 
+void stopgame(struct game *gm){
+	gm->state = GS_LOBBY;
+}
+
 // simulate game tick
 void simgame(struct game *gm) {
 	struct user *usr;
@@ -486,9 +479,10 @@ void simgame(struct game *gm) {
 		sendjsontogame(json, gm, 0);
 		jsondel(json);		
 		printf("game %p ended. winnerId = %d\n", (void*)gm, usr ? usr->id : -1);
-		remgame(gm);
+		stopgame(gm);
 	}
 }
+
 
 // deze functie called simgame zo goed als mogelijk elke TICK_LENGTH msec (voor elke game)
 void mainloop() {
@@ -543,16 +537,19 @@ void interpretinput(cJSON *json, struct user *usr) {
 	}
 	
 	// put it in user queue
-	input = smalloc(sizeof(struct userinput));
-	input->tick = tick;
-	input->turn = turn;
-	input->nxt = 0;
+	if(usr->inputtail && usr->inputtail->tick == tick)
+		usr->inputtail->turn = turn;
+	else{
+		input = smalloc(sizeof(struct userinput));
+		input->tick = tick;
+		input->turn = turn;
+		input->nxt = 0;
+		if(!usr->inputtail)
+			usr->inputhead = usr->inputtail = input;
+		else
+			usr->inputtail = usr->inputtail->nxt = input; // ingenious or wat
+	}
 	
-	if(!usr->inputtail)
-		usr->inputhead = usr->inputtail = input;
-	else
-		usr->inputtail = usr->inputtail->nxt = input; // ingenious or wat
-		
 	// check if user needs to adjust her gametime
 	usr->delta[usr->deltaat++]= (servermsecs() - usr->gm->start) - time;
 	if(usr->deltaat == DELTA_COUNT) {
@@ -583,7 +580,6 @@ void interpretinput(cJSON *json, struct user *usr) {
 	// send to other players
 	{
 		cJSON *j= jsoncreate("newInput");
-		usr->cturn= input->turn;
 		jsonaddnum(j, "tick", tick);
 		jsonaddnum(j, "playerId", usr->id);
 		jsonaddnum(j, "turn", turn);
