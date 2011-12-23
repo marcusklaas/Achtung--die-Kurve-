@@ -13,13 +13,14 @@
 #define SERVER_DELAY 200 // multiple of TICK_LENGTH
 #define COUNTDOWN 1008 // multiple of TICK_LENGTH
 #define SB_MAX 10	// sendbuffer max size
-#define DELTA_COUNT 3
+#define DELTA_COUNT 11
 #define DELTA_MAX 25
 #define ULTRA_VERBOSE 0
 #define SHOW_WARNING 1
 #define PRE_PADDING	LWS_SEND_BUFFER_PRE_PADDING
 #define POST_PADDING	LWS_SEND_BUFFER_POST_PADDING
 #define SEND_SEGMENTS 30 // om de hoeveel ticks het moet gebeuren (0=nooit)
+#define SHOW_DELAY 1
 
 /* game states */
 #define GS_LOBBY 0

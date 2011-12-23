@@ -16,8 +16,12 @@ var indicatorLength = 10;
 var syncTries = 2;
 var syncDelays = 50;
 var simulatedPing = 0;
+var extraGameStartTimeDifference = 0;
+var acceptGameTimeAdjustments = true;
+var simulateCPUlag = true;
 var behind = 2; // desired difference between tock and tick
 var onConnect = null;
+var debugBaseContext = true; // sets different color for segments in basecontext
 
 /* these are the segment RGBs for the players. in client order, so the 
  * first one is always for the human player */

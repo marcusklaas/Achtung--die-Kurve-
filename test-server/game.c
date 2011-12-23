@@ -550,6 +550,12 @@ void interpretinput(cJSON *json, struct user *usr) {
 			usr->inputtail = usr->inputtail->nxt = input; // ingenious or wat
 	}
 	
+	if(SHOW_DELAY)
+	{
+		int x = (servermsecs() - usr->gm->start) - time;
+		printf("delay: %d\n",x);
+	}
+	
 	// check if user needs to adjust her gametime
 	usr->delta[usr->deltaat++]= (servermsecs() - usr->gm->start) - time;
 	if(usr->deltaat == DELTA_COUNT) {

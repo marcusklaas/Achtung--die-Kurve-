@@ -134,10 +134,13 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.players[this.idToPlayer[obj.playerId]].steer(obj);
 			break;
 		case 'adjustGameTime':
-			debugLog('adjusted game time by ' + obj.forward + ' msec');
-			this.gameStartTimestamp -= obj.forward;
-			this.adjustGameTimeMessagesReceived++;
-			this.displayDebugStatus();
+			if(acceptGameTimeAdjustments){
+				debugLog('adjusted game time by ' + obj.forward + ' msec');
+				this.gameStartTimestamp -= obj.forward;
+				this.adjustGameTimeMessagesReceived++;
+				this.displayDebugStatus();
+			}else
+				debugLog('game time adjustment of ' + obj.forward + ' msec rejected');
 			break;
 		case 'playerLeft':
 			var index = this.idToPlayer[obj.playerId];
@@ -307,7 +310,8 @@ GameEngine.prototype.addPlayer = function(player) {
 }
 
 GameEngine.prototype.start = function(startPositions, startTime) {
-	this.gameStartTimestamp = startTime + this.serverTimeDifference - this.ping;
+	this.gameStartTimestamp = startTime + this.serverTimeDifference - this.ping
+	 + extraGameStartTimeDifference;
 	this.gameOver = false;
 	var delay = this.gameStartTimestamp - Date.now();
 	
@@ -355,7 +359,9 @@ GameEngine.prototype.realStart = function() {
 		
 		if(!self.gameOver)
 			window.setTimeout(gameloop, Math.max(0,
-			 (self.tick + 1) * simStep - (Date.now() - self.gameStartTimestamp)));
+			 (self.tick + 1) * simStep - (Date.now() - self.gameStartTimestamp)
+			 + (simulateCPUlag && self.tick % 100 == 0 ? 400 : 0)
+			 ));
 	}
 
 	// yo ik heb de delay van simstep opgeteld bij de delay van t aanroepen
@@ -436,36 +442,43 @@ function Player(color, local) {
 
 Player.prototype.steer = function(obj) {
 	var localTick = this.isLocal ? this.game.tick : this.game.tock;
-	if(obj.tick >= localTick || (this.isLocal && obj.modified == undefined)) {
-		if(this.isLocal && obj.modified != undefined)
-			debugLog("server is playing with you! now you are out of sync");
-		this.baseQueue.unshift(obj);
+	
+	if(obj.tick > localTick && this.isLocal && obj.modified != undefined){
+		while(obj.tick > this.game.tick)
+			this.game.doTick();
+		debugLog('your game is running behind! ' + (this.game.tick - localTick) + 
+		 ' ticks forwarded');
+		localTick = this.game.tick;
+	}else if(obj.tick >= localTick || (this.isLocal && obj.modified == undefined)) {
+		if(this.baseQueue.length > 0 && this.baseQueue[0].tick == obj.tick)
+			this.baseQueue[0] = obj;
+		else
+			this.baseQueue.unshift(obj);
 		if(!this.isLocal) { 
-			if(this.lastSteerTick == obj.tick)
+			if(this.inputQueue.length > 0 && this.inputQueue[0].tick == obj.tick)
 				this.inputQueue[0] = obj;
-			else{
+			else
 				this.inputQueue.unshift(obj);
-				this.lastSteerTick = obj.tick;
-			}
+			
 			this.game.redrawsPossible++;
 			this.game.displayDebugStatus();
 		}
 		return;
 	}
 	
-	var currentTurn = this.turn;
-	
 	if(this.isLocal && obj.modified != undefined) {
 		this.game.modifiedInputs ++;
 		this.game.displayDebugStatus();
 	}
 	
+	var currentTurn = this.turn;
+		
 	/* run simulation from lcx, lcy on the conclusive canvas from tick 
 	 * lctick to obj.tick */
 	this.x = this.lcx;
 	this.y = this.lcy;
 	this.angle = this.lca;
-	this.turn = this.lcturn;
+	this.turn = this.lcturn;debugLog('simulate from ' + this.lctick + ' to ' +obj.tick+' with basequeue ' + this.baseQueue);
 	this.simulate(this.lctick, obj.tick, this.game.baseContext, this.baseQueue);
 	this.turn = obj.turn;
 	this.baseQueue = [];
@@ -482,17 +495,17 @@ Player.prototype.steer = function(obj) {
 		this.game.redraws++;
 		this.game.redrawsPossible++;
 		this.game.displayDebugStatus();
-
-		// removing old inputs from queue (can this be merged with the logic at
-		// beginning of method?) doesn't look like it
-		for(i = queue.length - 1; i >= 0; i--)
-			if(queue[i].tick > startTick) {
-				queue.length = i + 1;
-				break;
-			}
+	}
+	
+	// remove all inputs in the inputQueue with a tick smaller than obj.tick
+	if(this.isLocal && this.inputQueue.length > 0){
+		for(var i = this.inputQueue.length - 1; i >= 0 && this.inputQueue[i].tick < obj.tick; 
+		 i--);
+		this.inputQueue.length = i + 1;
 	}
 	
 	this.simulate(obj.tick, localTick, this.context, this.isLocal ? this.inputQueue : null);
+	
 	if(this.isLocal)
 		this.turn = currentTurn;
 }
@@ -508,14 +521,16 @@ Player.prototype.simulate = function(startTick, endTick, ctx, queue) {
 	setLineColor(ctx, this.color, inHole ? gapAlpha : 1);
 	ctx.moveTo(this.x, this.y);
 	
-	var i, input;
+	if(debugBaseContext && ctx == this.game.baseContext)
+		setLineColor(ctx, [0,0,0], inHole ? gapAlpha : 1);
+	
+	var i, input = null;
 	if(queue != null) {
-		// now not removing inputs, doing this in steer
-		// also set input and i
-		for(i = queue.length - 1; i >= 0 && queue[i].tick > startTick; i--);
-		input = queue[i];
-	}else
-		input = null;
+		// set input and i
+		for(i = queue.length - 1; i >= 0 && queue[i].tick < startTick; i--);
+		if(i >= 0)
+			input = queue[i];
+	}
 	
 	for(var tick = startTick; tick < endTick; tick++) {
 		if(inHole !== (tick > this.holeStart && (tick + this.holeStart)
