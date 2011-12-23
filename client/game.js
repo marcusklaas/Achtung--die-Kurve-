@@ -478,7 +478,7 @@ Player.prototype.steer = function(obj) {
 	this.x = this.lcx;
 	this.y = this.lcy;
 	this.angle = this.lca;
-	this.turn = this.lcturn;debugLog('simulate from ' + this.lctick + ' to ' +obj.tick+' with basequeue ' + this.baseQueue);
+	this.turn = this.lcturn;
 	this.simulate(this.lctick, obj.tick, this.game.baseContext, this.baseQueue);
 	this.turn = obj.turn;
 	this.baseQueue = [];

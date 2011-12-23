@@ -20,7 +20,7 @@
 #define PRE_PADDING	LWS_SEND_BUFFER_PRE_PADDING
 #define POST_PADDING	LWS_SEND_BUFFER_POST_PADDING
 #define SEND_SEGMENTS 30 // om de hoeveel ticks het moet gebeuren (0=nooit)
-#define SHOW_DELAY 1
+#define SHOW_DELAY 0
 
 /* game states */
 #define GS_LOBBY 0
