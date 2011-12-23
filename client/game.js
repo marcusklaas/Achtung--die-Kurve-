@@ -1,7 +1,5 @@
 /* game engine */
-function GameEngine(containerId) {
-	debugLog("creating game");
-
+function GameEngine(containerId, playerListId) {
 	// game variables
 	this.players = [];
 	this.idToPlayer = []; // maps playerId to index of this.players
@@ -12,8 +10,6 @@ function GameEngine(containerId) {
 	this.gameOver = true;
 	this.width = -1;
 	this.height = -1;
-	this.holeSize = 0; // default game values, may be overwritten during game
-	this.holeFreq = 0; // for certain players by powerups or whatever
 	
 	// debug counters
 	this.redraws = 0;
@@ -24,6 +20,8 @@ function GameEngine(containerId) {
 	// game properties
 	this.velocity = null;
 	this.turnSpeed = null;
+	this.holeSize = null; // default game values, may be overwritten during game
+	this.holeFreq = null; // for certain players by powerups or whatever
 
 	// connection state
 	this.websocket = null;
@@ -33,15 +31,19 @@ function GameEngine(containerId) {
 	// canvas related
 	this.containerId = containerId; // id of DOM object that contains canvas layers
 	this.canvasStack = null; // object that manages canvas layers
-	this.baseContext = null; // on this we draw conclusive segments	
+	this.baseContext = null; // on this we draw conclusive segments
+
+	// player list related
+	this.localPlayerId = null;
+	this.playerList = document.getElementById(playerListId).lastChild;
 }
 
 /* a lot of values we do not clear, but we do not care for them as they 
  * will get overwritten as soon as new game starts */
 GameEngine.prototype.reset = function() {
-	var localPlayer = this.players[0];
+	//var localPlayer = this.players[0];
 	this.players = [];
-	this.players.push(localPlayer);
+	//this.players.push(localPlayer);
 	this.canvasStack = null;
 	this.baseContext = null;
 	this.tick = 0;
@@ -55,6 +57,8 @@ GameEngine.prototype.reset = function() {
 	var container = document.getElementById(this.containerId);
 	while(container.hasChildNodes())
 		container.removeChild(container.firstChild);
+
+	this.clearPlayerList();
 }
 
 GameEngine.prototype.connect = function(url, name) {
@@ -107,7 +111,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 
 	switch(obj.mode) {
 		case 'acceptUser':
-			this.players[0].playerId = obj.playerId;
+			this.localPlayerId = obj.playerId;
 			this.idToPlayer[obj.playerId] = 0;
 			break;
 		case 'joinedGame':
@@ -115,7 +119,6 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;
 		case 'gameParameters':
 			this.setParams(obj);
-			debugLog('received game params.');
 			break;				
 		case 'newPlayer':
 			var newPlayer = new Player(playerColors[this.players.length], false);
@@ -138,7 +141,8 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;
 		case 'playerLeft':
 			var index = this.idToPlayer[obj.playerId];
-			debugLog(this.players[index].playerName + " left game");
+			this.splicePlayerList(index);
+			debugLog(this.players[index].playerName + " left the game");
 
 			if(this.gameOver) {
 				for(var i = index + 1; i < this.players.length; i++)
@@ -151,16 +155,18 @@ GameEngine.prototype.interpretMsg = function(msg) {
 
 			break;
 		case 'playerDied':
-			this.players[this.idToPlayer[obj.playerId]].alive = false;
+			var index = this.idToPlayer[obj.playerId];
+			this.players[index].alive = false;
+			this.updatePlayerList(index, 'dead');
 			debugLog(this.players[this.idToPlayer[obj.playerId]].playerName +
 			 " died");
 			break;
 		case 'endGame':
 			var winner = (obj.winnerId != -1)
 			 ? (this.players[this.idToPlayer[obj.winnerId]].playerName + ' won')
-			 : 'draw!';
+			 : 'draw';
 			this.gameOver = true;
-			debugLog('game ended. ' + winner);
+			debugLog('game over. ' + winner);
 			break;
 		case 'time':
 			this.handleSyncResponse(obj.time);
@@ -208,7 +214,7 @@ GameEngine.prototype.handleSyncResponse = function(serverTime) {
 		 this.syncTries * syncDelays);
 	}
 	else{
-		debugLog('synced with server with a maximum error of ' + this.bestSyncPing
+		debugLog('synced with a maximum error of ' + this.bestSyncPing
 		 + ' msec' + ', and average ping of ' + this.ping + ' msec');
 		this.syncTries = 0;
 	}
@@ -219,7 +225,6 @@ GameEngine.prototype.setParams = function(obj) {
 	var container = document.getElementById(this.containerId);
 
 	/* Create CanvasStack */
-	container.style.margin = 0;
 	container.style.padding = 0;
 	container.style.width = (this.width = obj.w) + 'px';
 	container.style.height = (this.height = obj.h) + 'px';
@@ -233,13 +238,14 @@ GameEngine.prototype.setParams = function(obj) {
 	debugLog("this game is for " + obj.nmin + " to " + obj.nmax + " players");
 }	
 
-GameEngine.prototype.requestGame = function(playerName, minPlayers, maxPlayers) {
+GameEngine.prototype.requestGame = function(player, minPlayers, maxPlayers) {
 	if(!this.gameOver)
 		return;
 
 	this.reset();
-	this.players[0].playerName = playerName;
-	this.sendMsg('requestGame', {'playerName': playerName, 'minPlayers': minPlayers, 'maxPlayers': maxPlayers});
+	this.addPlayer(player);
+	this.sendMsg('requestGame', {'playerName': player.playerName,
+	 'minPlayers': minPlayers, 'maxPlayers': maxPlayers});
 }
 
 GameEngine.prototype.sendMsg = function(mode, data) {
@@ -289,13 +295,15 @@ GameEngine.prototype.doTock = function() {
 
 GameEngine.prototype.addPlayer = function(player) {
 	player.game = this;
+	var index = this.players.length;
 
-	/* internet player */
 	if(player.playerId != null)
-		this.idToPlayer[player.playerId] = this.players.length;
+		this.idToPlayer[player.playerId] = index;
+	else
+		player.playerId = this.localPlayerId;
 
 	this.players.push(player);
-	debugLog("adding player to game");
+	this.appendPlayerList(index);
 }
 
 GameEngine.prototype.start = function(startPositions, startTime) {
@@ -303,7 +311,8 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	this.gameOver = false;
 	var delay = this.gameStartTimestamp - Date.now();
 	
-	debugLog("starting game in " + delay);
+	this.playerListStart();
+	debugLog("starting game in " + delay + " milliseconds");
 
 	/* create canvas stack */
 	this.canvasStack = new CanvasStack(this.containerId, canvasBgcolor);
@@ -331,7 +340,7 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	this.segctx.lineCap = lineCapStyle;
 	
 	var self = this;
-	window.setTimeout(function() { self.realStart(); }, delay);
+	window.setTimeout(function() { self.realStart(); }, delay + simStep);
 }
 
 GameEngine.prototype.realStart = function() {
@@ -348,7 +357,10 @@ GameEngine.prototype.realStart = function() {
 			window.setTimeout(gameloop, Math.max(0,
 			 (self.tick + 1) * simStep - (Date.now() - self.gameStartTimestamp)));
 	}
-	window.setTimeout(gameloop, simStep);
+
+	// yo ik heb de delay van simstep opgeteld bij de delay van t aanroepen
+	// van realStart, dan blijven de angle indicators nog een tick langer zichtbaar
+	gameloop();
 }
 
 GameEngine.prototype.displayDebugStatus = function() {
@@ -356,6 +368,43 @@ GameEngine.prototype.displayDebugStatus = function() {
 	 'redraws: ' + this.redraws + ' / ' + this.redrawsPossible +
 	 ', modified inputs: ' + this.modifiedInputs +
 	 ', game time adjustments: ' + this.adjustGameTimeMessagesReceived;
+}
+
+GameEngine.prototype.playerListStart = function() {
+	for(var i = 0; i < this.players.length; this.updatePlayerList(i++, 'alive'));
+}
+
+GameEngine.prototype.appendPlayerList = function(index) {
+	var player = this.players[index];
+	var row = document.createElement('tr');
+	var nameNode = document.createElement('td');
+	var statusNode = document.createElement('td');
+
+	// alleen naam in spelerkleur of ook status?
+	row.style.color = 'rgb(' + player.color[0] + ', ' + player.color[1] + ', '
+	 + player.color[2] + ')';
+	row.id = 'player' + index;
+	nameNode.innerHTML = player.playerName;
+
+	this.playerList.appendChild(row);
+	row.appendChild(nameNode);
+	row.appendChild(statusNode);
+	this.updatePlayerList(index, 'ready');
+}
+
+GameEngine.prototype.updatePlayerList = function(index, status) {
+	var statusNode = document.getElementById('player' + index).lastChild;
+	statusNode.innerHTML = status;
+}
+
+GameEngine.prototype.splicePlayerList = function(index) {
+	var row = document.getElementById('player' + index);
+	this.playerList.removeChild(row);
+}
+
+GameEngine.prototype.clearPlayerList = function() {
+	while(this.playerList.hasChildNodes())
+		this.playerList.removeChild(this.playerList.firstChild);
 }
 
 /* players */
@@ -377,14 +426,12 @@ function Player(color, local) {
 	this.turn = 0; // -1 is turn left, 0 is straight, 1 is turn right
 	this.game = null; // to which game does this player belong
 	this.context = null; // this is the canvas context in which we draw simulation
-	this.alive = false;
+	this.alive = true;
 	this.inputQueue = [];
 	this.baseQueue = [];
 	this.holeStart = 0;
 	this.holeSize = 0;
 	this.holeFreq = 0;
-
-	debugLog("creating player");
 }
 
 Player.prototype.steer = function(obj) {
@@ -430,12 +477,19 @@ Player.prototype.steer = function(obj) {
 
 	/* clear this players canvas and run extrapolation on this player's
 	 * context from timestamp in object to NOW */
-	//if(localTick - obj.tick > 0 && redraw)
 	this.context.clearRect(0, 0, this.game.width, this.game.height);
 	if(!this.isLocal) {
 		this.game.redraws++;
 		this.game.redrawsPossible++;
 		this.game.displayDebugStatus();
+
+		// removing old inputs from queue (can this be merged with the logic at
+		// beginning of method?) doesn't look like it
+		for(i = queue.length - 1; i >= 0; i--)
+			if(queue[i].tick > startTick) {
+				queue.length = i + 1;
+				break;
+			}
 	}
 	
 	this.simulate(obj.tick, localTick, this.context, this.isLocal ? this.inputQueue : null);
@@ -456,22 +510,19 @@ Player.prototype.simulate = function(startTick, endTick, ctx, queue) {
 	
 	var i, input;
 	if(queue != null) {
-		// remove inputs from before startTick
-		// we assume this is what we want
+		// now not removing inputs, doing this in steer
 		// also set input and i
-		for(i = queue.length - 1; i >= 0; i--)
-			if(queue[i].tick > startTick) {
-				queue.length = i + 1;
-				break;
-			}
+		for(i = queue.length - 1; i >= 0 && queue[i].tick > startTick; i--);
 		input = queue[i];
 	}else
 		input = null;
 	
 	for(var tick = startTick; tick < endTick; tick++) {
 		if(inHole !== (tick > this.holeStart && (tick + this.holeStart)
-		 % (this.holeSize + this.holeFreq) < this.holeSize))
+		 % (this.holeSize + this.holeFreq) < this.holeSize)) {
+			ctx.stroke();
 			return this.simulate(tick, endTick, ctx, queue);
+		}
 
 		if(input != null && input.tick == tick) {
 			this.turn = input.turn;
@@ -524,8 +575,6 @@ Player.prototype.initialise = function(x, y, angle, holeStart) {
 	ctx.beginPath();
     ctx.arc(x, y, indicatorDotSize, 0, 2 * Math.PI, false);
     ctx.fill();
-
-	debugLog("initialising player at (" + this.x + ", " + this.y + "), angle = " + this.angle);
 }
 
 /* input control */
@@ -535,8 +584,6 @@ function InputController(left, right) {
 	this.player = null;
 	this.game = null;
 	this.lastSteerTick = -1;
-
-	debugLog("creating keylogger")
 }
 
 InputController.prototype.setPlayer = function(player) {
@@ -548,7 +595,7 @@ InputController.prototype.setGame = function(game) {
 }
 
 InputController.prototype.keyDown = function(keyCode) {
-	if(!this.player.alive)
+	if(this.game.gameOver || !this.player.alive)
 		return;
 
 	if(keyCode == this.rightKeyCode && this.player.turn != -1) 
@@ -559,7 +606,7 @@ InputController.prototype.keyDown = function(keyCode) {
 }
 
 InputController.prototype.keyUp = function(keyCode) {
-	if(!this.player.alive)
+	if(this.game.gameOver || !this.player.alive)
 		return;
 
 	if((keyCode == this.rightKeyCode && this.player.turn == -1) ||
@@ -583,12 +630,11 @@ InputController.prototype.steerLocal = function(turn) {
 window.onload = function() {
 
 	/* some constants */
-	game = new GameEngine('canvasContainer');
+	game = new GameEngine('canvasContainer', 'playerList');
 	var player = new Player(playerColors[0], true);
 	var inputControl = new InputController(keyCodeLeft, keyCodeRight);
 	
 	inputControl.setGame(game);
-	game.addPlayer(player);
 	inputControl.setPlayer(player);
 
 	/* register key presses and releases */
@@ -620,25 +666,31 @@ window.onload = function() {
 		var minPlayers = parseInt(document.getElementById('minplayers').value);
 		var playerName = document.getElementById('playername').value;
 		
-		setCookie('maxPlayers',maxPlayers,30);
-		setCookie('minPlayers',minPlayers,30);
-		setCookie('playerName',playerName,30);
+		setCookie('maxPlayers', maxPlayers, 30);
+		setCookie('minPlayers', minPlayers, 30);
+		setCookie('playerName', playerName, 30);
 		
-		if(typeof playerName != "string" || playerName.length < 1)
+		if(typeof playerName != "string" || playerName.length < 1) {
 			debugLog('enter a cool playername please');
+			return;
+		}
 
 		if(maxPlayers > 8 || maxPlayers < 1 || minPlayers > 8 || minPlayers < 1
-		 || minPlayers > maxPlayers)
+		 || minPlayers > maxPlayers) {
 			debugLog('min/ maxplayers unacceptable!');
+			return;
+		}
+
+		player.playerName = playerName;
 		
 		if(game.connected === false) {
 			game.connect(serverURL, "game-protocol");
 			onConnect = function() {
-				game.requestGame(playerName, minPlayers, maxPlayers);
+				game.requestGame(player, minPlayers, maxPlayers);
 			};
 		}
 		else
-			game.requestGame(playerName, minPlayers, maxPlayers);
+			game.requestGame(player, minPlayers, maxPlayers);
 	}, false);
 	
 	var playerName = getCookie('playerName');
