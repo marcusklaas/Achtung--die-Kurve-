@@ -1,11 +1,23 @@
-zet hier je todos en ideeen. bijv:
+zet hier je todos en ideeen.
 
-ik heb in game.js document.body.onkeydown (oid) vervangen door window.onkeydown omdat anders na 1 muisklik de besturing het niet meer deed. een aantal dagen terug stond het wel op window.onkeydown. het lijkt nu te werken maar miss werkt touch niet meer goed ofzo..
+ik heb in game.js document.body.onkeydown (oid) vervangen door window.onkeydown omdat anders na 1 muisklik de besturing het niet meer deed. een aantal dagen terug stond het wel op window.onkeydown. het lijkt nu te werken maar miss werkt touch niet meer goed ofzo.. RE: nee, was meer uit modeoverwegingen, prima dus ;-)
 
 transparency ipv een lichte kleur voor de gaten werkt misschien toch niet zo goed? als je goed kijkt zag je eerst namelijk stippeltjes in de gaten, omdat de afzonderlijke beginpath() & stroke() overlap hebben. nu opgelost door ipv 'round' als lineCap, 'butt' te gebruiken voor de gaten. maar dat geeft miss weer meer overhead, telksn dat wisselen van lineCap. al zou lichte kleur dan op lagere layer moeten wat wss ook overhead geeft (anders teken je over de snake heen en heeft ie geen ronde uiteinden meer). [gebruik nu ook butt voor de muren die je tekent, voordat ze solid zijn, maar bij scherpe bochten krijg je alsnog overlap en bovendien scheurtjes. dat zou dus ook op lagere layer kunnen.]
 
 - gameState property voor gameEngine ipv gameOver property. geeft aan of je in een game zit of niet en zoja, of deze al is gestart of niet. misschien is in countdown ook een handige state.
-- sound mute optie (en state opslaan via cookie)
-- idToPlayer kost veel memory als server id's hoog zijn? kan het anders?
+
+- sound mute optie (en state opslaan via cookie) RE: yes
+
+- idToPlayer kost veel memory als server id's hoog zijn? kan het anders? RE: stringtruc
+
 - server kan rare gamestarttime geven waardoor client dan 'starting game in -3434543564msec' krijgt. wss kwam het door standby. ik zie dat negatieve waarden nog steeds in de libwebsockets service loop kunnen komen? gefixed, hopelijk kan deze todo nu weg.
-- client kan nog dik veel input berichten spammen naar de rest. dus negeren als meer dan zoveel per sec oid?
+
+- client kan nog dik veel input berichten spammen naar de rest. dus negeren als meer dan zoveel per sec oid? RE: ja, zelfde voor chat (en misschien daar nog strenger)
+
+- meerdere potjes per game. dus totdat een speler een gegeven aantal punten heeft. punten bijhouden in spelerlijst. als er meer dan 2 spelers meedoen, dan aantal punten in het potje = als hoeveelste je dood bent gegaan - 1.
+
+- canvas niet meer proberen te maximizen naar hele scherm, maar te maximizen naar een container van de canvasContainer. dan kun je door de css aan te passen van deze buitenste container bepalen hoe groot het speelscherm moet worden. overwegingen zijn dat je dan in CSS kan bepalen hoe de pagina eruitziet ipv in javascript en dat je ook nog een stukje chat en spelerlijst kunt zien tijdens het spel (en niet hoeft te scrollen voor herstart!)
+
+- users die niet ingame zetten in een soort lobby zetten op de server, met voornaamste doel om ook daar te kunnen babbelen
+
+- custom games? dus met host die instellingen bepaalt. en dus met een gamelijst waar gebruikers kunnen kiezen wel te joinen. aantal designkeuzes te maken: als vervanging van de automatch, of als ernaast? wat als de host de game leavet terwijl ie nog niet is gestart? wordt de volgende player (als die er is) de host, of wordt de game ontbonden? 
