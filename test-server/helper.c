@@ -144,13 +144,15 @@ void *scalloc(size_t num, size_t size){
 	return a;
 }
 
-/* is there no extension, return null pointer */
+/* is there no extension, return "" */
 char *getFileExt(char *path) {
 	char *ext, *point = strrchr(path, '.');
 	int extLen;
 
 	if(!point || point < strrchr(path, '/'))
 		return scalloc(1, 1);
+	
+	point++;
 
 	ext = smalloc((extLen = strlen(point)) + 1);
 	ext[extLen] = 0; 

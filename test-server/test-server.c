@@ -39,16 +39,18 @@ static int callback_http(struct libwebsocket_context * context,
 
 	switch (reason) {
 	case LWS_CALLBACK_HTTP:
-		fprintf(stderr, "serving HTTP URI %s\n", (char *) in);
+		if(DEBUG_MODE)
+			printf("serving HTTP URI %s\n", (char *) in);
 		char *ext, mime[32];
 		char path[MAX_FILE_REQ_LEN + LOCAL_PATH_LENGTH + 1];
 
 		ext = getFileExt(in);
 
 		/* making sure request is reasonable */
-		if(strlen(in) > MAX_FILE_REQ_LEN || strstr(in, "..") || !ext)
+		if(strlen(in) > MAX_FILE_REQ_LEN || strstr(in, ".."))
 			break;
 
+		path[0] = 0;
 		strcat(path, LOCAL_RESOURCE_PATH);
 		strcat(path, in);
 		if(!strcmp(in, "/"))
@@ -66,7 +68,10 @@ static int callback_http(struct libwebsocket_context * context,
 			strcpy(mime, "audio/wav");
 		else
 			strcpy(mime, "text/html");
-
+			
+		if(DEBUG_MODE)
+			printf("serving %s, %s\n", path, mime);
+			
 		if(libwebsockets_serve_http_file(wsi, path, mime))
 			fprintf(stderr, "Failed to send file\n");
 
