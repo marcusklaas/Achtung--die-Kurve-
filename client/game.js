@@ -1,5 +1,5 @@
 /* game engine */
-function GameEngine(containerId, playerListId) {
+function GameEngine(containerId, playerListId, chatBarId, audioController) {
 	// game variables
 	this.players = [];
 	this.idToPlayer = []; // maps playerId to index of this.players
@@ -29,13 +29,20 @@ function GameEngine(containerId, playerListId) {
 	this.syncTries = 0;
 
 	// canvas related
+	this.scale = null;		// canvas size/ game size
 	this.containerId = containerId; // id of DOM object that contains canvas layers
 	this.canvasStack = null; // object that manages canvas layers
 	this.baseContext = null; // on this we draw conclusive segments
 
+	// audio controller
+	this.audioController = audioController;
+
 	// player list related
 	this.localPlayerId = null;
 	this.playerList = document.getElementById(playerListId).lastChild;
+
+	// chat
+	this.chatBar = document.getElementById(chatBarId);
 }
 
 /* a lot of values we do not clear, but we do not care for them as they 
@@ -125,6 +132,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			newPlayer.playerId = obj.playerId;
 			newPlayer.playerName = obj.playerName;
 			this.addPlayer(newPlayer);
+			this.audioController.playSound('newPlayer');
 			debugLog(obj.playerName + ' joined the game (id = ' + obj.playerId + ')');
 			break;
 		case 'startGame':
@@ -163,6 +171,8 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.updatePlayerList(index, 'dead');
 			debugLog(this.players[this.idToPlayer[obj.playerId]].playerName +
 			 " died");
+			if(index == 0)
+				this.audioController.playSound('localDeath');
 			break;
 		case 'endGame':
 			var winner = (obj.winnerId != -1)
@@ -170,9 +180,20 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			 : 'draw';
 			this.gameOver = true;
 			debugLog('game over. ' + winner);
+
+			if(obj.winnerId == this.localPlayerId) {
+				debugLog('you won!');
+				this.audioController.playSound('localWin');
+			}
+
+			if(jsProfiling)
+				console.profileEnd();
 			break;
 		case 'time':
 			this.handleSyncResponse(obj.time);
+			break;
+		case 'chat':
+			this.printChat(obj.playerId, obj.message);
 			break;
 		case 'segments':
 			this.handleSegmentsMessage(obj.segments);
@@ -180,6 +201,11 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		default:
 			debugLog('unknown mode!');
 	}
+}
+
+GameEngine.prototype.printChat = function(playerId, message) {
+	debugLog(this.players[this.idToPlayer[playerId]].playerName + ': ' +
+	 message);
 }
 
 GameEngine.prototype.handleSegmentsMessage = function(segments) {
@@ -199,17 +225,17 @@ GameEngine.prototype.handleSyncResponse = function(serverTime) {
 		this.worstSyncPing = 0;
 	}
 
-	var ping = (Date.now() - this.syncSendTime) / 2;
+	var ping = Math.round((Date.now() - this.syncSendTime) / 2);
 	if(ping < this.bestSyncPing) {
 		this.bestSyncPing = ping;
 		this.serverTimeDifference = Date.now() - (serverTime + ping);
 	}
 
 	if(ping > this.worstSyncPing) {
-		this.ping += this.worstSyncPing / (syncTries - 1);
+		this.ping += Math.round(this.worstSyncPing / (syncTries - 1));
 		this.worstSyncPing = ping;
 	}else
-		this.ping += ping / (syncTries - 1);
+		this.ping += Math.round(ping / (syncTries - 1));
 
 	if(++this.syncTries < syncTries) {
 		var self = this;
@@ -229,8 +255,11 @@ GameEngine.prototype.setParams = function(obj) {
 
 	/* Create CanvasStack */
 	container.style.padding = 0;
-	container.style.width = (this.width = obj.w) + 'px';
-	container.style.height = (this.height = obj.h) + 'px';
+	//container.style.width = (this.width = obj.w) + 'px';
+	//container.style.height = (this.height = obj.h) + 'px';
+	// XPERIMENTAL
+	this.width = obj.w;
+	this.height = obj.h;
 
 	/* Set game variables */
 	this.velocity = obj.v;
@@ -245,6 +274,8 @@ GameEngine.prototype.requestGame = function(player, minPlayers, maxPlayers) {
 	if(!this.gameOver)
 		return;
 
+	player.inputQueue = [];
+	player.baseQueue = [];
 	this.reset();
 	this.addPlayer(player);
 	this.sendMsg('requestGame', {'playerName': player.playerName,
@@ -288,6 +319,9 @@ GameEngine.prototype.doTick = function() {
 GameEngine.prototype.doTock = function() {
 	for(var i = 1; i < this.players.length; i++) {
 		var player = this.players[i];
+		if(!player.alive)
+			continue;
+
 		var len = player.inputQueue.length;
 		if(len > 0 && player.inputQueue[len - 1].tick == this.tock)
 			player.turn = player.inputQueue.pop().turn;
@@ -315,8 +349,23 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	this.gameOver = false;
 	var delay = this.gameStartTimestamp - Date.now();
 	
+	if(jsProfiling)
+		console.profile('canvas performance');
+
+	//debugLog('startTime = ' + startTime + ', timeDiff = ' + this.serverTimeDifference + ', ping = '
+	// + this.ping + ', gameStartTimestamp = ' + this.gameStartTimestamp);
+
+	window.scroll(0, 0);
+	this.audioController.playSound('countdown');
 	this.playerListStart();
 	debugLog("starting game in " + delay + " milliseconds");
+
+	/* XPERIMENTAL!! */
+	var container = document.getElementById(this.containerId);
+	var widthMinusScroll = getPageWidth();
+	this.scale = Math.min(widthMinusScroll/ this.width, window.innerHeight/ this.height);
+	container.style.width = Math.floor(this.width * this.scale) + 'px';
+	container.style.height = Math.floor(this.height * this.scale) + 'px';
 
 	/* create canvas stack */
 	this.canvasStack = new CanvasStack(this.containerId, canvasBgcolor);
@@ -324,6 +373,7 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	/* create background context */
 	var canvas = document.getElementById(this.canvasStack.getBackgroundCanvasId());
 	this.baseContext = canvas.getContext('2d');
+	this.baseContext.scale(this.scale, this.scale); // XPERIMENTAL
 	this.baseContext.fillStyle = '#000';
 	this.baseContext.lineWidth = lineWidth;
 	this.baseContext.lineCap = lineCapStyle;
@@ -339,6 +389,7 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	/* create segment canvas */
 	canvas = document.getElementById(this.canvasStack.createLayer());
 	this.segctx = canvas.getContext('2d');
+	this.segctx.scale(this.scale, this.scale); // XPERIMENTAL
 	this.segctx.lineWidth = 1;
 	this.segctx.strokeStyle = 'black';
 	this.segctx.lineCap = lineCapStyle;
@@ -348,24 +399,27 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 }
 
 GameEngine.prototype.realStart = function() {
-	/* clear angle indicators from base layer */
+	// clear angle indicators from base layer
 	this.baseContext.clearRect(0, 0, this.width, this.height);
+	this.audioController.playSound('gameStart');
 
 	var self = this;
 	var gameloop = function() {
-		while(self.tick - self.tock >= self.behind)
-			self.doTock();
-		self.doTick();
-		
-		if(!self.gameOver)
-			window.setTimeout(gameloop, Math.max(0,
-			 (self.tick + 1) * simStep - (Date.now() - self.gameStartTimestamp)
-			 + (simulateCPUlag && self.tick % 100 == 0 ? 400 : 0)
-			 ));
+		var timeOut;
+
+		do {
+			if(self.gameOver)
+				return;
+
+			while(self.tick - self.tock >= self.behind)
+				self.doTock();
+			self.doTick();
+		} while((timeOut = (self.tick + 1) * simStep - (Date.now() - self.gameStartTimestamp)
+		 + (simulateCPUlag && self.tick % 100 == 0 ? 400 : 0)) <= 0);
+
+		setTimeout(gameloop, timeOut);		
 	}
 
-	// yo ik heb de delay van simstep opgeteld bij de delay van t aanroepen
-	// van realStart, dan blijven de angle indicators nog een tick langer zichtbaar
 	gameloop();
 }
 
@@ -411,6 +465,21 @@ GameEngine.prototype.splicePlayerList = function(index) {
 GameEngine.prototype.clearPlayerList = function() {
 	while(this.playerList.hasChildNodes())
 		this.playerList.removeChild(this.playerList.firstChild);
+}
+
+/* for sending chat messages */
+GameEngine.prototype.sendChat = function() {
+	var msg = this.chatBar.value;
+
+	// TODO: GameEngine should have a gamestate variable instead of
+	// gameOver. then we wouldn't have to do those kind of tricks 
+	if(this.players.length == 0 || (this.gameOver && this.gameStartTimestamp != null)
+	 || msg.length < 1)
+		return;
+
+	this.sendMsg('chat', {'message': msg});
+	this.chatBar.value = '';
+	this.printChat(this.localPlayerId, msg);
 }
 
 /* players */
@@ -514,6 +583,8 @@ Player.prototype.simulate = function(startTick, endTick, ctx, queue) {
 	if(startTick == endTick)
 		return;
 
+	var i, input = null, sin = Math.sin(this.angle),
+	 cos = Math.cos(this.angle), step = simStep/ 1000;
 	var inHole = (startTick > this.holeStart && (startTick + this.holeStart)
 	 % (this.holeSize + this.holeFreq) < this.holeSize);
 
@@ -523,8 +594,7 @@ Player.prototype.simulate = function(startTick, endTick, ctx, queue) {
 	
 	if(debugBaseContext && ctx == this.game.baseContext)
 		setLineColor(ctx, [0,0,0], inHole ? gapAlpha : 1);
-	
-	var i, input = null;
+
 	if(queue != null) {
 		// set input and i
 		for(i = queue.length - 1; i >= 0 && queue[i].tick < startTick; i--);
@@ -541,14 +611,17 @@ Player.prototype.simulate = function(startTick, endTick, ctx, queue) {
 
 		if(input != null && input.tick == tick) {
 			this.turn = input.turn;
-			if(--i >= 0)
-				input = queue[i];
-			else
-				input = null;
+			input = (--i >= 0) ? queue[i] : null;
 		}
-		this.angle += this.turn * this.turnSpeed * simStep/ 1000;
-		this.x += this.velocity * simStep/ 1000 * Math.cos(this.angle);
-		this.y += this.velocity * simStep/ 1000 * Math.sin(this.angle);
+
+		if(this.turn != 0) {
+			this.angle += this.turn * this.turnSpeed * step;
+			cos = Math.cos(this.angle);
+			sin = Math.sin(this.angle);
+		}
+			
+		this.x += this.velocity * step * cos;
+		this.y += this.velocity * step * sin;
 		ctx.lineTo(this.x, this.y);
 	}
 
@@ -575,6 +648,7 @@ Player.prototype.initialise = function(x, y, angle, holeStart) {
 	/* create canvas */
 	var canvas = document.getElementById(this.game.canvasStack.createLayer());
 	this.context = canvas.getContext('2d');
+	this.context.scale(this.game.scale, this.game.scale); // XPERIMENTAL
 	this.context.lineWidth = lineWidth;
 	//this.context.strokeStyle = this.color;
 	this.context.lineCap = lineCapStyle;
@@ -588,29 +662,20 @@ Player.prototype.initialise = function(x, y, angle, holeStart) {
 	ctx.lineTo(x + Math.cos(angle) * indicatorLength, y + Math.sin(angle) * indicatorLength);
 	ctx.stroke();
 	ctx.beginPath();
-    ctx.arc(x, y, indicatorDotSize, 0, 2 * Math.PI, false);
-    ctx.fill();
+	ctx.arc(x, y, indicatorDotSize, 0, 2 * Math.PI, false);
+	ctx.fill();
 }
 
 /* input control */
-function InputController(left, right) {	
+function InputController(player, left, right) {	
 	this.rightKeyCode = left;
 	this.leftKeyCode = right;
-	this.player = null;
-	this.game = null;
+	this.player = player;
 	this.lastSteerTick = -1;
 }
 
-InputController.prototype.setPlayer = function(player) {
-	this.player = player;
-}
-
-InputController.prototype.setGame = function(game) {
-	this.game = game;
-}
-
 InputController.prototype.keyDown = function(keyCode) {
-	if(this.game.gameOver || !this.player.alive)
+	if(this.player.game == null || this.player.game.gameOver || !this.player.alive)
 		return;
 
 	if(keyCode == this.rightKeyCode && this.player.turn != -1) 
@@ -621,7 +686,7 @@ InputController.prototype.keyDown = function(keyCode) {
 }
 
 InputController.prototype.keyUp = function(keyCode) {
-	if(this.game.gameOver || !this.player.alive)
+	if(this.player.game == null || this.player.game.gameOver || !this.player.alive)
 		return;
 
 	if((keyCode == this.rightKeyCode && this.player.turn == -1) ||
@@ -630,53 +695,94 @@ InputController.prototype.keyUp = function(keyCode) {
 }
 
 InputController.prototype.steerLocal = function(turn) {
-	this.player.turn = turn;
+	var game = this.player.game;
 	var obj = {'turn': turn, 'tick': game.tick};
-	if(this.lastSteerTick == this.game.tick)
+	this.player.turn = turn;
+
+	if(this.lastSteerTick == game.tick)
 		this.player.inputQueue[0] = obj;
 	else{
 		this.player.inputQueue.unshift(obj);
-		this.lastSteerTick = this.game.tick;
+		this.lastSteerTick = game.tick;
 	}
-	this.game.sendMsg('newInput', obj);
+
+	game.sendMsg('newInput', obj);
+}
+
+/* Audio manager */
+function AudioController() {
+	this.sounds = new Array();
+}
+
+AudioController.prototype.addSound = function(name, file, formats) {	
+	if(typeof this.sounds[name] != 'object')
+		this.sounds[name] = [];
+	this.sounds[name].push(new buzz.sound(file, {'formats': formats}));
+}
+
+AudioController.prototype.playSound = function(name) {
+	if(!enableSound || typeof this.sounds[name] != 'object')
+		return;
+
+	this.sounds[name][Math.floor(Math.random() * this.sounds[name].length)].play();
 }
 
 /* create game */
 window.onload = function() {
 
-	/* some constants */
-	game = new GameEngine('canvasContainer', 'playerList');
+	/* some objects */
+	var touchDevice = 'createTouch' in document;
+	var audioController = new AudioController();
+	var game = new GameEngine('canvasContainer', 'playerList',
+	 'chat', audioController);
 	var player = new Player(playerColors[0], true);
-	var inputControl = new InputController(keyCodeLeft, keyCodeRight);
+	var inputControl = new InputController(player,
+	 keyCodeLeft, keyCodeRight);
+
+	/* add sounds to controller */
+	audioController.addSound('localDeath', 'sounds/wilhelm', ['ogg']);
+	audioController.addSound('countdown', 'sounds/countdown', ['wav']);
+	audioController.addSound('newPlayer', 'sounds/playerjoint', ['wav']);
+	audioController.addSound('gameStart', 'sounds/whip', ['wav']);
+	audioController.addSound('localWin', 'sounds/winning', ['mp3']);
 	
-	inputControl.setGame(game);
-	inputControl.setPlayer(player);
+	/* delegate key presses and releases */
+	document.body.addEventListener('keydown',
+	 function(e) { inputControl.keyDown(e.keyCode); }, false);
+	document.body.addEventListener('keyup',
+	 function(e) { inputControl.keyUp(e.keyCode); }, false);
 
-	/* register key presses and releases */
-	document.onkeydown = function(event) {
-		var keyCode;
+	/* add listener for enter press for sending chat */
+	document.getElementById('chat').addEventListener('keydown', function(e) {
+		if(e.keyCode == chatSendKeyCode)
+			game.sendChat();
+	}, false);
 
-	 	if(event == null)
-			keyCode = window.event.keyCode;
-		else
-			keyCode = event.keyCode;
+	/* register touches for fancy phones n tablets */
+	if(touchDevice) {
+		var canvas = document.getElementById('canvasContainer');
+		
+		function touch(event, start) {
+			var touch = event.changedTouches[0];
+			var width = window.innerWidth;
+			var left = (touch.pageX < width / 3);
 
-		inputControl.keyDown(keyCode);
+			if(inputControl.player.game.gameOver ||
+			 (touch.pageX < width * 2 / 3 && !left))
+				return;
+
+			if(start)
+				inputControl.keyDown(left ? keyCodeLeft : keyCodeRight);
+			else
+				inputControl.keyUp(left ? keyCodeLeft : keyCodeRight);
+			event.preventDefault();
+		}
+
+		canvas.addEventListener('touchstart', function(e) { touch(e, true); });
+		canvas.addEventListener('touchend', function(e) { touch(e, false); });
 	}
 
-	document.onkeyup = function(event) {
-		var keyCode;
-
-	 	if(event == null)
-			keyCode = window.event.keyCode;
-		else
-			keyCode = event.keyCode;
-
-		inputControl.keyUp(keyCode);
-	}
-
-	var startButton = document.getElementById('start');
-	startButton.addEventListener('click', function() {
+	function reqGame() {
 		var maxPlayers = parseInt(document.getElementById('maxplayers').value);
 		var minPlayers = parseInt(document.getElementById('minplayers').value);
 		var playerName = document.getElementById('playername').value;
@@ -706,7 +812,10 @@ window.onload = function() {
 		}
 		else
 			game.requestGame(player, minPlayers, maxPlayers);
-	}, false);
+	}
+
+	var startButton = document.getElementById('start');
+	startButton.addEventListener('click', reqGame, false);
 	
 	var playerName = getCookie('playerName');
 	if(playerName != null && playerName != "")
@@ -744,6 +853,35 @@ function getCookie(c_name) {
 		if (x == c_name)
 			return unescape(y);
 	}
+}
+
+/* returns the width of page without scollbar 
+ * FIXME: dit is belachelijk gecompliceerde functie. moet gemakkelijker
+ * kunnen */
+function getPageWidth() {
+	var inner = document.createElement('p');
+	inner.style.width = "100%";
+	inner.style.height = "200px";
+
+	var outer = document.createElement('div');
+	outer.style.position = "absolute";
+	outer.style.top = "0px";
+	outer.style.left = "0px";
+	outer.style.visibility = "hidden";
+	outer.style.width = "200px";
+	outer.style.height = "150px";
+	outer.style.overflow = "hidden";
+	outer.appendChild (inner);
+
+	document.body.appendChild (outer);
+	var w1 = inner.offsetWidth;
+	outer.style.overflow = 'scroll';
+	var w2 = inner.offsetWidth;
+	if (w1 == w2) w2 = outer.clientWidth;
+
+	document.body.removeChild (outer);
+
+	return window.innerWidth - (w1 - w2);
 }
 
 /* debugging */

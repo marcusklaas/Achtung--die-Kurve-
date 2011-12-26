@@ -2,29 +2,47 @@
 <html>
 	<head>
 		<meta charset="utf-8">
+		<!--- for fancy touch devices --->
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 		<title>Achtung, die Kurve!</title>
 		<style>
+			html, body {
+				margin: 0;
+				padding: 0;
+			}
+
+			canvas {
+				image-rendering: optimizeSpeed;
+			}
+
 			body {
 				font-family: Arial, Helvetica, sans-serif;
 				text-align: center;
 			}
 
+			div#gameContainer {
+				margin-bottom: 3px;
+			}
+
 			div#canvasContainer {
 				position: relative;
 				margin: auto;
-			}
-
-			div#controls {
-				margin-top: 3px;
-				margin-bottom: 0;
-				margin-left: 0;
-				margin-right: 0;
+				margin-bottom: 3px;
 			}
 
 			table#playerList {
 				position: relative;
 				display: table;
 				float: left;
+				margin-left: 10px;
+				margin-right: 10px;
+			}
+
+			ul {
+				list-style-type: square;
+				margin: 0;
+				padding: 0;
+				padding-left: 20px;
 			}
 
 			input#playername {
@@ -35,7 +53,11 @@
 				max-width: 50px;
 			}
 
-			div#debugContainer {
+			input#chat {
+				width: 80%;
+			}
+
+			div#messagingContainer {
 				position: relative;
 				display: block;
 				/* TODO dit stukje gaf error maar puntkomma na 0% werkte niet. */
@@ -47,12 +69,17 @@
 			}
 		</style>
 		<script src="config.js"></script>
+		<script src="buzz.js"></script>
 		<script src="canvaslayers.js"></script>
 		<script src="game.js"></script>
 	</head>
 	<body>
 		<div id="gameContainer">
 			<div id="canvasContainer"></div>
+			<div id="touchController">
+				<div id="touchLeft"></div>
+				<div id="touchRight"></div>
+			</div>
 			<div id="controls">
 				<input type="text" id="playername" placeholder="playername" />
 				minplayers: <input type="number" min="1" max="8" steps="1" value="2" id="minplayers" />
@@ -65,7 +92,8 @@
 		<div id="infoContainer">
 			<!--- stom dat het op 1 regel moet maar whitespaces wordt als text node gezien :S -->
 			<table id="playerList"><thead><tr><th>Player</th><th>Status</th></tr></thead><tbody></tbody></table>
-			<div id="debugContainer">
+			<div id="messagingContainer">
+				<input type="text" id="chat" placeholder="insults go here" />
 				<ul id="debugLog"></ul>
 			</div>
 		</div>

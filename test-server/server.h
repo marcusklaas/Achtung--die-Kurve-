@@ -1,16 +1,16 @@
 #define EPS 0.00000001
-#define GAME_WIDTH 800
-#define GAME_HEIGHT 400
+#define GAME_WIDTH 1024
+#define GAME_HEIGHT 644
 #define TILE_SIZE_MULTIPLIER 4 // tilesize/ segmentlength
 #define VELOCITY 70 // pixels per sec
-#define TURN_SPEED 3 // radians per sec
-#define HOLE_SIZE 10 // in ticks
-#define HOLE_FREQ 100 // number of ticks between holes
+#define TURN_SPEED 2.5 // radians per sec
+#define HOLE_SIZE 7 // in ticks
+#define HOLE_FREQ 150 // number of ticks between holes
 #define HOLE_START_MIN 50 // after how many ticks first hole may appear
 #define HOLE_START_MAX 200 // after how many ticks first hole must have appeared
 #define DEBUG_MODE 1
 #define TICK_LENGTH 24 // in msecs
-#define SERVER_DELAY 200 // multiple of TICK_LENGTH
+#define SERVER_DELAY 216 // multiple of TICK_LENGTH
 #define COUNTDOWN 1008 // multiple of TICK_LENGTH
 #define SB_MAX 10	// sendbuffer max size
 #define DELTA_COUNT 11
@@ -19,8 +19,11 @@
 #define SHOW_WARNING 1
 #define PRE_PADDING	LWS_SEND_BUFFER_PRE_PADDING
 #define POST_PADDING	LWS_SEND_BUFFER_POST_PADDING
-#define SEND_SEGMENTS 30 // om de hoeveel ticks het moet gebeuren (0=nooit)
+#define SEND_SEGMENTS 0 // om de hoeveel ticks het moet gebeuren (0=nooit)
 #define SHOW_DELAY 0
+#define MAX_FILE_REQ_LEN 100
+#define MAX_NAME_LENGTH 50
+#define MAX_CHAT_LENGTH 140 // tweet sized messages!
 
 /* game states */
 #define GS_LOBBY 0

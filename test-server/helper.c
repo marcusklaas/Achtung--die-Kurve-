@@ -107,11 +107,11 @@ void sendjson(cJSON *json, struct user *u){
 void sendjsontogame(cJSON *json, struct game *gm, struct user *outsider) {
 	struct user *usr;
 	char *buf = jsongetpacket(json);
-	
+
 	for(usr = gm->usr; usr; usr = usr->nxt)
 		if(usr != outsider)
 			sendstr(buf, usr);
-			
+
 	free(buf);
 }
 
@@ -144,8 +144,25 @@ void *scalloc(size_t num, size_t size){
 	return a;
 }
 
-/* renamed to servermsecs because by epochmsecs i meant milliseconds since epoch
- * which is 00:00 january 1st 1970 */
+/* is there no extension, return null pointer */
+char *getFileExt(char *path) {
+	char *ext, *point = strrchr(path, '.');
+	int extLen;
+
+	if(!point || point < strrchr(path, '/'))
+		return scalloc(1, 1);
+
+	ext = smalloc((extLen = strlen(point)) + 1);
+	ext[extLen] = 0; 
+
+	/* do some strtolower action (why isnt this in standard libs? :S) */
+	for(point += --extLen; extLen >= 0; extLen--, point--)
+		ext[extLen] = ('A' <= *point && *point <= 'Z') ? ((*point) - 26) : *point;
+
+	return ext;
+}
+
+/* renamed to servermsecs */
 static long servermsecs(){
 	static struct timeval tv;
 	static long serverstart = -1;

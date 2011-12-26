@@ -1,27 +1,30 @@
+var enableSound = true;
 var keyCodeLeft = 37; // left arrow button
 var keyCodeRight = 39; // right arrow button
+var chatSendKeyCode = 13; // enter
 var serverURL = (location.href.indexOf('localhost') != -1) ? 
 	"ws://localhost:" + location.href.substr(location.href.lastIndexOf(':') + 1) : 
 	"ws://marcusklaas.nl:7681"; // websocket game server
 
-var lineWidth = 3; // only visual, does not influence collisions
-var ultraVerbose = false;
-var simStep = 24; // in milliseconds
 var gapAlpha = 0.2;
+var lineWidth = 3; // only visual, does not influence collisions
 var canvasBgcolor = '#D0D0D0';
 var lineCapStyle = 'round';
 var indicatorDotSize = 2;
 var indicatorLength = 10;
 
+var ultraVerbose = false;
+var simStep = 24; // in milliseconds
 var syncTries = 2;
 var syncDelays = 50;
 var simulatedPing = 0;
 var extraGameStartTimeDifference = 0;
 var acceptGameTimeAdjustments = true;
-var simulateCPUlag = true;
+var jsProfiling = true;
+var simulateCPUlag = false;
 var behind = 2; // desired difference between tock and tick
 var onConnect = null;
-var debugBaseContext = true; // sets different color for segments in basecontext
+var debugBaseContext = false; // sets different color for segments in basecontext
 
 /* these are the segment RGBs for the players. in client order, so the 
  * first one is always for the human player */

@@ -62,7 +62,7 @@ void startgame(struct game *gm){
 	/* spreading the word to all in the game */
 	jsonaddnum(root, "startTime", (int)gm->start);
 	cJSON_AddItemToObject(root, "startPositions", start_locations);
-	sendjsontogame(root, gm, 0);	
+	sendjsontogame(root, gm, 0);
 	jsondel(root);
 }
 
@@ -80,7 +80,7 @@ void remgame(struct game *gm){
 
 	/* freeing up player nodes. */
 	struct user *usr, *nxt;
-	
+
 	for(usr = gm->usr; usr; usr = nxt) {
 		nxt = usr->nxt;
 		usr->gm = 0;
@@ -157,16 +157,16 @@ void joingame(struct game *gm, struct user *newusr) {
 
 	if(DEBUG_MODE)
 		printf("join game called \n");
-		
-	// tell user s/he joined a game. 
+
+	// tell user s/he joined a game.
 	json= jsoncreate("joinedGame");
 	sendjson(json, newusr);
 	jsondel(json);
-	
+
 	json = getjsongamepars(gm);
 	sendjson(json, newusr);
 	jsondel(json);
-		
+
 	// tell players of game someone new joined
 	json= jsoncreate("newPlayer");
 	jsonaddnum(json, "playerId", newusr->id);
@@ -175,17 +175,17 @@ void joingame(struct game *gm, struct user *newusr) {
 
 	if(DEBUG_MODE)
 		printf("user %d has name %s\n", newusr->id, newusr->name);
-	
+
 	// send a message to the new player for every other player that is already in the game
 	for(usr = gm->usr; usr; usr = usr->nxt) {
 		jsonsetnum(json, "playerId", usr->id);
 		jsonsetstr(json, "playerName", lastusedname = usr->name);
 		sendjson(json, newusr);
 	}
-	
+
 	jsonsetstr(json, "playerName", duplicatestring(lastusedname));
 	jsondel(json);
-	
+
 	newusr->nxt = gm->usr;
 	gm->usr = newusr;
 	newusr->gm = gm;
@@ -195,7 +195,7 @@ void joingame(struct game *gm, struct user *newusr) {
 
 	if(++gm->n >= gm->nmin)
 		startgame(gm);
-	
+
 	if(DEBUG_MODE){
 		printf("user %d joined game %p\n", newusr->id, (void *)gm);
 		printgames();
@@ -251,16 +251,16 @@ int segcollision(struct seg *seg1, struct seg *seg2) {
 		/* segments are on same line */
 		if(fabs(numer_a) < EPS && fabs(numer_b) < EPS) {
 			float a, b, c, d, e;
-		
+
 			if(seg1->x1 - seg1->x2 < EPS) {
 				a= seg1->y1; b= seg1->y2; c= seg2->y1; d= seg2->y2;
 			} else {
 				a= seg1->x1; b= seg1->x2; c= seg2->x1; d= seg2->x2;
 			}
-		
+
 			if(a>b) { e=a; a=b; b=e; }
 			if(c>d) { e=c; c=d; d=c; }
-		
+
 			return (c < b && d > a);
 		}
 
@@ -342,7 +342,7 @@ int addsegment(struct game *gm, struct seg *seg) {
 		right_tile = (right_tile >= gm->htiles) ? (gm->htiles - 1) : right_tile;
 		bottom_tile = (bottom_tile < 0) ? 0 : bottom_tile;
 		top_tile = (top_tile >= gm->vtiles) ? (gm->vtiles - 1) : top_tile;
-	}		
+	}
 
 	for(int i = left_tile; i <= right_tile; i++) {
 		for(int j = bottom_tile; j <= top_tile; j++) {
@@ -403,7 +403,7 @@ int simuser(struct user *usr, int tick) {
 	newseg->y1 = oldy;
 	newseg->x2 = usr->x;
 	newseg->y2 = usr->y;
-	
+
 	return addsegment(usr->gm, newseg);
 }
 

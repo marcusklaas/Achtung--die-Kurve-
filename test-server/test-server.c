@@ -12,7 +12,6 @@
 struct libwebsocket_context *ctx;
 static struct game *headgame = 0;
 static int usrc = 0;	// user count
-//static long serverstart = 0; // server start in msec since epoch
 static unsigned long serverticks = 0; // yes this will underflow, but not fast ;p
 
 #include "helper.c"
@@ -26,6 +25,7 @@ enum demo_protocols {
 
 
 #define LOCAL_RESOURCE_PATH "../client"
+#define LOCAL_PATH_LENGTH 9 // is there a better way?
 
 /* this protocol server (always the first one) just knows how to do HTTP */
 
@@ -39,35 +39,39 @@ static int callback_http(struct libwebsocket_context * context,
 
 	switch (reason) {
 	case LWS_CALLBACK_HTTP:
-		fprintf(stderr, "serving HTTP URI %s\n", (char *)in);
+		fprintf(stderr, "serving HTTP URI %s\n", (char *) in);
+		char *ext, mime[32];
+		char path[MAX_FILE_REQ_LEN + LOCAL_PATH_LENGTH + 1];
 
-		if (in && strcmp(in, "/favicon.ico") == 0) {
-			if (libwebsockets_serve_http_file(wsi,
-			     LOCAL_RESOURCE_PATH"/favicon.ico", "image/x-icon"))
-				fprintf(stderr, "Failed to send favicon\n");
+		ext = getFileExt(in);
+
+		/* making sure request is reasonable */
+		if(strlen(in) > MAX_FILE_REQ_LEN || strstr(in, "..") || !ext)
 			break;
-		}
-		if (in && strcmp(in, "/game.js") == 0) {
-			if (libwebsockets_serve_http_file(wsi,
-			     LOCAL_RESOURCE_PATH"/game.js", "text/javascript"))
-				fprintf(stderr, "Failed http request\n");
-			break;
-		}
-		if (in && strcmp(in, "/config.js") == 0) {
-			if (libwebsockets_serve_http_file(wsi,
-			     LOCAL_RESOURCE_PATH"/config.js", "text/javascript"))
-				fprintf(stderr, "Failed http request\n");
-			break;
-		}
-		if (in && strcmp(in, "/canvaslayers.js") == 0) {
-			if (libwebsockets_serve_http_file(wsi,
-			     LOCAL_RESOURCE_PATH"/canvaslayers.js", "text/javascript"))
-				fprintf(stderr, "Failed http request\n");
-			break;
-		}
-		if (libwebsockets_serve_http_file(wsi,
-				  LOCAL_RESOURCE_PATH"/index.html", "text/html"))
-			fprintf(stderr, "Failed to send HTTP file\n");
+
+		strcat(path, LOCAL_RESOURCE_PATH);
+		strcat(path, in);
+		if(!strcmp(in, "/"))
+			strcat(path, "index.html");
+
+		if(!strcmp(ext, "ico"))
+			strcpy(mime, "image/x-icon");
+		else if(!strcmp(ext, "js"))
+			strcpy(mime, "text/javascript");
+		else if(!strcmp(ext, "ogg"))
+			strcpy(mime, "audio/ogg");
+		else if(!strcmp(ext, "mp3"))
+			strcpy(mime, "audio/mpeg");
+		else if(!strcmp(ext, "wav"))
+			strcpy(mime, "audio/wav");
+		else
+			strcpy(mime, "text/html");
+
+		if(libwebsockets_serve_http_file(wsi, path, mime))
+			fprintf(stderr, "Failed to send file\n");
+
+		free(ext);
+
 		break;
 
 	case LWS_CALLBACK_FILTER_NETWORK_CONNECTION:
@@ -120,7 +124,7 @@ callback_game(struct libwebsocket_context * context,
 		sendjson(json, u);
 		jsondel(json);
 		break;
-		
+
 	case LWS_CALLBACK_CLOSED:
 		if(DEBUG_MODE) printf("LWS_CALLBACK_CLOSED\n");
 		if(u->gm)
@@ -133,7 +137,7 @@ callback_game(struct libwebsocket_context * context,
 		if(u->name)
 			free(u->name);
 		break;
-		
+
 	case LWS_CALLBACK_SERVER_WRITEABLE:
 		if(ULTRA_VERBOSE) printf("LWS_CALLBACK_SERVER_WRITEABLE. %d queued messages\n", u->sbat);
 
@@ -152,7 +156,7 @@ callback_game(struct libwebsocket_context * context,
 
 	case LWS_CALLBACK_RECEIVE:
 		if(ULTRA_VERBOSE) printf("received: %s\n", inchar);
-		
+
 		json= cJSON_Parse(inchar);
 		if(!json){
 			if(DEBUG_MODE) printf("invalid json!\n");
@@ -163,7 +167,27 @@ callback_game(struct libwebsocket_context * context,
 			printf("no mode specified!\n");
 			break;
 		}
-		if(!strcmp(mode, "getTime")){
+		if(!strcmp(mode, "chat")) {
+			cJSON *j;
+			char *msg = jsongetstr(json, "message");
+
+			if(!u->gm) {
+				printf("user %d tried to chat, but no one's listening\n", u->id);
+				break;
+			}
+
+			if(strlen(msg) > MAX_CHAT_LENGTH) {
+				printf("Chat message by user %d too long. Truncating..\n", u->id);
+				msg[MAX_CHAT_LENGTH] = 0;
+			}
+
+			j = jsoncreate("chat");
+			jsonaddnum(j, "playerId", u->id);
+			jsonaddstr(j, "message", duplicatestring(msg));
+			sendjsontogame(j, u->gm, u);
+			jsondel(j);
+		}
+		else if(!strcmp(mode, "getTime")){
 			cJSON *j= jsoncreate("time");
 			jsonaddnum(j, "time", (int)servermsecs());
 			sendjson(j, u);
@@ -175,11 +199,11 @@ callback_game(struct libwebsocket_context * context,
 			if(u->gm)
 				leavegame(u);
 			if(DEBUG_MODE) printf("user %d requested game\n", u->id);
-			
+
 			nmin= jsongetint(json, "minPlayers");
 			nmax= jsongetint(json, "maxPlayers");
 			s= jsongetstr(json, "playerName");
-			if(strlen(s) < 50)
+			if(strlen(s) < MAX_NAME_LENGTH)
 				u->name = duplicatestring(s);
 			if(0<nmin && nmin<nmax && nmax<17){
 				struct game *gm= findgame(nmin, nmax);
@@ -194,11 +218,11 @@ callback_game(struct libwebsocket_context * context,
 		}
 		else if(strcmp(mode, "newInput") == 0) {
 			if(u->gm && u->gm->state == GS_STARTED)
-				interpretinput(json, u); 		
+				interpretinput(json, u);
 		}
 		else if(SHOW_WARNING)
 			printf("unkown mode!\n");
-		
+
 		jsondel(json);
 		break;
 
@@ -279,7 +303,7 @@ int main(int argc, char **argv)
 		printf("libwebsocket init failed\n");
 		return -1;
 	}
-	
+
 	ctx= context;
 	printf("server started on port %d\n", port);
 	mainloop();
@@ -291,7 +315,6 @@ int main(int argc, char **argv)
 		return 1;
 	}
 	mainloop();*/
-
 
 	libwebsocket_context_destroy(context);
 
