@@ -25,6 +25,16 @@
 #define MAX_NAME_LENGTH 50
 #define MAX_CHAT_LENGTH 140 // tweet sized messages!
 
+#define PENCIL_GAME 1
+#define INK_PER_SEC 25
+#define MAX_INK 200
+#define START_INK MAX_INK
+#define MOUSEDOWN_INK 30
+#define INK_BUFFER_TICKS 5
+#define INK_MIN_DISTANCE 5
+#define INK_VISIBLE 400
+#define INK_SOLID 5000
+
 /* game states */
 #define GS_LOBBY 0
 #define GS_STARTED 1
@@ -50,7 +60,25 @@ struct game{
 	struct user *usr;	// user list
 	struct game *nxt;
 	struct seg *tosend;
+	int pencilgame;
 };
+
+struct pencilseg{
+	struct seg seg;
+	int tick;
+	struct pencilseg *nxt, *prev;
+};
+struct pencil {
+	float ink, x, y;
+	struct pencilseg *pseghead, *psegtail;
+	struct user *usr;
+	int tick, lasttick;
+};
+void resetpencil(struct pencil *p, struct user *u);
+void cleanpencil(struct pencil *p);
+void simpencil(struct pencil *p);
+void gototick(struct pencil *p, int tick);
+float getlength(float x, float y);
 
 struct userinput {
 	int tick;
@@ -80,6 +108,8 @@ struct user{
 	int delta[DELTA_COUNT];
 	int deltaat;
 	char deltaon;
+	
+	struct pencil pencil;
 };
 
 void *smalloc(size_t size);

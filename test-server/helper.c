@@ -28,6 +28,15 @@ int jsongetint(cJSON *json, char* obj){
 	}
 	return json->valueint;
 }
+// returns NULL on error
+cJSON *jsongetjson(cJSON *json, char* obj){
+	json= cJSON_GetObjectItem(json, obj);
+	if(!json){
+		if(DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
+		return 0;
+	}
+	return json;
+}
 
 void jsonsetstr(cJSON *json, char* obj, char* str){
 	json= cJSON_GetObjectItem(json,obj);
@@ -198,4 +207,8 @@ void printgames(){
 
 void printseg(struct seg *seg){
 	printf("(%.1f, %.1f)->(%.1f, %.1f)",seg->x1,seg->y1,seg->x2,seg->y2);
+}
+
+float getlength(float x, float y){
+	return sqrt(x * x + y * y);
 }

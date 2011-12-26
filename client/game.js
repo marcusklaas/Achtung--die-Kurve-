@@ -43,6 +43,10 @@ function GameEngine(containerId, playerListId, chatBarId, audioController) {
 
 	// chat
 	this.chatBar = document.getElementById(chatBarId);
+	
+	// optional features
+	if(pencilGame)
+		this.pencil = new Pencil(this);
 }
 
 /* a lot of values we do not clear, but we do not care for them as they 
@@ -198,6 +202,9 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'segments':
 			this.handleSegmentsMessage(obj.segments);
 			break;
+		case 'pencil':
+			this.pencil.handleMessage(obj.data);
+			break;
 		default:
 			debugLog('unknown mode!');
 	}
@@ -314,6 +321,9 @@ GameEngine.prototype.syncWithServer = function() {
 GameEngine.prototype.doTick = function() {
 	var player = this.players[0];
 	player.simulate(this.tick, ++this.tick, player.context, null);
+	
+	if(pencilGame)
+		this.pencil.doTick();
 }
 
 GameEngine.prototype.doTock = function() {
@@ -393,6 +403,9 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	this.segctx.lineWidth = 1;
 	this.segctx.strokeStyle = 'black';
 	this.segctx.lineCap = lineCapStyle;
+	
+	if(pencilGame)
+		this.pencil.reset();
 	
 	var self = this;
 	window.setTimeout(function() { self.realStart(); }, delay + simStep);
@@ -747,9 +760,10 @@ window.onload = function() {
 	audioController.addSound('localWin', 'sounds/winning', ['mp3']);
 	
 	/* delegate key presses and releases */
-	document.body.addEventListener('keydown',
+	// stond document.body maar dan werken je keys niet meer na muisklik
+	window.addEventListener('keydown',
 	 function(e) { inputControl.keyDown(e.keyCode); }, false);
-	document.body.addEventListener('keyup',
+	window.addEventListener('keyup',
 	 function(e) { inputControl.keyUp(e.keyCode); }, false);
 
 	/* add listener for enter press for sending chat */
@@ -891,4 +905,124 @@ function debugLog(msg) {
 
 	elt.innerHTML = msg;
     container.insertBefore(elt, container.firstChild);
+}
+
+/* Pencil */
+function Pencil(game) {
+	this.game = game;
+	this.reset();
+	
+	var canvas = document.getElementById(game.containerId);
+	var self = this;
+	canvas.addEventListener('mousedown', function(ev) {
+		if(!self.down && self.ink > mousedownInk){
+			self.ink -= mousedownInk;
+			self.last = self.cur = ev;
+			self.buffer.push(ev.clientX);
+			self.buffer.push(ev.clientY);
+			self.buffer.push(-self.game.tick - 1);
+			self.down = true;
+		}
+	}, false);
+	canvas.addEventListener('mousemove', function(ev) {
+		if(self.down)
+			self.cur = ev;
+	}, false);
+	canvas.addEventListener('mouseup', function(ev) {
+		if(self.down){
+			self.cur = ev;
+			self.down = false;
+			self.upped = true;
+		}
+	}, false);
+}
+
+Pencil.prototype.reset = function() {
+	this.buffer = [];
+	this.down = false;
+	this.upped = false;
+	this.inbuffer = [];
+	this.inbufferSolid = [];
+	this.ink = startInk;
+	this.players = this.game.players.length;
+	for(var i = 0; i < this.players; i++){
+		this.inbuffer[i] = [];
+		this.inbufferSolid[i] = [];		
+	}
+	this.inbufferSolid.length = this.inbuffer.length = this.players;
+}
+
+Pencil.prototype.doTick = function() {
+	this.ink += inkPerSec / 1000 * simStep;
+	if(this.ink > maxInk)
+		this.ink = maxInk;
+	if(this.down || this.upped){
+		this.upped = false;
+		var x1 = this.last.clientX;
+		var y1 = this.last.clientY;
+		var x2 = this.cur.clientX;
+		var y2 = this.cur.clientY;
+		
+		var d = getLength(x2 - x1, y2 - y1);
+		if((d >= inkMinimumDistance || d >= this.ink) && this.ink > 0){
+			if(this.ink < d){
+				var a = x2 - x1;
+				var b = y2 - y1;
+				a *= this.ink / d;
+				b *= this.ink / d;
+				x2 = x1 + a;
+				y2 = y1 + b;
+				this.ink = 0;
+			}else
+				this.ink -= d;
+			this.buffer.push(x2);
+			this.buffer.push(y2);
+			this.buffer.push(this.game.tick);
+			this.drawSegment(x1, y1, x2, y2, 0, gapAlpha);
+			this.last = this.cur;
+			if(this.ink == 0)
+				this.down = false;
+		}
+	}
+	if(this.game.tick % inkBufferTicks == 0 && this.buffer.length > 0){
+		this.game.sendMsg('pencil', {'data' : this.buffer});
+		this.buffer = [];
+	}
+	for(var i = 0; i < this.players; i++){
+		var buffer = this.inbuffer[i];
+		while(buffer.length > 0 && buffer[0].tickVisible <= this.game.tick){
+			var a = buffer.shift();
+			if(i > 0)
+				this.drawSegment(a.x1, a.y1, a.x2, a.y2, i, gapAlpha);
+			this.inbufferSolid[i].push(a);
+		}
+		buffer =  this.inbufferSolid[i];
+		while(buffer.length > 0 && buffer[0].tickSolid <= this.game.tick){
+			var a = buffer.shift();
+			this.drawSegment(a.x1, a.y1, a.x2, a.y2, i, 1);
+		}
+	}
+}
+
+Pencil.prototype.drawSegment = function(x1, y1, x2, y2, playerId, alpha) {
+	var ctx = this.game.baseContext;
+	ctx.beginPath();
+	setLineColor(ctx, this.game.players[playerId].color, alpha);
+	var tmp = ctx.lineCap;
+	ctx.lineCap = 'butt';
+	ctx.moveTo(x1, y1);
+	ctx.lineTo(x2, y2);
+	ctx.stroke();
+	ctx.lineCap = tmp;
+}
+
+Pencil.prototype.handleMessage = function(ar) {
+	for(var i = 0; i < ar.length; i++){
+		var a = ar[i];
+		this.inbuffer[this.game.idToPlayer[a.playerId]].push(a);
+	}
+}
+
+function getLength(x, y) {
+	return Math.sqrt(x * x + y * y);
 }

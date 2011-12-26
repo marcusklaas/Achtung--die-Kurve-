@@ -1,3 +1,6 @@
 zet hier je todos en ideeen. bijv:
 
 - gameState property voor gameEngine ipv gameOver property. geeft aan of je in een game zit of niet en zoja, of deze al is gestart of niet. misschien is in countdown ook een handige state.
+- sound mute optie (en state opslaan via cookie)
+- idToPlayer kost veel memory als server id's hoog zijn? kan het anders?
+- server kan rare gamestarttime geven waardoor client dan 'starting game in -3434543564msec' krijgt. wss kwam het door standby. ik zie dat negatieve waarden nog steeds in de libwebsockets service loop kunnen komen? gefixed, hopelijk kan deze todo nu weg.

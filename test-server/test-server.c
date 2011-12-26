@@ -39,7 +39,7 @@ static int callback_http(struct libwebsocket_context * context,
 
 	switch (reason) {
 	case LWS_CALLBACK_HTTP:
-		if(DEBUG_MODE)
+		if(ULTRA_VERBOSE)
 			printf("serving HTTP URI %s\n", (char *) in);
 		char *ext, mime[32];
 		char path[MAX_FILE_REQ_LEN + LOCAL_PATH_LENGTH + 1];
@@ -69,7 +69,7 @@ static int callback_http(struct libwebsocket_context * context,
 		else
 			strcpy(mime, "text/html");
 			
-		if(DEBUG_MODE)
+		if(ULTRA_VERBOSE)
 			printf("serving %s, %s\n", path, mime);
 			
 		if(libwebsockets_serve_http_file(wsi, path, mime))
@@ -224,6 +224,10 @@ callback_game(struct libwebsocket_context * context,
 		else if(strcmp(mode, "newInput") == 0) {
 			if(u->gm && u->gm->state == GS_STARTED)
 				interpretinput(json, u);
+		}
+		else if(!strcmp(mode, "pencil")) {
+			if(u->gm && u->gm->state == GS_STARTED)
+				handlepencilmsg(json, u); 		
 		}
 		else if(SHOW_WARNING)
 			printf("unkown mode!\n");

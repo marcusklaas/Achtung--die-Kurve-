@@ -26,6 +26,15 @@ var behind = 2; // desired difference between tock and tick
 var onConnect = null;
 var debugBaseContext = false; // sets different color for segments in basecontext
 
+/* pencil game */
+var pencilGame = true;
+var mousedownInk = 30;
+var inkBufferTicks = 5;
+var inkMinimumDistance = 5;
+var maxInk = 200;
+var startInk = maxInk;
+var inkPerSec = 25;
+
 /* these are the segment RGBs for the players. in client order, so the 
  * first one is always for the human player */
 var playerColors = [[255, 0, 0], [0, 0, 255], [255, 255, 0], [0, 255, 0],

@@ -49,6 +49,8 @@ void startgame(struct game *gm){
 		clearinputqueue(usr);
 		usr->turn = 0;
 		usr->alive= 1;
+		if(gm->pencilgame)
+			resetpencil(&usr->pencil, usr);
 
 		cJSON *player = cJSON_CreateObject();
 		cJSON_AddNumberToObject(player, "playerId", usr->id);
@@ -84,6 +86,8 @@ void remgame(struct game *gm){
 	for(usr = gm->usr; usr; usr = nxt) {
 		nxt = usr->nxt;
 		usr->gm = 0;
+		if(gm->pencilgame)
+			cleanpencil(&usr->pencil);
 		usr->nxt = 0;
 	}
 
@@ -215,6 +219,7 @@ struct game *creategame(int nmin, int nmax) {
 	gm->v= VELOCITY;
 	gm->ts= TURN_SPEED;
 	gm->nxt = headgame;
+	gm->pencilgame = PENCIL_GAME;
 
 	gm->hsize = HOLE_SIZE;
 	gm->hfreq = HOLE_FREQ;
@@ -386,6 +391,9 @@ int simuser(struct user *usr, int tick) {
 		if(!usr->inputhead)
 			usr->inputtail = 0;
 	}
+	
+	if(usr->gm->pencilgame)
+		simpencil(&usr->pencil);
 
 	float oldx = usr->x, oldy = usr->y;
 	usr->angle += usr->turn * usr->gm->ts * TICK_LENGTH / 1000.0;
@@ -498,7 +506,7 @@ void mainloop() {
 		
 		sleepuntil= ++serverticks * TICK_LENGTH;
 		do{
-			libwebsocket_service(ctx, sleepuntil - servermsecs());
+			libwebsocket_service(ctx, max(0, sleepuntil - servermsecs()));
 		}while(sleepuntil - servermsecs() > 0);
 	}
 }
@@ -596,3 +604,131 @@ void interpretinput(cJSON *json, struct user *usr) {
 	}
 }
 
+/* pencil game */
+void handlepencilmsg(cJSON *json, struct user *u){
+	struct pencil *p = &u->pencil;
+	cJSON *j = cJSON_CreateArray();
+	int send = 0;
+	json = jsongetjson(json, "data")->child;
+	while(json){
+		float x = json->valuedouble, y;
+		int tick;
+		int newstroke = 0;
+		json = json->next;
+		if(!json) break;
+		y = json->valuedouble;
+		json = json->next;
+		if(!json) break;
+		tick = json->valueint;
+		json = json->next;
+		if(tick < 0){
+			tick = -tick - 1;
+			newstroke = 1;
+		}
+		if(tick < u->gm->tick)
+			tick = u->gm->tick;
+		if(!(tick > p->lasttick || (newstroke && tick == p->lasttick)))
+			break;
+		gototick(p, tick);
+		if(newstroke){
+			if(p->ink > MOUSEDOWN_INK - EPS){
+				p->x = x;
+				p->y = y;
+				p->ink -= MOUSEDOWN_INK;
+				p->lasttick = tick - 1; // so that a seg on tick is also possible
+			}else
+				break;
+		}else{
+			float d = getlength(p->x - x, p->y - y);
+			if((d >= INK_MIN_DISTANCE - EPS || d >= p->ink - EPS) && p->ink > 0){
+				int tickSolid = tick + (INK_VISIBLE + INK_SOLID) / TICK_LENGTH;
+				struct pencilseg *pseg = smalloc(sizeof(struct pencilseg));
+				struct seg *seg = &pseg->seg;
+				cJSON *k = cJSON_CreateObject();
+				if(p->ink < d){
+					float a = x - p->x;
+					float b = y - p->y;
+					a *= p->ink / d;
+					b *= p->ink / d;
+					x = p->x + a;
+					y = p->y + b;
+					p->ink = 0;
+				}else
+					p->ink -= d;
+				seg->x1 = p->x;
+				seg->y1 = p->y;
+				seg->x2 = x;
+				seg->y2 = y;
+				pseg->tick = tickSolid;
+				pseg->nxt = p->pseghead;
+				if(p->pseghead)
+					p->pseghead->prev = pseg;
+				pseg->prev = 0;
+				p->pseghead = pseg;
+				if(!p->psegtail)
+					p->psegtail = pseg;
+				p->lasttick = tick;
+				jsonaddnum(k, "x1", p->x);
+				jsonaddnum(k, "y1", p->y);
+				jsonaddnum(k, "x2", x);
+				jsonaddnum(k, "y2", y);
+				jsonaddnum(k, "playerId", u->id);
+				jsonaddnum(k, "tickVisible", tick + INK_VISIBLE / TICK_LENGTH);
+				jsonaddnum(k, "tickSolid", tickSolid);
+				cJSON_AddItemToArray(j, k);
+				send = 1;
+				p->x = x;
+				p->y = y;
+			}else
+				break;
+		}
+	}
+	if(send){
+		cJSON *k = jsoncreate("pencil");
+		jsonaddjson(k, "data", j);
+		sendjsontogame(k, u->gm, 0);
+	}
+}
+
+struct seg *copyseg(struct seg *a){
+	struct seg *b = smalloc(sizeof(struct seg));
+	memcpy(b, a, sizeof(struct seg));
+	return b;
+}
+
+void simpencil(struct pencil *p){
+	if(p->psegtail && p->psegtail->tick == p->usr->gm->tick){
+		struct pencilseg *tail = p->psegtail;
+		addsegment(p->usr->gm, copyseg(&tail->seg));
+		if(tail->prev){
+			tail->prev->nxt = 0;
+			p->psegtail = tail->prev;
+		}else
+			p->psegtail = p->pseghead = 0;
+		free(tail);
+	}
+}
+
+void resetpencil(struct pencil *p, struct user *u){
+	p->ink = START_INK;
+	p->psegtail = p->pseghead = 0;
+	p->usr = u;
+	p->tick = 0;
+	p->lasttick = -1;
+}
+
+void cleanpencil(struct pencil *pen){
+	struct pencilseg *p = pen->pseghead, *q;
+	while(p){
+		q = p->nxt;
+		free(p);
+		p = q;
+	}
+}
+
+void gototick(struct pencil *p, int tick){
+	int ticks = tick - p->tick;
+	p->ink += ticks * TICK_LENGTH / 1000.0 * INK_PER_SEC;
+	if(p->ink > MAX_INK)
+		p->ink = MAX_INK;
+}
