@@ -1,0 +1,3 @@
+zet hier je todos en ideeen. bijv:
+
+- gameState property voor gameEngine ipv gameOver property. geeft aan of je in een game zit of niet en zoja, of deze al is gestart of niet. misschien is in countdown ook een handige state.
