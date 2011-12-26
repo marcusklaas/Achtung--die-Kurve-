@@ -603,6 +603,7 @@ Player.prototype.simulate = function(startTick, endTick, ctx, queue) {
 
 	ctx.beginPath();
 	setLineColor(ctx, this.color, inHole ? gapAlpha : 1);
+	ctx.lineCap = inHole ? 'butt' : lineCapStyle;
 	ctx.moveTo(this.x, this.y);
 	
 	if(debugBaseContext && ctx == this.game.baseContext)
@@ -918,8 +919,9 @@ function Pencil(game) {
 		if(!self.down && self.ink > mousedownInk){
 			self.ink -= mousedownInk;
 			self.last = self.cur = ev;
-			self.buffer.push(ev.clientX);
-			self.buffer.push(ev.clientY);
+			var pos = self.getRelativeMousePos(ev);
+			self.buffer.push(pos[0]);
+			self.buffer.push(pos[1]);
 			self.buffer.push(-self.game.tick - 1);
 			self.down = true;
 		}
@@ -950,6 +952,9 @@ Pencil.prototype.reset = function() {
 		this.inbufferSolid[i] = [];		
 	}
 	this.inbufferSolid.length = this.inbuffer.length = this.players;
+	var pos = findPos(document.getElementById(this.game.containerId));
+	this.canvasLeft = pos[0];
+	this.canvasTop = pos[1];
 }
 
 Pencil.prototype.doTick = function() {
@@ -958,11 +963,12 @@ Pencil.prototype.doTick = function() {
 		this.ink = maxInk;
 	if(this.down || this.upped){
 		this.upped = false;
-		var x1 = this.last.clientX;
-		var y1 = this.last.clientY;
-		var x2 = this.cur.clientX;
-		var y2 = this.cur.clientY;
-		
+		var pos = this.getRelativeMousePos(this.last);
+		var x1 = pos[0];
+		var y1 = pos[1];
+		pos = this.getRelativeMousePos(this.cur);
+		var x2 = pos[0];
+		var y2 = pos[1];
 		var d = getLength(x2 - x1, y2 - y1);
 		if((d >= inkMinimumDistance || d >= this.ink) && this.ink > 0){
 			if(this.ink < d){
@@ -978,7 +984,7 @@ Pencil.prototype.doTick = function() {
 			this.buffer.push(x2);
 			this.buffer.push(y2);
 			this.buffer.push(this.game.tick);
-			this.drawSegment(x1, y1, x2, y2, 0, gapAlpha);
+			this.drawSegment(x1, y1, x2, y2, 0, pencilAlpha);
 			this.last = this.cur;
 			if(this.ink == 0)
 				this.down = false;
@@ -993,7 +999,7 @@ Pencil.prototype.doTick = function() {
 		while(buffer.length > 0 && buffer[0].tickVisible <= this.game.tick){
 			var a = buffer.shift();
 			if(i > 0)
-				this.drawSegment(a.x1, a.y1, a.x2, a.y2, i, gapAlpha);
+				this.drawSegment(a.x1, a.y1, a.x2, a.y2, i, pencilAlpha);
 			this.inbufferSolid[i].push(a);
 		}
 		buffer =  this.inbufferSolid[i];
@@ -1009,7 +1015,7 @@ Pencil.prototype.drawSegment = function(x1, y1, x2, y2, playerId, alpha) {
 	ctx.beginPath();
 	setLineColor(ctx, this.game.players[playerId].color, alpha);
 	var tmp = ctx.lineCap;
-	ctx.lineCap = 'butt';
+	ctx.lineCap = alpha == 1 ? lineCapStyle : 'butt';
 	ctx.moveTo(x1, y1);
 	ctx.lineTo(x2, y2);
 	ctx.stroke();
@@ -1023,6 +1029,43 @@ Pencil.prototype.handleMessage = function(ar) {
 	}
 }
 
+Pencil.prototype.getRelativeMousePos = function(ev) {
+	var pos = getMousePos(ev);
+	pos[0] -= this.canvasLeft;
+	pos[1] -= this.canvasTop;
+	pos[0] /= this.game.scale;
+	pos[1] /= this.game.scale;
+	return pos;
+}
+
 function getLength(x, y) {
 	return Math.sqrt(x * x + y * y);
+}
+
+function findPos(obj) {
+	var curleft = curtop = 0;
+	if (obj.offsetParent) {
+		do {
+			curleft += obj.offsetLeft;
+			curtop += obj.offsetTop;
+		} while (obj = obj.offsetParent);
+	}
+	return [curleft,curtop];
+}
+function getMousePos(e) {
+	var posx = 0;
+	var posy = 0;
+	if (!e) var e = window.event;
+	if (e.pageX || e.pageY) {
+		posx = e.pageX;
+		posy = e.pageY;
+	}
+	else if (e.clientX || e.clientY) {
+		posx = e.clientX + document.body.scrollLeft
+			+ document.documentElement.scrollLeft;
+		posy = e.clientY + document.body.scrollTop
+			+ document.documentElement.scrollTop;
+	}
+	// posx and posy contain the mouse position relative to the document
+	return [posx, posy];
 }

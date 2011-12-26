@@ -34,6 +34,7 @@ var inkMinimumDistance = 5;
 var maxInk = 200;
 var startInk = maxInk;
 var inkPerSec = 25;
+var pencilAlpha = .2;
 
 /* these are the segment RGBs for the players. in client order, so the 
  * first one is always for the human player */
