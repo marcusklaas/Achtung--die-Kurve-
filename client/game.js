@@ -921,6 +921,23 @@ window.onload = function() {
 		canvas.addEventListener('touchend', function(e) { touch(e, false); });
 	}
 
+	/* listen to sound checkbox */
+	var checkBox = document.getElementById('sound');
+	checkBox.addEventListener('change', function(e) {
+		if(checkBox.checked) {
+			setCookie('sound', 'true', 30);
+			enableSound = true;
+		}
+		else {
+			setCookie('sound', 'false', 30);
+			enableSound = false;
+		}
+	});
+
+	var soundCookie = getCookie('sound');
+	if(soundCookie != null & soundCookie == 'false')
+		checkBox.checked = enableSound = false;
+
 	function reqGame() {
 		var maxPlayers = parseInt(document.getElementById('maxplayers').value);
 		var minPlayers = parseInt(document.getElementById('minplayers').value);
@@ -976,7 +993,7 @@ function setLineColor(ctx, color, alpha) {
 }
 
 /* cookies */
-function setCookie(c_name,value,exdays) {
+function setCookie(c_name, value, exdays) {
 	var exdate = new Date();
 	exdate.setDate(exdate.getDate() + exdays);
 	var c_value = escape(value) + ((exdays==null) ? "" : "; expires="+exdate.toUTCString());
