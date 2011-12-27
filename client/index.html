@@ -20,22 +20,60 @@
 				text-align: center;
 			}
 
-			div#gameContainer {
-				margin-bottom: 3px;
-			}
-
 			div#canvasContainer {
 				position: relative;
 				margin: auto;
+			}
+
+			div#outerWrap {
+				position: relative;
+				overflow: hidden;
+			}
+
+			div#centerAux {
+				float: left;
+				position: relative;
+				left: 50%;
+			}
+
+			div#infoContainer {
+				margin-top: 3px;
 				margin-bottom: 3px;
+				padding-top: 3px;
+				padding-bottom: 3px;
+				vertical-align: top;
+				float: left;
+				position: relative;
+				left: -50%;
+				height: 180px;
+				border: 1px solid #AAA;
 			}
 
 			table#playerList {
-				position: relative;
-				display: table;
-				float: left;
-				margin-left: 10px;
-				margin-right: 10px;
+				padding-right: 5px;
+				padding-left: 5px;
+				vertical-align: top;
+				display: inline-block;
+			}
+
+			div#messagingContainer {
+				padding-right: 5px;
+				padding-left: 5px;
+				vertical-align: top;
+				display: inline-block;
+				text-align: left;
+			}
+
+			input#chat {
+				margin: 0;
+				width: 100%;
+				max-width: 800px;
+			}
+
+			div#chatContainer {
+				vertical-align: top;
+				height: 160px;
+				overflow-y: auto;
 			}
 
 			ul {
@@ -45,7 +83,20 @@
 				padding-left: 20px;
 			}
 
+			div#controls {
+				vertical-align: top;
+				display: inline-block;
+				text-align: right;
+				padding-right: 5px;
+				padding-left: 5px;
+			}
+
+			div#controls > * {
+				display: block;
+			}
+
 			input#playername {
+				margin: 0;
 				width: 150px;
 			}
 
@@ -53,19 +104,12 @@
 				max-width: 50px;
 			}
 
-			input#chat {
-				width: 80%;
+			button#start {
+				width: 100%;
 			}
 
-			div#messagingContainer {
-				position: relative;
-				display: block;
-				/* TODO dit stukje gaf error maar puntkomma na 0% werkte niet. */
-				/*width: 0%
-				float: left;*/
-				text-align: left;
-				max-height: 300px;
-				overflow-y: auto;
+			footer {
+				display: none;
 			}
 		</style>
 		<script src="config.js"></script>
@@ -76,26 +120,36 @@
 	<body>
 		<div id="gameContainer">
 			<div id="canvasContainer"></div>
-			<div id="touchController">
-				<div id="touchLeft"></div>
-				<div id="touchRight"></div>
-			</div>
-			<div id="controls">
-				sound <input type="checkbox" id="sound" checked>
-				<input type="text" id="playername" placeholder="playername" />
-				minplayers: <input type="number" min="1" max="8" steps="1" value="2" id="minplayers" />
-				maxplayers: <input type="number" min="1" max="8" steps="1" value="8" id="maxplayers" />
-				<button id="start">Request Game</button>
-			</div>
 			<div id="status"></div>
 		</div>
 
-		<div id="infoContainer">
-			<!--- stom dat het op 1 regel moet maar whitespaces wordt als text node gezien :S -->
-			<table id="playerList"><thead><tr><th>Player</th><th>Status</th></tr></thead><tbody></tbody></table>
-			<div id="messagingContainer">
-				<input type="text" id="chat" placeholder="insults go here" />
-				<ul id="debugLog"></ul>
+		<div id="outerWrap">
+			<div id="centerAux">
+				<div id="infoContainer">
+					<!--- stom dat het op 1 regel moet maar whitespaces worden als text node gezien :S -->
+					<table id="playerList"><thead><tr><th>Player</th><th>Status</th></tr></thead><tbody></tbody></table>
+
+					<div id="messagingContainer">
+						<input type="text" id="chat" placeholder="insults go here" />
+						<div id="chatContainer">
+							<ul id="debugLog"></ul>
+						</div>
+					</div>
+
+					<div id="controls">
+						<input type="text" id="playername" placeholder="playername" />
+						<span class="option">
+							minplayers: <input type="number" min="1" max="8" steps="1" value="2" id="minplayers" />
+						</span>
+						<span class="option">
+							maxplayers: <input type="number" min="1" max="8" steps="1" value="8" id="maxplayers" />
+						</span>
+						<button id="start">Request Game</button>
+						<span class="option">
+							sound <input type="checkbox" id="sound" checked>
+						</span>
+					</div>
+				</div>
 			</div>
 		</div>
 

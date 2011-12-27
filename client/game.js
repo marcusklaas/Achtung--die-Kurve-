@@ -90,7 +90,7 @@ GameEngine.prototype.connect = function(url, name) {
 	
 	try {
 		this.websocket.onopen = function() {
-			debugLog('Connected to websocket server');
+			debugLog('Connected to server');
 			game.connected = true;
 			game.syncWithServer();
 			if(onConnect != null) {
@@ -144,7 +144,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			newPlayer.playerName = obj.playerName;
 			this.addPlayer(newPlayer);
 			this.audioController.playSound('newPlayer');
-			debugLog(obj.playerName + ' joined the game (id = ' + obj.playerId + ')');
+			//debugLog(obj.playerName + ' joined the game (id = ' + obj.playerId + ')');
 			break;
 		case 'startGame':
 			this.start(obj.startPositions, obj.startTime);
@@ -164,7 +164,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'playerLeft':
 			var index = this.getIndex(obj.playerId);
 			this.splicePlayerList(index);
-			debugLog(this.players[index].playerName + " left the game");
+			//debugLog(this.players[index].playerName + " left the game");
 
 			if(this.gameState == 'waiting') {
 				for(var i = index + 1; i < this.players.length; i++)
@@ -180,7 +180,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			var index = this.getIndex(obj.playerId);
 			this.players[index].alive = false;
 			this.updatePlayerList(index, 'dead');
-			debugLog(this.players[index].playerName + " died");
+			//debugLog(this.players[index].playerName + " died");
 			if(index == 0)
 				this.audioController.playSound('localDeath');
 			break;
@@ -356,6 +356,21 @@ GameEngine.prototype.addPlayer = function(player) {
 	this.appendPlayerList(index);
 }
 
+/* i wanted to do this in css but it isn't possible to do full height minus
+ * fixed number of pixels */
+GameEngine.prototype.calcScale = function() {
+	var targetWidth = getPageWidth();
+	var targetHeight = window.innerHeight;
+
+	if(true) { // select non-mobile devices, but how?
+		var infoContainer = document.getElementById('infoContainer');
+		// 6 = top + bottom margins, how to read in javascript? parseInt(infoContainer.style.marginTop) doesnt work ;o
+		targetHeight -= infoContainer.offsetHeight + 6;
+	}
+
+	this.scale = Math.min(targetWidth/ this.width, targetHeight/ this.height);
+}
+
 GameEngine.prototype.start = function(startPositions, startTime) {
 	this.gameStartTimestamp = startTime + this.serverTimeDifference - this.ping
 	 + extraGameStartTimeDifference;
@@ -368,13 +383,12 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	window.scroll(0, 0);
 	this.audioController.playSound('countdown');
 	this.playerListStart();
-	debugLog("starting game in " + delay + " milliseconds");
+	//debugLog("starting game in " + delay + " milliseconds");
 
+	this.calcScale();
 	var container = document.getElementById(this.containerId);
-	var widthMinusScroll = getPageWidth();
-	this.scale = Math.min(widthMinusScroll/ this.width, window.innerHeight/ this.height);
 	container.style.width = Math.floor(this.width * this.scale) + 'px';
-	container.style.height = Math.floor(this.height * this.scale) + 'px';
+	container.style.height = Math.floor(this.height * this.scale) + 'px';	
 
 	/* create canvas stack */
 	this.canvasStack = new CanvasStack(this.containerId, canvasBgcolor);
