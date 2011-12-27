@@ -133,7 +133,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.setIndex(obj.playerId, 0);
 			break;
 		case 'joinedGame':
-			debugLog('you joined a game.');
+			this.gameState = 'waiting';
 			break;
 		case 'gameParameters':
 			this.setParams(obj);
@@ -186,7 +186,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;
 		case 'endGame':
 			var winner = (obj.winnerId != -1)
-			 ? (this.players[getIndex(obj.winnerId)].playerName + ' won') : 'draw';
+			 ? (this.players[this.getIndex(obj.winnerId)].playerName + ' won') : 'draw';
 			this.gameState = 'lobby';
 			debugLog('game over. ' + winner);
 
@@ -207,13 +207,16 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'pencil':
 			this.pencil.handleMessage(obj.data);
 			break;
+		case 'stopSpamming':
+			debugLog('You are flooding the chat. Your latest message has been blocked');
+			break;
 		default:
 			debugLog('unknown mode!');
 	}
 }
 
 GameEngine.prototype.printChat = function(playerId, message) {
-	debugLog(this.players[getIndex(playerId)].playerName + ': ' + message);
+	debugLog(this.players[this.getIndex(playerId)].playerName + ': ' + message);
 }
 
 GameEngine.prototype.handleSegmentsMessage = function(segments) {

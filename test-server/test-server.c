@@ -120,6 +120,8 @@ callback_game(struct libwebsocket_context * context,
 		u->name = 0;
 		u->alive = 0;
 		u->nxt = 0;
+		u->inputs = 0;
+		u->chats = 0;
 		u->inputhead = u->inputtail = 0;
 		u->deltaon= u->deltaat= 0;
 		if(DEBUG_MODE) printf("new user created:\n"); printuser(u); printf("\n");
@@ -181,6 +183,14 @@ callback_game(struct libwebsocket_context * context,
 				break;
 			}
 
+			if(++(u->chats) > MAX_CHATS) {
+				printf("user %d is spamming in chat\n", u->id);
+				j = jsoncreate("stopSpamming");
+				sendjson(j, u);
+				jsondel(j);
+				break;
+			}
+
 			if(strlen(msg) > MAX_CHAT_LENGTH) {
 				printf("Chat message by user %d too long. Truncating..\n", u->id);
 				msg[MAX_CHAT_LENGTH] = 0;
@@ -222,7 +232,8 @@ callback_game(struct libwebsocket_context * context,
 				leavegame(u);
 		}
 		else if(strcmp(mode, "newInput") == 0) {
-			if(u->gm && u->gm->state == GS_STARTED)
+			if(++(u->inputs) <= MAX_INPUTS && u->gm
+			 && u->gm->state == GS_STARTED)
 				interpretinput(json, u);
 		}
 		else if(!strcmp(mode, "pencil")) {

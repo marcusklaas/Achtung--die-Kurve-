@@ -6,7 +6,7 @@ Design goals:
 - cool new techniques: canvas, websockets, html5 audio: NO FLASH!
 - do not trust the client: cheater proof
 
-The game uses canvas for drawing and websockets for real-time bidirectional communication. The game is server is written in C using the libwebsockets library. It is a very cool open source library. Check it out. Audio is (currently) provided using the buzz library. This project is on github.
+The game uses canvas for drawing and websockets for real-time bidirectional communication. The game is server is written in C using the libwebsockets library. It is a very cool open source library, check it out. Audio is (currently) provided using the buzz library. This project is on github.
 
 The game is not yet widely supported, as websockets is not yet enabled by default in all major browsers. Basic functionality has been tested for
 - Recent versions of Chrom(ium + e)

@@ -196,6 +196,7 @@ void joingame(struct game *gm, struct user *newusr) {
 
 	newusr->hsize = gm->hsize;
 	newusr->hfreq = gm->hfreq;
+	newusr->inputs = 0;
 
 	if(++gm->n >= gm->nmin)
 		startgame(gm);
@@ -395,6 +396,8 @@ int simuser(struct user *usr, int tick) {
 	if(usr->gm->pencilgame)
 		simpencil(&usr->pencil);
 
+	usr->inputs *= !!(tick % INPUT_CONTROL_INTERVAL);
+
 	float oldx = usr->x, oldy = usr->y;
 	usr->angle += usr->turn * usr->gm->ts * TICK_LENGTH / 1000.0;
 	usr->x += cos(usr->angle) * usr->gm->v * TICK_LENGTH / 1000.0;
@@ -455,7 +458,7 @@ void stopgame(struct game *gm){
 void simgame(struct game *gm) {
 	struct user *usr;
 
-	if(gm->tick < 0){
+	if(gm->tick < 0) {
 		gm->tick++;
 		return;
 	}
@@ -496,12 +499,17 @@ void simgame(struct game *gm) {
 void mainloop() {
 	int sleepuntil;
 	struct game *gm, *nxtgm;
+	struct user *usr;
 
 	while(1) {
 		for(gm = headgame; gm; gm = nxtgm){
 			nxtgm= gm->nxt; // in the case that gm gets freed
 			if(gm->state == GS_STARTED)
 				simgame(gm);
+
+			if(!(serverticks % SPAM_CHECK_INTERVAL))
+				for(usr = gm->usr; usr; usr = usr->nxt)
+					usr->chats = 0;
 		}
 		
 		sleepuntil= ++serverticks * TICK_LENGTH;
@@ -521,7 +529,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 	int minimumTick = usr->gm->tick;
 	
 	// some checks
-	if(turn < -1 || turn > 1){
+	if(turn < -1 || turn > 1) {
 		if(SHOW_WARNING)
 			printf("invalid user input received from user %d.\n", usr->id);
 		return;
@@ -531,14 +539,14 @@ void interpretinput(cJSON *json, struct user *usr) {
 			printf("received input for dead user %d? ignoring..\n", usr->id);
 		return;
 	}
-	if(tick < minimumTick ){
+	if(tick < minimumTick) {
 		if(SHOW_WARNING)
 			printf("received msg from user %d of %d msec old! tick incremented by %d\n",
 			 usr->id, (int) (servermsecs() - usr->gm->start - time), minimumTick - tick);
 		tick = minimumTick;
 		modified= 1;
 	}
-	if(usr->inputtail && tick < usr->inputtail->tick){
+	if(usr->inputtail && tick < usr->inputtail->tick) {
 		if(SHOW_WARNING)
 			printf("input messages of user %d are being received out of order!\n", usr->id);
 		return;
@@ -555,13 +563,12 @@ void interpretinput(cJSON *json, struct user *usr) {
 		if(!usr->inputtail)
 			usr->inputhead = usr->inputtail = input;
 		else
-			usr->inputtail = usr->inputtail->nxt = input; // ingenious or wat
+			usr->inputtail = usr->inputtail->nxt = input;
 	}
 	
-	if(SHOW_DELAY)
-	{
+	if(SHOW_DELAY) {
 		int x = (servermsecs() - usr->gm->start) - time;
-		printf("delay: %d\n",x);
+		printf("delay: %d\n", x);
 	}
 	
 	// check if user needs to adjust her gametime

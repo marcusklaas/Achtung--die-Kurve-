@@ -21,10 +21,17 @@
 #define POST_PADDING	LWS_SEND_BUFFER_POST_PADDING
 #define SEND_SEGMENTS 0 // om de hoeveel ticks het moet gebeuren (0=nooit)
 #define SHOW_DELAY 0
+
+/* input control */
 #define MAX_FILE_REQ_LEN 100
 #define MAX_NAME_LENGTH 50
-#define MAX_CHAT_LENGTH 140 // tweet sized messages!
+#define MAX_CHAT_LENGTH 140
+#define INPUT_CONTROL_INTERVAL 60 // in ticks
+#define SPAM_CHECK_INTERVAL 200 // in ticks
+#define MAX_INPUTS 60 // per control interval
+#define MAX_CHATS 5 // per check interval
 
+/* pencil */
 #define PENCIL_GAME 1
 #define INK_PER_SEC 25
 #define MAX_INK 200
@@ -68,17 +75,13 @@ struct pencilseg{
 	int tick;
 	struct pencilseg *nxt, *prev;
 };
+
 struct pencil {
 	float ink, x, y;
 	struct pencilseg *pseghead, *psegtail;
 	struct user *usr;
 	int tick, lasttick;
 };
-void resetpencil(struct pencil *p, struct user *u);
-void cleanpencil(struct pencil *p);
-void simpencil(struct pencil *p);
-void gototick(struct pencil *p, int tick);
-float getlength(float x, float y);
 
 struct userinput {
 	int tick;
@@ -105,6 +108,7 @@ struct user{
 					 *inputtail; // insert at tail, remove at head
 
 	struct libwebsocket *wsi;
+	int inputs, chats;		// number of inputs and chat messages received
 	int delta[DELTA_COUNT];
 	int deltaat;
 	char deltaon;
@@ -115,3 +119,8 @@ struct user{
 void *smalloc(size_t size);
 void *scalloc(size_t num, size_t size);
 cJSON *getjsongamepars(struct game *gm);
+void resetpencil(struct pencil *p, struct user *u);
+void cleanpencil(struct pencil *p);
+void simpencil(struct pencil *p);
+void gototick(struct pencil *p, int tick);
+float getlength(float x, float y);
