@@ -7,7 +7,7 @@ function GameEngine(containerId, playerListId, chatBarId, audioController) {
 	this.tick = 0;
 	this.tock = 0; // seperate tick for the other clients
 	this.behind = behind;
-	this.gameOver = true;
+	this.gameState = 'lobby'; // lobby, waiting, countdown, playing, watching
 	this.width = -1;
 	this.height = -1;
 	
@@ -107,7 +107,7 @@ GameEngine.prototype.connect = function(url, name) {
 		this.websocket.onclose = function() {
 			debugLog('Websocket connection closed!');
 			game.connected = false;
-			game.gameOver = true;
+			game.gameState = 'lobby';
 			game.reset();
 		}
 	} catch(exception) {
@@ -166,7 +166,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.splicePlayerList(index);
 			debugLog(this.players[index].playerName + " left the game");
 
-			if(this.gameOver) {
+			if(this.gameState == 'waiting') {
 				for(var i = index + 1; i < this.players.length; i++)
 					this.setIndex(this.players[i].playerId, i - 1);
 
@@ -187,7 +187,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'endGame':
 			var winner = (obj.winnerId != -1)
 			 ? (this.players[getIndex(obj.winnerId)].playerName + ' won') : 'draw';
-			this.gameOver = true;
+			this.gameState = 'lobby';
 			debugLog('game over. ' + winner);
 
 			if(obj.winnerId == this.localPlayerId)
@@ -276,7 +276,9 @@ GameEngine.prototype.setParams = function(obj) {
 }	
 
 GameEngine.prototype.requestGame = function(player, minPlayers, maxPlayers) {
-	if(!this.gameOver)
+	// TODO: we should allow player to leave game anytime. you could say: just
+	// remove the check, but that is not enough to get it to work (i think)
+	if(this.gameState != 'lobby')
 		return;
 
 	player.inputQueue = [];
@@ -354,7 +356,7 @@ GameEngine.prototype.addPlayer = function(player) {
 GameEngine.prototype.start = function(startPositions, startTime) {
 	this.gameStartTimestamp = startTime + this.serverTimeDifference - this.ping
 	 + extraGameStartTimeDifference;
-	this.gameOver = false;
+	this.gameState = 'countdown';
 	var delay = this.gameStartTimestamp - Date.now();
 	
 	if(jsProfiling)
@@ -406,16 +408,17 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 }
 
 GameEngine.prototype.realStart = function() {
-	// clear angle indicators from base layer
+	// clearing angle indicators from base layer
 	this.baseContext.clearRect(0, 0, this.width, this.height);
 	this.audioController.playSound('gameStart');
+	this.gameState = 'playing';
 
 	var self = this;
 	var gameloop = function() {
 		var timeOut;
 
 		do {
-			if(self.gameOver)
+			if(self.gameState != 'playing' && self.gameState != 'watching')
 				return;
 
 			while(self.tick - self.tock >= self.behind)
@@ -474,14 +477,11 @@ GameEngine.prototype.clearPlayerList = function() {
 		this.playerList.removeChild(this.playerList.firstChild);
 }
 
-/* for sending chat messages */
+/* for sending chat messages. TODO: we want lobby chat as well! */
 GameEngine.prototype.sendChat = function() {
 	var msg = this.chatBar.value;
 
-	// TODO: GameEngine should have a gamestate variable instead of
-	// gameOver. then we wouldn't have to do those kind of tricks 
-	if(this.players.length == 0 || (this.gameOver && this.gameStartTimestamp != null)
-	 || msg.length < 1)
+	if(this.gameState == 'lobby' || msg.length < 1)
 		return;
 
 	this.sendMsg('chat', {'message': msg});
@@ -683,7 +683,7 @@ function InputController(player, left, right) {
 }
 
 InputController.prototype.keyDown = function(keyCode) {
-	if(this.player.game == null || this.player.game.gameOver || !this.player.alive)
+	if(this.player.game == null || this.player.game.gameState != 'playing')
 		return;
 
 	if(keyCode == this.rightKeyCode && this.player.turn != -1) 
@@ -694,7 +694,7 @@ InputController.prototype.keyDown = function(keyCode) {
 }
 
 InputController.prototype.keyUp = function(keyCode) {
-	if(this.player.game == null || this.player.game.gameOver || !this.player.alive)
+	if(this.player.game == null || this.player.game.gameState != 'playing')
 		return;
 
 	if((keyCode == this.rightKeyCode && this.player.turn == -1) ||
@@ -906,7 +906,7 @@ window.onload = function() {
 			var width = window.innerWidth;
 			var left = (touch.pageX < width / 3);
 
-			if(inputControl.player.game.gameOver ||
+			if(inputControl.player.game.gameState != 'playing' ||
 			 (touch.pageX < width * 2 / 3 && !left))
 				return;
 
