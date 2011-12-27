@@ -4,6 +4,7 @@ Design goals:
 - remaking the awesomest version of the awesomest (2D) game ever
 - good performance: no input delay, accurate projections for opponents
 - cool new techniques: canvas, websockets, html5 audio: NO FLASH!
+- do not trust the client: cheater proof
 
 The game uses canvas for drawing and websockets for real-time bidirectional communication. The game is server is written in C using the libwebsockets library. It is a very cool open source library. Check it out. Audio is (currently) provided using the buzz library. This project is on github.
 
