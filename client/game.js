@@ -2,7 +2,7 @@
 function GameEngine(containerId, playerListId, chatBarId, audioController) {
 	// game variables
 	this.players = [];
-	this.idToPlayer = []; // maps playerId to index of this.players
+	this.dict = []; // maps playerId.toString() to index of this.players
 	this.gameStartTimestamp = null;
 	this.tick = 0;
 	this.tock = 0; // seperate tick for the other clients
@@ -52,9 +52,8 @@ function GameEngine(containerId, playerListId, chatBarId, audioController) {
 /* a lot of values we do not clear, but we do not care for them as they 
  * will get overwritten as soon as new game starts */
 GameEngine.prototype.reset = function() {
-	//var localPlayer = this.players[0];
 	this.players = [];
-	//this.players.push(localPlayer);
+	//this.dict = [];
 	this.canvasStack = null;
 	this.baseContext = null;
 	this.tick = 0;
@@ -70,6 +69,14 @@ GameEngine.prototype.reset = function() {
 		container.removeChild(container.firstChild);
 
 	this.clearPlayerList();
+}
+
+GameEngine.prototype.getIndex = function(playerId) {
+	return this.dict[playerId.toString()];
+}
+
+GameEngine.prototype.setIndex = function(playerId, index) {
+	return this.dict[playerId.toString()] = index;
 }
 
 GameEngine.prototype.connect = function(url, name) {
@@ -123,7 +130,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 	switch(obj.mode) {
 		case 'acceptUser':
 			this.localPlayerId = obj.playerId;
-			this.idToPlayer[obj.playerId] = 0;
+			this.setIndex(obj.playerId, 0);
 			break;
 		case 'joinedGame':
 			debugLog('you joined a game.');
@@ -143,7 +150,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.start(obj.startPositions, obj.startTime);
 			break;
 		case 'newInput':
-			this.players[this.idToPlayer[obj.playerId]].steer(obj);
+			this.players[this.getIndex(obj.playerId)].steer(obj);
 			break;
 		case 'adjustGameTime':
 			if(acceptGameTimeAdjustments){
@@ -155,13 +162,13 @@ GameEngine.prototype.interpretMsg = function(msg) {
 				debugLog('game time adjustment of ' + obj.forward + ' msec rejected');
 			break;
 		case 'playerLeft':
-			var index = this.idToPlayer[obj.playerId];
+			var index = this.getIndex(obj.playerId);
 			this.splicePlayerList(index);
 			debugLog(this.players[index].playerName + " left the game");
 
 			if(this.gameOver) {
 				for(var i = index + 1; i < this.players.length; i++)
-					this.idToPlayer[this.players[i].playerId] = i - 1;
+					this.setIndex(this.players[i].playerId, i - 1);
 
 				this.players.splice(index, 1);
 			}
@@ -170,26 +177,21 @@ GameEngine.prototype.interpretMsg = function(msg) {
 
 			break;
 		case 'playerDied':
-			var index = this.idToPlayer[obj.playerId];
+			var index = this.getIndex(obj.playerId);
 			this.players[index].alive = false;
 			this.updatePlayerList(index, 'dead');
-			debugLog(this.players[this.idToPlayer[obj.playerId]].playerName +
-			 " died");
+			debugLog(this.players[index].playerName + " died");
 			if(index == 0)
 				this.audioController.playSound('localDeath');
 			break;
 		case 'endGame':
 			var winner = (obj.winnerId != -1)
-			 ? (this.players[this.idToPlayer[obj.winnerId]].playerName + ' won')
-			 : 'draw';
+			 ? (this.players[getIndex(obj.winnerId)].playerName + ' won') : 'draw';
 			this.gameOver = true;
 			debugLog('game over. ' + winner);
 
-			if(obj.winnerId == this.localPlayerId) {
-				debugLog('you won!');
+			if(obj.winnerId == this.localPlayerId)
 				this.audioController.playSound('localWin');
-			}
-
 			if(jsProfiling)
 				console.profileEnd();
 			break;
@@ -211,8 +213,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 }
 
 GameEngine.prototype.printChat = function(playerId, message) {
-	debugLog(this.players[this.idToPlayer[playerId]].playerName + ': ' +
-	 message);
+	debugLog(this.players[getIndex(playerId)].playerName + ': ' + message);
 }
 
 GameEngine.prototype.handleSegmentsMessage = function(segments) {
@@ -262,9 +263,6 @@ GameEngine.prototype.setParams = function(obj) {
 
 	/* Create CanvasStack */
 	container.style.padding = 0;
-	//container.style.width = (this.width = obj.w) + 'px';
-	//container.style.height = (this.height = obj.h) + 'px';
-	// XPERIMENTAL
 	this.width = obj.w;
 	this.height = obj.h;
 
@@ -345,7 +343,7 @@ GameEngine.prototype.addPlayer = function(player) {
 	var index = this.players.length;
 
 	if(player.playerId != null)
-		this.idToPlayer[player.playerId] = index;
+		this.setIndex(player.playerId, index);
 	else
 		player.playerId = this.localPlayerId;
 
@@ -362,15 +360,11 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	if(jsProfiling)
 		console.profile('canvas performance');
 
-	//debugLog('startTime = ' + startTime + ', timeDiff = ' + this.serverTimeDifference + ', ping = '
-	// + this.ping + ', gameStartTimestamp = ' + this.gameStartTimestamp);
-
 	window.scroll(0, 0);
 	this.audioController.playSound('countdown');
 	this.playerListStart();
 	debugLog("starting game in " + delay + " milliseconds");
 
-	/* XPERIMENTAL!! */
 	var container = document.getElementById(this.containerId);
 	var widthMinusScroll = getPageWidth();
 	this.scale = Math.min(widthMinusScroll/ this.width, window.innerHeight/ this.height);
@@ -390,7 +384,7 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 
 	/* init players */
 	for(var i = 0; i < startPositions.length; i++) {
-		var index = this.idToPlayer[startPositions[i].playerId];
+		var index = this.getIndex(startPositions[i].playerId);
 		this.players[index].initialise(startPositions[i].startX,
 		 startPositions[i].startY, startPositions[i].startAngle,
 		 startPositions[i].holeStart);
@@ -741,6 +735,136 @@ AudioController.prototype.playSound = function(name) {
 	this.sounds[name][Math.floor(Math.random() * this.sounds[name].length)].play();
 }
 
+/* Pencil */
+function Pencil(game) {
+	this.game = game;
+	this.reset();
+	
+	var canvas = document.getElementById(game.containerId);
+	var self = this;
+	canvas.addEventListener('mousedown', function(ev) {
+		if(!self.down && self.ink > mousedownInk){
+			self.ink -= mousedownInk;
+			self.last = self.cur = ev;
+			var pos = self.getRelativeMousePos(ev);
+			self.buffer.push(pos[0]);
+			self.buffer.push(pos[1]);
+			self.buffer.push(-self.game.tick - 1);
+			self.down = true;
+		}
+	}, false);
+	canvas.addEventListener('mousemove', function(ev) {
+		if(self.down)
+			self.cur = ev;
+	}, false);
+	canvas.addEventListener('mouseup', function(ev) {
+		if(self.down){
+			self.cur = ev;
+			self.down = false;
+			self.upped = true;
+		}
+	}, false);
+}
+
+Pencil.prototype.reset = function() {
+	this.buffer = [];
+	this.down = false;
+	this.upped = false;
+	this.inbuffer = [];
+	this.inbufferSolid = [];
+	this.ink = startInk;
+	this.players = this.game.players.length;
+	for(var i = 0; i < this.players; i++){
+		this.inbuffer[i] = [];
+		this.inbufferSolid[i] = [];		
+	}
+	this.inbufferSolid.length = this.inbuffer.length = this.players;
+	var pos = findPos(document.getElementById(this.game.containerId));
+	this.canvasLeft = pos[0];
+	this.canvasTop = pos[1];
+}
+
+Pencil.prototype.doTick = function() {
+	this.ink += inkPerSec / 1000 * simStep;
+	if(this.ink > maxInk)
+		this.ink = maxInk;
+	if(this.down || this.upped){
+		this.upped = false;
+		var pos = this.getRelativeMousePos(this.last);
+		var x1 = pos[0];
+		var y1 = pos[1];
+		pos = this.getRelativeMousePos(this.cur);
+		var x2 = pos[0];
+		var y2 = pos[1];
+		var d = getLength(x2 - x1, y2 - y1);
+		if((d >= inkMinimumDistance || d >= this.ink) && this.ink > 0){
+			if(this.ink < d){
+				var a = x2 - x1;
+				var b = y2 - y1;
+				a *= this.ink / d;
+				b *= this.ink / d;
+				x2 = x1 + a;
+				y2 = y1 + b;
+				this.ink = 0;
+			}else
+				this.ink -= d;
+			this.buffer.push(x2);
+			this.buffer.push(y2);
+			this.buffer.push(this.game.tick);
+			this.drawSegment(x1, y1, x2, y2, 0, pencilAlpha);
+			this.last = this.cur;
+			if(this.ink == 0)
+				this.down = false;
+		}
+	}
+	if(this.game.tick % inkBufferTicks == 0 && this.buffer.length > 0){
+		this.game.sendMsg('pencil', {'data' : this.buffer});
+		this.buffer = [];
+	}
+	for(var i = 0; i < this.players; i++){
+		var buffer = this.inbuffer[i];
+		while(buffer.length > 0 && buffer[0].tickVisible <= this.game.tick){
+			var a = buffer.shift();
+			if(i > 0)
+				this.drawSegment(a.x1, a.y1, a.x2, a.y2, i, pencilAlpha);
+			this.inbufferSolid[i].push(a);
+		}
+		buffer =  this.inbufferSolid[i];
+		while(buffer.length > 0 && buffer[0].tickSolid <= this.game.tick){
+			var a = buffer.shift();
+			this.drawSegment(a.x1, a.y1, a.x2, a.y2, i, 1);
+		}
+	}
+}
+
+Pencil.prototype.drawSegment = function(x1, y1, x2, y2, playerId, alpha) {
+	var ctx = this.game.baseContext;
+	ctx.beginPath();
+	setLineColor(ctx, this.game.players[playerId].color, alpha);
+	var tmp = ctx.lineCap;
+	ctx.lineCap = alpha == 1 ? lineCapStyle : 'butt';
+	ctx.moveTo(x1, y1);
+	ctx.lineTo(x2, y2);
+	ctx.stroke();
+	ctx.lineCap = tmp;
+}
+
+Pencil.prototype.handleMessage = function(ar) {
+	for(var i = 0; i < ar.length; i++){
+		var a = ar[i];
+		this.inbuffer[this.game.getIndex(a.playerId)].push(a);
+	}
+}
+
+Pencil.prototype.getRelativeMousePos = function(ev) {
+	var pos = getMousePos(ev);
+	pos[0] -= this.canvasLeft;
+	pos[1] -= this.canvasTop;
+	pos[0] /= this.game.scale;
+	pos[1] /= this.game.scale;
+	return pos;
+}
+
 /* create game */
 window.onload = function() {
 
@@ -899,143 +1023,12 @@ function getPageWidth() {
 	return window.innerWidth - (w1 - w2);
 }
 
-/* debugging */
 function debugLog(msg) {
 	var container = document.getElementById('debugLog');
 	var elt = document.createElement('li');
 
 	elt.innerHTML = msg;
     container.insertBefore(elt, container.firstChild);
-}
-
-/* Pencil */
-function Pencil(game) {
-	this.game = game;
-	this.reset();
-	
-	var canvas = document.getElementById(game.containerId);
-	var self = this;
-	canvas.addEventListener('mousedown', function(ev) {
-		if(!self.down && self.ink > mousedownInk){
-			self.ink -= mousedownInk;
-			self.last = self.cur = ev;
-			var pos = self.getRelativeMousePos(ev);
-			self.buffer.push(pos[0]);
-			self.buffer.push(pos[1]);
-			self.buffer.push(-self.game.tick - 1);
-			self.down = true;
-		}
-	}, false);
-	canvas.addEventListener('mousemove', function(ev) {
-		if(self.down)
-			self.cur = ev;
-	}, false);
-	canvas.addEventListener('mouseup', function(ev) {
-		if(self.down){
-			self.cur = ev;
-			self.down = false;
-			self.upped = true;
-		}
-	}, false);
-}
-
-Pencil.prototype.reset = function() {
-	this.buffer = [];
-	this.down = false;
-	this.upped = false;
-	this.inbuffer = [];
-	this.inbufferSolid = [];
-	this.ink = startInk;
-	this.players = this.game.players.length;
-	for(var i = 0; i < this.players; i++){
-		this.inbuffer[i] = [];
-		this.inbufferSolid[i] = [];		
-	}
-	this.inbufferSolid.length = this.inbuffer.length = this.players;
-	var pos = findPos(document.getElementById(this.game.containerId));
-	this.canvasLeft = pos[0];
-	this.canvasTop = pos[1];
-}
-
-Pencil.prototype.doTick = function() {
-	this.ink += inkPerSec / 1000 * simStep;
-	if(this.ink > maxInk)
-		this.ink = maxInk;
-	if(this.down || this.upped){
-		this.upped = false;
-		var pos = this.getRelativeMousePos(this.last);
-		var x1 = pos[0];
-		var y1 = pos[1];
-		pos = this.getRelativeMousePos(this.cur);
-		var x2 = pos[0];
-		var y2 = pos[1];
-		var d = getLength(x2 - x1, y2 - y1);
-		if((d >= inkMinimumDistance || d >= this.ink) && this.ink > 0){
-			if(this.ink < d){
-				var a = x2 - x1;
-				var b = y2 - y1;
-				a *= this.ink / d;
-				b *= this.ink / d;
-				x2 = x1 + a;
-				y2 = y1 + b;
-				this.ink = 0;
-			}else
-				this.ink -= d;
-			this.buffer.push(x2);
-			this.buffer.push(y2);
-			this.buffer.push(this.game.tick);
-			this.drawSegment(x1, y1, x2, y2, 0, pencilAlpha);
-			this.last = this.cur;
-			if(this.ink == 0)
-				this.down = false;
-		}
-	}
-	if(this.game.tick % inkBufferTicks == 0 && this.buffer.length > 0){
-		this.game.sendMsg('pencil', {'data' : this.buffer});
-		this.buffer = [];
-	}
-	for(var i = 0; i < this.players; i++){
-		var buffer = this.inbuffer[i];
-		while(buffer.length > 0 && buffer[0].tickVisible <= this.game.tick){
-			var a = buffer.shift();
-			if(i > 0)
-				this.drawSegment(a.x1, a.y1, a.x2, a.y2, i, pencilAlpha);
-			this.inbufferSolid[i].push(a);
-		}
-		buffer =  this.inbufferSolid[i];
-		while(buffer.length > 0 && buffer[0].tickSolid <= this.game.tick){
-			var a = buffer.shift();
-			this.drawSegment(a.x1, a.y1, a.x2, a.y2, i, 1);
-		}
-	}
-}
-
-Pencil.prototype.drawSegment = function(x1, y1, x2, y2, playerId, alpha) {
-	var ctx = this.game.baseContext;
-	ctx.beginPath();
-	setLineColor(ctx, this.game.players[playerId].color, alpha);
-	var tmp = ctx.lineCap;
-	ctx.lineCap = alpha == 1 ? lineCapStyle : 'butt';
-	ctx.moveTo(x1, y1);
-	ctx.lineTo(x2, y2);
-	ctx.stroke();
-	ctx.lineCap = tmp;
-}
-
-Pencil.prototype.handleMessage = function(ar) {
-	for(var i = 0; i < ar.length; i++){
-		var a = ar[i];
-		this.inbuffer[this.game.idToPlayer[a.playerId]].push(a);
-	}
-}
-
-Pencil.prototype.getRelativeMousePos = function(ev) {
-	var pos = getMousePos(ev);
-	pos[0] -= this.canvasLeft;
-	pos[1] -= this.canvasTop;
-	pos[0] /= this.game.scale;
-	pos[1] /= this.game.scale;
-	return pos;
 }
 
 function getLength(x, y) {
@@ -1052,6 +1045,7 @@ function findPos(obj) {
 	}
 	return [curleft,curtop];
 }
+
 function getMousePos(e) {
 	var posx = 0;
 	var posy = 0;
