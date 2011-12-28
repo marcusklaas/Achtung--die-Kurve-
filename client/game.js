@@ -289,7 +289,10 @@ GameEngine.prototype.setParams = function(obj) {
 	this.holeSize = obj.hsize;
 	this.holeFreq = obj.hfreq;
 
-	debugLog("this game is for " + obj.nmin + " to " + obj.nmax + " players");
+	if(obj.nmin > 0)
+		debugLog("This game is for " + obj.nmin + " to " + obj.nmax + " players");
+	else
+		debugLog("You are now in the lobby");
 }	
 
 GameEngine.prototype.requestGame = function(player, minPlayers, maxPlayers) {
@@ -340,6 +343,10 @@ GameEngine.prototype.syncWithServer = function() {
 
 GameEngine.prototype.doTick = function() {
 	var player = this.players[0];
+
+	if(!player.alive)
+		return;
+
 	player.simulate(this.tick, ++this.tick, player.context, null);
 	
 	if(pencilGame)
