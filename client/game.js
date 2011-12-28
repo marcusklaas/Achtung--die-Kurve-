@@ -422,6 +422,7 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	
 	var self = this;
 	window.setTimeout(function() { self.realStart(); }, delay + simStep);
+	document.getElementById('chat').focus();
 }
 
 GameEngine.prototype.realStart = function() {
@@ -684,10 +685,25 @@ Player.prototype.initialise = function(x, y, angle, holeStart) {
 	setLineColor(ctx, this.color, 1);
 	ctx.beginPath();
 	ctx.moveTo(x, y);
-	ctx.lineTo(x + Math.cos(angle) * indicatorLength, y + Math.sin(angle) * indicatorLength);
+	ctx.lineTo(x += Math.cos(angle) * indicatorLength, y += Math.sin(angle) * indicatorLength);
 	ctx.stroke();
+	
 	ctx.beginPath();
-	ctx.arc(x, y, indicatorDotSize, 0, 2 * Math.PI, false);
+	var a = indicatorArrowOffset;
+	var b = indicatorArrowLength;
+	var c = ctx.lineWidth;
+	var d = Math.PI/ 4;
+	ctx.fillStyle = 'rgb('+this.color[0]+','+this.color[1]+','+this.color[2]+')';
+	x += Math.cos(angle) * a;
+	y += Math.sin(angle) * a;
+	for(var i = 0; i < 2; i++){
+		ctx.moveTo(x + Math.cos(angle - d) * c, y + Math.sin(angle - d) * c);
+		ctx.arc(x, y, c, angle - d, angle + d, false);
+		x += Math.cos(angle) * b;
+		y += Math.sin(angle) * b;
+		ctx.lineTo(x, y);
+		ctx.closePath();
+	}
 	ctx.fill();
 }
 
@@ -779,6 +795,15 @@ function Pencil(game) {
 			self.cur = ev;
 			self.down = false;
 			self.upped = true;
+			document.getElementById('chat').focus();
+		}
+	}, false);
+	canvas.addEventListener('mouseout', function(ev) {
+		if(self.down){
+			self.cur = ev;
+			self.down = false;
+			self.out = true;
+			document.getElementById('chat').focus();
 		}
 	}, false);
 }
@@ -787,6 +812,7 @@ Pencil.prototype.reset = function() {
 	this.buffer = [];
 	this.down = false;
 	this.upped = false;
+	this.out = false;
 	this.inbuffer = [];
 	this.inbufferSolid = [];
 	this.ink = startInk;
@@ -805,7 +831,7 @@ Pencil.prototype.doTick = function() {
 	this.ink += inkPerSec / 1000 * simStep;
 	if(this.ink > maxInk)
 		this.ink = maxInk;
-	if(this.down || this.upped){
+	if(this.down || this.upped || this.out){
 		this.upped = false;
 		var pos = this.getRelativeMousePos(this.last);
 		var x1 = pos[0];
@@ -814,6 +840,15 @@ Pencil.prototype.doTick = function() {
 		var x2 = pos[0];
 		var y2 = pos[1];
 		var d = getLength(x2 - x1, y2 - y1);
+		// zodat de muur niet net voor de rand stopt
+		if(this.out && d < inkMinimumDistance){
+			var a = x2 - x1;
+			var b = y2 - y1;
+			a *= inkMinimumDistance / d;
+			b *= inkMinimumDistance / d;
+			x2 = x1 + a;
+			y2 = y1 + b;
+		}
 		if((d >= inkMinimumDistance || d >= this.ink) && this.ink > 0){
 			if(this.ink < d){
 				var a = x2 - x1;
@@ -830,9 +865,12 @@ Pencil.prototype.doTick = function() {
 			this.buffer.push(this.game.tick);
 			this.drawSegment(x1, y1, x2, y2, 0, pencilAlpha);
 			this.last = this.cur;
-			if(this.ink == 0)
+			if(this.ink == 0){
 				this.down = false;
+				document.getElementById('chat').focus();
+			}
 		}
+		this.out = false;
 	}
 	if(this.game.tick % inkBufferTicks == 0 && this.buffer.length > 0){
 		this.game.sendMsg('pencil', {'data' : this.buffer});
