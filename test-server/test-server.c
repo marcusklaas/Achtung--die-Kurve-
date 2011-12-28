@@ -60,6 +60,8 @@ static int callback_http(struct libwebsocket_context * context,
 			strcpy(mime, "image/x-icon");
 		else if(!strcmp(ext, "js"))
 			strcpy(mime, "text/javascript");
+		else if(!strcmp(ext, "css"))
+			strcpy(mime, "text/css");
 		else if(!strcmp(ext, "ogg"))
 			strcpy(mime, "audio/ogg");
 		else if(!strcmp(ext, "mp3"))
