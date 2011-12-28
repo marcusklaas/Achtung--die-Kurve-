@@ -10,8 +10,9 @@ var gapAlpha = 0.2;
 var lineWidth = 3; // only visual, does not influence collisions
 var canvasBgcolor = '#D0D0D0';
 var lineCapStyle = 'round';
-var indicatorDotSize = 2;
-var indicatorLength = 10;
+var indicatorLength = 20;
+var indicatorArrowLength = 8;
+var indicatorArrowOffset = 2;
 
 var ultraVerbose = false;
 var simStep = 24; // in milliseconds
