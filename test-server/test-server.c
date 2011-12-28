@@ -11,24 +11,14 @@
 
 struct libwebsocket_context *ctx;
 static struct game *headgame = 0;
+static struct game *lobby = 0;
 static int usrc = 0;	// user count
 static unsigned long serverticks = 0; // yes this will underflow, but not fast ;p
 
 #include "helper.c"
 #include "game.c"
 
-enum demo_protocols {
-	PROTOCOL_HTTP = 0, // always first
-	PROTOCOL_GAME,
-	DEMO_PROTOCOL_COUNT // always last
-};
-
-
-#define LOCAL_RESOURCE_PATH "../client"
-#define LOCAL_PATH_LENGTH 9 // is there a better way?
-
 /* this protocol server (always the first one) just knows how to do HTTP */
-
 static int callback_http(struct libwebsocket_context * context,
 		struct libwebsocket *wsi,
 		enum libwebsocket_callback_reasons reason, void *user,
@@ -50,8 +40,7 @@ static int callback_http(struct libwebsocket_context * context,
 		if(strlen(in) > MAX_FILE_REQ_LEN || strstr(in, ".."))
 			break;
 
-		path[0] = 0;
-		strcat(path, LOCAL_RESOURCE_PATH);
+		strcpy(path, LOCAL_RESOURCE_PATH);
 		strcat(path, in);
 		if(!strcmp(in, "/"))
 			strcat(path, "index.html");
@@ -99,7 +88,6 @@ static int callback_http(struct libwebsocket_context * context,
 	return 0;
 }
 
-
 static int
 callback_game(struct libwebsocket_context * context,
 			struct libwebsocket *wsi,
@@ -126,7 +114,7 @@ callback_game(struct libwebsocket_context * context,
 		u->chats = 0;
 		u->inputhead = u->inputtail = 0;
 		u->deltaon= u->deltaat= 0;
-		if(DEBUG_MODE) printf("new user created:\n"); printuser(u); printf("\n");
+		if(DEBUG_MODE) { printf("new user created:\n"); printuser(u); printf("\n"); }
 
 		json= jsoncreate("acceptUser");
 		jsonaddnum(json, "playerId", u->id);
@@ -204,32 +192,44 @@ callback_game(struct libwebsocket_context * context,
 			sendjsontogame(j, u->gm, u);
 			jsondel(j);
 		}
-		else if(!strcmp(mode, "getTime")){
+		else if(!strcmp(mode, "getTime")) {
 			cJSON *j= jsoncreate("time");
 			jsonaddnum(j, "time", (int)servermsecs());
 			sendjson(j, u);
 			jsondel(j);
 		}
+		else if(!strcmp(mode, "joinLobby")) {
+			char *s = jsongetstr(json, "playerName");
+			if(strlen(s) < MAX_NAME_LENGTH)
+				s[MAX_NAME_LENGTH] = 0;
+
+			if(DEBUG_MODE)
+				printf("player %d with name %s joined lobby\n", u->id, s);
+
+			u->name = duplicatestring(s);
+			joingame(lobby, u);
+
+			// TODO: send game list. complete list in 1 package or 1 msg for
+			// each game? keep up to date or let user ask for refresh?
+		}
 		else if(!strcmp(mode, "requestGame")) {
-			int nmin, nmax;
-			char *s;
-			if(u->gm)
-				leavegame(u);
 			if(DEBUG_MODE) printf("user %d requested game\n", u->id);
 
-			nmin= jsongetint(json, "minPlayers");
-			nmax= jsongetint(json, "maxPlayers");
-			s= jsongetstr(json, "playerName");
-			if(strlen(s) < MAX_NAME_LENGTH)
-				u->name = duplicatestring(s);
-			if(0<nmin && nmin<nmax && nmax<17){
-				struct game *gm= findgame(nmin, nmax);
-				if(gm==0)
-					gm= creategame(nmin, nmax);
+			if(u->gm - lobby) {
+				printf("user tried to join game. but he is not in lobby. he might not have a name etc.\n");
+				break;
+			}
+
+			int nmin= jsongetint(json, "minPlayers");
+			int nmax= jsongetint(json, "maxPlayers");
+			if(0 < nmin && nmin < nmax && nmax < 17) {
+				struct game *gm = findgame(nmin, nmax);
+				if(!gm)
+					gm = creategame(GT_AUTO, nmin, nmax);
 				joingame(gm, u);
 			}
 		}
-		else if(!strcmp(mode, "leaveGame")){
+		else if(!strcmp(mode, "leaveGame")) {
 			if(u->gm)
 				leavegame(u);
 		}
@@ -256,7 +256,6 @@ callback_game(struct libwebsocket_context * context,
 }
 
 /* list of supported protocols and callbacks */
-
 static struct libwebsocket_protocols protocols[] = {
 	/* first protocol must always be HTTP handler */
 
@@ -289,7 +288,6 @@ int main(int argc, char **argv)
 {
 	int n = 0;
 	int port = 7681;
-	//int dt = 50;
 	struct libwebsocket_context *context;
 	int opts = 0;
 	char interface_name[128] = "";
@@ -326,7 +324,10 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	ctx= context;
+	ctx = context;
+	lobby = scalloc(1, sizeof(struct game));
+	lobby->type = GT_LOBBY;
+
 	printf("server started on port %d\n", port);
 	mainloop();
 

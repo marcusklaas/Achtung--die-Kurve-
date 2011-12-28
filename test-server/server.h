@@ -42,9 +42,24 @@
 #define INK_VISIBLE 400
 #define INK_SOLID 5000
 
+/* game types */
+#define GT_LOBBY 0
+#define GT_AUTO 1
+#define GT_CUSTOM 2
+
 /* game states */
 #define GS_LOBBY 0
 #define GS_STARTED 1
+
+/* http server */
+#define LOCAL_RESOURCE_PATH "../client"
+#define LOCAL_PATH_LENGTH 9 // is there a better way?
+
+enum demo_protocols {
+	PROTOCOL_HTTP = 0, // always first
+	PROTOCOL_GAME,
+	DEMO_PROTOCOL_COUNT // always last
+};
 
 struct seg{
 	float x1, y1, x2, y2;
@@ -52,7 +67,7 @@ struct seg{
 };
 
 struct game{
-	int n, w, h,			// number of players, width, height
+	int type, n, w, h,		// game_type, number of players, width, height
 		nmin, nmax,			// desired number of players
 		tilew, tileh,		// tile width & height
 		htiles, vtiles,		// number of horizontal tiles & vertical tiles
@@ -67,7 +82,7 @@ struct game{
 	struct user *usr;	// user list
 	struct game *nxt;
 	struct seg *tosend;
-	int pencilgame;
+	char pencilgame;
 };
 
 struct pencilseg{
@@ -108,7 +123,7 @@ struct user{
 					 *inputtail; // insert at tail, remove at head
 
 	struct libwebsocket *wsi;
-	int inputs, chats;		// number of inputs and chat messages received
+	int inputs, chats;			// number of inputs and chat messages received
 	int delta[DELTA_COUNT];
 	int deltaat;
 	char deltaon;
@@ -123,4 +138,6 @@ void resetpencil(struct pencil *p, struct user *u);
 void cleanpencil(struct pencil *p);
 void simpencil(struct pencil *p);
 void gototick(struct pencil *p, int tick);
+struct game *creategame(int gametype, int nmin, int nmax);
+void joingame(struct game *gm, struct user *newusr);
 float getlength(float x, float y);

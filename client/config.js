@@ -24,7 +24,6 @@ var acceptGameTimeAdjustments = true;
 var jsProfiling = true;
 var simulateCPUlag = false;
 var behind = 2; // desired difference between tock and tick
-var onConnect = null;
 var debugBaseContext = false; // sets different color for segments in basecontext
 
 /* pencil game */

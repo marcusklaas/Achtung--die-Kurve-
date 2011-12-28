@@ -7,7 +7,7 @@ function GameEngine(containerId, playerListId, chatBarId, audioController) {
 	this.tick = 0;
 	this.tock = 0; // seperate tick for the other clients
 	this.behind = behind;
-	this.gameState = 'lobby'; // lobby, waiting, countdown, playing, watching
+	this.gameState = 'new'; // new, lobby, waiting, countdown, playing, watching
 	this.width = -1;
 	this.height = -1;
 	
@@ -79,7 +79,7 @@ GameEngine.prototype.setIndex = function(playerId, index) {
 	return this.dict[playerId.toString()] = index;
 }
 
-GameEngine.prototype.connect = function(url, name) {
+GameEngine.prototype.connect = function(url, name, callback) {
 	if(typeof MozWebSocket != "undefined")
 		this.websocket = new MozWebSocket(url, name);
 	else
@@ -93,10 +93,7 @@ GameEngine.prototype.connect = function(url, name) {
 			debugLog('Connected to server');
 			game.connected = true;
 			game.syncWithServer();
-			if(onConnect != null) {
-				onConnect();
-				onConnect = null;
-			}
+			callback();
 		}
 		this.websocket.onmessage = function(msg) {
 			if(simulatedPing > 0)
@@ -107,13 +104,25 @@ GameEngine.prototype.connect = function(url, name) {
 		this.websocket.onclose = function() {
 			debugLog('Websocket connection closed!');
 			game.connected = false;
-			game.gameState = 'lobby';
+			game.gameState = 'new';
 			game.reset();
 		}
 	} catch(exception) {
 		debugLog('websocket exception! name = ' + exception.name + ", message = "
 		 + exception.message);
 	}
+}
+
+GameEngine.prototype.joinLobby = function(player) {
+	if(this.gameState != 'new')
+		return;
+
+	/* TODO: hide het joinlobby gedeelte van de interface en het joingame gedeelte
+	 * zichtbaar maken */
+
+	this.gameState = 'lobby';
+	this.addPlayer(player);
+	this.sendMsg('joinLobby', {'playerName': player.playerName});
 }
 
 GameEngine.prototype.interpretMsg = function(msg) {
@@ -133,7 +142,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.setIndex(obj.playerId, 0);
 			break;
 		case 'joinedGame':
-			this.gameState = 'waiting';
+			// this.gameState = 'waiting';
 			break;
 		case 'gameParameters':
 			this.setParams(obj);
@@ -189,6 +198,11 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			 ? (this.players[this.getIndex(obj.winnerId)].playerName + ' won') : 'draw';
 			this.gameState = 'lobby';
 			debugLog('game over. ' + winner);
+
+			this.clearPlayerList();
+			var localPlayer = this.players[0];
+			this.players = [];
+			this.addPlayer(localPlayer);
 
 			if(obj.winnerId == this.localPlayerId)
 				this.audioController.playSound('localWin');
@@ -281,9 +295,12 @@ GameEngine.prototype.setParams = function(obj) {
 GameEngine.prototype.requestGame = function(player, minPlayers, maxPlayers) {
 	// TODO: we should allow player to leave game anytime. you could say: just
 	// remove the check, but that is not enough to get it to work (i think)
+	// we should probably add a leave game button or smth and then afterwards let 
+	// player join new game. that would be nice solution
 	if(this.gameState != 'lobby')
 		return;
 
+	this.gameState = 'waiting';
 	player.inputQueue = [];
 	player.baseQueue = [];
 	this.reset();
@@ -359,7 +376,7 @@ GameEngine.prototype.addPlayer = function(player) {
 /* i wanted to do this in css but it isn't possible to do full height minus
  * fixed number of pixels */
 GameEngine.prototype.calcScale = function() {
-	var targetWidth = getPageWidth();
+	var targetWidth = window.innerWidth;
 	var targetHeight = window.innerHeight;
 
 	if(true) { // select non-mobile devices, but how?
@@ -469,8 +486,10 @@ GameEngine.prototype.appendPlayerList = function(index) {
 	var statusNode = document.createElement('td');
 
 	// alleen naam in spelerkleur of ook status?
-	row.style.color = 'rgb(' + player.color[0] + ', ' + player.color[1] + ', '
-	 + player.color[2] + ')';
+	if(this.gameState != 'lobby' && this.gameState != 'new')
+		row.style.color = 'rgb(' + player.color[0] + ', ' + player.color[1] + ', '
+		 + player.color[2] + ')';
+
 	row.id = 'player' + index;
 	nameNode.innerHTML = player.playerName;
 
@@ -499,7 +518,7 @@ GameEngine.prototype.clearPlayerList = function() {
 GameEngine.prototype.sendChat = function() {
 	var msg = this.chatBar.value;
 
-	if(this.gameState == 'lobby' || msg.length < 1)
+	if(this.gameState == 'new' || msg.length < 1)
 		return;
 
 	this.sendMsg('chat', {'message': msg});
@@ -592,11 +611,8 @@ Player.prototype.steer = function(obj) {
 	}
 	
 	// remove all inputs in the inputQueue with a tick smaller than obj.tick
-	if(this.isLocal && this.inputQueue.length > 0){
-		for(var i = this.inputQueue.length - 1; i >= 0 && this.inputQueue[i].tick < obj.tick; 
-		 i--);
-		this.inputQueue.length = i + 1;
-	}
+	if(this.isLocal && this.inputQueue.length > 0)
+		for(var i = this.inputQueue.length - 1; i >= 0 && this.inputQueue[i].tick < obj.tick; this.inputQueue.length = i-- + 1);
 	
 	this.simulate(obj.tick, localTick, this.context, this.isLocal ? this.inputQueue : null);
 	
@@ -993,37 +1009,47 @@ window.onload = function() {
 	if(soundCookie != null & soundCookie == 'false')
 		checkBox.checked = enableSound = false;
 
-	function reqGame() {
-		var maxPlayers = parseInt(document.getElementById('maxplayers').value);
-		var minPlayers = parseInt(document.getElementById('minplayers').value);
+	function joinLobby() {
 		var playerName = document.getElementById('playername').value;
-		
-		setCookie('maxPlayers', maxPlayers, 30);
-		setCookie('minPlayers', minPlayers, 30);
-		setCookie('playerName', playerName, 30);
-		
+
 		if(typeof playerName != "string" || playerName.length < 1) {
 			debugLog('enter a cool playername please');
 			return;
 		}
 
+		setCookie('playerName', player.playerName = playerName, 30);
+
+		if(game.connected === false)
+			game.connect(serverURL, "game-protocol", function() {
+				game.joinLobby(player);
+			});
+		else
+			game.joinLobby(player);
+	}
+
+	function reqGame() {
+		var maxPlayers = parseInt(document.getElementById('maxplayers').value);
+		var minPlayers = parseInt(document.getElementById('minplayers').value);
+	
 		if(maxPlayers > 8 || maxPlayers < 1 || minPlayers > 8 || minPlayers < 1
 		 || minPlayers > maxPlayers) {
 			debugLog('min/ maxplayers unacceptable!');
 			return;
 		}
 
-		player.playerName = playerName;
+		setCookie('maxPlayers', maxPlayers, 30);
+		setCookie('minPlayers', minPlayers, 30);
 		
-		if(game.connected === false) {
-			game.connect(serverURL, "game-protocol");
-			onConnect = function() {
+		if(game.connected === false)
+			game.connect(serverURL, "game-protocol", function() {
 				game.requestGame(player, minPlayers, maxPlayers);
-			};
-		}
+			});
 		else
 			game.requestGame(player, minPlayers, maxPlayers);
 	}
+
+	var lobbyButton = document.getElementById('lobby');
+	lobbyButton.addEventListener('click', joinLobby, false);
 
 	var startButton = document.getElementById('start');
 	startButton.addEventListener('click', reqGame, false);
@@ -1038,7 +1064,7 @@ window.onload = function() {
 	if(maxPlayers != null)
 		document.getElementById('maxplayers').value = maxPlayers;
 
-	game.connect(serverURL, "game-protocol");
+	game.connect(serverURL, "game-protocol", function() {;;;;;});
 }
 
 /* canvas context color setter */
@@ -1066,9 +1092,9 @@ function getCookie(c_name) {
 	}
 }
 
-/* returns the width of page without scollbar 
- * FIXME: dit is belachelijk gecompliceerde functie. moet gemakkelijker
- * kunnen */
+/* returns the width of page without scollbar -- niet meer nodig..
+ * we gaan voor pagina waar je niet hoeft te scrollen. behalve mobiele shit maar
+ * die hebben toch geen scrollbars
 function getPageWidth() {
 	var inner = document.createElement('p');
 	inner.style.width = "100%";
@@ -1093,7 +1119,7 @@ function getPageWidth() {
 	document.body.removeChild (outer);
 
 	return window.innerWidth - (w1 - w2);
-}
+} */
 
 function debugLog(msg) {
 	var container = document.getElementById('debugLog');

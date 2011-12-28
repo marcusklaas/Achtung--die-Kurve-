@@ -80,15 +80,15 @@ void remgame(struct game *gm){
 		a->nxt = gm->nxt;
 	}
 
-	/* freeing up player nodes. */
+	/* freeing up players */
 	struct user *usr, *nxt;
 
 	for(usr = gm->usr; usr; usr = nxt) {
 		nxt = usr->nxt;
-		usr->gm = 0;
 		if(gm->pencilgame)
 			cleanpencil(&usr->pencil);
-		usr->nxt = 0;
+		usr->gm = 0;
+		joingame(lobby, usr);
 	}
 
 	/* freeing up segments */
@@ -141,7 +141,7 @@ void leavegame(struct user *usr) {
 	usr->nxt = 0;
 	usr->gm = 0;
 
-	if(--gm->n == 0)
+	if(gm->type != GT_LOBBY && !--gm->n)
 		remgame(gm);
 	else {
 		// send message to group: this player left
@@ -159,6 +159,9 @@ void joingame(struct game *gm, struct user *newusr) {
 	cJSON *json;
 	char *lastusedname;
 
+	if(newusr->gm)
+		leavegame(newusr);
+
 	if(DEBUG_MODE)
 		printf("join game called \n");
 
@@ -171,8 +174,11 @@ void joingame(struct game *gm, struct user *newusr) {
 	sendjson(json, newusr);
 	jsondel(json);
 
+	if(DEBUG_MODE)
+		printf("got here \n");
+
 	// tell players of game someone new joined
-	json= jsoncreate("newPlayer");
+	json = jsoncreate("newPlayer");
 	jsonaddnum(json, "playerId", newusr->id);
 	jsonaddstr(json, "playerName", lastusedname = newusr->name);
 	sendjsontogame(json, gm, 0);
@@ -198,40 +204,41 @@ void joingame(struct game *gm, struct user *newusr) {
 	newusr->hfreq = gm->hfreq;
 	newusr->inputs = 0;
 
-	if(++gm->n >= gm->nmin)
+	if(gm->type != GT_LOBBY && ++gm->n >= gm->nmin)
 		startgame(gm);
 
-	if(DEBUG_MODE){
+	if(DEBUG_MODE) {
 		printf("user %d joined game %p\n", newusr->id, (void *)gm);
 		printgames();
 	}
 }
 
-struct game *creategame(int nmin, int nmax) {
+struct game *creategame(int gametype, int nmin, int nmax) {
 	struct game *gm = scalloc(1, sizeof(struct game));
 
 	if(DEBUG_MODE)
 		printf("creategame called \n");
 
+	gm->type = gametype;
 	gm->nmin = nmin; gm->nmax = nmax;
-	gm->w= GAME_WIDTH;
-	gm->h= GAME_HEIGHT;
-	gm->state= GS_LOBBY;
-	gm->v= VELOCITY;
-	gm->ts= TURN_SPEED;
-	gm->nxt = headgame;
+	gm->w = GAME_WIDTH;
+	gm->h = GAME_HEIGHT;
+	gm->state = GS_LOBBY;
+	gm->v = VELOCITY;
+	gm->ts = TURN_SPEED;
 	gm->pencilgame = PENCIL_GAME;
+	gm->nxt = headgame;
 
 	gm->hsize = HOLE_SIZE;
 	gm->hfreq = HOLE_FREQ;
 	gm->hmin = HOLE_START_MIN;
 	gm->hmax = HOLE_START_MAX;
 
-	// how big we should choose our tiles should depend only on segment length
+	// how big we should choose our tiles depends only on segment length
 	float seglen = gm->v * TICK_LENGTH / 1000.0;
 	gm->tilew = gm->tileh = TILE_SIZE_MULTIPLIER * seglen;
-	gm->htiles= ceil(1.0 * gm->w / gm->tilew);
-	gm->vtiles= ceil(1.0 * gm->h / gm->tileh);
+	gm->htiles = ceil(1.0 * gm->w / gm->tilew);
+	gm->vtiles = ceil(1.0 * gm->h / gm->tileh);
 	gm->seg = scalloc(gm->htiles * gm->vtiles, sizeof(struct seg*));
 
 	return headgame = gm;
@@ -433,7 +440,7 @@ void sendsegments(struct game *gm){
 		cJSON *json= jsoncreate("segments");
 		cJSON *ar= cJSON_CreateArray();
 		struct seg *seg= gm->tosend;
-		while(seg){
+		while(seg) {
 			struct seg *nxt= seg->nxt;
 			cJSON *a= cJSON_CreateObject();
 			jsonaddnum(a,"x1", seg->x1);
@@ -494,12 +501,17 @@ void simgame(struct game *gm) {
 	}
 }
 
+static void resetGameChatCounters(struct game *gm) {
+	struct user *usr;
+
+	for(usr = gm->usr; usr; usr = usr->nxt)
+		usr->chats = 0;
+}
 
 // deze functie called simgame zo goed als mogelijk elke TICK_LENGTH msec (voor elke game)
 void mainloop() {
-	int sleepuntil;
+	int sleepuntil, resetChat = !(serverticks % SPAM_CHECK_INTERVAL);
 	struct game *gm, *nxtgm;
-	struct user *usr;
 
 	while(1) {
 		for(gm = headgame; gm; gm = nxtgm){
@@ -507,12 +519,14 @@ void mainloop() {
 			if(gm->state == GS_STARTED)
 				simgame(gm);
 
-			if(!(serverticks % SPAM_CHECK_INTERVAL))
-				for(usr = gm->usr; usr; usr = usr->nxt)
-					usr->chats = 0;
+			if(resetChat)
+				resetGameChatCounters(gm);
 		}
 		
-		sleepuntil= ++serverticks * TICK_LENGTH;
+		if(resetChat)
+			resetGameChatCounters(lobby);
+
+		sleepuntil = ++serverticks * TICK_LENGTH;
 		do{
 			libwebsocket_service(ctx, max(0, sleepuntil - servermsecs()));
 		}while(sleepuntil - servermsecs() > 0);
