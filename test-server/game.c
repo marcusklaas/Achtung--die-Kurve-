@@ -15,23 +15,32 @@ void randomizePlayerStarts(struct game *gm) {
 	}
 }
 
-/* this is neccesary because when user joins second game, s/he gets 
- * INPUT MESSAGE OUT OF ORDER errors */
-void clearinputqueue(struct user *usr) {
-	struct userinput *inp, *nxt;
-
-	for(inp = usr->inputhead; inp; inp = nxt) {
-		nxt = inp->nxt;
-		free(inp);
-	}
-
+void iniuser(struct user *usr, struct libwebsocket *wsi) {
+	usr->id = usrc++;
+	usr->wsi = wsi;
+	usr->sbat = 0;
+	usr->gm = 0;
+	usr->name = 0;
+	usr->nxt = 0;
+	usr->inputs = 0;
+	usr->chats = 0;
 	usr->inputhead = usr->inputtail = 0;
 }
 
-void startgame(struct game *gm){ 
+void startgame(struct game *gm) {
+	struct user *usr;
 	if(DEBUG_MODE)
 		printf("startgame called!\n");
 
+	// reset users
+	for(usr = gm->usr; usr; usr = usr->nxt){
+		usr->turn = 0;
+		usr->alive = 1;
+		usr->deltaon = usr->deltaat = 0;
+		if(gm->pencilgame)
+			resetpencil(&usr->pencil, usr);
+	}
+	
 	randomizePlayerStarts(gm);
 
 	gm->start = serverticks * TICK_LENGTH + COUNTDOWN;
@@ -42,16 +51,9 @@ void startgame(struct game *gm){
 	// create JSON object
 	cJSON *root = jsoncreate("startGame");
 	cJSON *start_locations = cJSON_CreateArray();
-	struct user *usr;
 
-	/* set the players locs and fill json object */
+	/* fill json object */
 	for(usr = gm->usr; usr; usr = usr->nxt) {
-		clearinputqueue(usr);
-		usr->turn = 0;
-		usr->alive= 1;
-		if(gm->pencilgame)
-			resetpencil(&usr->pencil, usr);
-
 		cJSON *player = cJSON_CreateObject();
 		cJSON_AddNumberToObject(player, "playerId", usr->id);
 		cJSON_AddNumberToObject(player, "startX", usr->x);
@@ -68,10 +70,10 @@ void startgame(struct game *gm){
 	jsondel(root);
 }
 
-void remgame(struct game *gm){
+void remgame(struct game *gm) {
 	if(DEBUG_MODE)
 		printf("deleting game %p\n", (void *) gm);
-
+	gm->state = GS_REMOVING_GAME;
 	if(headgame == gm)
 		headgame = gm->nxt;
 	else {
@@ -80,27 +82,9 @@ void remgame(struct game *gm){
 		a->nxt = gm->nxt;
 	}
 
-	/* freeing up players */
-	struct user *usr, *nxt;
-
-	for(usr = gm->usr; usr; usr = nxt) {
-		nxt = usr->nxt;
-		if(gm->pencilgame)
-			cleanpencil(&usr->pencil);
-		usr->gm = 0;
+	struct user *usr;
+	for(usr = gm->usr; usr; usr = usr->nxt) {
 		joingame(lobby, usr);
-	}
-
-	/* freeing up segments */
-	int i, num_tiles = gm->htiles * gm->vtiles;
-
-	for(i=0; i < num_tiles; i++) {
-		struct seg *a, *b;
-
-		for(a = gm->seg[i]; a; a = b) {
-			b = a->nxt;
-			free(a);
-		}
 	}
 
 	free(gm->seg);
@@ -115,8 +99,13 @@ struct game *findgame(int nmin, int nmax) {
 
 	for(gm = headgame; gm; gm = gm->nxt)
 		if(gm->state == GS_LOBBY && gm->nmin <= nmax && gm->nmax >= nmin) {
-			gm->nmin = (gm->nmin > nmin) ? gm->nmin : nmin;
-			gm->nmax = (gm->nmax < nmax) ? gm->nmax : nmax;
+			if(gm->nmin < nmin || gm->nmax > nmax) {
+				gm->nmin = (gm->nmin > nmin) ? gm->nmin : nmin;
+				gm->nmax = (gm->nmax < nmax) ? gm->nmax : nmax;
+				cJSON *json = getjsongamepars(gm);
+				sendjsontogame(json, gm, 0);
+				jsondel(json);
+			}
 			return gm;
 		}
 
@@ -141,16 +130,17 @@ void leavegame(struct user *usr) {
 	usr->nxt = 0;
 	usr->gm = 0;
 
-	if(gm->type != GT_LOBBY && !--gm->n)
-		remgame(gm);
-	else {
-		// send message to group: this player left
-		cJSON *json = jsoncreate("playerLeft");
-		jsonaddnum(json, "playerId", usr->id);
-		sendjsontogame(json, gm, 0);
-		cJSON_Delete(json);
+	if(gm->state != GS_REMOVING_GAME) {
+		if(gm->type != GT_LOBBY && !--gm->n)
+			remgame(gm);
+		else {
+			// send message to group: this player left
+			cJSON *json = jsoncreate("playerLeft");
+			jsonaddnum(json, "playerId", usr->id);
+			sendjsontogame(json, gm, 0);
+			jsondel(json);
+		}
 	}
-
 	if(DEBUG_MODE) printgames();
 }
 
@@ -166,7 +156,7 @@ void joingame(struct game *gm, struct user *newusr) {
 		printf("join game called \n");
 
 	// tell user s/he joined a game.
-	json= jsoncreate("joinedGame");
+	json = jsoncreate("joinedGame");
 	sendjson(json, newusr);
 	jsondel(json);
 
@@ -260,19 +250,19 @@ int segcollision(struct seg *seg1, struct seg *seg2) {
 	 (seg1->y2 - seg1->y1) * (seg1->x1 - seg2->x1);
 
 	/* segments are parallel */
-	if(fabs(denom) < EPS){
+	if(fabs(denom) < EPS) {
 		/* segments are on same line */
 		if(fabs(numer_a) < EPS && fabs(numer_b) < EPS) {
 			float a, b, c, d, e;
 
 			if(seg1->x1 - seg1->x2 < EPS) {
-				a= seg1->y1; b= seg1->y2; c= seg2->y1; d= seg2->y2;
+				a = seg1->y1; b = seg1->y2; c = seg2->y1; d = seg2->y2;
 			} else {
-				a= seg1->x1; b= seg1->x2; c= seg2->x1; d= seg2->x2;
+				a = seg1->x1; b = seg1->x2; c = seg2->x1; d = seg2->x2;
 			}
 
-			if(a>b) { e=a; a=b; b=e; }
-			if(c>d) { e=c; c=d; d=c; }
+			if(a>b) { e =a; a =b; b =e; }
+			if(c>d) { e =c; c =d; d =c; }
 
 			return (c < b && d > a);
 		}
@@ -380,9 +370,9 @@ int addsegment(struct game *gm, struct seg *seg) {
 	}
 
 	// we dont need the original any more: free it
-	if(SEND_SEGMENTS){
-		seg->nxt= gm->tosend;
-		gm->tosend= seg;
+	if(SEND_SEGMENTS) {
+		seg->nxt = gm->tosend;
+		gm->tosend = seg;
 	}else
 		free(seg);
 
@@ -430,35 +420,71 @@ void deadplayermsg(struct user *usr) {
 	cJSON *json = jsoncreate("playerDied");
 	jsonaddnum(json, "playerId", usr->id);
 	sendjsontogame(json, usr->gm, 0);
-	cJSON_Delete(json);
+	jsondel(json);
 }
 
 /* ik zag in addsegment free niet als SEND_SEGMENTS, maar ik zie je freet
  * ze hier in dat geval (Y) */
-void sendsegments(struct game *gm){
-	if(gm->tosend){
-		cJSON *json= jsoncreate("segments");
-		cJSON *ar= cJSON_CreateArray();
-		struct seg *seg= gm->tosend;
+void sendsegments(struct game *gm) {
+	if(gm->tosend) {
+		cJSON *json = jsoncreate("segments");
+		cJSON *ar = cJSON_CreateArray();
+		struct seg *seg = gm->tosend;
 		while(seg) {
-			struct seg *nxt= seg->nxt;
-			cJSON *a= cJSON_CreateObject();
+			struct seg *nxt = seg->nxt;
+			cJSON *a = cJSON_CreateObject();
 			jsonaddnum(a,"x1", seg->x1);
 			jsonaddnum(a,"y1", seg->y1);
 			jsonaddnum(a,"x2", seg->x2);
 			jsonaddnum(a,"y2", seg->y2);
 			cJSON_AddItemToArray(ar, a);
 			free(seg);
-			seg= nxt;
+			seg = nxt;
 		}
-		gm->tosend= 0;
+		gm->tosend = 0;
 		jsonaddjson(json, "segments", ar);
 		sendjsontogame(json, gm, 0);
 	}
 }
 
-void stopgame(struct game *gm){
-	gm->state = GS_LOBBY;
+
+void endgame(struct game *gm) {
+	cJSON *json = jsoncreate("endGame");
+	struct user *usr;
+	struct userinput *inp, *nxt;
+	
+	if(SEND_SEGMENTS)
+		sendsegments(gm);
+	
+	for(usr = gm->usr; usr && !usr->alive; usr = usr->nxt);
+	jsonaddnum(json, "winnerId", usr ? usr->id : -1);
+	sendjsontogame(json, gm, 0);
+	jsondel(json);		
+	printf("game %p ended. winnerId = %d\n", (void*)gm, usr ? usr->id : -1);
+	
+	// clean users
+	for(usr = gm->usr; usr; usr = usr->nxt){
+		for(inp = usr->inputhead; inp; inp = nxt) {
+			nxt = inp->nxt;
+			free(inp);
+		}
+		usr->inputhead = usr->inputtail = 0;
+		if(gm->pencilgame)
+			cleanpencil(&usr->pencil);
+	}
+	
+	/* freeing up segments */
+	int i, num_tiles = gm->htiles * gm->vtiles;
+	for(i =0; i < num_tiles; i++) {
+		struct seg *a, *b;
+
+		for(a = gm->seg[i]; a; a = b) {
+			b = a->nxt;
+			free(a);
+		}
+	}
+	
+	remgame(gm); // voorlopig, later stopgame(gm);
 }
 
 // simulate game tick
@@ -487,17 +513,7 @@ void simgame(struct game *gm) {
 		sendsegments(gm);
 	
 	if(gm->alive <= 1 && (gm->nmin > 1 || gm->alive < 1)) {
-		cJSON *json= jsoncreate("endGame");
-		
-		if(SEND_SEGMENTS)
-			sendsegments(gm);
-		
-		for(usr = gm->usr; usr && !usr->alive; usr = usr->nxt);
-		jsonaddnum(json, "winnerId", usr ? usr->id : -1);
-		sendjsontogame(json, gm, 0);
-		jsondel(json);		
-		printf("game %p ended. winnerId = %d\n", (void*)gm, usr ? usr->id : -1);
-		remgame(gm); // voorlopig, later stopgame(gm);
+		endgame(gm);
 	}
 }
 
@@ -514,8 +530,8 @@ void mainloop() {
 	struct game *gm, *nxtgm;
 
 	while(1) {
-		for(gm = headgame; gm; gm = nxtgm){
-			nxtgm= gm->nxt; // in the case that gm gets freed
+		for(gm = headgame; gm; gm = nxtgm) {
+			nxtgm = gm->nxt; // in the case that gm gets freed
 			if(gm->state == GS_STARTED)
 				simgame(gm);
 
@@ -535,11 +551,11 @@ void mainloop() {
 
 void interpretinput(cJSON *json, struct user *usr) {
 	struct userinput *input;
-	//int time= jsongetint(json, "gameTime");
-	int turn= jsongetint(json, "turn");
-	int tick= jsongetint(json, "tick");
-	int time= tick * TICK_LENGTH + TICK_LENGTH/ 2;
-	int modified= 0;
+	//int time = jsongetint(json, "gameTime");
+	int turn = jsongetint(json, "turn");
+	int tick = jsongetint(json, "tick");
+	int time = tick * TICK_LENGTH + TICK_LENGTH/ 2;
+	int modified = 0;
 	int minimumTick = usr->gm->tick;
 	
 	// some checks
@@ -558,7 +574,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 			printf("received msg from user %d of %d msec old! tick incremented by %d\n",
 			 usr->id, (int) (servermsecs() - usr->gm->start - time), minimumTick - tick);
 		tick = minimumTick;
-		modified= 1;
+		modified = 1;
 	}
 	if(usr->inputtail && tick < usr->inputtail->tick) {
 		if(SHOW_WARNING)
@@ -586,24 +602,24 @@ void interpretinput(cJSON *json, struct user *usr) {
 	}
 	
 	// check if user needs to adjust her gametime
-	usr->delta[usr->deltaat++]= (servermsecs() - usr->gm->start) - time;
+	usr->delta[usr->deltaat++] = (servermsecs() - usr->gm->start) - time;
 	if(usr->deltaat == DELTA_COUNT) {
-		usr->deltaat= 0;
-		usr->deltaon= 1;
+		usr->deltaat = 0;
+		usr->deltaon = 1;
 	}
-	if(usr->deltaon){
-		int max= 0, i, tot= 0;
-		usr->deltaon= 0;
-		for(i= 0;i < DELTA_COUNT; i++){
-			if(usr->delta[i] > max){
+	if(usr->deltaon) {
+		int max = 0, i, tot = 0;
+		usr->deltaon = 0;
+		for(i = 0;i < DELTA_COUNT; i++) {
+			if(usr->delta[i] > max) {
 				tot += max;
-				max= usr->delta[i];
+				max = usr->delta[i];
 			}else
 				tot += usr->delta[i];
 		}
 		tot /= (DELTA_COUNT - 1);
-		if(abs(tot) > DELTA_MAX){
-			cJSON *j= jsoncreate("adjustGameTime");
+		if(abs(tot) > DELTA_MAX) {
+			cJSON *j = jsoncreate("adjustGameTime");
 			jsonaddnum(j, "forward", tot);
 			sendjson(j, usr);
 			jsondel(j);
@@ -614,7 +630,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 	
 	// send to other players
 	{
-		cJSON *j= jsoncreate("newInput");
+		cJSON *j = jsoncreate("newInput");
 		jsonaddnum(j, "tick", tick);
 		jsonaddnum(j, "playerId", usr->id);
 		jsonaddnum(j, "turn", turn);
@@ -626,12 +642,12 @@ void interpretinput(cJSON *json, struct user *usr) {
 }
 
 /* pencil game */
-void handlepencilmsg(cJSON *json, struct user *u){
+void handlepencilmsg(cJSON *json, struct user *u) {
 	struct pencil *p = &u->pencil;
 	cJSON *j = cJSON_CreateArray();
 	int send = 0;
 	json = jsongetjson(json, "data")->child;
-	while(json){
+	while(json) {
 		float x = json->valuedouble, y;
 		int tick;
 		int newstroke = 0;
@@ -642,7 +658,7 @@ void handlepencilmsg(cJSON *json, struct user *u){
 		if(!json) break;
 		tick = json->valueint;
 		json = json->next;
-		if(tick < 0){
+		if(tick < 0) {
 			tick = -tick - 1;
 			newstroke = 1;
 		}
@@ -651,8 +667,8 @@ void handlepencilmsg(cJSON *json, struct user *u){
 		if(!(tick > p->lasttick || (newstroke && tick == p->lasttick)))
 			break;
 		gototick(p, tick);
-		if(newstroke){
-			if(p->ink > MOUSEDOWN_INK - EPS){
+		if(newstroke) {
+			if(p->ink > MOUSEDOWN_INK - EPS) {
 				p->x = x;
 				p->y = y;
 				p->ink -= MOUSEDOWN_INK;
@@ -661,12 +677,12 @@ void handlepencilmsg(cJSON *json, struct user *u){
 				break;
 		}else{
 			float d = getlength(p->x - x, p->y - y);
-			if((d >= INK_MIN_DISTANCE - EPS || d >= p->ink - EPS) && p->ink > 0){
+			if((d >= INK_MIN_DISTANCE - EPS || d >= p->ink - EPS) && p->ink > 0) {
 				int tickSolid = tick + (INK_VISIBLE + INK_SOLID) / TICK_LENGTH;
 				struct pencilseg *pseg = smalloc(sizeof(struct pencilseg));
 				struct seg *seg = &pseg->seg;
 				cJSON *k = cJSON_CreateObject();
-				if(p->ink < d){
+				if(p->ink < d) {
 					float a = x - p->x;
 					float b = y - p->y;
 					a *= p->ink / d;
@@ -704,24 +720,24 @@ void handlepencilmsg(cJSON *json, struct user *u){
 				break;
 		}
 	}
-	if(send){
+	if(send) {
 		cJSON *k = jsoncreate("pencil");
 		jsonaddjson(k, "data", j);
 		sendjsontogame(k, u->gm, 0);
 	}
 }
 
-struct seg *copyseg(struct seg *a){
+struct seg *copyseg(struct seg *a) {
 	struct seg *b = smalloc(sizeof(struct seg));
 	memcpy(b, a, sizeof(struct seg));
 	return b;
 }
 
-void simpencil(struct pencil *p){
-	if(p->psegtail && p->psegtail->tick == p->usr->gm->tick){
+void simpencil(struct pencil *p) {
+	if(p->psegtail && p->psegtail->tick == p->usr->gm->tick) {
 		struct pencilseg *tail = p->psegtail;
 		addsegment(p->usr->gm, copyseg(&tail->seg));
-		if(tail->prev){
+		if(tail->prev) {
 			tail->prev->nxt = 0;
 			p->psegtail = tail->prev;
 		}else
@@ -730,7 +746,8 @@ void simpencil(struct pencil *p){
 	}
 }
 
-void resetpencil(struct pencil *p, struct user *u){
+// to be called at startgame
+void resetpencil(struct pencil *p, struct user *u) {
 	p->ink = START_INK;
 	p->psegtail = p->pseghead = 0;
 	p->usr = u;
@@ -738,16 +755,17 @@ void resetpencil(struct pencil *p, struct user *u){
 	p->lasttick = -1;
 }
 
-void cleanpencil(struct pencil *pen){
+// to be called at endgame
+void cleanpencil(struct pencil *pen) {
 	struct pencilseg *p = pen->pseghead, *q;
-	while(p){
+	while(p) {
 		q = p->nxt;
 		free(p);
 		p = q;
 	}
 }
 
-void gototick(struct pencil *p, int tick){
+void gototick(struct pencil *p, int tick) {
 	int ticks = tick - p->tick;
 	p->ink += ticks * TICK_LENGTH / 1000.0 * INK_PER_SEC;
 	if(p->ink > MAX_INK)

@@ -16,4 +16,4 @@ The game is not yet widely supported, as websockets is not yet enabled by defaul
 
 Some browser do have support for websockets, but not the latest draft, or it may not be enabled by default. They might be able to run the game.
 
-Developed by Rik and Marcus. Feel free to fork.
+Developed by Marcus and Rik. Feel free to fork.

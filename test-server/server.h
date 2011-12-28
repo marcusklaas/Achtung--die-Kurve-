@@ -50,6 +50,7 @@
 /* game states */
 #define GS_LOBBY 0
 #define GS_STARTED 1
+#define GS_REMOVING_GAME 2
 
 /* http server */
 #define LOCAL_RESOURCE_PATH "../client"
@@ -75,13 +76,12 @@ struct game{
 		v, ts,				// velocity, turn speed
 		tick, alive,		// #ticks that have passed, #alive players
 		hsize, hfreq,		// hole size and frequency in ticks
-		hmin, hmax;			// min/ max ticks before start of first hole
-
-	long start;			// start time in milliseconds after epoch
+		hmin, hmax,			// min/ max ticks before start of first hole
+		start;				// start time in milliseconds after epoch
 	struct seg **seg;	// two dimensional array of linked lists, one for each tile
 	struct user *usr;	// user list
 	struct game *nxt;
-	struct seg *tosend;
+	struct seg *tosend;	// voor de DEBUG_SEGMENTS
 	char pencilgame;
 };
 
@@ -108,12 +108,12 @@ struct user{
 	int id;
 	struct game *gm;
 	struct user *nxt;
-
 	char *name;			// kan null blijven
+	
 	char *sb[SB_MAX];	// sendbuffer
 	int sbat;			// sendbuffer at
 
-	float x, y, angle;	// used in simulation (these are thus ~500msec behind)
+	float x, y, angle;	// used in simulation (these are thus SERVER_DELAY behind)
 	int turn;			// -1, 0 or 1
 	char alive;			// 1 for alive, 0 else
 
@@ -127,7 +127,6 @@ struct user{
 	int delta[DELTA_COUNT];
 	int deltaat;
 	char deltaon;
-	
 	struct pencil pencil;
 };
 

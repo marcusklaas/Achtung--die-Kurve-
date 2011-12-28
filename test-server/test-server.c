@@ -103,19 +103,8 @@ callback_game(struct libwebsocket_context * context,
 
 	case LWS_CALLBACK_ESTABLISHED:
 		if(DEBUG_MODE) printf("LWS_CALLBACK_ESTABLISHED\n");
-		u->id= usrc++;
-		u->wsi= wsi;
-		u->sbat = 0;
-		u->gm = 0;
-		u->name = 0;
-		u->alive = 0;
-		u->nxt = 0;
-		u->inputs = 0;
-		u->chats = 0;
-		u->inputhead = u->inputtail = 0;
-		u->deltaon= u->deltaat= 0;
+		iniuser(u, wsi);
 		if(DEBUG_MODE) { printf("new user created:\n"); printuser(u); printf("\n"); }
-
 		json= jsoncreate("acceptUser");
 		jsonaddnum(json, "playerId", u->id);
 		sendjson(json, u);
@@ -126,7 +115,7 @@ callback_game(struct libwebsocket_context * context,
 		if(DEBUG_MODE) printf("LWS_CALLBACK_CLOSED\n");
 		if(u->gm)
 			leavegame(u);
-		while(u->inputhead){
+		while(u->inputhead) {
 			struct userinput *nxthead= u->inputhead->nxt;
 			free(u->inputhead);
 			u->inputhead= nxthead;
@@ -155,12 +144,12 @@ callback_game(struct libwebsocket_context * context,
 		if(ULTRA_VERBOSE) printf("received: %s\n", inchar);
 
 		json= cJSON_Parse(inchar);
-		if(!json){
+		if(!json) {
 			if(DEBUG_MODE) printf("invalid json!\n");
 			break;
 		}
 		mode= jsongetstr(json, "mode");
-		if(!mode){
+		if(!mode) {
 			printf("no mode specified!\n");
 			break;
 		}

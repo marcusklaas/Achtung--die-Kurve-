@@ -1071,7 +1071,7 @@ window.onload = function() {
 	if(maxPlayers != null)
 		document.getElementById('maxplayers').value = maxPlayers;
 
-	game.connect(serverURL, "game-protocol", function() {;;;;;});
+	game.connect(serverURL, "game-protocol", joinLobby );
 }
 
 /* canvas context color setter */
