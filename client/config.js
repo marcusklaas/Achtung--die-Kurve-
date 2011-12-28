@@ -1,4 +1,4 @@
-var enableSound = true;
+var enableSound = true; // this is not constant! may change during execution of game.js
 var keyCodeLeft = 37; // left arrow button
 var keyCodeRight = 39; // right arrow button
 var chatSendKeyCode = 13; // enter
