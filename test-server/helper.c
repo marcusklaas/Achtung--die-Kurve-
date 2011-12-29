@@ -87,6 +87,7 @@ cJSON *getjsongamepars(struct game *gm) {
 		strcpy(gametype, "custom"); 
 	jsonaddstr(json, "type", gametype); */
 
+	jsonaddnum(json, "countdown", COUNTDOWN * TICK_LENGTH);
 	jsonaddnum(json, "hsize", gm->hsize);
 	jsonaddnum(json, "hfreq", gm->hfreq);
 	jsonaddnum(json, "w", gm->w);
