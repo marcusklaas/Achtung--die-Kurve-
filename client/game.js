@@ -702,12 +702,12 @@ Player.prototype.simulate = function(startTick, endTick, ctx, queue) {
 		this.y += this.velocity * step * sin;
 		
 		// zo weer weg
-		var a = 70/2;
+		/*var a = 70/2;
 		this.velocity += Math.cos(this.angle) * a / 1000 * simStep;
 		if(this.velocity < 70)
 			this.velocity = 70;
 		else if(this.velocity > 140)
-			this.velocity = 140;
+			this.velocity = 140;*/
 		
 		ctx.lineTo(this.x, this.y);
 	}

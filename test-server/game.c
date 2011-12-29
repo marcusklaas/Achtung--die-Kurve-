@@ -25,7 +25,7 @@ void startgame(struct game *gm) {
 	struct user *usr;
 
 	if(DEBUG_MODE)
-		printf("startgame called!\n");
+		printf("starting game %p!\n", (void*)gm);
 
 	// reset users
 	for(usr = gm->usr; usr; usr = usr->nxt){
@@ -81,8 +81,9 @@ void remgame(struct game *gm) {
 		a->nxt = gm->nxt;
 	}
 
-	struct user *usr;
-	for(usr = gm->usr; usr; usr = usr->nxt) {
+	struct user *usr, *nxt;
+	for(usr = gm->usr; usr; usr = nxt) {
+		nxt = usr->nxt;
 		joingame(lobby, usr);
 	}
 
@@ -116,7 +117,7 @@ void leavegame(struct user *usr) {
 	struct user *curr;
 
 	if(DEBUG_MODE)
-		printf("leavegame called \n");
+		printf("user %d is leaving his game!\n", usr->id);
 
 	if(gm->usr == usr) {
 		gm->usr = usr->nxt;
@@ -155,7 +156,7 @@ void joingame(struct game *gm, struct user *newusr) {
 		leavegame(newusr);
 
 	if(DEBUG_MODE)
-		printf("join game called \n");
+		printf("user %d is joining game %p\n", newusr->id, (void*)gm);
 
 	// tell user s/he joined a game.
 	json = jsoncreate("joinedGame");
@@ -210,7 +211,7 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	struct game *gm = scalloc(1, sizeof(struct game));
 
 	if(DEBUG_MODE)
-		printf("creategame called \n");
+		printf("creating game %p\n", (void*)gm);
 
 	gm->type = gametype;
 	gm->nmin = nmin; gm->nmax = nmax;
@@ -401,12 +402,12 @@ int simuser(struct user *usr, int tick) {
 	usr->y += sin(usr->angle) * usr->v * TICK_LENGTH / 1000.0;
 	
 	// zo weer weg
-	float a = 70.0/2;
+	/*float a = 70.0/2;
 	usr->v += cos(usr->angle) * a / 1000.0 * TICK_LENGTH;
 	if(usr->v < 70)
 		usr->v = 70;
 	else if(usr->v > 140)
-		usr->v = 140;
+		usr->v = 140;*/
 
 	// check if usr in a hole. hole starts _AFTER_ hstart
 	if(tick > usr->hstart
