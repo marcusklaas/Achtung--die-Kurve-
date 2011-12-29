@@ -10,9 +10,10 @@
 #define HOLE_START_MAX 200 // after how many ticks first hole must have appeared
 #define DEBUG_MODE 1
 #define TICK_LENGTH 24 // in msecs
-#define SERVER_DELAY 216 // multiple of TICK_LENGTH
-#define COUNTDOWN 1008 // multiple of TICK_LENGTH
-#define SB_MAX 10	// sendbuffer max size
+#define SERVER_DELAY 9 // in ticks
+#define COUNTDOWN 42 // in ticks
+#define COOLDOWN 84 // time between end of round and countdown of next in ticks
+#define SB_MAX 10 // sendbuffer max size
 #define DELTA_COUNT 11
 #define DELTA_MAX 25
 #define ULTRA_VERBOSE 0
@@ -21,6 +22,8 @@
 #define POST_PADDING	LWS_SEND_BUFFER_POST_PADDING
 #define SEND_SEGMENTS 0 // om de hoeveel ticks het moet gebeuren (0=nooit)
 #define SHOW_DELAY 0
+#define MIN_WIN_DIFF 2 // minimum point lead required to win a game
+#define TWO_PLAYER_POINTS 3 // points required to win two player game
 
 /* input control */
 #define MAX_FILE_REQ_LEN 100
@@ -71,7 +74,7 @@ struct game{
 		nmin, nmax,			// desired number of players
 		tilew, tileh,		// tile width & height
 		htiles, vtiles,		// number of horizontal tiles & vertical tiles
-		state,				// game state, see GS_* definitions
+		goal, state,		// required points to win, game state, see GS_* definitions
 		v, ts,				// velocity, turn speed
 		tick, alive,		// #ticks that have passed, #alive players
 		hsize, hfreq,		// hole size and frequency in ticks
@@ -109,14 +112,15 @@ struct user{
 	struct game *gm;
 	struct user *nxt;
 
-	char *name;			// kan null blijven
+	char *name;			// kan niet null blijven!!
 	char *sb[SB_MAX];	// sendbuffer
 	int sbat;			// sendbuffer at
 
-	float x, y, angle;	// used in simulation (these are thus ~500msec behind)
+	float x, y, angle;	// used in simulation (SERVER_DELAY behind)
 	int turn;			// -1, 0 or 1
 	char alive;			// 1 for alive, 0 else
 
+	int points;
 	int hstart, hsize, hfreq;	// hole start, hole size, hole frequency
 
 	struct userinput *inputhead, // store unhandled user inputs in queue

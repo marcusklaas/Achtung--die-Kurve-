@@ -14,6 +14,7 @@ var indicatorLength = 15;
 var indicatorArrowLength = 8;
 var indicatorArrowOffset = 2;
 
+var preferredCooldown = 1000; // supose there is x msecs between rounds, then min(1000, x) will be used for countdown
 var ultraVerbose = false;
 var simStep = 24; // in milliseconds
 var syncTries = 2;

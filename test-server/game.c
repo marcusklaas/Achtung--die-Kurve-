@@ -28,14 +28,34 @@ void clearinputqueue(struct user *usr) {
 	usr->inputhead = usr->inputtail = 0;
 }
 
+void freesegments(struct game *gm) {
+	int i, num_tiles = gm->htiles * gm->vtiles;
+
+	if(DEBUG_MODE)
+		printf("freeing segments\n");
+
+	for(i = 0; i < num_tiles; i++) {
+		struct seg *a, *b;
+
+		for(a = gm->seg[i]; a; a = b) {
+			b = a->nxt;
+			free(a);
+		}
+
+		gm->seg[i] = 0;
+	}
+}
+
 void startgame(struct game *gm){ 
 	if(DEBUG_MODE)
 		printf("startgame called!\n");
 
 	randomizePlayerStarts(gm);
+	freesegments(gm);
 
-	gm->start = serverticks * TICK_LENGTH + COUNTDOWN;
-	gm->tick = -(COUNTDOWN + SERVER_DELAY) / TICK_LENGTH;
+	int laterround = gm->usr->points || (gm->usr->nxt && gm->usr->nxt->points);
+	gm->start = (laterround * COOLDOWN + serverticks + COUNTDOWN) * TICK_LENGTH;
+	gm->tick = -COUNTDOWN - SERVER_DELAY - laterround * COOLDOWN;
 	gm->state = GS_STARTED;
 	gm->alive = gm->n;
 
@@ -80,6 +100,9 @@ void remgame(struct game *gm){
 		a->nxt = gm->nxt;
 	}
 
+	if(DEBUG_MODE)
+		printf("freeing players\n");	
+
 	/* freeing up players */
 	struct user *usr, *nxt;
 
@@ -91,18 +114,7 @@ void remgame(struct game *gm){
 		joingame(lobby, usr);
 	}
 
-	/* freeing up segments */
-	int i, num_tiles = gm->htiles * gm->vtiles;
-
-	for(i=0; i < num_tiles; i++) {
-		struct seg *a, *b;
-
-		for(a = gm->seg[i]; a; a = b) {
-			b = a->nxt;
-			free(a);
-		}
-	}
-
+	freesegments(gm);
 	free(gm->seg);
 	free(gm);
 }
@@ -141,6 +153,9 @@ void leavegame(struct user *usr) {
 	usr->nxt = 0;
 	usr->gm = 0;
 
+	// TODO: if user leaves and there is only 1 player left we should tell him:
+	// thanks for sticking around, you now win the game
+
 	if(gm->type != GT_LOBBY && !--gm->n)
 		remgame(gm);
 	else {
@@ -174,9 +189,6 @@ void joingame(struct game *gm, struct user *newusr) {
 	sendjson(json, newusr);
 	jsondel(json);
 
-	if(DEBUG_MODE)
-		printf("got here \n");
-
 	// tell players of game someone new joined
 	json = jsoncreate("newPlayer");
 	jsonaddnum(json, "playerId", newusr->id);
@@ -203,9 +215,13 @@ void joingame(struct game *gm, struct user *newusr) {
 	newusr->hsize = gm->hsize;
 	newusr->hfreq = gm->hfreq;
 	newusr->inputs = 0;
+	newusr->points = 0;
 
-	if(gm->type != GT_LOBBY && ++gm->n >= gm->nmin)
+	if(gm->type != GT_LOBBY && ++gm->n >= gm->nmin) {
+		// goal = avg points per player * constant
+		gm->goal = (gm->n - 1)/ 2.0 * 2 * TWO_PLAYER_POINTS;
 		startgame(gm);
+	}
 
 	if(DEBUG_MODE) {
 		printf("user %d joined game %p\n", newusr->id, (void *)gm);
@@ -283,10 +299,7 @@ int segcollision(struct seg *seg1, struct seg *seg2) {
 	float a = numer_a/ denom;
 	float b = numer_b/ denom;
 
-	if(a < 0 || a > 1 || b < 0 || b > 1)
-		return 0;
-
-	return 1;
+	return a >= 0 && a <= 1 && b >= 0 && b <= 1;
 }
 
 // returns 1 in case the segment intersects the box
@@ -426,9 +439,11 @@ int simuser(struct user *usr, int tick) {
 }
 
 // send message to group: this player died
-void deadplayermsg(struct user *usr) {
+void deadplayermsg(struct user *usr, int tick) {
 	cJSON *json = jsoncreate("playerDied");
 	jsonaddnum(json, "playerId", usr->id);
+	jsonaddnum(json, "points", usr->points);
+	jsonaddnum(json, "tick", tick);
 	sendjsontogame(json, usr->gm, 0);
 	cJSON_Delete(json);
 }
@@ -457,48 +472,88 @@ void sendsegments(struct game *gm){
 	}
 }
 
-void stopgame(struct game *gm){
-	gm->state = GS_LOBBY;
+void endround(struct game *gm) {
+	struct user *usr, *winner = 0;
+	int maxpoints = -1, secondpoints = 0;
+
+	if(DEBUG_MODE)
+		printf("ending round of game %p\n", (void *) gm);
+
+	/* give survivor his points */
+	for(usr = gm->usr; usr && !usr->alive; usr = usr->nxt);
+	if(usr)
+		usr->points += gm->n - 1; // FIXME: if someone left during this round winner won't get enough points
+
+	if(SEND_SEGMENTS)
+		sendsegments(gm);
+
+	cJSON *json = jsoncreate("endRound");
+	jsonaddnum(json, "winnerId", usr ? usr->id : -1);
+	if(usr)
+		jsonaddnum(json, "points", usr->points);
+	sendjsontogame(json, gm, 0);
+	jsondel(json);
+
+	printf("first usr points: %d\n", gm->usr->points);
+
+	/* check if there is a winner */
+	for(usr = gm->usr; usr; usr = usr->nxt)
+		if(usr->points >= gm->goal && usr->points > maxpoints) {
+			winner = usr;
+			secondpoints = maxpoints;
+			maxpoints = usr->points;
+		}
+
+	if(winner)
+		printf("winner->points: %d\n", winner->points);
+
+	printf("maxpoints: %d, goal: %d, secondpoints: %d, nmin: %d\n",
+	 maxpoints, gm->goal, secondpoints, gm->nmin);
+
+	if(maxpoints >= gm->goal && (gm->nmin == 1 || maxpoints >= secondpoints + MIN_WIN_DIFF)) {
+		printf("game %p ended. winner = %d\n", (void*) gm, winner->id);
+		cJSON *json= jsoncreate("endGame");
+		jsonaddnum(json, "winnerId", winner->id);
+		sendjsontogame(json, gm, 0);
+		jsondel(json);
+		remgame(gm);
+	}
+	else {
+		printf("round of game %p ended. round winner = %d\n", (void*) gm, usr ? usr->id : -1);
+		startgame(gm);
+	}		
+}
+
+void killplayer(struct user *usr, int reward) {
+	usr->gm->alive -= usr->alive--;
+	// FIXME: if someone left during this round winner won't get enough points
+	usr->points += reward;
+	deadplayermsg(usr, usr->gm->tick);
+
+	if(DEBUG_MODE)
+		printf("player %d died\n", usr->id);
 }
 
 // simulate game tick
 void simgame(struct game *gm) {
 	struct user *usr;
+	int reward = gm->n - gm->alive; // define here for when multiple players die this tick
 
 	if(gm->tick < 0) {
 		gm->tick++;
 		return;
 	}
 
-	for(usr = gm->usr; usr; usr = usr->nxt) {
-		if(usr->alive && simuser(usr, gm->tick)) {
-			if(DEBUG_MODE)
-				printf("Player %d died\n", usr->id);
+	for(usr = gm->usr; usr; usr = usr->nxt)
+		if(usr->alive && simuser(usr, gm->tick))
+			killplayer(usr, reward);
 
-			usr->alive = 0;
-			gm->alive--;
-
-			deadplayermsg(usr);
-		}
-	}
-	
 	gm->tick++;
 	if(SEND_SEGMENTS && gm->tick % SEND_SEGMENTS == 0)
 		sendsegments(gm);
 	
-	if(gm->alive <= 1 && (gm->nmin > 1 || gm->alive < 1)) {
-		cJSON *json= jsoncreate("endGame");
-		
-		if(SEND_SEGMENTS)
-			sendsegments(gm);
-		
-		for(usr = gm->usr; usr && !usr->alive; usr = usr->nxt);
-		jsonaddnum(json, "winnerId", usr ? usr->id : -1);
-		sendjsontogame(json, gm, 0);
-		jsondel(json);		
-		printf("game %p ended. winnerId = %d\n", (void*)gm, usr ? usr->id : -1);
-		remgame(gm); // voorlopig, later stopgame(gm);
-	}
+	if(gm->alive <= 1 && (gm->nmin > 1 || gm->alive < 1))
+		endround(gm);
 }
 
 static void resetGameChatCounters(struct game *gm) {

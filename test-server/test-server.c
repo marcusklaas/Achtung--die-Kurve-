@@ -10,9 +10,8 @@
 #include "server.h"
 
 struct libwebsocket_context *ctx;
-static struct game *headgame = 0;
-static struct game *lobby = 0;
-static int usrc = 0;	// user count
+static struct game *lobby, *headgame = 0;
+static int usrc = 0; // user count
 static unsigned long serverticks = 0; // yes this will underflow, but not fast ;p
 
 #include "helper.c"

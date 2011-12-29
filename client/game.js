@@ -22,6 +22,7 @@ function GameEngine(containerId, playerListId, chatBarId, audioController) {
 	this.turnSpeed = null;
 	this.holeSize = null; // default game values, may be overwritten during game
 	this.holeFreq = null; // for certain players by powerups or whatever
+	this.countdown = null; // countdown time in msecs
 
 	// connection state
 	this.websocket = null;
@@ -49,11 +50,8 @@ function GameEngine(containerId, playerListId, chatBarId, audioController) {
 		this.pencil = new Pencil(this);
 }
 
-/* a lot of values we do not clear, but we do not care for them as they 
- * will get overwritten as soon as new game starts */
+/* this only resets things like canvas, but keeps the player info */
 GameEngine.prototype.reset = function() {
-	this.players = [];
-	//this.dict = [];
 	this.canvasStack = null;
 	this.baseContext = null;
 	this.tick = 0;
@@ -67,7 +65,10 @@ GameEngine.prototype.reset = function() {
 	var container = document.getElementById(this.containerId);
 	while(container.hasChildNodes())
 		container.removeChild(container.firstChild);
+}
 
+GameEngine.prototype.resetPlayers = function() {
+	this.players = [];
 	this.clearPlayerList();
 }
 
@@ -106,6 +107,7 @@ GameEngine.prototype.connect = function(url, name, callback) {
 			game.connected = false;
 			game.gameState = 'new';
 			game.reset();
+			game.resetPlayers();
 		}
 	} catch(exception) {
 		debugLog('websocket exception! name = ' + exception.name + ", message = "
@@ -156,7 +158,29 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			//debugLog(obj.playerName + ' joined the game (id = ' + obj.playerId + ')');
 			break;
 		case 'startGame':
-			this.start(obj.startPositions, obj.startTime);
+			/* keep displaying old game for a while so ppl can see what happened */
+			var nextRoundDelay = obj.startTime + this.serverTimeDifference - this.ping
+			 + extraGameStartTimeDifference - Date.now();
+
+			/* this.gameStartTimestamp = startTime + this.serverTimeDifference - this.ping
+	 + extraGameStartTimeDifference;
+	this.gameState = 'countdown';
+	var delay = this.gameStartTimestamp - Date.now(); */
+
+			debugLog('total delay = ' + nextRoundDelay + ', this.countdown = ' + this.countdown);
+
+			if(nextRoundDelay > this.countdown) {
+				var self = this;
+
+				window.setTimeout(function() {
+					self.reset();
+					self.start(obj.startPositions, obj.startTime);
+				}, nextRoundDelay - this.countdown);
+			}
+			else {
+				this.reset();
+				this.start(obj.startPositions, obj.startTime);
+			}
 			break;
 		case 'newInput':
 			this.players[this.getIndex(obj.playerId)].steer(obj);
@@ -187,18 +211,23 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;
 		case 'playerDied':
 			var index = this.getIndex(obj.playerId);
-			this.players[index].alive = false;
-			this.updatePlayerList(index, 'dead');
+			var player = this.players[index];
+			player.alive = false;
+			this.updatePlayerList(index, 'dead', obj.points);
 			//debugLog(this.players[index].playerName + " died");
 			if(index == 0)
 				this.audioController.playSound('localDeath');
 			break;
+		case 'endRound':
+			var index = (obj.winnerId != -1) ? this.getIndex(obj.winnerId) : null;
+			var winner = (index != null) ? (this.players[index].playerName + ' won') : 'draw';
+			this.gameState = 'countdown'; // is dit nodig? wordt al gezet bij nieuwe startgame pakketje
+			this.updatePlayerList(index, null, obj.points);
+			debugLog('round over. ' + winner);
+			break;			
 		case 'endGame':
-			var winner = (obj.winnerId != -1)
-			 ? (this.players[this.getIndex(obj.winnerId)].playerName + ' won') : 'draw';
 			this.gameState = 'lobby';
-			debugLog('game over. ' + winner);
-
+			debugLog('game over. ' + this.players[this.getIndex(obj.winnerId)].playerName + ' won!');
 			this.clearPlayerList();
 			var localPlayer = this.players[0];
 			this.players = [];
@@ -230,7 +259,8 @@ GameEngine.prototype.interpretMsg = function(msg) {
 }
 
 GameEngine.prototype.printChat = function(playerId, message) {
-	debugLog(this.players[this.getIndex(playerId)].playerName + ': ' + message);
+	var escaped = String(message).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+	debugLog(this.players[this.getIndex(playerId)].playerName + ': ' + escaped);
 }
 
 GameEngine.prototype.handleSegmentsMessage = function(segments) {
@@ -284,6 +314,7 @@ GameEngine.prototype.setParams = function(obj) {
 	this.height = obj.h;
 
 	/* Set game variables */
+	this.countdown = obj.countdown;
 	this.velocity = obj.v;
 	this.turnSpeed = obj.ts;
 	this.holeSize = obj.hsize;
@@ -306,7 +337,7 @@ GameEngine.prototype.requestGame = function(player, minPlayers, maxPlayers) {
 	this.gameState = 'waiting';
 	player.inputQueue = [];
 	player.baseQueue = [];
-	this.reset();
+	this.resetPlayers();
 	this.addPlayer(player);
 	this.sendMsg('requestGame', {'playerName': player.playerName,
 	 'minPlayers': minPlayers, 'maxPlayers': maxPlayers});
@@ -407,7 +438,7 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	window.scroll(0, 0);
 	this.audioController.playSound('countdown');
 	this.playerListStart();
-	//debugLog("starting game in " + delay + " milliseconds");
+	debugLog("starting game in " + delay + " milliseconds");
 
 	this.calcScale();
 	var container = document.getElementById(this.containerId);
@@ -483,7 +514,7 @@ GameEngine.prototype.displayDebugStatus = function() {
 }
 
 GameEngine.prototype.playerListStart = function() {
-	for(var i = 0; i < this.players.length; this.updatePlayerList(i++, 'alive'));
+	for(var i = 0; i < this.players.length; this.updatePlayerList(i++, 'alive', null));
 }
 
 GameEngine.prototype.appendPlayerList = function(index) {
@@ -491,6 +522,7 @@ GameEngine.prototype.appendPlayerList = function(index) {
 	var row = document.createElement('tr');
 	var nameNode = document.createElement('td');
 	var statusNode = document.createElement('td');
+	var pointsNode = document.createElement('td');
 
 	// alleen naam in spelerkleur of ook status?
 	if(this.gameState != 'lobby' && this.gameState != 'new')
@@ -503,12 +535,18 @@ GameEngine.prototype.appendPlayerList = function(index) {
 	this.playerList.appendChild(row);
 	row.appendChild(nameNode);
 	row.appendChild(statusNode);
-	this.updatePlayerList(index, 'ready');
+	row.appendChild(pointsNode);
+	this.updatePlayerList(index, 'ready', 0);
 }
 
-GameEngine.prototype.updatePlayerList = function(index, status) {
-	var statusNode = document.getElementById('player' + index).lastChild;
-	statusNode.innerHTML = status;
+GameEngine.prototype.updatePlayerList = function(index, status, points) {
+	var row = document.getElementById('player' + index);
+
+	if(status != null)
+		row.childNodes[1].innerHTML = status;
+
+	if(points != null)
+		row.childNodes[2].innerHTML = points;
 }
 
 GameEngine.prototype.splicePlayerList = function(index) {
@@ -587,7 +625,7 @@ Player.prototype.steer = function(obj) {
 	}
 	
 	if(this.isLocal && obj.modified != undefined) {
-		this.game.modifiedInputs ++;
+		this.game.modifiedInputs++;
 		this.game.displayDebugStatus();
 	}
 	
