@@ -13,17 +13,18 @@ var lineCapStyle = 'round';
 var indicatorLength = 15;
 var indicatorArrowLength = 8;
 var indicatorArrowOffset = 2;
-
-var ultraVerbose = false;
 var simStep = 24; // in milliseconds
 var syncTries = 2;
 var syncDelays = 50;
+var behind = 2; // desired difference between tock and tick
+
+/* debugging */
+var ultraVerbose = false;
 var simulatedPing = 0;
 var extraGameStartTimeDifference = 0;
 var acceptGameTimeAdjustments = true;
 var jsProfiling = true;
 var simulateCPUlag = false;
-var behind = 2; // desired difference between tock and tick
 var debugBaseContext = false; // sets different color for segments in basecontext
 
 /* pencil game */

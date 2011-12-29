@@ -8,7 +8,6 @@
 #define HOLE_FREQ 150 // number of ticks between holes
 #define HOLE_START_MIN 50 // after how many ticks first hole may appear
 #define HOLE_START_MAX 200 // after how many ticks first hole must have appeared
-#define DEBUG_MODE 1
 #define TICK_LENGTH 24 // in msecs
 #define SERVER_DELAY 9 // in ticks
 #define COUNTDOWN 42 // in ticks
@@ -16,14 +15,18 @@
 #define SB_MAX 10 // sendbuffer max size
 #define DELTA_COUNT 11
 #define DELTA_MAX 25
-#define ULTRA_VERBOSE 0
-#define SHOW_WARNING 1
 #define PRE_PADDING	LWS_SEND_BUFFER_PRE_PADDING
 #define POST_PADDING LWS_SEND_BUFFER_POST_PADDING
-#define SEND_SEGMENTS 0 // om de hoeveel ticks het moet gebeuren (0=nooit)
 #define SHOW_DELAY 0
 #define MIN_WIN_DIFF 2 // minimum point lead required to win a game
 #define TWO_PLAYER_POINTS 3 // points required to win two player game
+
+/* debugging */
+#define DEBUG_MODE 1
+#define ULTRA_VERBOSE 0
+#define SHOW_WARNING 1
+#define GOD_MODE 0
+#define SEND_SEGMENTS 0 // om de hoeveel ticks het moet gebeuren (0=nooit)
 
 /* input control */
 #define MAX_FILE_REQ_LEN 100
@@ -116,7 +119,7 @@ struct user {
 	char *sb[SB_MAX];	// sendbuffer
 	int sbat;			// sendbuffer at
 
-	float x, y, angle;	// used in simulation (these are thus SERVER_DELAY behind)
+	float x, y, angle, v, ts;	// used in simulation (these are thus SERVER_DELAY behind)
 	int turn;			// -1, 0 or 1
 	char alive;			// 1 for alive, 0 else
 	int points;

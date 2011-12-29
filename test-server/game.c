@@ -32,6 +32,8 @@ void startgame(struct game *gm) {
 		usr->turn = 0;
 		usr->alive = 1;
 		usr->deltaon = usr->deltaat = 0;
+		usr->v = gm->v;
+		usr->ts = gm->ts;
 		if(gm->pencilgame)
 			resetpencil(&usr->pencil, usr);
 	}
@@ -374,7 +376,7 @@ int addsegment(struct game *gm, struct seg *seg) {
 	}else
 		free(seg);
 
-	return collision;
+	return GOD_MODE ? 0 : collision;
 }
 
 // simulate user tick. returns 1 if player dies during this tick, 0 otherwise
@@ -394,9 +396,17 @@ int simuser(struct user *usr, int tick) {
 	usr->inputs *= !!(tick % INPUT_CONTROL_INTERVAL);
 
 	float oldx = usr->x, oldy = usr->y;
-	usr->angle += usr->turn * usr->gm->ts * TICK_LENGTH / 1000.0;
-	usr->x += cos(usr->angle) * usr->gm->v * TICK_LENGTH / 1000.0;
-	usr->y += sin(usr->angle) * usr->gm->v * TICK_LENGTH / 1000.0;
+	usr->angle += usr->turn * usr->ts * TICK_LENGTH / 1000.0;
+	usr->x += cos(usr->angle) * usr->v * TICK_LENGTH / 1000.0;
+	usr->y += sin(usr->angle) * usr->v * TICK_LENGTH / 1000.0;
+	
+	// zo weer weg
+	float a = 70.0/2;
+	usr->v += cos(usr->angle) * a / 1000.0 * TICK_LENGTH;
+	if(usr->v < 70)
+		usr->v = 70;
+	else if(usr->v > 140)
+		usr->v = 140;
 
 	// check if usr in a hole. hole starts _AFTER_ hstart
 	if(tick > usr->hstart
