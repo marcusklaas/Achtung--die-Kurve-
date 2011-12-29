@@ -27,30 +27,9 @@ void iniuser(struct user *usr, struct libwebsocket *wsi) {
 	usr->inputhead = usr->inputtail = 0;
 }
 
-<<<<<<< HEAD
 void startgame(struct game *gm) {
 	struct user *usr;
-=======
-void freesegments(struct game *gm) {
-	int i, num_tiles = gm->htiles * gm->vtiles;
 
-	if(DEBUG_MODE)
-		printf("freeing segments\n");
-
-	for(i = 0; i < num_tiles; i++) {
-		struct seg *a, *b;
-
-		for(a = gm->seg[i]; a; a = b) {
-			b = a->nxt;
-			free(a);
-		}
-
-		gm->seg[i] = 0;
-	}
-}
-
-void startgame(struct game *gm){ 
->>>>>>> origin/rounds
 	if(DEBUG_MODE)
 		printf("startgame called!\n");
 
@@ -64,7 +43,6 @@ void startgame(struct game *gm){
 	}
 	
 	randomizePlayerStarts(gm);
-	freesegments(gm);
 
 	int laterround = gm->usr->points || (gm->usr->nxt && gm->usr->nxt->points);
 	gm->start = (laterround * COOLDOWN + serverticks + COUNTDOWN) * TICK_LENGTH;
@@ -106,29 +84,11 @@ void remgame(struct game *gm) {
 		a->nxt = gm->nxt;
 	}
 
-<<<<<<< HEAD
 	struct user *usr;
 	for(usr = gm->usr; usr; usr = usr->nxt) {
 		joingame(lobby, usr);
 	}
 
-=======
-	if(DEBUG_MODE)
-		printf("freeing players\n");	
-
-	/* freeing up players */
-	struct user *usr, *nxt;
-
-	for(usr = gm->usr; usr; usr = nxt) {
-		nxt = usr->nxt;
-		if(gm->pencilgame)
-			cleanpencil(&usr->pencil);
-		usr->gm = 0;
-		joingame(lobby, usr);
-	}
-
-	freesegments(gm);
->>>>>>> origin/rounds
 	free(gm->seg);
 	free(gm);
 }
@@ -172,7 +132,9 @@ void leavegame(struct user *usr) {
 	usr->nxt = 0;
 	usr->gm = 0;
 
-<<<<<<< HEAD
+	// TODO: if user leaves and there is only 1 player left we should tell him:
+	// thanks for sticking around, you now win the game
+	
 	if(gm->state != GS_REMOVING_GAME) {
 		if(gm->type != GT_LOBBY && !--gm->n)
 			remgame(gm);
@@ -183,19 +145,6 @@ void leavegame(struct user *usr) {
 			sendjsontogame(json, gm, 0);
 			jsondel(json);
 		}
-=======
-	// TODO: if user leaves and there is only 1 player left we should tell him:
-	// thanks for sticking around, you now win the game
-
-	if(gm->type != GT_LOBBY && !--gm->n)
-		remgame(gm);
-	else {
-		// send message to group: this player left
-		cJSON *json = jsoncreate("playerLeft");
-		jsonaddnum(json, "playerId", usr->id);
-		sendjsontogame(json, gm, 0);
-		cJSON_Delete(json);
->>>>>>> origin/rounds
 	}
 	if(DEBUG_MODE) printgames();
 }
@@ -503,49 +452,11 @@ void sendsegments(struct game *gm) {
 	}
 }
 
-<<<<<<< HEAD
 
-void endgame(struct game *gm) {
-	cJSON *json = jsoncreate("endGame");
-	struct user *usr;
-	struct userinput *inp, *nxt;
-	
-	if(SEND_SEGMENTS)
-		sendsegments(gm);
-	
-	for(usr = gm->usr; usr && !usr->alive; usr = usr->nxt);
-	jsonaddnum(json, "winnerId", usr ? usr->id : -1);
-	sendjsontogame(json, gm, 0);
-	jsondel(json);		
-	printf("game %p ended. winnerId = %d\n", (void*)gm, usr ? usr->id : -1);
-	
-	// clean users
-	for(usr = gm->usr; usr; usr = usr->nxt){
-		for(inp = usr->inputhead; inp; inp = nxt) {
-			nxt = inp->nxt;
-			free(inp);
-		}
-		usr->inputhead = usr->inputtail = 0;
-		if(gm->pencilgame)
-			cleanpencil(&usr->pencil);
-	}
-	
-	/* freeing up segments */
-	int i, num_tiles = gm->htiles * gm->vtiles;
-	for(i =0; i < num_tiles; i++) {
-		struct seg *a, *b;
-
-		for(a = gm->seg[i]; a; a = b) {
-			b = a->nxt;
-			free(a);
-		}
-	}
-	
-	remgame(gm); // voorlopig, later stopgame(gm);
-=======
 void endround(struct game *gm) {
 	struct user *usr, *winner = 0;
 	int maxpoints = -1, secondpoints = 0;
+	struct userinput *inp, *nxt;
 
 	if(DEBUG_MODE)
 		printf("ending round of game %p\n", (void *) gm);
@@ -580,6 +491,31 @@ void endround(struct game *gm) {
 
 	printf("maxpoints: %d, goal: %d, secondpoints: %d, nmin: %d\n",
 	 maxpoints, gm->goal, secondpoints, gm->nmin);
+	
+	
+	// clean users
+	for(usr = gm->usr; usr; usr = usr->nxt){
+		for(inp = usr->inputhead; inp; inp = nxt) {
+			nxt = inp->nxt;
+			free(inp);
+		}
+		usr->inputhead = usr->inputtail = 0;
+		if(gm->pencilgame)
+			cleanpencil(&usr->pencil);
+	}
+	 
+	/* freeing up segments */
+	int i, num_tiles = gm->htiles * gm->vtiles;
+	for(i =0; i < num_tiles; i++) {
+		struct seg *a, *b;
+		
+		for(a = gm->seg[i]; a; a = b) {
+			b = a->nxt;
+			free(a);
+		}
+		
+		gm->seg[i] = 0;
+	}
 
 	if(maxpoints >= gm->goal && (gm->nmin == 1 || maxpoints >= secondpoints + MIN_WIN_DIFF)) {
 		printf("game %p ended. winner = %d\n", (void*) gm, winner->id);
@@ -592,7 +528,7 @@ void endround(struct game *gm) {
 	else {
 		printf("round of game %p ended. round winner = %d\n", (void*) gm, usr ? usr->id : -1);
 		startgame(gm);
-	}		
+	}
 }
 
 void killplayer(struct user *usr, int reward) {
@@ -603,7 +539,6 @@ void killplayer(struct user *usr, int reward) {
 
 	if(DEBUG_MODE)
 		printf("player %d died\n", usr->id);
->>>>>>> origin/rounds
 }
 
 // simulate game tick
@@ -624,14 +559,8 @@ void simgame(struct game *gm) {
 	if(SEND_SEGMENTS && gm->tick % SEND_SEGMENTS == 0)
 		sendsegments(gm);
 	
-<<<<<<< HEAD
-	if(gm->alive <= 1 && (gm->nmin > 1 || gm->alive < 1)) {
-		endgame(gm);
-	}
-=======
 	if(gm->alive <= 1 && (gm->nmin > 1 || gm->alive < 1))
 		endround(gm);
->>>>>>> origin/rounds
 }
 
 static void resetGameChatCounters(struct game *gm) {
