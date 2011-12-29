@@ -9,6 +9,7 @@
 #define jsonaddjson cJSON_AddItemToObject
 #define jsondel	cJSON_Delete
 #define max(a,b) ((b) > (a) ? (b) : (a))
+#define min(a,b) ((b) > (a) ? (a) : (b))
 
 // returns NULL on error
 char *jsongetstr(cJSON *json, char* obj) {

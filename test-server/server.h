@@ -19,7 +19,7 @@
 #define ULTRA_VERBOSE 0
 #define SHOW_WARNING 1
 #define PRE_PADDING	LWS_SEND_BUFFER_PRE_PADDING
-#define POST_PADDING	LWS_SEND_BUFFER_POST_PADDING
+#define POST_PADDING LWS_SEND_BUFFER_POST_PADDING
 #define SEND_SEGMENTS 0 // om de hoeveel ticks het moet gebeuren (0=nooit)
 #define SHOW_DELAY 0
 #define MIN_WIN_DIFF 2 // minimum point lead required to win a game
@@ -70,7 +70,7 @@ struct seg{
 	struct seg *nxt;
 };
 
-struct game{
+struct game {
 	int type, n, w, h,		// game_type, number of players, width, height
 		nmin, nmax,			// desired number of players
 		tilew, tileh,		// tile width & height
@@ -80,7 +80,7 @@ struct game{
 		tick, alive,		// #ticks that have passed, #alive players
 		hsize, hfreq,		// hole size and frequency in ticks
 		hmin, hmax,			// min/ max ticks before start of first hole
-		start;				// start time in milliseconds after epoch
+		start, rsn;			// start in msecs after epoch, #players at round start
 	struct seg **seg;	// two dimensional array of linked lists, one for each tile
 	struct user *usr;	// user list
 	struct game *nxt;
@@ -88,7 +88,7 @@ struct game{
 	char pencilgame;
 };
 
-struct pencilseg{
+struct pencilseg {
 	struct seg seg;
 	int tick;
 	struct pencilseg *nxt, *prev;
@@ -107,7 +107,7 @@ struct userinput {
 	struct userinput *nxt;
 };
 
-struct user{
+struct user {
 	int id;
 	struct game *gm;
 	struct user *nxt;

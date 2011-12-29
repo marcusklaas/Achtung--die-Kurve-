@@ -162,13 +162,6 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			var nextRoundDelay = obj.startTime + this.serverTimeDifference - this.ping
 			 + extraGameStartTimeDifference - Date.now();
 
-			/* this.gameStartTimestamp = startTime + this.serverTimeDifference - this.ping
-	 + extraGameStartTimeDifference;
-	this.gameState = 'countdown';
-	var delay = this.gameStartTimestamp - Date.now(); */
-
-			debugLog('total delay = ' + nextRoundDelay + ', this.countdown = ' + this.countdown);
-
 			if(nextRoundDelay > this.countdown) {
 				var self = this;
 
@@ -207,7 +200,6 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			}
 			else
 				this.players[index].alive = false;
-
 			break;
 		case 'playerDied':
 			var index = this.getIndex(obj.playerId);
@@ -438,7 +430,7 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	window.scroll(0, 0);
 	this.audioController.playSound('countdown');
 	this.playerListStart();
-	debugLog("starting game in " + delay + " milliseconds");
+	// debugLog("starting game in " + delay + " milliseconds");
 
 	this.calcScale();
 	var container = document.getElementById(this.containerId);
@@ -559,7 +551,6 @@ GameEngine.prototype.clearPlayerList = function() {
 		this.playerList.removeChild(this.playerList.firstChild);
 }
 
-/* for sending chat messages. TODO: we want lobby chat as well! */
 GameEngine.prototype.sendChat = function() {
 	var msg = this.chatBar.value;
 
@@ -1136,35 +1127,6 @@ function getCookie(c_name) {
 			return unescape(y);
 	}
 }
-
-/* returns the width of page without scollbar -- niet meer nodig..
- * we gaan voor pagina waar je niet hoeft te scrollen. behalve mobiele shit maar
- * die hebben toch geen scrollbars
-function getPageWidth() {
-	var inner = document.createElement('p');
-	inner.style.width = "100%";
-	inner.style.height = "200px";
-
-	var outer = document.createElement('div');
-	outer.style.position = "absolute";
-	outer.style.top = "0px";
-	outer.style.left = "0px";
-	outer.style.visibility = "hidden";
-	outer.style.width = "200px";
-	outer.style.height = "150px";
-	outer.style.overflow = "hidden";
-	outer.appendChild (inner);
-
-	document.body.appendChild (outer);
-	var w1 = inner.offsetWidth;
-	outer.style.overflow = 'scroll';
-	var w2 = inner.offsetWidth;
-	if (w1 == w2) w2 = outer.clientWidth;
-
-	document.body.removeChild (outer);
-
-	return window.innerWidth - (w1 - w2);
-} */
 
 function debugLog(msg) {
 	var container = document.getElementById('debugLog');

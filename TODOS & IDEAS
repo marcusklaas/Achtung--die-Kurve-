@@ -4,8 +4,6 @@ transparency ipv een lichte kleur voor de gaten werkt misschien toch niet zo goe
 
 - server kan rare gamestarttime geven waardoor client dan 'starting game in -3434543564msec' krijgt. wss kwam het door standby. ik zie dat negatieve waarden nog steeds in de libwebsockets service loop kunnen komen? gefixed, hopelijk kan deze todo nu weg.
 
-- meerdere potjes per game. dus totdat een speler een gegeven aantal punten heeft. punten bijhouden in spelerlijst. als er meer dan 2 spelers meedoen, dan aantal punten in het potje = als hoeveelste je dood bent gegaan - 1.
-
 - canvas niet meer proberen te maximizen naar hele scherm, maar te maximizen naar een container van de canvasContainer. dan kun je door de css aan te passen van deze buitenste container bepalen hoe groot het speelscherm moet worden. overwegingen zijn dat je dan in CSS kan bepalen hoe de pagina eruitziet ipv in javascript en dat je ook nog een stukje chat en spelerlijst kunt zien tijdens het spel (en niet hoeft te scrollen voor herstart!)
 
 - custom games? dus met host die instellingen bepaalt. en dus met een gamelijst waar gebruikers kunnen kiezen wel te joinen. aantal designkeuzes te maken: als vervanging van de automatch, of als ernaast? wat als de host de game leavet terwijl ie nog niet is gestart? wordt de volgende player (als die er is) de host, of wordt de game ontbonden? => volgende player host

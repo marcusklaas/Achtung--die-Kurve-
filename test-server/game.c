@@ -16,15 +16,9 @@ void randomizePlayerStarts(struct game *gm) {
 }
 
 void iniuser(struct user *usr, struct libwebsocket *wsi) {
+	memset(usr, 0, sizeof(struct user));
 	usr->id = usrc++;
 	usr->wsi = wsi;
-	usr->sbat = 0;
-	usr->gm = 0;
-	usr->name = 0;
-	usr->nxt = 0;
-	usr->inputs = 0;
-	usr->chats = 0;
-	usr->inputhead = usr->inputtail = 0;
 }
 
 void startgame(struct game *gm) {
@@ -42,6 +36,7 @@ void startgame(struct game *gm) {
 			resetpencil(&usr->pencil, usr);
 	}
 	
+	gm->rsn = gm->n;
 	randomizePlayerStarts(gm);
 
 	int laterround = gm->usr->points || (gm->usr->nxt && gm->usr->nxt->points);
@@ -102,8 +97,8 @@ struct game *findgame(int nmin, int nmax) {
 	for(gm = headgame; gm; gm = gm->nxt)
 		if(gm->state == GS_LOBBY && gm->nmin <= nmax && gm->nmax >= nmin) {
 			if(gm->nmin < nmin || gm->nmax > nmax) {
-				gm->nmin = (gm->nmin > nmin) ? gm->nmin : nmin;
-				gm->nmax = (gm->nmax < nmax) ? gm->nmax : nmax;
+				gm->nmin = max(gm->nmin, nmin);
+				gm->nmax = min(gm->nmax, nmax);
 				cJSON *json = getjsongamepars(gm);
 				sendjsontogame(json, gm, 0);
 				jsondel(json);
@@ -199,7 +194,7 @@ void joingame(struct game *gm, struct user *newusr) {
 
 	if(gm->type != GT_LOBBY && ++gm->n >= gm->nmin) {
 		// goal = avg points per player * constant
-		gm->goal = (gm->n - 1)/ 2.0 * 2 * TWO_PLAYER_POINTS;
+		gm->goal = (gm->n - 1) * TWO_PLAYER_POINTS;
 		startgame(gm);
 	}
 
@@ -344,10 +339,10 @@ int addsegment(struct game *gm, struct seg *seg) {
 	/* run off screen */
 	if(seg->x2 < 0 || seg->x2 >= gm->w || seg->y2 < 0 || seg->y2 >= gm->h) {
 		collision = 1;
-		left_tile = (left_tile < 0) ? 0 : left_tile;
-		right_tile = (right_tile >= gm->htiles) ? (gm->htiles - 1) : right_tile;
-		bottom_tile = (bottom_tile < 0) ? 0 : bottom_tile;
-		top_tile = (top_tile >= gm->vtiles) ? (gm->vtiles - 1) : top_tile;
+		left_tile = max(left_tile, 0);
+		right_tile = min(right_tile, gm->htiles - 1);
+		bottom_tile = max(bottom_tile, 0);
+		top_tile = min(top_tile, gm->vtiles - 1);
 	}
 
 	for(int i = left_tile; i <= right_tile; i++) {
@@ -428,8 +423,6 @@ void deadplayermsg(struct user *usr, int tick) {
 	jsondel(json);
 }
 
-/* ik zag in addsegment free niet als SEND_SEGMENTS, maar ik zie je freet
- * ze hier in dat geval (Y) */
 void sendsegments(struct game *gm) {
 	if(gm->tosend) {
 		cJSON *json = jsoncreate("segments");
@@ -464,7 +457,7 @@ void endround(struct game *gm) {
 	/* give survivor his points */
 	for(usr = gm->usr; usr && !usr->alive; usr = usr->nxt);
 	if(usr)
-		usr->points += gm->n - 1; // FIXME: if someone left during this round winner won't get enough points
+		usr->points += gm->rsn - 1;
 
 	if(SEND_SEGMENTS)
 		sendsegments(gm);
@@ -486,13 +479,6 @@ void endround(struct game *gm) {
 			maxpoints = usr->points;
 		}
 
-	if(winner)
-		printf("winner->points: %d\n", winner->points);
-
-	printf("maxpoints: %d, goal: %d, secondpoints: %d, nmin: %d\n",
-	 maxpoints, gm->goal, secondpoints, gm->nmin);
-	
-	
 	// clean users
 	for(usr = gm->usr; usr; usr = usr->nxt){
 		for(inp = usr->inputhead; inp; inp = nxt) {
@@ -533,7 +519,6 @@ void endround(struct game *gm) {
 
 void killplayer(struct user *usr, int reward) {
 	usr->gm->alive -= usr->alive--;
-	// FIXME: if someone left during this round winner won't get enough points
 	usr->points += reward;
 	deadplayermsg(usr, usr->gm->tick);
 
@@ -544,7 +529,7 @@ void killplayer(struct user *usr, int reward) {
 // simulate game tick
 void simgame(struct game *gm) {
 	struct user *usr;
-	int reward = gm->n - gm->alive; // define here for when multiple players die this tick
+	int reward = gm->rsn - gm->alive; // define here for when multiple players die this tick
 
 	if(gm->tick < 0) {
 		gm->tick++;
@@ -597,7 +582,6 @@ void mainloop() {
 
 void interpretinput(cJSON *json, struct user *usr) {
 	struct userinput *input;
-	//int time = jsongetint(json, "gameTime");
 	int turn = jsongetint(json, "turn");
 	int tick = jsongetint(json, "tick");
 	int time = tick * TICK_LENGTH + TICK_LENGTH/ 2;
