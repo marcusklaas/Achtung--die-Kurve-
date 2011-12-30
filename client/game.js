@@ -382,10 +382,12 @@ GameEngine.prototype.syncWithServer = function() {
 GameEngine.prototype.doTick = function() {
 	var player = this.players[0];
 
+	this.tick++;
+
 	if(!player.alive)
 		return;
 
-	player.simulate(this.tick, ++this.tick, player.context, null);
+	player.simulate(this.tick - 1, this.tick, player.context, null);
 	
 	if(pencilGame)
 		this.pencil.doTick();
@@ -491,11 +493,11 @@ GameEngine.prototype.realStart = function() {
 	this.baseContext.clearRect(0, 0, this.width, this.height);
 	this.audioController.playSound('gameStart');
 	this.gameState = 'playing';
-	var tellert = 0;
 
 	var self = this;
 	var gameloop = function() {
 		var timeOut;
+		var tellert = 0;
 
 		do {
 			if(self.gameState != 'playing' && self.gameState != 'watching')
@@ -599,6 +601,7 @@ function Player(color, local) {
 	this.lca = 0; // last confirmed angle
 	this.lctick = 0; // game tick of last confirmed location
 	this.lcturn = 0;
+	this.lvelocity = 0;
 	this.color = color;
 	this.turn = 0; // -1 is turn left, 0 is straight, 1 is turn right
 	this.game = null; // to which game does this player belong
@@ -650,13 +653,15 @@ Player.prototype.steer = function(obj) {
 	this.y = this.lcy;
 	this.angle = this.lca;
 	this.turn = this.lcturn;
+	this.velocity = this.lvelocity;
 	this.simulate(this.lctick, obj.tick, this.game.baseContext, this.baseQueue);
 	this.turn = obj.turn;
 	this.baseQueue = [];
 	this.lcx = this.x;
 	this.lcy = this.y;
 	this.lca = this.angle;
-	this.lcturn = this.turn;	
+	this.lcturn = this.turn;
+	this.lvelocity = this.velocity;
 	this.lctick = obj.tick;
 
 	/* clear this players canvas and run extrapolation on this player's
@@ -723,13 +728,13 @@ Player.prototype.simulate = function(startTick, endTick, ctx, queue) {
 		this.x += this.velocity * step * cos;
 		this.y += this.velocity * step * sin;
 		
-		/* zo weer weg -- ff uitgezet want bron van syncproblemen
+		// zo weer weg -- ff uitgezet want bron van syncproblemen
 		var a = 70/2;
 		this.velocity += Math.cos(this.angle) * a / 1000 * simStep;
 		if(this.velocity < 70)
 			this.velocity = 70;
-		else if(this.velocity > 140)
-			this.velocity = 140; */
+		else if(this.velocity > 105)
+			this.velocity = 105; 
 		
 		ctx.lineTo(this.x, this.y);
 	}
@@ -738,7 +743,7 @@ Player.prototype.simulate = function(startTick, endTick, ctx, queue) {
 }
 
 Player.prototype.initialise = function(x, y, angle, holeStart) {
-	this.velocity = this.game.velocity;
+	this.lvelocity = this.velocity = this.game.velocity;
 	this.turnSpeed = this.game.turnSpeed;
 	this.holeStart = holeStart;
 	this.holeSize = this.game.holeSize;

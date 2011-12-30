@@ -2,9 +2,12 @@ var enableSound = true; // this is not constant! may change during execution of 
 var keyCodeLeft = 37; // left arrow button
 var keyCodeRight = 39; // right arrow button
 var chatSendKeyCode = 13; // enter
-var serverURL = (location.href.indexOf('localhost') != -1) ? 
-	"ws://localhost:" + location.href.substr(location.href.lastIndexOf(':') + 1) : 
-	"ws://marcusklaas.nl:7681"; // websocket game server
+
+var serverURL = "ws://marcusklaas.nl:7681"; // websocket game server
+if(location.href.indexOf('localhost') != -1)
+	serverURL = "ws://localhost:" + location.href.substr(location.href.lastIndexOf(':') + 1);
+else if(location.href.indexOf('82.161') != -1)
+	serverURL = "ws://82.161.20.2:7681";
 
 var gapAlpha = 0.2;
 var lineWidth = 3; // only visual, does not influence collisions

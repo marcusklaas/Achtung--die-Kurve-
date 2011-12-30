@@ -323,7 +323,7 @@ int lineboxcollision(struct seg *seg, int left, int bottom, int right, int top) 
 // returns 1 in case of collision, 0 other wise
 // TODO: it would be super nice if we would cut of the latter part of the segment 
 // if it intersects an existing segment
-int addsegment(struct game *gm, struct seg *seg) {
+int addsegment(struct game *gm, struct seg *seg, int checkcollision) {
 	int left_tile, right_tile, bottom_tile, top_tile, swap, collision = 0;
 	struct seg *current, *copy;
 
@@ -354,14 +354,15 @@ int addsegment(struct game *gm, struct seg *seg) {
 			 (i + 1) * gm->tilew, (j + 1) * gm->tileh))
 				continue;
 
-			for(current = gm->seg[gm->htiles * j + i]; current; current = current->nxt)
-				if(segcollision(current, seg)) {
-					if(DEBUG_MODE) {
-						printseg(current);printf(" collided with ");printseg(seg);printf("\n");
+			if(checkcollision)
+				for(current = gm->seg[gm->htiles * j + i]; current; current = current->nxt)
+					if(segcollision(current, seg)) {
+						if(DEBUG_MODE) {
+							printseg(current);printf(" collided with ");printseg(seg);printf("\n");
+						}
+						collision = 1;
+						break;
 					}
-					collision = 1;
-					break;
-				}
 
 			copy = smalloc(sizeof(struct seg));
 			memcpy(copy, seg, sizeof(struct seg));
@@ -402,12 +403,12 @@ int simuser(struct user *usr, int tick) {
 	usr->y += sin(usr->angle) * usr->v * TICK_LENGTH / 1000.0;
 	
 	// zo weer weg
-	/*float a = 70.0/2;
+	float a = 70.0/2;
 	usr->v += cos(usr->angle) * a / 1000.0 * TICK_LENGTH;
 	if(usr->v < 70)
 		usr->v = 70;
-	else if(usr->v > 140)
-		usr->v = 140;*/
+	else if(usr->v > 105)
+		usr->v = 105;
 
 	// check if usr in a hole. hole starts _AFTER_ hstart
 	if(tick > usr->hstart
@@ -421,7 +422,7 @@ int simuser(struct user *usr, int tick) {
 	newseg->x2 = usr->x;
 	newseg->y2 = usr->y;
 
-	return addsegment(usr->gm, newseg);
+	return addsegment(usr->gm, newseg, 1);
 }
 
 // send message to group: this player died
@@ -571,6 +572,7 @@ static void resetGameChatCounters(struct game *gm) {
 void mainloop() {
 	int sleepuntil, resetChat = !(serverticks % SPAM_CHECK_INTERVAL);
 	struct game *gm, *nxtgm;
+	static int lastheavyloadmsg;
 
 	while(1) {
 		for(gm = headgame; gm; gm = nxtgm) {
@@ -586,6 +588,10 @@ void mainloop() {
 			resetGameChatCounters(lobby);
 
 		sleepuntil = ++serverticks * TICK_LENGTH;
+		if(sleepuntil < servermsecs() - 5 * TICK_LENGTH && servermsecs() - lastheavyloadmsg > 1000){
+			printf("server is under heavy load! %d msec behind on schedule!\n", -sleepuntil);
+			lastheavyloadmsg = servermsecs();
+		}
 		do{
 			libwebsocket_service(ctx, max(0, sleepuntil - servermsecs()));
 		}while(sleepuntil - servermsecs() > 0);
@@ -778,7 +784,7 @@ struct seg *copyseg(struct seg *a) {
 void simpencil(struct pencil *p) {
 	if(p->psegtail && p->psegtail->tick == p->usr->gm->tick) {
 		struct pencilseg *tail = p->psegtail;
-		addsegment(p->usr->gm, copyseg(&tail->seg));
+		addsegment(p->usr->gm, copyseg(&tail->seg), 0);
 		if(tail->prev) {
 			tail->prev->nxt = 0;
 			p->psegtail = tail->prev;
