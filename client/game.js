@@ -84,11 +84,10 @@ GameEngine.prototype.disconnect = function() {
 	if(this.gameState == 'new')
 		return;
 
-	debugLog('disconnecting..');
+	debugLog('Disconnecting..');
 
 	this.gameState = 'new';
 	this.connected = false;
-	this.websocket.onclose = function () {}; 
 	this.websocket.close();
 	this.websocket = null;
 	this.resetPlayers();
@@ -119,11 +118,7 @@ GameEngine.prototype.connect = function(url, name, callback) {
 				game.interpretMsg(msg);
 		}
 		this.websocket.onclose = function() {
-			debugLog('Websocket connection closed!');
-			game.connected = false;
-			game.gameState = 'new';
-			game.reset();
-			game.resetPlayers();
+			game.disconnect();
 		}
 	} catch(exception) {
 		debugLog('websocket exception! name = ' + exception.name + ", message = "
@@ -496,6 +491,7 @@ GameEngine.prototype.realStart = function() {
 	this.baseContext.clearRect(0, 0, this.width, this.height);
 	this.audioController.playSound('gameStart');
 	this.gameState = 'playing';
+	var tellert = 0;
 
 	var self = this;
 	var gameloop = function() {
@@ -504,6 +500,13 @@ GameEngine.prototype.realStart = function() {
 		do {
 			if(self.gameState != 'playing' && self.gameState != 'watching')
 				return;
+
+			if(teller++ > 100) {
+		 		debugLog("ERROR. stopping gameloop. debug information: next tick time = " +
+		 		 ((self.tick + 1) * simStep) + ", current game time = " + 
+		 		 (Date.now() - self.gameStartTimestamp));
+		 		return;
+		 	}
 
 			while(self.tick - self.tock >= self.behind)
 				self.doTock();
@@ -1190,7 +1193,7 @@ function setButtonVisibility(show) {
 
 	if(show == 'start') {
 		hide = 'stop';
-		disconnectStyle = 'block';
+		disconnectStyle = 'inline';
 	}
 
 	document.getElementById(hide).style.display = 'none';
