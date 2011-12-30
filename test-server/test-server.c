@@ -218,8 +218,8 @@ callback_game(struct libwebsocket_context * context,
 			}
 		}
 		else if(!strcmp(mode, "leaveGame")) {
-			if(u->gm)
-				leavegame(u);
+			if(u->gm && u->gm - lobby)
+				joingame(lobby, u);
 		}
 		else if(strcmp(mode, "newInput") == 0) {
 			if(++(u->inputs) <= MAX_INPUTS && u->gm

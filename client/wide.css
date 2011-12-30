@@ -1,0 +1,78 @@
+body, html {
+	margin: 0;
+	padding: 0;
+	overflow: hidden;
+}
+
+body {
+	font-family: Arial, Helvetica, sans-serif;
+	text-align: center;
+}
+
+#offset {
+	height: 100%;
+	width: 100%;
+	float: right;
+	margin-left: -320px;
+}
+
+table {
+	width: 100%;
+}
+
+#content {
+	margin-left: 320px;
+}
+
+#gameContainer {
+	position: relative;
+}
+
+#sidebar {
+	padding: 5px;
+	width: 310px;
+}
+
+canvas {
+	image-rendering: optimizeSpeed;
+}
+
+input#chat {
+	margin: 0;
+	width: 95%;
+}
+
+ul {
+	margin: 0;
+	margin-top: 5px;
+	text-align: left;
+	list-style-type: square;
+	padding: 0;
+	padding-left: 20px;
+}
+
+li {
+	max-width: 800px;
+	word-wrap: break-word;
+}
+
+input#playername {
+	margin: 0;
+	width: 150px;
+}
+
+input[type=number] {
+	max-width: 50px;
+}
+
+button {
+	width: 100%;
+}
+
+div#status {
+	display: none;
+}
+
+#gameOptions, #stop {
+	display: none;
+}

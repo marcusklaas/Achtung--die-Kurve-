@@ -18,6 +18,9 @@ var syncTries = 2;
 var syncDelays = 50;
 var behind = 2; // desired difference between tock and tick
 
+var game = null;
+var localPlayer = null;
+
 /* debugging */
 var ultraVerbose = false;
 var simulatedPing = 0;

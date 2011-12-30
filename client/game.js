@@ -80,6 +80,22 @@ GameEngine.prototype.setIndex = function(playerId, index) {
 	return this.dict[playerId.toString()] = index;
 }
 
+GameEngine.prototype.disconnect = function() {
+	if(this.gameState == 'new')
+		return;
+
+	debugLog('disconnecting..');
+
+	this.gameState = 'new';
+	this.connected = false;
+	this.websocket.onclose = function () {}; 
+	this.websocket.close();
+	this.websocket = null;
+	this.resetPlayers();
+	this.reset();
+	setOptionVisibility('lobby');
+}		
+
 GameEngine.prototype.connect = function(url, name, callback) {
 	if(typeof MozWebSocket != "undefined")
 		this.websocket = new MozWebSocket(url, name);
@@ -115,13 +131,19 @@ GameEngine.prototype.connect = function(url, name, callback) {
 	}
 }
 
+GameEngine.prototype.leaveGame = function() {
+	if(this.gameState != 'new' && this.gameState != 'lobby') {
+		this.sendMsg('leaveGame', {});
+		this.gameState = 'lobby';
+		setButtonVisibility('start');
+	}
+}
+
 GameEngine.prototype.joinLobby = function(player) {
 	if(this.gameState != 'new')
 		return;
 
-	/* TODO: hide het joinlobby gedeelte van de interface en het joingame gedeelte
-	 * zichtbaar maken */
-
+	setOptionVisibility('game');
 	this.gameState = 'lobby';
 	this.addPlayer(player);
 	this.sendMsg('joinLobby', {'playerName': player.playerName});
@@ -213,12 +235,13 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'endRound':
 			var index = (obj.winnerId != -1) ? this.getIndex(obj.winnerId) : null;
 			var winner = (index != null) ? (this.players[index].playerName + ' won') : 'draw';
-			this.gameState = 'countdown'; // is dit nodig? wordt al gezet bij nieuwe startgame pakketje
+			this.gameState = 'countdown';
 			this.updatePlayerList(index, null, obj.points);
 			debugLog('round over. ' + winner);
 			break;			
 		case 'endGame':
 			this.gameState = 'lobby';
+			setButtonVisibility('start');
 			debugLog('game over. ' + this.players[this.getIndex(obj.winnerId)].playerName + ' won!');
 			this.clearPlayerList();
 			var localPlayer = this.players[0];
@@ -319,14 +342,11 @@ GameEngine.prototype.setParams = function(obj) {
 }	
 
 GameEngine.prototype.requestGame = function(player, minPlayers, maxPlayers) {
-	// TODO: we should allow player to leave game anytime. you could say: just
-	// remove the check, but that is not enough to get it to work (i think)
-	// we should probably add a leave game button or smth and then afterwards let 
-	// player join new game. that would be nice solution
 	if(this.gameState != 'lobby')
 		return;
 
 	this.gameState = 'waiting';
+	setButtonVisibility('stop');
 	player.inputQueue = [];
 	player.baseQueue = [];
 	this.resetPlayers();
@@ -406,13 +426,12 @@ GameEngine.prototype.addPlayer = function(player) {
 /* i wanted to do this in css but it isn't possible to do full height minus
  * fixed number of pixels */
 GameEngine.prototype.calcScale = function() {
-	var targetWidth = window.innerWidth;
+	var target = document.getElementById('content');
+	var targetWidth = target.offsetWidth;
 	var targetHeight = window.innerHeight;
 
-	if(true) { // select non-mobile devices, but how?
-		var infoContainer = document.getElementById('infoContainer');
-		// 6 = top + bottom margins, how to read in javascript? parseInt(infoContainer.style.marginTop) doesnt work ;o
-		targetHeight -= infoContainer.offsetHeight + 6;
+	if(false) { // for mobile devices
+		targetWidth = window.innerWidth;
 	}
 
 	this.scale = Math.min(targetWidth/ this.width, targetHeight/ this.height);
@@ -701,13 +720,13 @@ Player.prototype.simulate = function(startTick, endTick, ctx, queue) {
 		this.x += this.velocity * step * cos;
 		this.y += this.velocity * step * sin;
 		
-		// zo weer weg
-		/*var a = 70/2;
+		/* zo weer weg -- ff uitgezet want bron van syncproblemen
+		var a = 70/2;
 		this.velocity += Math.cos(this.angle) * a / 1000 * simStep;
 		if(this.velocity < 70)
 			this.velocity = 70;
 		else if(this.velocity > 140)
-			this.velocity = 140;*/
+			this.velocity = 140; */
 		
 		ctx.lineTo(this.x, this.y);
 	}
@@ -987,11 +1006,9 @@ window.onload = function() {
 	/* some objects */
 	var touchDevice = 'createTouch' in document;
 	var audioController = new AudioController();
-	var game = new GameEngine('canvasContainer', 'playerList',
-	 'chat', audioController);
-	var player = new Player(playerColors[0], true);
-	var inputControl = new InputController(player,
-	 keyCodeLeft, keyCodeRight);
+	game = new GameEngine('canvasContainer', 'playerList', 'chat', audioController);
+	localPlayer = new Player(playerColors[0], true);
+	var inputControl = new InputController(localPlayer, keyCodeLeft, keyCodeRight);
 
 	/* add sounds to controller */
 	audioController.addSound('localDeath', 'sounds/wilhelm', ['ogg']);
@@ -1062,14 +1079,14 @@ window.onload = function() {
 			return;
 		}
 
-		setCookie('playerName', player.playerName = playerName, 30);
+		setCookie('playerName', localPlayer.playerName = playerName, 30);
 
 		if(game.connected === false)
 			game.connect(serverURL, "game-protocol", function() {
-				game.joinLobby(player);
+				game.joinLobby(localPlayer);
 			});
 		else
-			game.joinLobby(player);
+			game.joinLobby(localPlayer);
 	}
 
 	function reqGame() {
@@ -1087,10 +1104,10 @@ window.onload = function() {
 		
 		if(game.connected === false)
 			game.connect(serverURL, "game-protocol", function() {
-				game.requestGame(player, minPlayers, maxPlayers);
+				game.requestGame(localPlayer, minPlayers, maxPlayers);
 			});
 		else
-			game.requestGame(player, minPlayers, maxPlayers);
+			game.requestGame(localPlayer, minPlayers, maxPlayers);
 	}
 
 	var lobbyButton = document.getElementById('lobby');
@@ -1098,18 +1115,30 @@ window.onload = function() {
 
 	var startButton = document.getElementById('start');
 	startButton.addEventListener('click', reqGame, false);
-	
-	var playerName = getCookie('playerName');
-	if(playerName != null && playerName != "")
-		document.getElementById('playername').value = playerName;
+
+	var leaveButton = document.getElementById('stop');
+	leaveButton.addEventListener('click', function() {
+		game.leaveGame();
+	}, false);
+
+	var disconnectButton = document.getElementById('disconnect');
+	disconnectButton.addEventListener('click', function() {
+		game.disconnect();
+	}, false);
+
 	var minPlayers = getCookie('minPlayers');
 	if(minPlayers != null)
 		document.getElementById('minplayers').value = minPlayers;
 	var maxPlayers = getCookie('maxPlayers');
 	if(maxPlayers != null)
 		document.getElementById('maxplayers').value = maxPlayers;
+	var playerName = getCookie('playerName');
 
-	game.connect(serverURL, "game-protocol", function() {;;;;;});
+	/* auto join lobby if name is known */
+	if(playerName != null && playerName != "") {
+		document.getElementById('playername').value = playerName;
+		joinLobby();
+	}
 }
 
 /* canvas context color setter */
@@ -1143,6 +1172,30 @@ function debugLog(msg) {
 
 	elt.innerHTML = msg;
     container.insertBefore(elt, container.firstChild);
+}
+
+function setOptionVisibility(show) {
+	var hide = 'game';
+
+	if(show == 'game')
+		hide = 'lobby';
+
+	document.getElementById(show + 'Options').style.display = 'block';
+	document.getElementById(hide + 'Options').style.display = 'none';
+}
+
+function setButtonVisibility(show) {
+	var hide = 'start';
+	var disconnectStyle = 'none';
+
+	if(show == 'start') {
+		hide = 'stop';
+		disconnectStyle = 'block';
+	}
+
+	document.getElementById(hide).style.display = 'none';
+	document.getElementById(show).style.display = 'inline';
+	document.getElementById('disconnect').style.display = disconnectStyle;
 }
 
 function getLength(x, y) {

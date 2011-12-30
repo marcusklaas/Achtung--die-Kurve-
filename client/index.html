@@ -5,52 +5,54 @@
 		<!--- for fancy touch devices --->
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 		<title>Achtung, die Kurve!</title>
-		<link rel="stylesheet" href="style.css" type="text/css"/>
+		<link rel="stylesheet" type="text/css" href="wide.css" />
 		<script src="config.js"></script>
 		<script src="buzz.js"></script>
 		<script src="canvaslayers.js"></script>
 		<script src="game.js"></script>
 	</head>
 	<body>
-		<div id="gameContainer">
-			<div id="canvasContainer"></div>
-			<div id="status"></div>
-		</div>
-
-		<div id="outerWrap">
-			<div id="centerAux">
-				<div id="infoContainer">
-					<!--- stom dat het op 1 regel moet maar whitespaces worden als text node gezien :S -->
-					<table id="playerList"><thead><tr><th>Player</th><th>Status</th><th>Points</th></tr></thead><tbody></tbody></table>
-
-					<div id="messagingContainer">
-						<input type="text" id="chat" placeholder="insults go here" />
-						<div id="chatContainer">
-							<ul id="debugLog"></ul>
-						</div>
-					</div>
-
-					<div id="controls">
-						<input type="text" id="playername" placeholder="playername" />
-						<button id="lobby">Join Lobby</button>
-						<hr/>
-						<span class="option">
-							minplayers: <input type="number" min="1" max="8" steps="1" value="2" id="minplayers" />
-						</span>
-						<span class="option">
-							maxplayers: <input type="number" min="1" max="8" steps="1" value="8" id="maxplayers" />
-						</span>
-						<button id="start">Request Game</button>
-						<span class="option">
-							sound <input type="checkbox" id="sound" checked>
-						</span>
-					</div>
+		<div id="offset">
+			<div id="content">
+				<div id="gameContainer">
+					<div id="canvasContainer"></div>
+					<div id="status"></div>
 				</div>
 			</div>
 		</div>
 
-		<footer>
-			Game by Rik and Marcus. The goal is to not bump into solid lines or the walls longer than the other players. Steer using arrow buttons. Source code can be found <a href="https://github.com/marcusklaas/Achtung--die-Kurve-">here</a>.
-		</footer>
+		<div id="sidebar">
+			<div id="lobbyOptions">
+				<input type="text" id="playername" placeholder="playername" />
+				<button id="lobby">Join Lobby</button>
+
+			</div>
+
+			<div id="gameOptions">
+				<span class="option">
+					minplayers: <input type="number" min="1" max="8" steps="1" value="2" id="minplayers" />
+				</span>
+				<span class="option">
+					maxplayers: <input type="number" min="1" max="8" steps="1" value="8" id="maxplayers" />
+				</span>
+				<button id="start">Request Game</button>
+				<button id="stop">Leave Game</button>
+				<button id="disconnect">Disconnect</button>
+				<span class="option">
+					sound: <input type="checkbox" id="sound" checked>
+				</span>
+			</div>
+
+			<table id="playerList">
+				<thead><tr><th>Player</th><th>Status</th><th>Points</th></tr>
+			</thead><tbody></tbody></table>
+
+			<div id="messagingContainer">
+				<input type="text" id="chat" placeholder="insults go here" />
+				<div id="chatContainer">
+					<ul id="debugLog"></ul>
+				</div>
+			</div>
+		</div>
 	</body>
 </html>

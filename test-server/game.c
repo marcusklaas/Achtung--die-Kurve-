@@ -377,7 +377,7 @@ int addsegment(struct game *gm, struct seg *seg) {
 	}else
 		free(seg);
 
-	return GOD_MODE ? 0 : collision;
+	return !GOD_MODE && collision;
 }
 
 // simulate user tick. returns 1 if player dies during this tick, 0 otherwise
@@ -459,7 +459,7 @@ void sendsegments(struct game *gm) {
 
 void endround(struct game *gm) {
 	struct user *usr, *winner = 0;
-	int maxpoints = -1, secondpoints = 0;
+	int maxpoints = 0, secondpoints = 0;
 	struct userinput *inp, *nxt;
 
 	if(DEBUG_MODE)
@@ -480,15 +480,16 @@ void endround(struct game *gm) {
 	sendjsontogame(json, gm, 0);
 	jsondel(json);
 
-	printf("first usr points: %d\n", gm->usr->points);
-
 	/* check if there is a winner */
-	for(usr = gm->usr; usr; usr = usr->nxt)
-		if(usr->points >= gm->goal && usr->points > maxpoints) {
+	for(usr = gm->usr; usr; usr = usr->nxt) {
+		if(usr->points >= maxpoints) {
 			winner = usr;
 			secondpoints = maxpoints;
 			maxpoints = usr->points;
 		}
+		else if(usr->points > secondpoints)
+			secondpoints = usr->points;
+	}
 
 	// clean users
 	for(usr = gm->usr; usr; usr = usr->nxt){
