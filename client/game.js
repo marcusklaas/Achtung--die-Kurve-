@@ -501,7 +501,7 @@ GameEngine.prototype.realStart = function() {
 			if(self.gameState != 'playing' && self.gameState != 'watching')
 				return;
 
-			if(teller++ > 100) {
+			if(tellert++ > 100) {
 		 		debugLog("ERROR. stopping gameloop. debug information: next tick time = " +
 		 		 ((self.tick + 1) * simStep) + ", current game time = " + 
 		 		 (Date.now() - self.gameStartTimestamp));
