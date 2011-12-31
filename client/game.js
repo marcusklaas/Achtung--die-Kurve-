@@ -126,14 +126,8 @@ GameEngine.prototype.connect = function(url, name, callback) {
 }
 
 GameEngine.prototype.leaveGame = function() {
-	if(this.gameState != 'new' && this.gameState != 'lobby') {
-		var localPlayer = this.players[0];
-
-		this.setGameState('lobby');
-		this.resetPlayers();
-		this.addPlayer(localPlayer);
+	if(this.gameState != 'new' && this.gameState != 'lobby')
 		this.sendMsg('leaveGame', {});
-	}
 }
 
 /* this function handles user interface changes for state transitions */
@@ -183,6 +177,10 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.setIndex(obj.playerId, 0);
 			break;
 		case 'joinedGame':
+			var localPlayer = this.players[0];
+			this.setGameState((obj.type == 'lobby') ? 'lobby' : 'waiting');
+			this.resetPlayers();
+			this.addPlayer(localPlayer);
 			break;
 		case 'gameParameters':
 			this.setParams(obj);
@@ -258,12 +256,6 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'endGame':
 			this.setGameState('waiting');
 			debugLog('game over. ' + this.players[this.getIndex(obj.winnerId)].playerName + ' won!');
-
-			/* 
-			this.clearPlayerList();
-			var localPlayer = this.players[0];
-			this.players = [];
-			this.addPlayer(localPlayer); */
 
 			if(obj.winnerId == this.localPlayerId)
 				this.audioController.playSound('localWin');
@@ -355,8 +347,6 @@ GameEngine.prototype.setParams = function(obj) {
 
 	if(obj.nmin > 0)
 		debugLog("This game is for " + obj.nmin + " to " + obj.nmax + " players");
-	else
-		debugLog("You are now in the lobby");
 }	
 
 GameEngine.prototype.requestGame = function(player, minPlayers, maxPlayers) {

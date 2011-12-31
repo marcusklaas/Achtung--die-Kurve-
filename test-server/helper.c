@@ -173,6 +173,19 @@ struct seg *copyseg(const struct seg *a) {
 	return b;
 }
 
+char *gametypetostr(int gametype) {
+	char *str = smalloc(7);
+
+	if(gametype == GT_AUTO)
+		strcpy(str, "auto");
+	else if(gametype == GT_LOBBY)
+		strcpy(str, "lobby");
+	else
+		strcpy(str, "custom");
+
+	return str;
+}
+
 /* is there no extension, return "" */
 char *getFileExt(char *path) {
 	char *ext, *point = strrchr(path, '.');

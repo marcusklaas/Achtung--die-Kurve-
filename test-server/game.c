@@ -160,6 +160,7 @@ void joingame(struct game *gm, struct user *newusr) {
 
 	// tell user s/he joined a game.
 	json = jsoncreate("joinedGame");
+	jsonaddstr(json, "type", gametypetostr(gm->type));
 	sendjson(json, newusr);
 	jsondel(json);
 
@@ -465,18 +466,12 @@ void sendsegments(struct game *gm) {
 
 cJSON *encodegame(struct game *gm) {
 	cJSON *json = cJSON_CreateObject();
-	char *type = smalloc(7);
-
-	if(gm->type == GT_AUTO)
-		strcpy(type, "auto");
-	else
-		strcpy(type, "custom");	
 
 	jsonaddnum(json, "id", gm->id);
 	jsonaddnum(json, "n", gm->n);
 	jsonaddnum(json, "nmin", gm->nmin);
 	jsonaddnum(json, "nmax", gm->nmax);
-	jsonaddstr(json, "type", type);
+	jsonaddstr(json, "type", gametypetostr(gm->type));
 	return json;
 }
 
@@ -559,7 +554,10 @@ void endround(struct game *gm) {
 		jsonaddnum(json, "winnerId", winner->id);
 		sendjsontogame(json, gm, 0);
 		jsondel(json);
+
 		gm->state = GS_ENDED;
+		if(gm->n == 1)
+			remgame(gm);
 	}
 	else {
 		printf("round of game %p ended. round winner = %d\n", (void*) gm, usr ? usr->id : -1);
