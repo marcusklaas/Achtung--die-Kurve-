@@ -34,8 +34,8 @@
     this.bkgCvs = document.createElement('canvas');
     this.bkgCvsId = this.holderID+"_bkg";
     this.bkgCvs.setAttribute('id', this.bkgCvsId);
-    this.bkgCvs.setAttribute('width', this.holderNode.offsetWidth);
-    this.bkgCvs.setAttribute('height', this.holderNode.offsetHeight);
+    this.bkgCvs.setAttribute('width', this.holderNode.clientWidth);
+    this.bkgCvs.setAttribute('height', this.holderNode.clientHeight);
     this.bkgCvs.style.backgroundColor = "transparent";
     if (bkgColor != undefined)
       this.bkgCvs.style.backgroundColor = bkgColor;
@@ -62,8 +62,8 @@
 
     this.ovlyNumber++;   // increment the count to make unique ids
     newCvs.setAttribute('id', ovlId);
-    newCvs.setAttribute('width', this.holderNode.offsetWidth);
-    newCvs.setAttribute('height', this.holderNode.offsetHeight);
+    newCvs.setAttribute('width', this.holderNode.clientWidth);
+    newCvs.setAttribute('height', this.holderNode.clientHeight);
     newCvs.style.backgroundColor = "transparent";
     newCvs.style.position = "absolute";
     newCvs.style.left = "0px";

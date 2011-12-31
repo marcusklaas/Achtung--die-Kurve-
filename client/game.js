@@ -423,15 +423,23 @@ GameEngine.prototype.addPlayer = function(player) {
 /* i wanted to do this in css but it isn't possible to do full height minus
  * fixed number of pixels */
 GameEngine.prototype.calcScale = function() {
-	var target = document.getElementById('content');
-	var targetWidth = target.offsetWidth;
-	var targetHeight = window.innerHeight;
+	var sidebar = document.getElementById('sidebar');
+	this.targetWidth = document.body.clientWidth - sidebar.offsetWidth - 1;
+	this.targetHeight = document.body.clientHeight - 1;
 
 	if(false) { // for mobile devices
-		targetWidth = window.innerWidth;
+		this.targetWidth = window.innerWidth;
 	}
-
-	this.scale = Math.min(targetWidth/ this.width, targetHeight/ this.height);
+	
+	var scaleX = this.targetWidth/ this.width;
+	var scaleY = this.targetHeight/ this.height;
+	if(scaleX < scaleY) {
+		this.targetHeight = Math.round(this.height * scaleX);
+		this.scale = scaleX;
+	}else {
+		this.targetWidth = Math.round(this.width * scaleY);
+		this.scale = scaleY;
+	}
 }
 
 GameEngine.prototype.start = function(startPositions, startTime) {
@@ -450,8 +458,8 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 
 	this.calcScale();
 	var container = document.getElementById(this.containerId);
-	container.style.width = Math.floor(this.width * this.scale) + 'px';
-	container.style.height = Math.floor(this.height * this.scale) + 'px';	
+	container.style.width = this.targetWidth + 'px';
+	container.style.height = this.targetHeight + 'px';
 
 	/* create canvas stack */
 	this.canvasStack = new CanvasStack(this.containerId, canvasBgcolor);
