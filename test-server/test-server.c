@@ -104,8 +104,9 @@ callback_game(struct libwebsocket_context * context,
 		if(DEBUG_MODE) printf("LWS_CALLBACK_ESTABLISHED\n");
 		iniuser(u, wsi);
 		if(DEBUG_MODE) { printf("new user created:\n"); printuser(u); printf("\n"); }
-		json= jsoncreate("acceptUser");
+		json = jsoncreate("acceptUser");
 		jsonaddnum(json, "playerId", u->id);
+		jsonaddnum(json, "tickLength", TICK_LENGTH);
 		sendjson(json, u);
 		jsondel(json);
 		break;
