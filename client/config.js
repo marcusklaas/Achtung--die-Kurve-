@@ -8,6 +8,8 @@ if(location.href.indexOf('localhost') != -1)
 	serverURL = "ws://localhost:" + location.href.substr(location.href.lastIndexOf(':') + 1);
 else if(location.href.indexOf('82.161') != -1)
 	serverURL = "ws://82.161.20.2:7681";
+else if(location.href.indexOf('192.168.1.101') != -1)
+	serverURL = "ws://192.168.1.101:7681";
 
 var gapAlpha = 0.2;
 var lineWidth = 3; // only visual, does not influence collisions
@@ -23,6 +25,7 @@ var behind = 2; // desired difference between tock and tick
 
 var game = null;
 var localPlayer = null;
+var touchDevice = null;
 
 /* debugging */
 var ultraVerbose = false;

@@ -406,13 +406,13 @@ int simuser(struct user *usr, int tick) {
 	usr->x += cos(usr->angle) * usr->v * TICK_LENGTH / 1000.0;
 	usr->y += sin(usr->angle) * usr->v * TICK_LENGTH / 1000.0;
 	
-	// zo weer weg
+	/* zo weer weg
 	float a = 70.0/2;
 	usr->v += cos(usr->angle) * a / 1000.0 * TICK_LENGTH;
 	if(usr->v < 70)
 		usr->v = 70;
 	else if(usr->v > 105)
-		usr->v = 105;
+		usr->v = 105;*/
 
 	// check if usr in a hole. hole starts _AFTER_ hstart
 	if(tick > usr->hstart

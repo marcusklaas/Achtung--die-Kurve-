@@ -494,7 +494,7 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	
 	var self = this;
 	window.setTimeout(function() { self.realStart(); }, delay + simStep);
-	document.getElementById('chat').focus();
+	game.focusChat();
 }
 
 GameEngine.prototype.realStart = function() {
@@ -593,6 +593,11 @@ GameEngine.prototype.sendChat = function() {
 	this.sendMsg('chat', {'message': msg});
 	this.chatBar.value = '';
 	this.printChat(this.localPlayerId, msg);
+}
+
+GameEngine.prototype.focusChat = function() {
+	if(!touchDevice)
+		this.chatBar.focus();
 }
 
 /* players */
@@ -737,13 +742,13 @@ Player.prototype.simulate = function(startTick, endTick, ctx, queue) {
 		this.x += this.velocity * step * cos;
 		this.y += this.velocity * step * sin;
 		
-		// zo weer weg -- ff uitgezet want bron van syncproblemen
+		/* zo weer weg
 		var a = 70/2;
 		this.velocity += Math.cos(this.angle) * a / 1000 * simStep;
 		if(this.velocity < 70)
 			this.velocity = 70;
 		else if(this.velocity > 105)
-			this.velocity = 105; 
+			this.velocity = 105; */
 		
 		ctx.lineTo(this.x, this.y);
 	}
@@ -812,9 +817,12 @@ function InputController(player, left, right) {
 	this.lastSteerTick = -1;
 }
 
-InputController.prototype.keyDown = function(keyCode) {
+InputController.prototype.keyDown = function(keyCode, e) {
 	if(this.player.game == null || this.player.game.gameState != 'playing')
 		return;
+		
+	if(e != undefined && (keyCode == this.rightKeyCode || keyCode == this.lefttKeyCode))
+		e.preventDefault();
 
 	if(keyCode == this.rightKeyCode && this.player.turn != -1) 
 		this.steerLocal(-1);
@@ -823,9 +831,12 @@ InputController.prototype.keyDown = function(keyCode) {
 		this.steerLocal(1);
 }
 
-InputController.prototype.keyUp = function(keyCode) {
+InputController.prototype.keyUp = function(keyCode, e) {
 	if(this.player.game == null || this.player.game.gameState != 'playing')
 		return;
+		
+	if(e != undefined && (keyCode == this.rightKeyCode || keyCode == this.lefttKeyCode))
+		e.preventDefault();
 
 	if((keyCode == this.rightKeyCode && this.player.turn == -1) ||
 	 (keyCode == this.leftKeyCode && this.player.turn == 1)) 
@@ -892,7 +903,7 @@ function Pencil(game) {
 			self.cur = ev;
 			self.down = false;
 			self.upped = true;
-			document.getElementById('chat').focus();
+			game.focusChat();
 		}
 	}, false);
 	canvas.addEventListener('mouseout', function(ev) {
@@ -900,7 +911,7 @@ function Pencil(game) {
 			self.cur = ev;
 			self.down = false;
 			self.out = true;
-			document.getElementById('chat').focus();
+			game.focusChat();
 		}
 	}, false);
 }
@@ -964,7 +975,7 @@ Pencil.prototype.doTick = function() {
 			this.last = this.cur;
 			if(this.ink == 0){
 				this.down = false;
-				document.getElementById('chat').focus();
+				game.focusChat();
 			}
 		}
 		this.out = false;
@@ -1021,7 +1032,7 @@ Pencil.prototype.getRelativeMousePos = function(ev) {
 window.onload = function() {
 
 	/* some objects */
-	var touchDevice = 'createTouch' in document;
+	touchDevice = 'createTouch' in document;
 	var audioController = new AudioController();
 	game = new GameEngine('canvasContainer', 'playerList', 'chat', audioController);
 	localPlayer = new Player(playerColors[0], true);
@@ -1037,9 +1048,9 @@ window.onload = function() {
 	/* delegate key presses and releases */
 	// stond document.body maar dan werken je keys niet meer na muisklik
 	window.addEventListener('keydown',
-	 function(e) { inputControl.keyDown(e.keyCode); }, false);
+	 function(e) { inputControl.keyDown(e.keyCode, e); }, false);
 	window.addEventListener('keyup',
-	 function(e) { inputControl.keyUp(e.keyCode); }, false);
+	 function(e) { inputControl.keyUp(e.keyCode, e); }, false);
 
 	/* add listener for enter press for sending chat */
 	document.getElementById('chat').addEventListener('keydown', function(e) {
@@ -1050,21 +1061,27 @@ window.onload = function() {
 	/* register touches for fancy phones n tablets */
 	if(touchDevice) {
 		var canvas = document.getElementById('canvasContainer');
+		var sidebar = document.getElementById('sidebar');
 		
 		function touch(event, start) {
 			var touch = event.changedTouches[0];
-			var width = window.innerWidth;
-			var left = (touch.pageX < width / 3);
-
-			if(inputControl.player.game.gameState != 'playing' ||
-			 (touch.pageX < width * 2 / 3 && !left))
+			var x = touch.pageX - sidebar.offsetWidth;
+			var width = canvas.clientWidth;
+			
+			if(x < 0 || inputControl.player.game.gameState != 'playing')
+				return;
+			
+			event.preventDefault();
+			
+			var left = (x < width / 3);
+			
+			if(x < width * 2 / 3 && !left)
 				return;
 
 			if(start)
 				inputControl.keyDown(left ? keyCodeLeft : keyCodeRight);
 			else
 				inputControl.keyUp(left ? keyCodeLeft : keyCodeRight);
-			event.preventDefault();
 		}
 
 		canvas.addEventListener('touchstart', function(e) { touch(e, true); });
