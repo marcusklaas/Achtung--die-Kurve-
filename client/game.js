@@ -86,13 +86,12 @@ GameEngine.prototype.disconnect = function() {
 
 	debugLog('Disconnecting..');
 
-	this.gameState = 'new';
+	this.setGameState('new');
 	this.connected = false;
 	this.websocket.close();
 	this.websocket = null;
 	this.resetPlayers();
 	this.reset();
-	setOptionVisibility('lobby');
 }		
 
 GameEngine.prototype.connect = function(url, name, callback) {
@@ -128,9 +127,32 @@ GameEngine.prototype.connect = function(url, name, callback) {
 
 GameEngine.prototype.leaveGame = function() {
 	if(this.gameState != 'new' && this.gameState != 'lobby') {
+		var localPlayer = this.players[0];
+
+		this.setGameState('lobby');
+		this.resetPlayers();
+		this.addPlayer(localPlayer);
 		this.sendMsg('leaveGame', {});
-		this.gameState = 'lobby';
-		setButtonVisibility('start');
+	}
+}
+
+/* this function handles user interface changes for state transitions */
+GameEngine.prototype.setGameState = function(newState) {
+	this.gameState = newState;
+
+	switch(newState) {
+		case 'lobby':
+			setOptionVisibility('game');
+			setButtonVisibility('start');
+			break;
+		case 'waiting':
+			// hide game options and lobby options
+			setOptionVisibility('game');
+			setButtonVisibility('stop');
+			break;
+		case 'new':
+			setOptionVisibility('lobby');
+			break;
 	}
 }
 
@@ -138,8 +160,7 @@ GameEngine.prototype.joinLobby = function(player) {
 	if(this.gameState != 'new')
 		return;
 
-	setOptionVisibility('game');
-	this.gameState = 'lobby';
+	this.setGameState('lobby');
 	this.addPlayer(player);
 	this.sendMsg('joinLobby', {'playerName': player.playerName});
 }
@@ -162,7 +183,6 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.setIndex(obj.playerId, 0);
 			break;
 		case 'joinedGame':
-			// this.gameState = 'waiting';
 			break;
 		case 'gameParameters':
 			this.setParams(obj);
@@ -231,18 +251,19 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'endRound':
 			var index = (obj.winnerId != -1) ? this.getIndex(obj.winnerId) : null;
 			var winner = (index != null) ? (this.players[index].playerName + ' won') : 'draw';
-			this.gameState = 'countdown';
+			this.setGameState('countdown');
 			this.updatePlayerList(index, null, obj.points);
 			debugLog('round over. ' + winner);
 			break;			
 		case 'endGame':
-			this.gameState = 'lobby';
-			setButtonVisibility('start');
+			this.setGameState('waiting');
 			debugLog('game over. ' + this.players[this.getIndex(obj.winnerId)].playerName + ' won!');
+
+			/* 
 			this.clearPlayerList();
 			var localPlayer = this.players[0];
 			this.players = [];
-			this.addPlayer(localPlayer);
+			this.addPlayer(localPlayer); */
 
 			if(obj.winnerId == this.localPlayerId)
 				this.audioController.playSound('localWin');
@@ -341,8 +362,7 @@ GameEngine.prototype.requestGame = function(player, minPlayers, maxPlayers) {
 	if(this.gameState != 'lobby')
 		return;
 
-	this.gameState = 'waiting';
-	setButtonVisibility('stop');
+	this.setGameState('waiting');
 	player.inputQueue = [];
 	player.baseQueue = [];
 	this.resetPlayers();
@@ -428,7 +448,7 @@ GameEngine.prototype.calcScale = function() {
 	this.targetWidth = document.body.clientWidth - sidebar.offsetWidth - 1;
 	this.targetHeight = document.body.clientHeight - 1;
 
-	if(false) { // for mobile devices
+	if(touchDevice) {
 		this.targetWidth = window.innerWidth;
 	}
 	
@@ -446,7 +466,7 @@ GameEngine.prototype.calcScale = function() {
 GameEngine.prototype.start = function(startPositions, startTime) {
 	this.gameStartTimestamp = startTime + this.serverTimeDifference - this.ping
 	 + extraGameStartTimeDifference;
-	this.gameState = 'countdown';
+	this.setGameState('countdown');
 	var delay = this.gameStartTimestamp - Date.now();
 	
 	if(jsProfiling)
@@ -501,7 +521,7 @@ GameEngine.prototype.realStart = function() {
 	// clearing angle indicators from base layer
 	this.baseContext.clearRect(0, 0, this.width, this.height);
 	this.audioController.playSound('gameStart');
-	this.gameState = 'playing';
+	this.setGameState('playing');
 
 	var self = this;
 	var gameloop = function() {

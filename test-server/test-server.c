@@ -12,6 +12,7 @@
 struct libwebsocket_context *ctx;
 static struct game *lobby, *headgame = 0;
 static int usrc = 0; // user count
+static int gmc = 1; // game count
 static unsigned long serverticks = 0; // yes this will underflow, but not fast ;p
 
 #include "helper.c"
@@ -108,6 +109,10 @@ callback_game(struct libwebsocket_context * context,
 		jsonaddnum(json, "playerId", u->id);
 		jsonaddnum(json, "tickLength", TICK_LENGTH);
 		sendjson(json, u);
+		jsondel(json);
+
+		// TODO: we should probably cache either the game or the game list
+		sendjson(json = encodegamelist(), u);
 		jsondel(json);
 		break;
 

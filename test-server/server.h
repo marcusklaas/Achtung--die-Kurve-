@@ -20,7 +20,6 @@
 #define SHOW_DELAY 0
 #define MIN_WIN_DIFF 2 // minimum point lead required to win a game
 #define TWO_PLAYER_POINTS 3 // points required to win two player game
-// TODO: wind snelheid, wind richting constantes
 
 /* debugging */
 #define DEBUG_MODE 1
@@ -58,6 +57,7 @@
 #define GS_LOBBY 0
 #define GS_STARTED 1
 #define GS_REMOVING_GAME 2
+#define GS_ENDED 3
 
 /* http server */
 #define LOCAL_RESOURCE_PATH "../client"
@@ -75,7 +75,8 @@ struct seg{
 };
 
 struct game {
-	int type, n, w, h,		// game_type, number of players, width, height
+	int id, type,			// game_id, game_type
+		n, w, h,			// number of players, width, height
 		nmin, nmax,			// desired number of players
 		tilew, tileh,		// tile width & height
 		htiles, vtiles,		// number of horizontal tiles & vertical tiles

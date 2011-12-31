@@ -213,6 +213,7 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	if(DEBUG_MODE)
 		printf("creating game %p\n", (void*)gm);
 
+	gm->id = gmc++;
 	gm->type = gametype;
 	gm->nmin = nmin; gm->nmax = nmax;
 	gm->w = GAME_WIDTH;
@@ -265,8 +266,8 @@ int segcollision(struct seg *seg1, struct seg *seg2, char cutoff) {
 				a = seg1->x1; b = seg1->x2; c = seg2->x1; d = seg2->x2;
 			}
 
-			if(a>b) { e =a; a =b; b =e; }
-			if(c>d) { e =c; c =d; d =c; }
+			if(a > b) { e = a; a = b; b = e; }
+			if(c > d) { e = c; c = d; d = c; }
 
 			return (c < b && d > a);
 		}
@@ -358,17 +359,18 @@ int addsegment(struct game *gm, struct seg *seg, int checkcollision) {
 	for(int i = left_tile; i <= right_tile; i++) {
 		for(int j = bottom_tile; j <= top_tile; j++) {
 			if(!lineboxcollision(seg, i * gm->tilew, j * gm->tileh,
-			 (i + 1) * gm->tilew, (j + 1) * gm->tileh) || !checkcollision)
+			 (i + 1) * gm->tilew, (j + 1) * gm->tileh))
 				continue;
 
-			for(current = gm->seg[gm->htiles * j + i]; current; current = current->nxt)
-				if(segcollision(current, seg, 1)) {
-					if(DEBUG_MODE) {
-						printseg(current);printf(" collided with ");printseg(seg);printf("\n");
+			if(checkcollision)
+				for(current = gm->seg[gm->htiles * j + i]; current; current = current->nxt)
+					if(segcollision(current, seg, 1)) {
+						if(DEBUG_MODE) {
+							printseg(current);printf(" collided with ");printseg(seg);printf("\n");
+						}
+						collision = 1;
+						break;
 					}
-					collision = 1;
-					break;
-				}
 
 			(copy = copyseg(seg))->nxt = gm->seg[gm->htiles * j + i];
 			gm->seg[gm->htiles * j + i] = copy;
@@ -461,6 +463,37 @@ void sendsegments(struct game *gm) {
 	}
 }
 
+cJSON *encodegame(struct game *gm) {
+	cJSON *json = cJSON_CreateObject();
+	char *type = smalloc(7);
+
+	if(gm->type == GT_AUTO)
+		strcpy(type, "auto");
+	else
+		strcpy(type, "custom");	
+
+	jsonaddnum(json, "id", gm->id);
+	jsonaddnum(json, "n", gm->n);
+	jsonaddnum(json, "nmin", gm->nmin);
+	jsonaddnum(json, "nmax", gm->nmax);
+	jsonaddstr(json, "type", type);
+	return json;
+}
+
+cJSON *encodegamelist() {
+	struct game *gm;
+	cJSON *game, *gmArr, *json = jsoncreate("gameList");
+	
+	gmArr = cJSON_CreateArray();
+	cJSON_AddItemToObject(json, "games", gmArr);
+
+	for(gm = headgame; gm; gm = gm->nxt) {
+		game = encodegame(gm);
+		cJSON_AddItemToArray(gmArr, game);
+	}
+
+	return json;
+}
 
 void endround(struct game *gm) {
 	struct user *usr, *winner = 0;
@@ -526,7 +559,7 @@ void endround(struct game *gm) {
 		jsonaddnum(json, "winnerId", winner->id);
 		sendjsontogame(json, gm, 0);
 		jsondel(json);
-		remgame(gm);
+		gm->state = GS_ENDED;
 	}
 	else {
 		printf("round of game %p ended. round winner = %d\n", (void*) gm, usr ? usr->id : -1);
