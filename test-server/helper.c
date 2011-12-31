@@ -150,7 +150,7 @@ char *duplicatestring(char *orig) {
 
 // safe malloc, exit(500) on error
 void *smalloc(size_t size) {
-	void* a = malloc(size);
+	void *a = malloc(size);
 	if(!a) {
 		printf("malloc failed, exiting..\n");
 		exit(500);
@@ -159,12 +159,18 @@ void *smalloc(size_t size) {
 }
 
 void *scalloc(size_t num, size_t size) {
-	void* a = calloc(num, size);
+	void *a = calloc(num, size);
 	if(!a) {
 		printf("malloc failed, exiting..\n");
 		exit(500);
 	}
 	return a;
+}
+
+struct seg *copyseg(const struct seg *a) {
+	struct seg *b = smalloc(sizeof(struct seg));
+	memcpy(b, a, sizeof(struct seg));
+	return b;
 }
 
 /* is there no extension, return "" */

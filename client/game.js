@@ -158,6 +158,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 	switch(obj.mode) {
 		case 'acceptUser':
 			this.localPlayerId = obj.playerId;
+			simStep = obj.tickLength;
 			this.setIndex(obj.playerId, 0);
 			break;
 		case 'joinedGame':

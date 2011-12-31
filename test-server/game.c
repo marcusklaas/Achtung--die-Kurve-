@@ -239,7 +239,7 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 }
 
 // returns 1 if collision, 0 if no collision
-int segcollision(struct seg *seg1, struct seg *seg2) {
+int segcollision(struct seg *seg1, struct seg *seg2, char cutoff) {
 	// ok we dont want two consecutive segments from player to collide
 	if(seg1->x2 == seg2->x1 && seg1->y2 == seg2->y1)
 		return 0;
@@ -277,7 +277,16 @@ int segcollision(struct seg *seg1, struct seg *seg2) {
 	float a = numer_a/ denom;
 	float b = numer_b/ denom;
 
-	return a >= 0 && a <= 1 && b >= 0 && b <= 1;
+	if(a >= 0 && a <= 1 && b >= 0 && b <= 1) {
+		if(cutoff) {
+			seg1->x2 = (1 - a) * seg1->x1 + a * seg1->x2;
+			seg1->y2 = (1 - a) * seg1->y1 + a * seg1->y2;
+		}
+
+		return 1;
+	}
+
+	return 0;
 }
 
 // returns 1 in case the segment intersects the box
@@ -298,31 +307,29 @@ int lineboxcollision(struct seg *seg, int left, int bottom, int right, int top) 
 	edge.x1 = edge.x2 = left;
 	edge.y1 = bottom;
 	edge.y2 = top;
-	if(segcollision(seg, &edge))
+	if(segcollision(seg, &edge, 0))
 		return 1;
 
 	/* check intersect right border */
 	edge.x1 = edge.x2 = right;
-	if(segcollision(seg, &edge))
+	if(segcollision(seg, &edge, 0))
 		return 1;
 
 	/* check intersect top border */
 	edge.x1 = left;
 	edge.y1 = edge.y2 = top;
-	if(segcollision(seg, &edge))
+	if(segcollision(seg, &edge, 0))
 		return 1;
 
 	/* check intersect top border */
 	edge.y1 = edge.y2 = bottom;
-	if(segcollision(seg, &edge))
+	if(segcollision(seg, &edge, 0))
 		return 1;
 
 	return 0;
 }
 
 // returns 1 in case of collision, 0 other wise
-// TODO: it would be super nice if we would cut of the latter part of the segment 
-// if it intersects an existing segment
 int addsegment(struct game *gm, struct seg *seg, int checkcollision) {
 	int left_tile, right_tile, bottom_tile, top_tile, swap, collision = 0;
 	struct seg *current, *copy;
@@ -351,22 +358,19 @@ int addsegment(struct game *gm, struct seg *seg, int checkcollision) {
 	for(int i = left_tile; i <= right_tile; i++) {
 		for(int j = bottom_tile; j <= top_tile; j++) {
 			if(!lineboxcollision(seg, i * gm->tilew, j * gm->tileh,
-			 (i + 1) * gm->tilew, (j + 1) * gm->tileh))
+			 (i + 1) * gm->tilew, (j + 1) * gm->tileh) || !checkcollision)
 				continue;
 
-			if(checkcollision)
-				for(current = gm->seg[gm->htiles * j + i]; current; current = current->nxt)
-					if(segcollision(current, seg)) {
-						if(DEBUG_MODE) {
-							printseg(current);printf(" collided with ");printseg(seg);printf("\n");
-						}
-						collision = 1;
-						break;
+			for(current = gm->seg[gm->htiles * j + i]; current; current = current->nxt)
+				if(segcollision(current, seg, 1)) {
+					if(DEBUG_MODE) {
+						printseg(current);printf(" collided with ");printseg(seg);printf("\n");
 					}
+					collision = 1;
+					break;
+				}
 
-			copy = smalloc(sizeof(struct seg));
-			memcpy(copy, seg, sizeof(struct seg));
-			copy->nxt = gm->seg[gm->htiles * j + i];
+			(copy = copyseg(seg))->nxt = gm->seg[gm->htiles * j + i];
 			gm->seg[gm->htiles * j + i] = copy;
 		}
 	}
@@ -588,7 +592,7 @@ void mainloop() {
 			resetGameChatCounters(lobby);
 
 		sleepuntil = ++serverticks * TICK_LENGTH;
-		if(sleepuntil < servermsecs() - 5 * TICK_LENGTH && servermsecs() - lastheavyloadmsg > 1000){
+		if(sleepuntil < servermsecs() - 5 * TICK_LENGTH && servermsecs() - lastheavyloadmsg > 1000) {
 			printf("server is under heavy load! %d msec behind on schedule!\n", -sleepuntil);
 			lastheavyloadmsg = servermsecs();
 		}
@@ -773,12 +777,6 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 		jsonaddjson(k, "data", j);
 		sendjsontogame(k, u->gm, 0);
 	}
-}
-
-struct seg *copyseg(struct seg *a) {
-	struct seg *b = smalloc(sizeof(struct seg));
-	memcpy(b, a, sizeof(struct seg));
-	return b;
 }
 
 void simpencil(struct pencil *p) {
