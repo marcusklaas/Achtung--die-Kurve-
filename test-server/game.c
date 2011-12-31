@@ -279,8 +279,8 @@ int segcollision(struct seg *seg1, struct seg *seg2, char cutoff) {
 
 	if(a >= 0 && a <= 1 && b >= 0 && b <= 1) {
 		if(cutoff) {
-			seg1->x2 = (1 - a) * seg1->x1 + a * seg1->x2;
-			seg1->y2 = (1 - a) * seg1->y1 + a * seg1->y2;
+			seg2->x2 = (1 - b) * seg2->x1 + b * seg2->x2;
+			seg2->y2 = (1 - b) * seg2->y1 + b * seg2->y2;
 		}
 
 		return 1;
