@@ -309,8 +309,9 @@ GameEngine.prototype.handleSyncResponse = function(serverTime) {
 		 this.syncTries * syncDelays);
 	}
 	else{
-		debugLog('synced with a maximum error of ' + this.bestSyncPing
-		 + ' msec' + ', and average ping of ' + this.ping + ' msec');
+		debugLog('Your current ping is ' + this.ping + ' msec');
+		if(ultraVerbose)
+			debugLog('synced with maximum error of ' + this.bestSyncPing + ' msec');
 		this.syncTries = 0;
 	}
 }
@@ -425,22 +426,17 @@ GameEngine.prototype.addPlayer = function(player) {
  * fixed number of pixels */
 GameEngine.prototype.calcScale = function() {
 	var sidebar = document.getElementById('sidebar');
-	this.targetWidth = document.body.clientWidth - sidebar.offsetWidth - 1;
-	this.targetHeight = document.body.clientHeight - 1;
+	var targetWidth = Math.max(document.body.clientWidth - sidebar.offsetWidth - 1,
+	 canvasMinimumWidth);
+	var targetHeight = document.body.clientHeight - 1;
 
 	if(false) { // for mobile devices
 		this.targetWidth = window.innerWidth;
 	}
 	
-	var scaleX = this.targetWidth/ this.width;
-	var scaleY = this.targetHeight/ this.height;
-	if(scaleX < scaleY) {
-		this.targetHeight = Math.round(this.height * scaleX);
-		this.scale = scaleX;
-	}else {
-		this.targetWidth = Math.round(this.width * scaleY);
-		this.scale = scaleY;
-	}
+	var scaleX = targetWidth/ this.width;
+	var scaleY = targetHeight/ this.height;
+	this.scale = Math.min(scaleX, scaleY);
 }
 
 GameEngine.prototype.start = function(startPositions, startTime) {
@@ -459,8 +455,8 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 
 	this.calcScale();
 	var container = document.getElementById(this.containerId);
-	container.style.width = this.targetWidth + 'px';
-	container.style.height = this.targetHeight + 'px';
+	container.style.width = Math.round(this.scale * this.width) + 'px';
+	container.style.height = Math.round(this.scale * this.height) + 'px';
 
 	/* create canvas stack */
 	this.canvasStack = new CanvasStack(this.containerId, canvasBgcolor);
@@ -821,7 +817,7 @@ InputController.prototype.keyDown = function(keyCode, e) {
 	if(this.player.game == null || this.player.game.gameState != 'playing')
 		return;
 		
-	if(e != undefined && (keyCode == this.rightKeyCode || keyCode == this.lefttKeyCode))
+	if(e != undefined && (keyCode == this.rightKeyCode || keyCode == this.leftKeyCode))
 		e.preventDefault();
 
 	if(keyCode == this.rightKeyCode && this.player.turn != -1) 
@@ -835,7 +831,7 @@ InputController.prototype.keyUp = function(keyCode, e) {
 	if(this.player.game == null || this.player.game.gameState != 'playing')
 		return;
 		
-	if(e != undefined && (keyCode == this.rightKeyCode || keyCode == this.lefttKeyCode))
+	if(e != undefined && (keyCode == this.rightKeyCode || keyCode == this.leftKeyCode))
 		e.preventDefault();
 
 	if((keyCode == this.rightKeyCode && this.player.turn == -1) ||
