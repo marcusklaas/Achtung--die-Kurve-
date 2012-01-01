@@ -149,3 +149,4 @@ void gototick(struct pencil *p, int tick);
 struct game *creategame(int gametype, int nmin, int nmax);
 void joingame(struct game *gm, struct user *newusr);
 float getlength(float x, float y);
+char *gametypetostr(int gametype);

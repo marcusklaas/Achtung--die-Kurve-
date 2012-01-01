@@ -19,7 +19,7 @@ table {
 #content {
 	top: 0;
 	left: 320px;
-	position: fixed;
+	position: absolute;
 }
 
 #sidebar {
@@ -28,7 +28,7 @@ table {
 	height: 100%;
 	background-color: white;
 	border-right: 1px solid #808080;
-	position: fixed;
+	position: absolute;
 	left: 0;
 	top: 0;
 }
@@ -80,4 +80,17 @@ div#status {
 
 #gameOptions, #stop {
 	display: none;
+}
+
+#playerListContainer {
+	margin-top: 10px;
+	margin-bottom: 10px;
+	border: 1px solid #808080;
+}
+
+#gameTitle {
+	margin: 0;
+	padding: 5px 0 5px 0;
+	width: 100%;
+	border-bottom: 1px solid #808080;
 }

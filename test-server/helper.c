@@ -77,17 +77,6 @@ char *jsongetpacket(cJSON *json) {
 cJSON *getjsongamepars(struct game *gm) {
 	cJSON *json = jsoncreate("gameParameters");
 
-	// hoeft niet denk ik 
-	/* char *gametype = smalloc(10 * sizeof(char));
-
-	if(gm->type == GT_LOBBY)
-		strcpy(gametype, "lobby");
-	else if(gm->type == GT_AUTO)
-		strcpy(gametype, "automatch");
-	else
-		strcpy(gametype, "custom"); 
-	jsonaddstr(json, "type", gametype); */
-
 	jsonaddnum(json, "countdown", COUNTDOWN * TICK_LENGTH);
 	jsonaddnum(json, "hsize", gm->hsize);
 	jsonaddnum(json, "hfreq", gm->hfreq);
@@ -97,6 +86,9 @@ cJSON *getjsongamepars(struct game *gm) {
 	jsonaddnum(json, "nmax", gm->nmax);
 	jsonaddnum(json, "v", gm->v);
 	jsonaddnum(json, "ts", gm->ts);
+	jsonaddnum(json, "id", gm->id);
+	jsonaddstr(json, "type", gametypetostr(gm->type));
+	
 	return json;
 }
 

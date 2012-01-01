@@ -132,6 +132,12 @@ GameEngine.prototype.leaveGame = function() {
 
 /* this function handles user interface changes for state transitions */
 GameEngine.prototype.setGameState = function(newState) {
+	if(newState == 'new' || this.gameState == 'new'){
+		var display = newState == 'new' ? 'none' : 'block';
+		document.getElementById('playerListContainer').style.display = display;
+		document.getElementById('chat').style.display = display;
+	}
+
 	this.gameState = newState;
 
 	switch(newState) {
@@ -278,7 +284,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			debugLog('You are flooding the chat. Your latest message has been blocked');
 			break;
 		default:
-			debugLog('unknown mode!');
+			debugLog('unknown mode ' + obj.mode + '!');
 	}
 }
 
@@ -344,6 +350,12 @@ GameEngine.prototype.setParams = function(obj) {
 	this.turnSpeed = obj.ts;
 	this.holeSize = obj.hsize;
 	this.holeFreq = obj.hfreq;
+	
+	if(obj.type == 'lobby')
+		this.title = 'Lobby';
+	else
+		this.title = 'Game ' + obj.id;
+	document.getElementById('gameTitle').innerHTML = this.title;
 
 	if(obj.nmin > 0)
 		debugLog("This game is for " + obj.nmin + " to " + obj.nmax + " players");

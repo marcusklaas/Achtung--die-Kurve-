@@ -22,7 +22,7 @@
 		<div id="sidebar">
 			<div id="lobbyOptions">
 				<input type="text" id="playername" placeholder="playername" />
-				<button id="lobby">Join Lobby</button>
+				<button id="lobby">Connect to Server</button>
 			</div>
 
 			<div id="gameOptions">
@@ -40,9 +40,12 @@
 				</span>
 			</div>
 
-			<table id="playerList">
-				<thead><tr><th>Player</th><th>Status</th><th>Points</th></tr>
-			</thead><tbody></tbody></table>
+			<div id="playerListContainer">
+				<h3 id="gameTitle">Lobby</h3>
+				<table id="playerList">
+					<thead><tr><th>Player</th><th>Status</th><th>Points</th></tr>
+				</thead><tbody></tbody></table>
+			</div>
 
 			<div id="messagingContainer">
 				<input type="text" id="chat" placeholder="insults go here" />
