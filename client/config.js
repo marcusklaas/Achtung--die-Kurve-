@@ -27,6 +27,7 @@ var canvasMinimumWidth = 200;
 var game = null;
 var localPlayer = null;
 var touchDevice = null;
+var safeTickDifference = 60; // TODO: should depend on 2*ping & SERVER_DELAY
 
 /* debugging */
 var ultraVerbose = false;

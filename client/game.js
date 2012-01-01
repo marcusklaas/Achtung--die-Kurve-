@@ -366,8 +366,9 @@ GameEngine.prototype.requestGame = function(player, minPlayers, maxPlayers) {
 		return;
 
 	this.setGameState('waiting');
-	player.inputQueue = [];
-	player.baseQueue = [];
+	//TODO: waarom hier inputs clearen?
+	player.inputs = [];
+	player.nextInput = 0;
 	this.resetPlayers();
 	this.addPlayer(player);
 	this.sendMsg('requestGame', {'playerName': player.playerName,
@@ -411,7 +412,7 @@ GameEngine.prototype.doTick = function() {
 	if(!player.alive)
 		return;
 
-	player.simulate(this.tick - 1, this.tick, player.context, null);
+	player.simulate(this.tick, player.context);
 	
 	if(pencilGame)
 		this.pencil.doTick();
@@ -422,11 +423,8 @@ GameEngine.prototype.doTock = function() {
 		var player = this.players[i];
 		if(!player.alive)
 			continue;
-
-		var len = player.inputQueue.length;
-		if(len > 0 && player.inputQueue[len - 1].tick == this.tock)
-			player.turn = player.inputQueue.pop().turn;
-		player.simulate(this.tock, this.tock + 1, player.context, null);
+			
+		player.simulate(this.tock + 1, player.context);
 	}
 	this.tock++;
 }
@@ -453,7 +451,9 @@ GameEngine.prototype.calcScale = function() {
 	var targetHeight = document.body.clientHeight - 1;
 
 	if(touchDevice) {
-		this.targetWidth = window.innerWidth;
+		targetWidth = window.innerWidth;
+		//if(pencilGame)
+		//	targetHeight = window.innerHeight - 20;
 	}
 	
 	var scaleX = targetWidth/ this.width;
@@ -633,95 +633,82 @@ function Player(color, local) {
 	this.lca = 0; // last confirmed angle
 	this.lctick = 0; // game tick of last confirmed location
 	this.lcturn = 0;
-	this.lvelocity = 0;
+	this.lcvelocity = 0;
+	this.lcnextInput = 0;
 	this.color = color;
 	this.turn = 0; // -1 is turn left, 0 is straight, 1 is turn right
 	this.game = null; // to which game does this player belong
 	this.context = null; // this is the canvas context in which we draw simulation
 	this.alive = true;
-	this.inputQueue = [];
-	this.baseQueue = [];
+	this.inputs = [];
+	this.nextInput = 0;
+	this.inputsReceived = 0; // only for local player
 	this.holeStart = 0;
 	this.holeSize = 0;
 	this.holeFreq = 0;
+	this.tick = 0;
 }
 
 Player.prototype.steer = function(obj) {
 	var localTick = this.isLocal ? this.game.tick : this.game.tock;
 	
-	if(obj.tick > localTick && this.isLocal && obj.modified != undefined){
+	if(obj.tick > localTick && this.isLocal && obj.modified != undefined) {
 		while(obj.tick > this.game.tick)
 			this.game.doTick();
 		debugLog('your game is running behind! ' + (this.game.tick - localTick) + 
 		 ' ticks forwarded');
 		localTick = this.game.tick;
 	}else if(obj.tick >= localTick || (this.isLocal && obj.modified == undefined)) {
-		if(this.baseQueue.length > 0 && this.baseQueue[0].tick == obj.tick)
-			this.baseQueue[0] = obj;
-		else
-			this.baseQueue.unshift(obj);
-		if(!this.isLocal) { 
-			if(this.inputQueue.length > 0 && this.inputQueue[0].tick == obj.tick)
-				this.inputQueue[0] = obj;
-			else
-				this.inputQueue.unshift(obj);
-			
+		if(!this.isLocal){
+			this.inputs.push(obj);
 			this.game.redrawsPossible++;
 			this.game.displayDebugStatus();
-		}
+		}else
+			this.inputsReceived++;
 		return;
 	}
 	
 	if(this.isLocal && obj.modified != undefined) {
+		debugLog(this.inputs.length + ' vs ' + this.inputsReceived);
+		this.inputs[this.inputsReceived++].tick = obj.tick;
+		// FIXME: inputs mogelijk niet meer op volgorde
 		this.game.modifiedInputs++;
 		this.game.displayDebugStatus();
-	}
+	}else
+		this.inputsReceived++;
 	
-	var currentTurn = this.turn;
-		
-	/* run simulation from lcx, lcy on the conclusive canvas from tick 
-	 * lctick to obj.tick */
 	this.x = this.lcx;
 	this.y = this.lcy;
 	this.angle = this.lca;
 	this.turn = this.lcturn;
-	this.velocity = this.lvelocity;
-	this.simulate(this.lctick, obj.tick, this.game.baseContext, this.baseQueue);
-	this.turn = obj.turn;
-	this.baseQueue = [];
+	this.velocity = this.lcvelocity;
+	this.tick = this.lctick;
+	this.nextInput = this.lcnextInput;
+	var endTick = Math.min(obj.tick, this.game.tick - safeTickDifference);
+	this.simulate(endTick, this.game.baseContext);
 	this.lcx = this.x;
 	this.lcy = this.y;
 	this.lca = this.angle;
 	this.lcturn = this.turn;
-	this.lvelocity = this.velocity;
-	this.lctick = obj.tick;
+	this.lcvelocity = this.velocity;
+	this.lctick = this.tick;
+	this.lcnextInput = this.nextInput;
 
-	/* clear this players canvas and run extrapolation on this player's
-	 * context from timestamp in object to NOW */
 	this.context.clearRect(0, 0, this.game.width, this.game.height);
 	if(!this.isLocal) {
 		this.game.redraws++;
 		this.game.redrawsPossible++;
 		this.game.displayDebugStatus();
 	}
-	
-	// remove all inputs in the inputQueue with a tick smaller than obj.tick
-	if(this.isLocal && this.inputQueue.length > 0)
-		for(var i = this.inputQueue.length - 1; i >= 0 && this.inputQueue[i].tick < obj.tick; this.inputQueue.length = i-- + 1);
-	
-	this.simulate(obj.tick, localTick, this.context, this.isLocal ? this.inputQueue : null);
-	
-	if(this.isLocal)
-		this.turn = currentTurn;
+	this.simulate(localTick, this.context);
 }
 
-Player.prototype.simulate = function(startTick, endTick, ctx, queue) {
-	if(startTick == endTick)
+Player.prototype.simulate = function(endTick, ctx) {
+	if(this.tick >= endTick)
 		return;
-
-	var i, input = null, sin = Math.sin(this.angle),
+	var input = null, sin = Math.sin(this.angle),
 	 cos = Math.cos(this.angle), step = simStep/ 1000;
-	var inHole = (startTick > this.holeStart && (startTick + this.holeStart)
+	var inHole = (this.tick > this.holeStart && (this.tick + this.holeStart)
 	 % (this.holeSize + this.holeFreq) < this.holeSize);
 
 	ctx.beginPath();
@@ -732,23 +719,21 @@ Player.prototype.simulate = function(startTick, endTick, ctx, queue) {
 	if(debugBaseContext && ctx == this.game.baseContext)
 		setLineColor(ctx, [0,0,0], inHole ? gapAlpha : 1);
 
-	if(queue != null) {
-		// set input and i
-		for(i = queue.length - 1; i >= 0 && queue[i].tick < startTick; i--);
-		if(i >= 0)
-			input = queue[i];
-	}
+	if(this.nextInput < this.inputs.length)
+		input = this.inputs[this.nextInput];
 	
-	for(var tick = startTick; tick < endTick; tick++) {
-		if(inHole !== (tick > this.holeStart && (tick + this.holeStart)
+	for(; this.tick < endTick; this.tick++) {
+		if(inHole !== (this.tick > this.holeStart && (this.tick + this.holeStart)
 		 % (this.holeSize + this.holeFreq) < this.holeSize)) {
 			ctx.stroke();
-			return this.simulate(tick, endTick, ctx, queue);
+			ctx.beginPath();
+			setLineColor(ctx, this.color, inHole ? gapAlpha : 1);
+			ctx.lineCap = inHole ? 'butt' : lineCapStyle;
 		}
 
-		if(input != null && input.tick == tick) {
+		if(input != null && input.tick == this.tick) {
 			this.turn = input.turn;
-			input = (--i >= 0) ? queue[i] : null;
+			input = (++this.nextInput < this.inputs.length) ? this.inputs[this.nextInput] : null;
 		}
 
 		if(this.turn != 0) {
@@ -770,12 +755,11 @@ Player.prototype.simulate = function(startTick, endTick, ctx, queue) {
 		
 		ctx.lineTo(this.x, this.y);
 	}
-
 	ctx.stroke();
 }
 
 Player.prototype.initialise = function(x, y, angle, holeStart) {
-	this.lvelocity = this.velocity = this.game.velocity;
+	this.lcvelocity = this.velocity = this.game.velocity;
 	this.turnSpeed = this.game.turnSpeed;
 	this.holeStart = holeStart;
 	this.holeSize = this.game.holeSize;
@@ -783,13 +767,13 @@ Player.prototype.initialise = function(x, y, angle, holeStart) {
 	this.alive = true;
 	this.lcx = this.x = x;
 	this.lcy = this.y = y;
-	this.lctick = 0;
-	this.lcturn = 0;
+	this.lctick = this.nextInput = 0;
+	this.lcnextInput = 0;
 	this.lca = this.angle = angle;
 	this.turn = this.lcturn = 0;
-	this.turn = 0;
-	this.inputQueue = [];
-	this.baseQueue = [];
+	this.inputs = [];
+	this.tick = 0;
+	this.inputsReceived = 0;
 
 	/* create canvas */
 	var canvas = document.getElementById(this.game.canvasStack.createLayer());
@@ -864,14 +848,13 @@ InputController.prototype.keyUp = function(keyCode, e) {
 InputController.prototype.steerLocal = function(turn) {
 	var game = this.player.game;
 	var obj = {'turn': turn, 'tick': game.tick};
-	this.player.turn = turn;
 
-	if(this.lastSteerTick == game.tick)
-		this.player.inputQueue[0] = obj;
-	else{
-		this.player.inputQueue.unshift(obj);
-		this.lastSteerTick = game.tick;
-	}
+	if(this.lastSteerTick == obj.tick)
+		obj.tick = ++this.lastSteerTick;
+	else
+		this.lastSteerTick = obj.tick;
+	
+	this.player.inputs.push(obj);
 
 	game.sendMsg('newInput', obj);
 }
@@ -1089,13 +1072,11 @@ window.onload = function() {
 			if(x < 0 || inputControl.player.game.gameState != 'playing')
 				return;
 			
-			event.preventDefault();
-			
 			var left = (x < width / 3);
-			
 			if(x < width * 2 / 3 && !left)
 				return;
-
+				
+			event.preventDefault();
 			if(start)
 				inputControl.keyDown(left ? keyCodeLeft : keyCodeRight);
 			else

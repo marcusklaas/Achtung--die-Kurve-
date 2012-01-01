@@ -19,6 +19,7 @@ void iniuser(struct user *usr, struct libwebsocket *wsi) {
 	memset(usr, 0, sizeof(struct user));
 	usr->id = usrc++;
 	usr->wsi = wsi;
+	usr->lastinputtick = -1;
 }
 
 void startgame(struct game *gm) {
@@ -34,6 +35,7 @@ void startgame(struct game *gm) {
 		usr->deltaon = usr->deltaat = 0;
 		usr->v = gm->v;
 		usr->ts = gm->ts;
+		usr->lastinputtick = -1;
 		if(gm->pencilgame)
 			resetpencil(&usr->pencil, usr);
 	}
@@ -659,25 +661,22 @@ void interpretinput(cJSON *json, struct user *usr) {
 		tick = minimumTick;
 		modified = 1;
 	}
-	if(usr->inputtail && tick < usr->inputtail->tick) {
-		if(SHOW_WARNING)
-			printf("input messages of user %d are being received out of order!\n", usr->id);
-		return;
+	if(tick <= usr->lastinputtick) {
+		tick = usr->lastinputtick + 1;
+		modified = 1;
 	}
 	
 	// put it in user queue
-	if(usr->inputtail && usr->inputtail->tick == tick)
-		usr->inputtail->turn = turn;
-	else{
-		input = smalloc(sizeof(struct userinput));
-		input->tick = tick;
-		input->turn = turn;
-		input->nxt = 0;
-		if(!usr->inputtail)
-			usr->inputhead = usr->inputtail = input;
-		else
-			usr->inputtail = usr->inputtail->nxt = input;
-	}
+	usr->lastinputtick = tick;
+	input = smalloc(sizeof(struct userinput));
+	input->tick = tick;
+	input->turn = turn;
+	input->nxt = 0;
+	if(!usr->inputtail)
+		usr->inputhead = usr->inputtail = input;
+	else
+		usr->inputtail = usr->inputtail->nxt = input;
+	
 	
 	if(SHOW_DELAY) {
 		int x = (servermsecs() - usr->gm->start) - time;
