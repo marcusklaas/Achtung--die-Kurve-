@@ -229,12 +229,15 @@ callback_game(struct libwebsocket_context * context,
 		}
 		else if(strcmp(mode, "newInput") == 0) {
 			if(++(u->inputs) <= MAX_INPUTS && u->gm
-			 && u->gm->state == GS_STARTED)
+			 && u->gm->state == GS_STARTED && !u->ignoreinput)
 				interpretinput(json, u);
 		}
 		else if(!strcmp(mode, "pencil")) {
-			if(u->gm && u->gm->state == GS_STARTED)
+			if(u->gm && u->gm->state == GS_STARTED && !u->ignoreinput)
 				handlepencilmsg(json, u); 		
+		}
+		else if(!strcmp(mode, "enableInput")) {
+			u->ignoreinput = 0;		
 		}
 		else if(SHOW_WARNING)
 			printf("unkown mode!\n");

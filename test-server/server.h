@@ -126,6 +126,7 @@ struct user {
 	char alive;			// 1 for alive, 0 else
 	int points;
 	int lastinputtick;
+	char ignoreinput;
 	
 	int hstart, hsize, hfreq;	// hole start, hole size, hole frequency
 

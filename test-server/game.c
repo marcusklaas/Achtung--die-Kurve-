@@ -36,6 +36,7 @@ void startgame(struct game *gm) {
 		usr->v = gm->v;
 		usr->ts = gm->ts;
 		usr->lastinputtick = -1;
+		usr->ignoreinput = 1;
 		if(gm->pencilgame)
 			resetpencil(&usr->pencil, usr);
 	}
@@ -118,7 +119,7 @@ void leavegame(struct user *usr) {
 	struct game *gm = usr->gm;
 	struct user *curr;
 
-	if(DEBUG_MODE)
+	if(DEBUG_MODE && gm != lobby)
 		printf("user %d is leaving his game!\n", usr->id);
 
 	if(gm->usr == usr) {
@@ -131,9 +132,6 @@ void leavegame(struct user *usr) {
 	gm->alive -= usr->alive;
 	usr->nxt = 0;
 	usr->gm = 0;
-
-	// TODO: if user leaves and there is only 1 player left we should tell him:
-	// thanks for sticking around, you now win the game
 	
 	if(gm->state != GS_REMOVING_GAME) {
 		if(gm->type != GT_LOBBY && !--gm->n)
@@ -550,7 +548,8 @@ void endround(struct game *gm) {
 		gm->seg[i] = 0;
 	}
 
-	if(maxpoints >= gm->goal && (gm->nmin == 1 || maxpoints >= secondpoints + MIN_WIN_DIFF)) {
+	if((maxpoints >= gm->goal && (gm->nmin == 1 || maxpoints >= secondpoints + MIN_WIN_DIFF))
+	 || gm->n == 1) {
 		printf("game %p ended. winner = %d\n", (void*) gm, winner->id);
 		cJSON *json= jsoncreate("endGame");
 		jsonaddnum(json, "winnerId", winner->id);

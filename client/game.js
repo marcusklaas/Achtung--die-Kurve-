@@ -187,6 +187,8 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.setGameState((obj.type == 'lobby') ? 'lobby' : 'waiting');
 			this.resetPlayers();
 			this.addPlayer(localPlayer);
+			if(obj.type != 'lobby')
+				debugLog('You joined a game');
 			break;
 		case 'gameParameters':
 			this.setParams(obj);
@@ -232,7 +234,8 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'playerLeft':
 			var index = this.getIndex(obj.playerId);
 			this.splicePlayerList(index);
-			//debugLog(this.players[index].playerName + " left the game");
+			if(this.gameState != 'lobby')
+				debugLog(this.players[index].playerName + " left the game");
 
 			if(this.gameState == 'waiting') {
 				for(var i = index + 1; i < this.players.length; i++)
@@ -240,8 +243,10 @@ GameEngine.prototype.interpretMsg = function(msg) {
 
 				this.players.splice(index, 1);
 			}
-			else
+			else{
 				this.players[index].alive = false;
+				this.updatePlayerList(index, 'left', null);
+			}
 			break;
 		case 'playerDied':
 			var index = this.getIndex(obj.playerId);
@@ -522,6 +527,7 @@ GameEngine.prototype.realStart = function() {
 	this.baseContext.clearRect(0, 0, this.width, this.height);
 	this.audioController.playSound('gameStart');
 	this.setGameState('playing');
+	this.sendMsg('enableInput', {});
 
 	var self = this;
 	var gameloop = function() {
@@ -852,7 +858,7 @@ InputController.prototype.steerLocal = function(turn) {
 	var obj = {'turn': turn, 'tick': game.tick};
 
 	if(this.player.lastSteerTick == obj.tick)
-		obj.tick = ++this.lastSteerTick;
+		obj.tick = ++this.player.lastSteerTick;
 	else
 		this.player.lastSteerTick = obj.tick;
 	
