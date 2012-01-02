@@ -1,5 +1,5 @@
 #define EPS 0.00000001
-#define GAME_WIDTH 1024/2
+#define GAME_WIDTH 1024
 #define GAME_HEIGHT 644
 #define TILE_SIZE_MULTIPLIER 4 // tilesize/ segmentlength
 #define VELOCITY 70 // pixels per sec

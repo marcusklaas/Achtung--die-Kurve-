@@ -74,11 +74,7 @@ button {
 	width: 100%;
 }
 
-div#status {
-	display: none;
-}
-
-#gameOptions, #stop {
+#gameOptions, #gameContainer, #gameListContainer, #gameDetails, #stop, #status {
 	display: none;
 }
 
