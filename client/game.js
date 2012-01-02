@@ -138,29 +138,40 @@ GameEngine.prototype.setGameState = function(newState) {
 		document.getElementById('chat').style.display = display;
 	}
 
-	this.gameState = newState;
-
 	switch(newState) {
 		case 'lobby':
 			setOptionVisibility('game');
 			setButtonVisibility('start');
+			setContentVisibility('gameListContainer');
+			break;
+		case 'countdown':
+			setContentVisibility('gameContainer');
 			break;
 		case 'waiting':
-			// hide game options and lobby options
+			// TODO: hide game options (min/ max player inputs)
 			setOptionVisibility('game');
 			setButtonVisibility('stop');
+
+			if(this.gameState != 'playing' && this.gameState != 'watching')
+				setContentVisibility('gameDetails');
 			break;
 		case 'new':
+			setContentVisibility('nothing');
 			setOptionVisibility('lobby');
 			break;
 	}
+
+	this.gameState = newState;
+}
+
+GameEngine.prototype.joinGame = function(gameId) {
+	this.sendMsg('join', {'id': gameId});
 }
 
 GameEngine.prototype.joinLobby = function(player) {
 	if(this.gameState != 'new')
 		return;
 
-	this.setGameState('lobby');
 	this.addPlayer(player);
 	this.sendMsg('joinLobby', {'playerName': player.playerName});
 }
@@ -187,8 +198,8 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.setGameState((obj.type == 'lobby') ? 'lobby' : 'waiting');
 			this.resetPlayers();
 			this.addPlayer(localPlayer);
-			if(obj.type != 'lobby')
-				debugLog('You joined a game');
+			if(obj.type == 'lobby')
+				this.title = 'Lobby';
 			break;
 		case 'gameParameters':
 			this.setParams(obj);
@@ -237,7 +248,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			if(this.gameState != 'lobby')
 				debugLog(this.players[index].playerName + " left the game");
 
-			if(this.gameState == 'waiting') {
+			if(this.gameState == 'waiting' || this.gameState == 'lobby') {
 				for(var i = index + 1; i < this.players.length; i++)
 					this.setIndex(this.players[i].playerId, i - 1);
 
@@ -254,8 +265,10 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			player.alive = false;
 			this.updatePlayerList(index, 'dead', obj.points);
 			//debugLog(this.players[index].playerName + " died");
-			if(index == 0)
+			if(index == 0) {
+				this.setGameState('watching');
 				this.audioController.playSound('localDeath');
+			}
 			break;
 		case 'endRound':
 			window.clearTimeout(this.gameloopTimeout);
@@ -281,6 +294,9 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'chat':
 			this.printChat(obj.playerId, obj.message);
 			break;
+		case 'gameList':
+			this.buildGameList(obj.games);
+			break;
 		case 'segments':
 			this.handleSegmentsMessage(obj.segments);
 			break;
@@ -292,6 +308,59 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;
 		default:
 			debugLog('unknown mode ' + obj.mode + '!');
+	}
+}
+
+GameEngine.prototype.buildGameList = function(list) {
+	var tbody = document.getElementById('gameList').lastChild;
+	var row, node, button, self = this;
+
+	while(tbody.hasChildNodes())
+		tbody.removeChild(tbody.firstChild);
+
+	/* beetje getructe oplossing, maar volgens mij moet 't zo */
+	var clickHandler = function(id) {
+		return function() { self.joinGame(id); };
+	};
+
+	for(var i = 0; i < list.length; i++) {
+		row = document.createElement('tr');
+		row.id = 'game' + list[i].id;
+
+		node = document.createElement('td');
+		node.innerHTML = list[i].id;
+		row.appendChild(node);
+
+		node = document.createElement('td');
+		node.innerHTML = list[i].type;
+		row.appendChild(node);
+
+		node = document.createElement('td');
+		node.innerHTML = list[i].state;
+		row.appendChild(node);
+
+		node = document.createElement('td');
+		node.innerHTML = list[i].nmin;
+		row.appendChild(node);
+
+		node = document.createElement('td');
+		node.innerHTML = list[i].nmax;
+		row.appendChild(node);
+
+		node = document.createElement('td');
+		node.innerHTML = list[i].n;
+		row.appendChild(node);
+
+		button = document.createElement('button');
+		button.innerHTML = 'Join';
+		button.disabled = (list[i].state != 'lobby');
+		button.addEventListener('click', clickHandler(list[i].id));
+
+		node = document.createElement('td');
+		node.appendChild(button);
+		row.appendChild(node);
+
+		tbody.appendChild(row);
 	}
 }
 
@@ -358,14 +427,14 @@ GameEngine.prototype.setParams = function(obj) {
 	this.holeSize = obj.hsize;
 	this.holeFreq = obj.hfreq;
 	
-	if(obj.type == 'lobby')
-		this.title = 'Lobby';
-	else
+	if(obj.type != 'lobby') {
+		var details = document.getElementById('gameDetails');
+		details.innerHTML = 'Game details. Under development! Sneak preview: this game is for '
+		 + obj.nmin + ' to ' + obj.nmax + ' players';
 		this.title = 'Game ' + obj.id;
-	document.getElementById('gameTitle').innerHTML = this.title;
+	}
 
-	if(obj.nmin > 0)
-		debugLog("This game is for " + obj.nmin + " to " + obj.nmax + " players");
+	document.getElementById('gameTitle').innerHTML = this.title;
 }	
 
 GameEngine.prototype.requestGame = function(player, minPlayers, maxPlayers) {
@@ -1237,6 +1306,15 @@ function setButtonVisibility(show) {
 	document.getElementById(hide).style.display = 'none';
 	document.getElementById(show).style.display = 'inline';
 	document.getElementById('disconnect').style.display = disconnectStyle;
+}
+
+function setContentVisibility(target) {
+	var sections = ['gameListContainer', 'gameDetails', 'gameContainer'];
+
+	for(var i = 0; i < sections.length; i++) {
+		var elt = document.getElementById(sections[i]);
+		elt.style.display = (target == sections[i]) ? 'block' : 'none';
+	}
 }
 
 function getLength(x, y) {

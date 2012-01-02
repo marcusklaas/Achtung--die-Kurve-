@@ -178,6 +178,19 @@ char *gametypetostr(int gametype) {
 	return str;
 }
 
+char *statetostr(int gamestate) {
+	char *str = smalloc(8);
+
+	if(gamestate == GS_LOBBY)
+		strcpy(str, "lobby");
+	else if(gamestate == GS_STARTED)
+		strcpy(str, "started");
+	else
+		strcpy(str, "ended");
+
+	return str;
+}
+
 /* is there no extension, return "" */
 char *getFileExt(char *path) {
 	char *ext, *point = strrchr(path, '.');
@@ -192,8 +205,8 @@ char *getFileExt(char *path) {
 	ext[extLen] = 0; 
 
 	/* do some strtolower action (why isnt this in standard libs? :S) */
-	for(point += --extLen; extLen >= 0; extLen--, point--)
-		ext[extLen] = ('A' <= *point && *point <= 'Z') ? ((*point) - 26) : *point;
+	for(point += --extLen; extLen >= 0; point--)
+		ext[extLen--] = ('A' <= *point && *point <= 'Z') ? ((*point) - 26) : *point;
 
 	return ext;
 }

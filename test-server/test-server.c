@@ -110,10 +110,6 @@ callback_game(struct libwebsocket_context * context,
 		jsonaddnum(json, "tickLength", TICK_LENGTH);
 		sendjson(json, u);
 		jsondel(json);
-
-		// TODO: we should probably cache either the game or the game list
-		sendjson(json = encodegamelist(), u);
-		jsondel(json);
 		break;
 
 	case LWS_CALLBACK_CLOSED:
@@ -158,7 +154,23 @@ callback_game(struct libwebsocket_context * context,
 			printf("no mode specified!\n");
 			break;
 		}
-		if(!strcmp(mode, "chat")) {
+		else if(!strcmp(mode, "join")) {
+			int gameid;
+			struct game *gm;
+
+			if(u->gm != lobby)
+				break;
+
+			gameid = jsongetint(json, "id");
+			gm = searchgame(gameid);
+
+			if(DEBUG_MODE)
+				printf("Received join package! Game-id: %d, user-id: %d, gm: %p\n", gameid, u->id, (void *) gm);
+
+			if(gm)
+				joingame(gm, u);
+		}
+		else if(!strcmp(mode, "chat")) {
 			cJSON *j;
 			char *msg = jsongetstr(json, "message");
 
@@ -194,6 +206,7 @@ callback_game(struct libwebsocket_context * context,
 		}
 		else if(!strcmp(mode, "joinLobby")) {
 			char *s = jsongetstr(json, "playerName");
+
 			if(strlen(s) < MAX_NAME_LENGTH)
 				s[MAX_NAME_LENGTH] = 0;
 
@@ -202,21 +215,18 @@ callback_game(struct libwebsocket_context * context,
 
 			u->name = duplicatestring(s);
 			joingame(lobby, u);
-
-			// TODO: send game list. complete list in 1 package or 1 msg for
-			// each game? keep up to date or let user ask for refresh?
 		}
 		else if(!strcmp(mode, "requestGame")) {
 			if(DEBUG_MODE) printf("user %d requested game\n", u->id);
 
-			if(u->gm - lobby) {
+			if(u->gm != lobby) {
 				printf("user tried to join game. but he is not in lobby. he might not have a name etc.\n");
 				break;
 			}
 
 			int nmin= jsongetint(json, "minPlayers");
 			int nmax= jsongetint(json, "maxPlayers");
-			if(0 < nmin && nmin < nmax && nmax < 17) {
+			if(0 < nmin && nmin <= nmax && nmax < 17) { //omg eerst moest nmin < nmax!!
 				struct game *gm = findgame(nmin, nmax);
 				if(!gm)
 					gm = creategame(GT_AUTO, nmin, nmax);

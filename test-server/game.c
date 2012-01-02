@@ -15,6 +15,42 @@ void randomizePlayerStarts(struct game *gm) {
 	}
 }
 
+cJSON *encodegame(struct game *gm) {
+	cJSON *json = cJSON_CreateObject();
+
+	jsonaddnum(json, "id", gm->id);
+	jsonaddnum(json, "n", gm->n);
+	jsonaddnum(json, "nmin", gm->nmin);
+	jsonaddnum(json, "nmax", gm->nmax);
+	jsonaddstr(json, "type", gametypetostr(gm->type));
+	jsonaddstr(json, "state", statetostr(gm->state));
+	return json;
+}
+
+cJSON *encodegamelist() {
+	struct game *gm;
+	cJSON *game, *gmArr, *json = jsoncreate("gameList");
+	
+	gmArr = cJSON_CreateArray();
+	cJSON_AddItemToObject(json, "games", gmArr);
+
+	for(gm = headgame; gm; gm = gm->nxt) {
+		if(gm->state == GS_LOBBY) {
+			game = encodegame(gm);
+			cJSON_AddItemToArray(gmArr, game);
+		}
+	}
+
+	return json;
+}
+
+/* TODO: caching */
+void updategamelist() {
+	cJSON *json = encodegamelist();
+	sendjsontogame(json, lobby, 0);
+	jsondel(json);
+}
+
 void iniuser(struct user *usr, struct libwebsocket *wsi) {
 	memset(usr, 0, sizeof(struct user));
 	usr->id = usrc++;
@@ -92,6 +128,7 @@ void remgame(struct game *gm) {
 
 	free(gm->seg);
 	free(gm);
+	updategamelist();
 }
 
 struct game *findgame(int nmin, int nmax) {
@@ -112,14 +149,25 @@ struct game *findgame(int nmin, int nmax) {
 			return gm;
 		}
 
-	return NULL;
+	return 0;
+}
+
+// takes game id and returns the game (if it exists and there is a spot)
+struct game *searchgame(int gameid) {
+	struct game *gm;
+
+	for(gm = headgame; gm; gm = gm->nxt)
+		if(gm->state == GS_LOBBY && gameid == gm->id && gm->nmin > gm->n)
+			return gm;
+
+	return 0;
 }
 
 void leavegame(struct user *usr) {
 	struct game *gm = usr->gm;
 	struct user *curr;
 
-	if(DEBUG_MODE && gm != lobby)
+	if(DEBUG_MODE && gm->type != GT_LOBBY)
 		printf("user %d is leaving his game!\n", usr->id);
 
 	if(gm->usr == usr) {
@@ -132,18 +180,17 @@ void leavegame(struct user *usr) {
 	gm->alive -= usr->alive;
 	usr->nxt = 0;
 	usr->gm = 0;
-	
-	if(gm->state != GS_REMOVING_GAME) {
-		if(gm->type != GT_LOBBY && !--gm->n)
-			remgame(gm);
-		else {
-			// send message to group: this player left
-			cJSON *json = jsoncreate("playerLeft");
-			jsonaddnum(json, "playerId", usr->id);
-			sendjsontogame(json, gm, 0);
-			jsondel(json);
-		}
-	}
+
+	// send message to group: this player left
+	cJSON *json = jsoncreate("playerLeft");
+	jsonaddnum(json, "playerId", usr->id);
+	sendjsontogame(json, gm, 0);
+	jsondel(json);
+
+	if(gm->type != GT_LOBBY &&
+	 ((gm->state == GS_ENDED && --gm->n <= 1) || (gm->state == GS_LOBBY && !--gm->n)))
+		remgame(gm);
+
 	if(DEBUG_MODE) printgames();
 }
 
@@ -161,10 +208,6 @@ void joingame(struct game *gm, struct user *newusr) {
 	// tell user s/he joined a game.
 	json = jsoncreate("joinedGame");
 	jsonaddstr(json, "type", gametypetostr(gm->type));
-	sendjson(json, newusr);
-	jsondel(json);
-
-	json = getjsongamepars(gm);
 	sendjson(json, newusr);
 	jsondel(json);
 
@@ -202,6 +245,15 @@ void joingame(struct game *gm, struct user *newusr) {
 		startgame(gm);
 	}
 
+	/* send either game details or game list */
+	if(gm->type == GT_LOBBY)
+		json = encodegamelist();
+	else 
+		json = getjsongamepars(gm);
+
+	sendjson(json, newusr);
+	jsondel(json);
+
 	if(DEBUG_MODE) {
 		printf("user %d joined game %p\n", newusr->id, (void *)gm);
 		printgames();
@@ -224,6 +276,7 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	gm->ts = TURN_SPEED;
 	gm->pencilgame = PENCIL_GAME;
 	gm->nxt = headgame;
+	headgame = gm;
 
 	gm->hsize = HOLE_SIZE;
 	gm->hfreq = HOLE_FREQ;
@@ -237,7 +290,10 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	gm->vtiles = ceil(1.0 * gm->h / gm->tileh);
 	gm->seg = scalloc(gm->htiles * gm->vtiles, sizeof(struct seg*));
 
-	return headgame = gm;
+	if(nmin >= 2)
+		updategamelist();
+
+	return gm;
 }
 
 // returns 1 if collision, 0 if no collision
@@ -462,32 +518,6 @@ void sendsegments(struct game *gm) {
 		jsonaddjson(json, "segments", ar);
 		sendjsontogame(json, gm, 0);
 	}
-}
-
-cJSON *encodegame(struct game *gm) {
-	cJSON *json = cJSON_CreateObject();
-
-	jsonaddnum(json, "id", gm->id);
-	jsonaddnum(json, "n", gm->n);
-	jsonaddnum(json, "nmin", gm->nmin);
-	jsonaddnum(json, "nmax", gm->nmax);
-	jsonaddstr(json, "type", gametypetostr(gm->type));
-	return json;
-}
-
-cJSON *encodegamelist() {
-	struct game *gm;
-	cJSON *game, *gmArr, *json = jsoncreate("gameList");
-	
-	gmArr = cJSON_CreateArray();
-	cJSON_AddItemToObject(json, "games", gmArr);
-
-	for(gm = headgame; gm; gm = gm->nxt) {
-		game = encodegame(gm);
-		cJSON_AddItemToArray(gmArr, game);
-	}
-
-	return json;
 }
 
 void endround(struct game *gm) {
