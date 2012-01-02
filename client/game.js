@@ -166,15 +166,15 @@ GameEngine.prototype.joinLobby = function(player) {
 }
 
 GameEngine.prototype.interpretMsg = function(msg) {
-	if(ultraVerbose)
-		debugLog('received data: ' + msg.data);
-
 	try {
 		var obj = JSON.parse(msg.data);
 	}
 	catch(ex) {
 		debugLog('JSON parse exception!');
 	}
+	
+	if(ultraVerbose && obj.mode != 'segments')
+		debugLog('received data: ' + msg.data);
 
 	switch(obj.mode) {
 		case 'acceptUser':
@@ -207,7 +207,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			if(nextRoundDelay > this.countdown) {
 				var self = this;
 
-				window.setTimeout(function() {
+				this.gameloopTimeout = window.setTimeout(function() {
 					self.reset();
 					self.start(obj.startPositions, obj.startTime);
 				}, nextRoundDelay - this.countdown);
@@ -253,6 +253,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 				this.audioController.playSound('localDeath');
 			break;
 		case 'endRound':
+			window.clearTimeout(this.gameloopTimeout);
 			var index = (obj.winnerId != -1) ? this.getIndex(obj.winnerId) : null;
 			var winner = (index != null) ? (this.players[index].playerName + ' won') : 'draw';
 			this.setGameState('countdown');
@@ -261,6 +262,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;			
 		case 'endGame':
 			this.setGameState('waiting');
+			window.clearTimeout(this.gameloopTimeout);
 			debugLog('game over. ' + this.players[this.getIndex(obj.winnerId)].playerName + ' won!');
 
 			if(obj.winnerId == this.localPlayerId)
@@ -511,7 +513,7 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 		this.pencil.reset();
 	
 	var self = this;
-	window.setTimeout(function() { self.realStart(); }, delay + simStep);
+	this.gameloopTimeout = window.setTimeout(function() { self.realStart(); }, delay + simStep);
 	game.focusChat();
 }
 
@@ -543,7 +545,7 @@ GameEngine.prototype.realStart = function() {
 		} while((timeOut = (self.tick + 1) * simStep - (Date.now() - self.gameStartTimestamp)
 		 + (simulateCPUlag && self.tick % 100 == 0 ? 400 : 0)) <= 0);
 
-		setTimeout(gameloop, timeOut);		
+		self.gameloopTimeout = setTimeout(gameloop, timeOut);		
 	}
 
 	gameloop();
@@ -651,7 +653,8 @@ function Player(color, local) {
 
 Player.prototype.steer = function(obj) {
 	var localTick = this.isLocal ? this.game.tick : this.game.tock;
-	
+	if(!this.isLocal)
+		this.inputs.push(obj);
 	if(obj.tick > localTick && this.isLocal && obj.modified != undefined) {
 		while(obj.tick > this.game.tick)
 			this.game.doTick();
@@ -660,7 +663,6 @@ Player.prototype.steer = function(obj) {
 		localTick = this.game.tick;
 	}else if(obj.tick >= localTick || (this.isLocal && obj.modified == undefined)) {
 		if(!this.isLocal){
-			this.inputs.push(obj);
 			this.game.redrawsPossible++;
 			this.game.displayDebugStatus();
 		}else
@@ -669,13 +671,11 @@ Player.prototype.steer = function(obj) {
 	}
 	
 	if(this.isLocal && obj.modified != undefined) {
-		debugLog(this.inputs.length + ' vs ' + this.inputsReceived);
 		this.inputs[this.inputsReceived++].tick = obj.tick;
 		// FIXME: inputs mogelijk niet meer op volgorde
 		this.game.modifiedInputs++;
 		this.game.displayDebugStatus();
-	}else
-		this.inputsReceived++;
+	}
 	
 	this.x = this.lcx;
 	this.y = this.lcy;
@@ -684,7 +684,7 @@ Player.prototype.steer = function(obj) {
 	this.velocity = this.lcvelocity;
 	this.tick = this.lctick;
 	this.nextInput = this.lcnextInput;
-	var endTick = Math.min(obj.tick, this.game.tick - safeTickDifference);
+	var endTick = Math.min(obj.tick, localTick - safeTickDifference);
 	this.simulate(endTick, this.game.baseContext);
 	this.lcx = this.x;
 	this.lcy = this.y;
@@ -714,10 +714,10 @@ Player.prototype.simulate = function(endTick, ctx) {
 	ctx.beginPath();
 	setLineColor(ctx, this.color, inHole ? gapAlpha : 1);
 	ctx.lineCap = inHole ? 'butt' : lineCapStyle;
-	ctx.moveTo(this.x, this.y);
-	
 	if(debugBaseContext && ctx == this.game.baseContext)
 		setLineColor(ctx, [0,0,0], inHole ? gapAlpha : 1);
+	ctx.moveTo(this.x, this.y);
+	
 
 	if(this.nextInput < this.inputs.length)
 		input = this.inputs[this.nextInput];
@@ -729,6 +729,8 @@ Player.prototype.simulate = function(endTick, ctx) {
 			ctx.beginPath();
 			setLineColor(ctx, this.color, inHole ? gapAlpha : 1);
 			ctx.lineCap = inHole ? 'butt' : lineCapStyle;
+			if(debugBaseContext && ctx == this.game.baseContext)
+				setLineColor(ctx, [0,0,0], inHole ? gapAlpha : 1);
 		}
 
 		if(input != null && input.tick == this.tick) {
@@ -774,6 +776,7 @@ Player.prototype.initialise = function(x, y, angle, holeStart) {
 	this.inputs = [];
 	this.tick = 0;
 	this.inputsReceived = 0;
+	this.lastSteerTick = -1;
 
 	/* create canvas */
 	var canvas = document.getElementById(this.game.canvasStack.createLayer());
@@ -816,7 +819,6 @@ function InputController(player, left, right) {
 	this.rightKeyCode = left;
 	this.leftKeyCode = right;
 	this.player = player;
-	this.lastSteerTick = -1;
 }
 
 InputController.prototype.keyDown = function(keyCode, e) {
@@ -849,10 +851,10 @@ InputController.prototype.steerLocal = function(turn) {
 	var game = this.player.game;
 	var obj = {'turn': turn, 'tick': game.tick};
 
-	if(this.lastSteerTick == obj.tick)
+	if(this.player.lastSteerTick == obj.tick)
 		obj.tick = ++this.lastSteerTick;
 	else
-		this.lastSteerTick = obj.tick;
+		this.player.lastSteerTick = obj.tick;
 	
 	this.player.inputs.push(obj);
 
