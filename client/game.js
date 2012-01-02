@@ -194,7 +194,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.setParams(obj);
 			break;				
 		case 'newPlayer':
-			var newPlayer = new Player(playerColors[this.players.length], false);
+			var newPlayer = new Player(playerColors[this.players.length], false, this.players.length);
 			newPlayer.playerId = obj.playerId;
 			newPlayer.playerName = obj.playerName;
 			this.addPlayer(newPlayer);
@@ -251,11 +251,8 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'playerDied':
 			var index = this.getIndex(obj.playerId);
 			var player = this.players[index];
-			player.alive = false;
-			this.updatePlayerList(index, 'dead', obj.points);
-			//debugLog(this.players[index].playerName + " died");
-			if(index == 0)
-				this.audioController.playSound('localDeath');
+			player.points = obj.points;
+			player.finalSteer(obj);
 			break;
 		case 'endRound':
 			window.clearTimeout(this.gameloopTimeout);
@@ -301,13 +298,16 @@ GameEngine.prototype.printChat = function(playerId, message) {
 }
 
 GameEngine.prototype.handleSegmentsMessage = function(segments) {
-	this.segctx.beginPath();
+	var ctx = this.foregroundContext;
+	setLineColor(ctx, [0,0,0], 1);
+	ctx.lineWidth = 1;
+	ctx.beginPath();
 	for(var i = 0; i < segments.length; i++) {
 		var s = segments[i];
-		this.segctx.moveTo(s.x1, s.y1);
-		this.segctx.lineTo(s.x2, s.y2);
+		ctx.moveTo(s.x1, s.y1);
+		ctx.lineTo(s.x2, s.y2);
 	}
-	this.segctx.stroke();
+	ctx.stroke();
 }
 
 GameEngine.prototype.handleSyncResponse = function(serverTime) {
@@ -506,13 +506,13 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 		 startPositions[i].holeStart);
 	}
 
-	/* create segment canvas */
+	/* create foreground canvas */
 	canvas = document.getElementById(this.canvasStack.createLayer());
-	this.segctx = canvas.getContext('2d');
-	this.segctx.scale(this.scale, this.scale); // XPERIMENTAL
-	this.segctx.lineWidth = 1;
-	this.segctx.strokeStyle = 'black';
-	this.segctx.lineCap = lineCapStyle;
+	this.foregroundContext = canvas.getContext('2d');
+	this.foregroundContext.scale(this.scale, this.scale); // XPERIMENTAL
+	this.foregroundContext.lineWidth = 1;
+	this.foregroundContext.strokeStyle = 'black';
+	this.foregroundContext.lineCap = lineCapStyle;
 	
 	if(pencilGame)
 		this.pencil.reset();
@@ -627,7 +627,7 @@ GameEngine.prototype.focusChat = function() {
 }
 
 /* players */
-function Player(color, local) {
+function Player(color, local, index) {
 	this.isLocal = local;
 	this.playerId = null;
 	this.playerName = null;
@@ -655,6 +655,7 @@ function Player(color, local) {
 	this.holeSize = 0;
 	this.holeFreq = 0;
 	this.tick = 0;
+	this.index = index;
 }
 
 Player.prototype.steer = function(obj) {
@@ -709,6 +710,29 @@ Player.prototype.steer = function(obj) {
 	this.simulate(localTick, this.context);
 }
 
+Player.prototype.finalSteer = function(obj) {
+	var tick = obj.tick
+	var localTick = this.isLocal ? this.game.tick : this.game.tock;
+	
+	for(var i = this.inputs.length - 1; i >= 0 && this.inputs[i].tick >= tick; i--);
+	this.inputs.length = i + 2;
+	this.inputs[i + 1] = {'tick': tick, 'finalTurn': true, 'x': obj.x, 'y': obj.y};
+
+	if(tick >= localTick)
+		return;
+	
+	this.x = this.lcx;
+	this.y = this.lcy;
+	this.angle = this.lca;
+	this.turn = this.lcturn;
+	this.velocity = this.lcvelocity;
+	this.tick = this.lctick;
+	this.nextInput = this.lcnextInput;
+	this.simulate(tick + 1, this.game.baseContext);
+
+	this.context.clearRect(0, 0, this.game.width, this.game.height);
+}
+
 Player.prototype.simulate = function(endTick, ctx) {
 	if(this.tick >= endTick)
 		return;
@@ -740,8 +764,18 @@ Player.prototype.simulate = function(endTick, ctx) {
 		}
 
 		if(input != null && input.tick == this.tick) {
-			this.turn = input.turn;
-			input = (++this.nextInput < this.inputs.length) ? this.inputs[this.nextInput] : null;
+			if(input.finalTurn){
+				this.x = input.x;
+				this.y = input.y;
+				ctx.lineTo(this.x, this.y);
+				ctx.stroke();
+				if(this.alive)
+					this.simulateDead();
+				return;
+			}else{
+				this.turn = input.turn;
+				input = (++this.nextInput < this.inputs.length) ? this.inputs[this.nextInput] : null;
+			}
 		}
 
 		if(this.turn != 0) {
@@ -763,6 +797,23 @@ Player.prototype.simulate = function(endTick, ctx) {
 		
 		ctx.lineTo(this.x, this.y);
 	}
+	ctx.stroke();
+}
+
+Player.prototype.simulateDead = function() {debugLog(this.playerName);
+	this.alive = false;
+	this.game.updatePlayerList(this.index, 'dead', this.points);
+	if(this.index == 0)
+		this.game.audioController.playSound('localDeath');
+	
+	var ctx = this.game.foregroundContext;
+	setLineColor(ctx, [0,0,0], 1);
+	ctx.lineWidth = 2;
+	ctx.beginPath();
+	ctx.moveTo(this.x - crossRadius, this.y - crossRadius);
+	ctx.lineTo(this.x + crossRadius, this.y + crossRadius);
+	ctx.moveTo(this.x + crossRadius, this.y - crossRadius);
+	ctx.lineTo(this.x - crossRadius, this.y + crossRadius);
 	ctx.stroke();
 }
 
@@ -1044,7 +1095,7 @@ window.onload = function() {
 	touchDevice = 'createTouch' in document;
 	var audioController = new AudioController();
 	game = new GameEngine('canvasContainer', 'playerList', 'chat', audioController);
-	localPlayer = new Player(playerColors[0], true);
+	localPlayer = new Player(playerColors[0], true, 0);
 	var inputControl = new InputController(localPlayer, keyCodeLeft, keyCodeRight);
 
 	/* add sounds to controller */

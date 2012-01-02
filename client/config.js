@@ -23,6 +23,7 @@ var syncTries = 2;
 var syncDelays = 50;
 var behind = 2; // desired difference between tock and tick
 var canvasMinimumWidth = 200;
+var crossRadius = 6;
 
 var game = null;
 var localPlayer = null;

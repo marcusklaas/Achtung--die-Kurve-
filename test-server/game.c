@@ -241,7 +241,7 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 }
 
 // returns 1 if collision, 0 if no collision
-int segcollision(struct seg *seg1, struct seg *seg2, char cutoff) {
+int segcollision(struct seg *seg1, struct seg *seg2, struct point *collision_point) {
 	// ok we dont want two consecutive segments from player to collide
 	if(seg1->x2 == seg2->x1 && seg1->y2 == seg2->y1)
 		return 0;
@@ -280,11 +280,10 @@ int segcollision(struct seg *seg1, struct seg *seg2, char cutoff) {
 	float b = numer_b/ denom;
 
 	if(a >= 0 && a <= 1 && b >= 0 && b <= 1) {
-		if(cutoff) {
-			seg2->x2 = (1 - b) * seg2->x1 + b * seg2->x2;
-			seg2->y2 = (1 - b) * seg2->y1 + b * seg2->y2;
+		if(collision_point){
+			collision_point->x = (1 - b) * seg2->x1 + b * seg2->x2;
+			collision_point->y = (1 - b) * seg2->y1 + b * seg2->y2;
 		}
-
 		return 1;
 	}
 
@@ -332,7 +331,7 @@ int lineboxcollision(struct seg *seg, int left, int bottom, int right, int top) 
 }
 
 // returns 1 in case of collision, 0 other wise
-int addsegment(struct game *gm, struct seg *seg, int checkcollision) {
+int addsegment(struct game *gm, struct seg *seg, char checkcollision, struct point *collision_point) {
 	int left_tile, right_tile, bottom_tile, top_tile, swap, collision = 0;
 	struct seg *current, *copy;
 
@@ -351,28 +350,34 @@ int addsegment(struct game *gm, struct seg *seg, int checkcollision) {
 	/* run off screen */
 	if(seg->x2 < 0 || seg->x2 >= gm->w || seg->y2 < 0 || seg->y2 >= gm->h) {
 		collision = 1;
+		collision_point->x = min(gm->w, max(0, seg->x2));
+		collision_point->y = min(gm->h, max(0, seg->y2));
 		left_tile = max(left_tile, 0);
 		right_tile = min(right_tile, gm->htiles - 1);
 		bottom_tile = max(bottom_tile, 0);
 		top_tile = min(top_tile, gm->vtiles - 1);
 	}
 
+	//FIXME: if there is a collision, the tiles before the tile with the colliding segment will 
+	// get the full segment instead of the cutoff segment
 	for(int i = left_tile; i <= right_tile; i++) {
 		for(int j = bottom_tile; j <= top_tile; j++) {
 			if(!lineboxcollision(seg, i * gm->tilew, j * gm->tileh,
 			 (i + 1) * gm->tilew, (j + 1) * gm->tileh))
 				continue;
 
-			if(checkcollision)
+			if(checkcollision && !collision)
 				for(current = gm->seg[gm->htiles * j + i]; current; current = current->nxt)
-					if(segcollision(current, seg, 1)) {
+					if(segcollision(current, seg, collision_point)) {
 						if(DEBUG_MODE) {
 							printseg(current);printf(" collided with ");printseg(seg);printf("\n");
 						}
 						collision = 1;
+						seg->x2 = collision_point->x;
+						seg->y2 = collision_point->y;
 						break;
 					}
-
+			
 			(copy = copyseg(seg))->nxt = gm->seg[gm->htiles * j + i];
 			gm->seg[gm->htiles * j + i] = copy;
 		}
@@ -428,8 +433,14 @@ int simuser(struct user *usr, int tick) {
 	newseg->y1 = oldy;
 	newseg->x2 = usr->x;
 	newseg->y2 = usr->y;
-
-	return addsegment(usr->gm, newseg, 1);
+	
+	struct point collision_point;
+	char collision = addsegment(usr->gm, newseg, 1, &collision_point);
+	if(collision){
+		usr->x = collision_point.x;
+		usr->y = collision_point.y;
+	}
+	return collision;
 }
 
 // send message to group: this player died
@@ -438,6 +449,8 @@ void deadplayermsg(struct user *usr, int tick) {
 	jsonaddnum(json, "playerId", usr->id);
 	jsonaddnum(json, "points", usr->points);
 	jsonaddnum(json, "tick", tick);
+	jsonaddnum(json, "x", usr->x);
+	jsonaddnum(json, "y", usr->y);
 	sendjsontogame(json, usr->gm, 0);
 	jsondel(json);
 }
@@ -811,7 +824,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 void simpencil(struct pencil *p) {
 	if(p->psegtail && p->psegtail->tick == p->usr->gm->tick) {
 		struct pencilseg *tail = p->psegtail;
-		addsegment(p->usr->gm, copyseg(&tail->seg), 0);
+		addsegment(p->usr->gm, copyseg(&tail->seg), 0, 0);
 		if(tail->prev) {
 			tail->prev->nxt = 0;
 			p->psegtail = tail->prev;
