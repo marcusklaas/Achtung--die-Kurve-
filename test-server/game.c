@@ -217,7 +217,7 @@ void joingame(struct game *gm, struct user *newusr) {
 	json = jsoncreate("newPlayer");
 	jsonaddnum(json, "playerId", newusr->id);
 	jsonaddstr(json, "playerName", lastusedname = newusr->name);
-	sendjsontogame(json, gm, newusr);
+	sendjsontogame(json, gm, 0);
 
 	if(DEBUG_MODE)
 		printf("user %d has name %s\n", newusr->id, newusr->name);
@@ -232,6 +232,9 @@ void joingame(struct game *gm, struct user *newusr) {
 	jsonsetstr(json, "playerName", duplicatestring(lastusedname));
 	jsondel(json);
 
+	newusr->nxt = gm->usr;
+	gm->usr = newusr;
+	newusr->gm = gm;
 	newusr->hsize = gm->hsize;
 	newusr->hfreq = gm->hfreq;
 	newusr->inputs = 0;
