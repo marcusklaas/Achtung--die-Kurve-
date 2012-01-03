@@ -44,8 +44,7 @@ cJSON *encodegamelist() {
 	return json;
 }
 
-/* TODO: caching */
-void updategamelist() {
+void broadcastgamelist() {
 	cJSON *json = encodegamelist();
 	sendjsontogame(json, lobby, 0);
 	jsondel(json);
@@ -128,7 +127,7 @@ void remgame(struct game *gm) {
 
 	free(gm->seg);
 	free(gm);
-	updategamelist();
+	broadcastgamelist();
 }
 
 struct game *findgame(int nmin, int nmax) {
@@ -292,14 +291,15 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	gm->vtiles = ceil(1.0 * gm->h / gm->tileh);
 	gm->seg = scalloc(gm->htiles * gm->vtiles, sizeof(struct seg*));
 
+	// FIXME: if we send now the game still has 0 players and this will show in gamelist
 	if(nmin >= 2)
-		updategamelist();
+		broadcastgamelist();
 
 	return gm;
 }
 
 // returns 1 if collision, 0 if no collision
-int segcollision(struct seg *seg1, struct seg *seg2, struct point *collision_point) {
+int segcollision(struct seg *seg1, struct seg *seg2, struct point *collision_point, float *maxcut) {
 	// ok we dont want two consecutive segments from player to collide
 	if(seg1->x2 == seg2->x1 && seg1->y2 == seg2->y1)
 		return 0;
@@ -338,7 +338,8 @@ int segcollision(struct seg *seg1, struct seg *seg2, struct point *collision_poi
 	float b = numer_b/ denom;
 
 	if(a >= 0 && a <= 1 && b >= 0 && b <= 1) {
-		if(collision_point){
+		if(collision_point && b <= *maxcut) {
+			*maxcut = b;
 			collision_point->x = (1 - b) * seg2->x1 + b * seg2->x2;
 			collision_point->y = (1 - b) * seg2->y1 + b * seg2->y2;
 		}
@@ -366,23 +367,23 @@ int lineboxcollision(struct seg *seg, int left, int bottom, int right, int top) 
 	edge.x1 = edge.x2 = left;
 	edge.y1 = bottom;
 	edge.y2 = top;
-	if(segcollision(seg, &edge, 0))
+	if(segcollision(seg, &edge, 0, 0))
 		return 1;
 
 	/* check intersect right border */
 	edge.x1 = edge.x2 = right;
-	if(segcollision(seg, &edge, 0))
+	if(segcollision(seg, &edge, 0, 0))
 		return 1;
 
 	/* check intersect top border */
 	edge.x1 = left;
 	edge.y1 = edge.y2 = top;
-	if(segcollision(seg, &edge, 0))
+	if(segcollision(seg, &edge, 0, 0))
 		return 1;
 
 	/* check intersect top border */
 	edge.y1 = edge.y2 = bottom;
-	if(segcollision(seg, &edge, 0))
+	if(segcollision(seg, &edge, 0, 0))
 		return 1;
 
 	return 0;
@@ -390,8 +391,8 @@ int lineboxcollision(struct seg *seg, int left, int bottom, int right, int top) 
 
 // returns 1 in case of collision, 0 other wise
 int addsegment(struct game *gm, struct seg *seg, char checkcollision, struct point *collision_point) {
-	int left_tile, right_tile, bottom_tile, top_tile, swap, collision = 0;
-	struct seg *current, *copy;
+	int left_tile, right_tile, bottom_tile, top_tile, swap, tiles = 0, collision = 0;
+	struct seg *current, **newsegs;
 
 	left_tile = seg->x1/ gm->tilew;
 	right_tile = seg->x2/ gm->tilew;
@@ -416,30 +417,39 @@ int addsegment(struct game *gm, struct seg *seg, char checkcollision, struct poi
 		top_tile = min(top_tile, gm->vtiles - 1);
 	}
 
-	//FIXME: if there is a collision, the tiles before the tile with the colliding segment will 
-	// get the full segment instead of the cutoff segment
+	newsegs = smalloc((top_tile - bottom_tile + 1) * (left_tile - right_tile + 1)
+	 * sizeof(struct seg *));
+
 	for(int i = left_tile; i <= right_tile; i++) {
 		for(int j = bottom_tile; j <= top_tile; j++) {
 			if(!lineboxcollision(seg, i * gm->tilew, j * gm->tileh,
 			 (i + 1) * gm->tilew, (j + 1) * gm->tileh))
 				continue;
 
-			if(checkcollision && !collision)
+			if(checkcollision && !collision) {
+				float maxcut = 1;
+
 				for(current = gm->seg[gm->htiles * j + i]; current; current = current->nxt)
-					if(segcollision(current, seg, collision_point)) {
+					if(segcollision(current, seg, collision_point, &maxcut)) {
 						if(DEBUG_MODE) {
 							printseg(current);printf(" collided with ");printseg(seg);printf("\n");
 						}
 						collision = 1;
-						seg->x2 = collision_point->x;
-						seg->y2 = collision_point->y;
 						break;
 					}
+			}
 			
-			(copy = copyseg(seg))->nxt = gm->seg[gm->htiles * j + i];
-			gm->seg[gm->htiles * j + i] = copy;
+			newsegs[tiles] = copyseg(seg);
+			newsegs[tiles]->nxt = gm->seg[gm->htiles * j + i];
+			gm->seg[gm->htiles * j + i] = newsegs[tiles++];
 		}
 	}
+
+	if(collision)
+		for(int i = 0; i < tiles; i++) {
+			newsegs[i]->x2 = collision_point->x;
+			newsegs[i]->x2 = collision_point->y;
+		}
 
 	// we dont need the original any more: free it
 	if(SEND_SEGMENTS) {
@@ -593,8 +603,7 @@ void endround(struct game *gm) {
 		gm->seg[i] = 0;
 	}
 
-	if((maxpoints >= gm->goal && (gm->nmin == 1 || maxpoints >= secondpoints + MIN_WIN_DIFF))
-	 || gm->n == 1) {
+	if((maxpoints >= gm->goal && maxpoints >= secondpoints + MIN_WIN_DIFF) || gm->n == 1) {
 		printf("game %p ended. winner = %d\n", (void*) gm, winner->id);
 		cJSON *json= jsoncreate("endGame");
 		jsonaddnum(json, "winnerId", winner->id);
@@ -602,8 +611,6 @@ void endround(struct game *gm) {
 		jsondel(json);
 
 		gm->state = GS_ENDED;
-		if(gm->n == 1)
-			remgame(gm);
 	}
 	else {
 		printf("round of game %p ended. round winner = %d\n", (void*) gm, usr ? usr->id : -1);

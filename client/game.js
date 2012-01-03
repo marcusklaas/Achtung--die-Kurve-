@@ -7,7 +7,7 @@ function GameEngine(containerId, playerListId, chatBarId, audioController) {
 	this.tick = 0;
 	this.tock = 0; // seperate tick for the other clients
 	this.behind = behind;
-	this.gameState = 'new'; // new, lobby, waiting, countdown, playing, watching
+	this.gameState = 'new'; // new, lobby, waiting, countdown, playing, watching, ended
 	this.width = -1;
 	this.height = -1;
 	
@@ -274,7 +274,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			debugLog('round over. ' + winner);
 			break;			
 		case 'endGame':
-			this.setGameState('waiting');
+			this.setGameState('ended');
 			window.clearTimeout(this.gameloopTimeout);
 			debugLog('game over. ' + this.players[this.getIndex(obj.winnerId)].playerName + ' won!');
 
