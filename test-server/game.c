@@ -35,10 +35,8 @@ cJSON *encodegamelist() {
 	cJSON_AddItemToObject(json, "games", gmArr);
 
 	for(gm = headgame; gm; gm = gm->nxt) {
-		if(gm->state == GS_LOBBY) {
-			game = encodegame(gm);
-			cJSON_AddItemToArray(gmArr, game);
-		}
+		game = encodegame(gm);
+		cJSON_AddItemToArray(gmArr, game);
 	}
 
 	return json;

@@ -542,7 +542,7 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	if(jsProfiling)
 		console.profile('canvas performance');
 
-	window.scroll(0, 0);
+	window.scroll(window.innerWidth, 0);
 	this.audioController.playSound('countdown');
 	this.playerListStart();
 	// debugLog("starting game in " + delay + " milliseconds");
