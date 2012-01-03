@@ -406,17 +406,20 @@ int addsegment(struct game *gm, struct seg *seg, char checkcollision, struct poi
 
 	/* run off screen */
 	if(seg->x2 < 0 || seg->x2 >= gm->w || seg->y2 < 0 || seg->y2 >= gm->h) {
-		collision = 1;
-		collision_point->x = min(gm->w, max(0, seg->x2));
-		collision_point->y = min(gm->h, max(0, seg->y2));
+		if(checkcollision){
+			collision = 1;
+			collision_point->x = min(gm->w, max(0, seg->x2));
+			collision_point->y = min(gm->h, max(0, seg->y2));
+		}
 		left_tile = max(left_tile, 0);
 		right_tile = min(right_tile, gm->htiles - 1);
 		bottom_tile = max(bottom_tile, 0);
 		top_tile = min(top_tile, gm->vtiles - 1);
 	}
-
-	newsegs = smalloc((top_tile - bottom_tile + 1) * (left_tile - right_tile + 1)
-	 * sizeof(struct seg *));
+	
+	if(checkcollision)
+		newsegs = smalloc((top_tile - bottom_tile + 1) * (left_tile - right_tile + 1)
+		 * sizeof(struct seg *));
 
 	for(int i = left_tile; i <= right_tile; i++) {
 		for(int j = bottom_tile; j <= top_tile; j++) {
@@ -448,6 +451,9 @@ int addsegment(struct game *gm, struct seg *seg, char checkcollision, struct poi
 			newsegs[i]->x2 = collision_point->x;
 			newsegs[i]->x2 = collision_point->y;
 		}
+	
+	if(newsegs)
+		free(newsegs);
 
 	// we dont need the original any more: free it
 	if(SEND_SEGMENTS) {
