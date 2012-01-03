@@ -12,7 +12,7 @@ body {
 	background-color: #F0F0F0;
 }
 
-table {
+#sidebar table {
 	width: 100%;
 }
 
@@ -74,8 +74,44 @@ button {
 	width: 100%;
 }
 
-#gameOptions, #gameContainer, #gameListContainer, #gameDetails, #stop, #status {
+#gameOptions, #gameContainer, #gameListContainer,
+ #gameDetails, #status, #leaveOptions {
 	display: none;
+}
+
+#gameListContainer, #gameDetails {
+	margin-left: 10px;
+}
+
+#content table {
+	border: 1px solid #DDD;
+	border-top: 0;
+	border-collapse: separate;
+	border-spacing: 0;
+	table-layout: fixed;
+}
+
+#content th, #content td {
+	padding: 8px 4px;
+	margin: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+#content th {
+	border-top: 1px solid #DDD;
+	font-weight: bold;
+	text-align: center;
+	border-left: 1px solid #DDD
+}
+
+#content th:first-child {
+	border-left: 0;
+}
+
+#content td {
+	border-top: 1px solid #DDD;
+	text-align: center;
 }
 
 #playerListContainer {
