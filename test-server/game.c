@@ -178,6 +178,7 @@ void leavegame(struct user *usr) {
 	}
 
 	gm->alive -= usr->alive;
+	gm->n--; // we always want to decrement n (?)
 	usr->nxt = 0;
 	usr->gm = 0;
 
@@ -187,8 +188,9 @@ void leavegame(struct user *usr) {
 	sendjsontogame(json, gm, 0);
 	jsondel(json);
 
-	if(gm->type != GT_LOBBY && gm->state != GS_REMOVING_GAME &&
-	 ((gm->state == GS_ENDED && --gm->n <= 1) || (gm->state == GS_LOBBY && !--gm->n)))
+	// i removed the gm->n <= 1, since maybe the user is still looking at
+	// the game or the score.
+	if(gm->type != GT_LOBBY && gm->state != GS_REMOVING_GAME && !gm->n)
 		remgame(gm);
 
 	if(DEBUG_MODE) printgames();

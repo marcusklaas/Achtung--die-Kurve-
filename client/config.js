@@ -24,11 +24,13 @@ var syncDelays = 50;
 var behind = 2; // desired difference between tock and tick
 var canvasMinimumWidth = 200;
 var crossRadius = 6;
+var crossLineWidth = 2;
 
 var game = null;
 var localPlayer = null;
 var touchDevice = null;
 var safeTickDifference = 60; // TODO: should depend on 2*ping & SERVER_DELAY
+var resizeDelay = 1000; // the duration the window should have a constant size before calling resize
 
 /* debugging */
 var ultraVerbose = false;
