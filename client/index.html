@@ -22,13 +22,63 @@
 				<h1>Game List</h1>
 				<table id="gameList">
 					<thead><tr><th>#</th><th>type</th><th>state</th><th>minplayers</th>
-					<th>maxplayers</th><th>players</th><th>join</th></tr>
+					<th>maxplayers</th><th>players</th><th></th></tr>
 					</thead><tbody></tbody></table>
 				</table>
 			</div>
 
 			<div id="gameDetails">
-				todo
+				<h1>Game Details</h1>
+				<table>
+					<tr>
+						<td>
+							Minimum players
+						</td>
+						<td>
+							<input id="nmin" type="number" disabled />
+						</td>
+					</tr>
+					<tr>
+						<td>
+							Maximum players
+						</td>
+						<td>
+							<input id="nmax" type="number" disabled />
+						</td>
+					</tr>
+					<tr>
+						<td>
+							Velocity
+						</td>
+						<td>
+							<input id="velocity" type="number" disabled />
+						</td>
+					</tr>
+					<tr>
+						<td>
+							Turn speed
+						</td>
+						<td>
+							<input id="turnSpeed" type="number" disabled />
+						</td>
+					</tr>
+					<tr>
+						<td>
+							Hole size
+						</td>
+						<td>
+							<input id="holeSize" type="number" disabled />
+						</td>
+					</tr>
+					<tr>
+						<td>
+							Hole frequency
+						</td>
+						<td>
+							<input id="holeFreq" type="number" disabled />
+						</td>
+					</tr>
+				</table>
 			</div>
 		</div>
 
@@ -46,12 +96,16 @@
 					maxplayers: <input type="number" min="1" max="8" steps="1" value="8" id="maxplayers" />
 				</span>
 				<button id="start">Request Game</button>
-				<button id="stop">Leave Game</button>
 				<button id="disconnect">Disconnect</button>
-				<span class="option">
+			</div>
+
+			<div id="leaveOptions">
+				<button id="stop">Leave Game</button>
+			</div>
+
+			<span class="option">
 					sound: <input type="checkbox" id="sound" checked>
 				</span>
-			</div>
 
 			<div id="playerListContainer">
 				<h3 id="gameTitle">Lobby</h3>

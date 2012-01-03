@@ -140,24 +140,19 @@ GameEngine.prototype.setGameState = function(newState) {
 
 	switch(newState) {
 		case 'lobby':
-			setOptionVisibility('game');
-			setButtonVisibility('start');
+			setOptionVisibility('gameOptions');
 			setContentVisibility('gameListContainer');
 			break;
 		case 'countdown':
 			setContentVisibility('gameContainer');
 			break;
 		case 'waiting':
-			// TODO: hide game options (min/ max player inputs)
-			setOptionVisibility('game');
-			setButtonVisibility('stop');
-
-			if(this.gameState != 'playing' && this.gameState != 'watching')
-				setContentVisibility('gameDetails');
+			setOptionVisibility('leaveOptions');
+			setContentVisibility('gameDetails');
 			break;
 		case 'new':
 			setContentVisibility('nothing');
-			setOptionVisibility('lobby');
+			setOptionVisibility('lobbyOptions');
 			break;
 	}
 
@@ -426,14 +421,17 @@ GameEngine.prototype.setParams = function(obj) {
 	this.holeFreq = obj.hfreq;
 	
 	if(obj.type != 'lobby') {
-		var details = document.getElementById('gameDetails');
-		details.innerHTML = 'Game details. Under development! Sneak preview: this game is for '
-		 + obj.nmin + ' to ' + obj.nmax + ' players';
-		this.title = 'Game ' + obj.id;
-	}
+		document.getElementById('nmin').value = obj.nmin;
+		document.getElementById('nmax').value = obj.nmax;
+		document.getElementById('velocity').value = this.velocity;
+		document.getElementById('turnSpeed').value = this.turnSpeed;
+		document.getElementById('holeSize').value = this.holeSize;
+		document.getElementById('holeFreq').value = this.holeFreq;
 
-	document.getElementById('gameTitle').innerHTML = this.title;
-}	
+		this.title = 'Game ' + obj.id;
+		document.getElementById('gameTitle').innerHTML = this.title;
+	}
+}
 
 GameEngine.prototype.requestGame = function(player, minPlayers, maxPlayers) {
 	if(this.gameState != 'lobby')
@@ -1399,28 +1397,13 @@ function debugLog(msg) {
     container.insertBefore(elt, container.firstChild);
 }
 
-function setOptionVisibility(show) {
-	var hide = 'game';
+function setOptionVisibility(target) {
+	var sections = ['lobbyOptions', 'gameOptions', 'leaveOptions'];
 
-	if(show == 'game')
-		hide = 'lobby';
-
-	document.getElementById(show + 'Options').style.display = 'block';
-	document.getElementById(hide + 'Options').style.display = 'none';
-}
-
-function setButtonVisibility(show) {
-	var hide = 'start';
-	var disconnectStyle = 'none';
-
-	if(show == 'start') {
-		hide = 'stop';
-		disconnectStyle = 'inline';
+	for(var i = 0; i < sections.length; i++) {
+		var elt = document.getElementById(sections[i]);
+		elt.style.display = (target == sections[i]) ? 'block' : 'none';
 	}
-
-	document.getElementById(hide).style.display = 'none';
-	document.getElementById(show).style.display = 'inline';
-	document.getElementById('disconnect').style.display = disconnectStyle;
 }
 
 function setContentVisibility(target) {
