@@ -658,19 +658,19 @@ GameEngine.prototype.resize = function() {
 		player.tick = 0;
 		player.turn = 0;
 		player.nextInput = 0;
-		if(player.isLocal) {
-			player.simulate(this.tick, this.baseContext);
-			player.saveLocation();
-		}else{
-			var tick = this.tick - safeTickDifference;
-			if(player.finalTick < this.tock)
-				tick = player.finalTick + 1;
-			else if(player.inputs.length > 0)
-				tick = Math.min(tick, player.inputs[player.inputs.length - 1].tick);
-			player.simulate(tick, this.baseContext);
-			player.saveLocation();
-			player.simulate(this.tock, player.context);
+		var knownTick;
+		if(player.isLocal)
+			knownTick = player.inputsReceived > 0 ? player.inputs[player.inputsReceived - 1].tick : 0;
+		else if(player.finalTick < this.tock)
+			knownTick = player.finalTick + 1;
+		else {
+			knownTick = this.tock - knownTickDifference;
+			if(player.inputs.length > 0)
+				knownTick = Math.min(knownTick, player.inputs[player.inputs.length - 1].tick);
 		}
+		player.simulate(knownTick, this.baseContext);
+		player.saveLocation();
+		player.simulate(player.isLocal ? this.tick : this.tock, player.context);
 	}
 }
 
@@ -828,7 +828,7 @@ Player.prototype.steer = function(obj) {
 	}
 	
 	this.loadLocation();
-	var endTick = Math.min(obj.tick, localTick - safeTickDifference);
+	var endTick = Math.min(obj.tick, localTick - knownTickDifference);
 	this.simulate(endTick, this.game.baseContext);
 	this.saveLocation();
 
@@ -963,7 +963,7 @@ Player.prototype.initialise = function(x, y, angle, holeStart) {
 	this.tick = 0;
 	this.inputsReceived = 0;
 	this.lastSteerTick = -1;
-	this.finalTick = -1;
+	this.finalTick = Infinity;
 
 	/* create canvas */
 	var canvas = document.getElementById(this.game.canvasStack.createLayer());
