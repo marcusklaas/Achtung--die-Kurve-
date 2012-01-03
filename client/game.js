@@ -438,9 +438,6 @@ GameEngine.prototype.requestGame = function(player, minPlayers, maxPlayers) {
 		return;
 
 	this.setGameState('waiting');
-	//TODO: waarom hier inputs clearen?
-	player.inputs = [];
-	player.nextInput = 0;
 	this.resetPlayers();
 	this.addPlayer(player);
 	this.sendMsg('requestGame', {'playerName': player.playerName,
@@ -959,6 +956,7 @@ Player.prototype.initialise = function(x, y, angle, holeStart) {
 	this.turn = this.lcturn = 0;
 	this.inputs = [];
 	this.tick = 0;
+	this.lcnextInput = this.nextInput = 0;
 	this.inputsReceived = 0;
 	this.lastSteerTick = -1;
 	this.finalTick = Infinity;

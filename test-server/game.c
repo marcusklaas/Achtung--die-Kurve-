@@ -204,6 +204,9 @@ void joingame(struct game *gm, struct user *newusr) {
 	if(DEBUG_MODE)
 		printf("user %d is joining game %p\n", newusr->id, (void*)gm);
 
+	if(!gm->n++)
+		broadcastgamelist();
+
 	// tell user s/he joined a game.
 	json = jsoncreate("joinedGame");
 	jsonaddstr(json, "type", gametypetostr(gm->type));
@@ -214,7 +217,7 @@ void joingame(struct game *gm, struct user *newusr) {
 	json = jsoncreate("newPlayer");
 	jsonaddnum(json, "playerId", newusr->id);
 	jsonaddstr(json, "playerName", lastusedname = newusr->name);
-	sendjsontogame(json, gm, 0);
+	sendjsontogame(json, gm, newusr);
 
 	if(DEBUG_MODE)
 		printf("user %d has name %s\n", newusr->id, newusr->name);
@@ -229,20 +232,10 @@ void joingame(struct game *gm, struct user *newusr) {
 	jsonsetstr(json, "playerName", duplicatestring(lastusedname));
 	jsondel(json);
 
-	newusr->nxt = gm->usr;
-	gm->usr = newusr;
-	newusr->gm = gm;
-
 	newusr->hsize = gm->hsize;
 	newusr->hfreq = gm->hfreq;
 	newusr->inputs = 0;
 	newusr->points = 0;
-
-	if(gm->type != GT_LOBBY && ++gm->n >= gm->nmin) {
-		// goal = avg points per player * constant
-		gm->goal = (gm->n - 1) * TWO_PLAYER_POINTS;
-		startgame(gm);
-	}
 
 	/* send either game details or game list */
 	if(gm->type == GT_LOBBY)
@@ -252,6 +245,12 @@ void joingame(struct game *gm, struct user *newusr) {
 
 	sendjson(json, newusr);
 	jsondel(json);
+
+	if(gm->type != GT_LOBBY && gm->n >= gm->nmin) {
+		// goal = avg points per player * constant
+		gm->goal = (gm->n - 1) * TWO_PLAYER_POINTS;
+		startgame(gm);
+	}
 
 	if(DEBUG_MODE) {
 		printf("user %d joined game %p\n", newusr->id, (void *)gm);
@@ -288,10 +287,6 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	gm->htiles = ceil(1.0 * gm->w / gm->tilew);
 	gm->vtiles = ceil(1.0 * gm->h / gm->tileh);
 	gm->seg = scalloc(gm->htiles * gm->vtiles, sizeof(struct seg*));
-
-	// FIXME: if we send now the game still has 0 players and this will show in gamelist
-	if(nmin >= 2)
-		broadcastgamelist();
 
 	return gm;
 }
@@ -390,7 +385,7 @@ int lineboxcollision(struct seg *seg, int left, int bottom, int right, int top) 
 // returns 1 in case of collision, 0 other wise
 int addsegment(struct game *gm, struct seg *seg, char checkcollision, struct point *collision_point) {
 	int left_tile, right_tile, bottom_tile, top_tile, swap, tiles = 0, collision = 0;
-	struct seg *current, **newsegs;
+	struct seg *current, *copy, **newsegs;
 
 	left_tile = seg->x1/ gm->tilew;
 	right_tile = seg->x2/ gm->tilew;
@@ -440,19 +435,22 @@ int addsegment(struct game *gm, struct seg *seg, char checkcollision, struct poi
 					}
 			}
 			
-			newsegs[tiles] = copyseg(seg);
-			newsegs[tiles]->nxt = gm->seg[gm->htiles * j + i];
-			gm->seg[gm->htiles * j + i] = newsegs[tiles++];
+			copy = copyseg(seg);
+			copy->nxt = gm->seg[gm->htiles * j + i];
+			gm->seg[gm->htiles * j + i] = copy;
+
+			if(checkcollision)
+				newsegs[tiles++] = copy;
 		}
 	}
 
 	if(collision)
 		for(int i = 0; i < tiles; i++) {
 			newsegs[i]->x2 = collision_point->x;
-			newsegs[i]->x2 = collision_point->y;
+			newsegs[i]->y2 = collision_point->y;
 		}
 	
-	if(newsegs)
+	if(checkcollision)
 		free(newsegs);
 
 	// we dont need the original any more: free it
@@ -649,7 +647,7 @@ void simgame(struct game *gm) {
 	if(SEND_SEGMENTS && gm->tick % SEND_SEGMENTS == 0)
 		sendsegments(gm);
 	
-	if(gm->alive <= 1 && (gm->nmin > 1 || gm->alive < 1))
+	if(gm->alive <= 1 && (gm->n > 1 || gm->alive < 1))
 		endround(gm);
 }
 
@@ -766,16 +764,14 @@ void interpretinput(cJSON *json, struct user *usr) {
 	}
 	
 	// send to other players
-	{
-		cJSON *j = jsoncreate("newInput");
-		jsonaddnum(j, "tick", tick);
-		jsonaddnum(j, "playerId", usr->id);
-		jsonaddnum(j, "turn", turn);
-		if(modified)
-			jsonaddnum(j, "modified", 0);
-		sendjsontogame(j, usr->gm, 0);
-		jsondel(j);
-	}
+	cJSON *j = jsoncreate("newInput");
+	jsonaddnum(j, "tick", tick);
+	jsonaddnum(j, "playerId", usr->id);
+	jsonaddnum(j, "turn", turn);
+	if(modified)
+		jsonaddnum(j, "modified", 0);
+	sendjsontogame(j, usr->gm, 0);
+	jsondel(j);
 }
 
 /* pencil game */
