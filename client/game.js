@@ -553,6 +553,7 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	var container = document.getElementById(this.containerId);
 	container.style.width = Math.round(this.scale * this.width) + 'px';
 	container.style.height = Math.round(this.scale * this.height) + 'px';
+	this.resizeNeeded = false;
 
 	/* create canvas stack */
 	this.canvasStack = new CanvasStack(this.containerId, canvasBgcolor);
