@@ -662,7 +662,7 @@ GameEngine.prototype.resize = function() {
 		else if(player.finalTick < this.tock)
 			knownTick = player.finalTick + 1;
 		else {
-			knownTick = this.tock - knownTickDifference;
+			knownTick = this.tock - safeTickDifference;
 			if(player.inputs.length > 0)
 				knownTick = Math.min(knownTick, player.inputs[player.inputs.length - 1].tick);
 		}
@@ -826,7 +826,7 @@ Player.prototype.steer = function(obj) {
 	}
 	
 	this.loadLocation();
-	var endTick = Math.min(obj.tick, localTick - knownTickDifference);
+	var endTick = Math.min(obj.tick, localTick - safeTickDifference);
 	this.simulate(endTick, this.game.baseContext);
 	this.saveLocation();
 
