@@ -175,7 +175,7 @@ void leavegame(struct user *usr) {
 	}
 
 	gm->alive -= usr->alive;
-	gm->n--; // we always want to decrement n (?)
+	gm->n--;
 	usr->nxt = 0;
 	usr->gm = 0;
 
@@ -185,10 +185,12 @@ void leavegame(struct user *usr) {
 	sendjsontogame(json, gm, 0);
 	jsondel(json);
 
-	// i removed the gm->n <= 1, since maybe the user is still looking at
-	// the game or the score.
-	if(gm->type != GT_LOBBY && gm->state != GS_REMOVING_GAME && !gm->n)
-		remgame(gm);
+	if(gm->type != GT_LOBBY) {
+		if(gm->state == GS_STARTED && gm->n == 1)
+			endgame(gm, gm->usr);
+		else if(gm->state != GS_REMOVING_GAME && gm->n == 0)
+			remgame(gm);
+	}
 
 	if(DEBUG_MODE) printgames();
 }
@@ -404,7 +406,7 @@ int addsegment(struct game *gm, struct seg *seg, char checkcollision, struct poi
 
 	/* run off screen */
 	if(seg->x2 < 0 || seg->x2 >= gm->w || seg->y2 < 0 || seg->y2 >= gm->h) {
-		if(checkcollision){
+		if(checkcollision) {
 			collision = 1;
 			collision_point->x = min(gm->w, max(0, seg->x2));
 			collision_point->y = min(gm->h, max(0, seg->y2));
@@ -550,6 +552,16 @@ void sendsegments(struct game *gm) {
 	}
 }
 
+void endgame(struct game *gm, struct user *winner) {
+	cJSON *json = jsoncreate("endGame");
+	jsonaddnum(json, "winnerId", winner->id);
+	sendjsontogame(json, gm, 0);
+	jsondel(json);
+
+	printf("game %p ended. winner = %d\n", (void*) gm, winner->id);
+	gm->state = GS_ENDED;
+}
+
 void endround(struct game *gm) {
 	struct user *usr, *winner = 0;
 	int maxpoints = 0, secondpoints = 0;
@@ -609,13 +621,7 @@ void endround(struct game *gm) {
 	}
 
 	if((maxpoints >= gm->goal && maxpoints >= secondpoints + MIN_WIN_DIFF) || gm->n == 1) {
-		printf("game %p ended. winner = %d\n", (void*) gm, winner->id);
-		cJSON *json= jsoncreate("endGame");
-		jsonaddnum(json, "winnerId", winner->id);
-		sendjsontogame(json, gm, 0);
-		jsondel(json);
-
-		gm->state = GS_ENDED;
+		endgame(gm, winner);
 	}
 	else {
 		printf("round of game %p ended. round winner = %d\n", (void*) gm, usr ? usr->id : -1);
@@ -885,7 +891,7 @@ void resetpencil(struct pencil *p, struct user *u) {
 	p->lasttick = -1;
 }
 
-// to be called at endgame
+// to be called at endround
 void cleanpencil(struct pencil *pen) {
 	struct pencilseg *p = pen->pseghead, *q;
 	while(p) {

@@ -14,7 +14,6 @@ static struct game *lobby, *headgame = 0;
 static int usrc = 0; // user count
 static int gmc = 1; // game count
 static unsigned long serverticks = 0; // yes this will underflow, but not fast ;p
-static char *gamelist = 0;
 
 #include "helper.c"
 #include "game.c"
