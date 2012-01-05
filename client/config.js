@@ -37,12 +37,11 @@ var ultraVerbose = false;
 var simulatedPing = 0;
 var extraGameStartTimeDifference = 0;
 var acceptGameTimeAdjustments = true;
-var jsProfiling = true;
+var jsProfiling = false;
 var simulateCPUlag = false;
 var debugBaseContext = false; // sets different color for segments in basecontext
 
 /* pencil game */
-var pencilGame = true;
 var mousedownInk = 30;
 var inkBufferTicks = 5;
 var inkMinimumDistance = 5;

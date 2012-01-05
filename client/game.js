@@ -18,6 +18,7 @@ function GameEngine(containerId, playerListId, chatBarId, audioController) {
 	this.modifiedInputs = 0;
 
 	// game properties
+	this.pencilMode = null; // on, off or ondeath
 	this.velocity = null;
 	this.turnSpeed = null;
 	this.holeSize = null; // default game values, may be overwritten during game
@@ -44,10 +45,6 @@ function GameEngine(containerId, playerListId, chatBarId, audioController) {
 
 	// chat
 	this.chatBar = document.getElementById(chatBarId);
-	
-	// optional features
-	if(pencilGame)
-		this.pencil = new Pencil(this);
 }
 
 /* this only resets things like canvas, but keeps the player info */
@@ -61,6 +58,9 @@ GameEngine.prototype.reset = function() {
 	this.redrawsPossible = 0;
 	this.adjustGameTimeMessagesReceived = 0;
 	this.modifiedInputs = 0;
+
+	if(this.pencil != null && this.pencilMode != 'off')
+		this.pencil.reset();
 
 	var container = document.getElementById(this.containerId);
 	while(container.hasChildNodes())
@@ -140,19 +140,19 @@ GameEngine.prototype.setGameState = function(newState) {
 
 	switch(newState) {
 		case 'lobby':
-			setOptionVisibility('gameOptions');
+			setOptionVisibility('disconnect');
 			setContentVisibility('gameListContainer');
 			break;
 		case 'countdown':
 			setContentVisibility('gameContainer');
 			break;
 		case 'waiting':
-			setOptionVisibility('leaveOptions');
+			setOptionVisibility('stop');
 			setContentVisibility('gameDetails');
 			break;
 		case 'new':
-			setContentVisibility('nothing');
-			setOptionVisibility('lobbyOptions');
+			setContentVisibility('connectionContainer');
+			setOptionVisibility('nothing');
 			break;
 	}
 
@@ -170,6 +170,13 @@ GameEngine.prototype.joinLobby = function(player) {
 	this.addPlayer(player);
 	this.sendMsg('joinLobby', {'playerName': player.playerName});
 }
+
+GameEngine.prototype.updateTitle = function(title) {
+	if(this.title != title) {
+		this.title = title;
+		document.getElementById('gameTitle').innerHTML = this.title;
+	}
+}	
 
 GameEngine.prototype.interpretMsg = function(msg) {
 	try {
@@ -193,8 +200,8 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.setGameState((obj.type == 'lobby') ? 'lobby' : 'waiting');
 			this.resetPlayers();
 			this.addPlayer(localPlayer);
-			if(obj.type == 'lobby')
-				this.title = 'Lobby';
+			if(obj.type == 'lobby') 
+				this.updateTitle('Lobby');
 			break;
 		case 'gameParameters':
 			this.setParams(obj);
@@ -419,8 +426,10 @@ GameEngine.prototype.setParams = function(obj) {
 	this.turnSpeed = obj.ts;
 	this.holeSize = obj.hsize;
 	this.holeFreq = obj.hfreq;
+	this.pencilMode = obj.pencilmode;
 	
 	if(obj.type != 'lobby') {
+		// TODO: set pencil mode in gamedetails
 		document.getElementById('nmin').value = obj.nmin;
 		document.getElementById('nmax').value = obj.nmax;
 		document.getElementById('velocity').value = this.velocity;
@@ -428,8 +437,7 @@ GameEngine.prototype.setParams = function(obj) {
 		document.getElementById('holeSize').value = this.holeSize;
 		document.getElementById('holeFreq').value = this.holeFreq;
 
-		this.title = 'Game ' + obj.id;
-		document.getElementById('gameTitle').innerHTML = this.title;
+		this.updateTitle('Game ' + obj.id);
 	}
 }
 
@@ -483,7 +491,7 @@ GameEngine.prototype.doTick = function() {
 
 	player.simulate(this.tick, player.context);
 	
-	if(pencilGame)
+	if(this.pencilMode != 'off')
 		this.pencil.doTick();
 }
 
@@ -521,7 +529,7 @@ GameEngine.prototype.calcScale = function() {
 
 	if(touchDevice) {
 		targetWidth = window.innerWidth;
-		//if(pencilGame)
+		//if(pencilGame != 'off')
 		//	targetHeight = window.innerHeight - 20;
 	}
 	
@@ -539,10 +547,9 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	if(jsProfiling)
 		console.profile('canvas performance');
 
-	window.scroll(window.innerWidth, 0);
+	window.scroll(document.body.offsetWidth, 0);
 	this.audioController.playSound('countdown');
 	this.playerListStart();
-	// debugLog("starting game in " + delay + " milliseconds");
 
 	this.calcScale();
 	var container = document.getElementById(this.containerId);
@@ -572,9 +579,10 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	this.foregroundCanvas = canvas;
 	this.foregroundContext = canvas.getContext('2d');
 	this.setDefaultValues(this.foregroundContext);
-	
-	if(pencilGame)
-		this.pencil.reset();
+
+	/* create pencil if it isn't there yet */
+	if(this.pencil == null && this.pencilMode != 'off')
+		this.pencil = new Pencil(this);
 	
 	var self = this;
 	this.gameloopTimeout = window.setTimeout(function() { self.realStart(); }, delay + simStep);
@@ -1059,6 +1067,9 @@ AudioController.prototype.playSound = function(name) {
 	this.sounds[name][Math.floor(Math.random() * this.sounds[name].length)].play();
 }
 
+// TODO: enkel tekenen en data sturen als
+// pencilGame == 'on' || (pencilGame == 'ondeath' && !localPlayer.alive)
+
 /* Pencil */
 function Pencil(game) {
 	this.game = game;
@@ -1396,7 +1407,7 @@ function debugLog(msg) {
 }
 
 function setOptionVisibility(target) {
-	var sections = ['lobbyOptions', 'gameOptions', 'leaveOptions'];
+	var sections = ['disconnect', 'stop'];
 
 	for(var i = 0; i < sections.length; i++) {
 		var elt = document.getElementById(sections[i]);
@@ -1405,7 +1416,7 @@ function setOptionVisibility(target) {
 }
 
 function setContentVisibility(target) {
-	var sections = ['gameListContainer', 'gameDetails', 'gameContainer'];
+	var sections = ['connectionContainer', 'gameListContainer', 'gameDetails', 'gameContainer'];
 
 	for(var i = 0; i < sections.length; i++) {
 		var elt = document.getElementById(sections[i]);

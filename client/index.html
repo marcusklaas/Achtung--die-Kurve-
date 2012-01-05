@@ -5,110 +5,16 @@
 		<!--- for fancy touch devices --->
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 		<title>Achtung, die Kurve!</title>
-		<link rel="stylesheet" type="text/css" href="wide.css" />
+		<link rel="stylesheet" type="text/css" href="new.css" />
 		<script src="config.js"></script>
 		<script src="buzz.js"></script>
 		<script src="canvaslayers.js"></script>
 		<script src="game.js"></script>
 	</head>
 	<body>
-		<div id="content">
-			<div id="gameContainer">
-				<div id="canvasContainer"></div>
-				<div id="status"></div>
-			</div>
-
-			<div id="gameListContainer">
-				<h1>Game List</h1>
-				<table id="gameList">
-					<thead><tr><th>#</th><th>type</th><th>state</th><th>minplayers</th>
-					<th>maxplayers</th><th>players</th><th></th></tr>
-					</thead><tbody></tbody></table>
-				</table>
-			</div>
-
-			<div id="gameDetails">
-				<h1>Game Details</h1>
-				<table>
-					<tr>
-						<td>
-							Minimum players
-						</td>
-						<td>
-							<input id="nmin" type="number" disabled />
-						</td>
-					</tr>
-					<tr>
-						<td>
-							Maximum players
-						</td>
-						<td>
-							<input id="nmax" type="number" disabled />
-						</td>
-					</tr>
-					<tr>
-						<td>
-							Velocity
-						</td>
-						<td>
-							<input id="velocity" type="number" disabled />
-						</td>
-					</tr>
-					<tr>
-						<td>
-							Turn speed
-						</td>
-						<td>
-							<input id="turnSpeed" type="number" disabled />
-						</td>
-					</tr>
-					<tr>
-						<td>
-							Hole size
-						</td>
-						<td>
-							<input id="holeSize" type="number" disabled />
-						</td>
-					</tr>
-					<tr>
-						<td>
-							Hole frequency
-						</td>
-						<td>
-							<input id="holeFreq" type="number" disabled />
-						</td>
-					</tr>
-				</table>
-			</div>
-		</div>
-
 		<div id="sidebar">
-			<div id="lobbyOptions">
-				<input type="text" id="playername" placeholder="playername" />
-				<button id="lobby">Connect to Server</button>
-			</div>
-
-			<div id="gameOptions">
-				<span class="option">
-					minplayers: <input type="number" min="1" max="8" steps="1" value="2" id="minplayers" />
-				</span>
-				<span class="option">
-					maxplayers: <input type="number" min="1" max="8" steps="1" value="8" id="maxplayers" />
-				</span>
-				<button id="start">Request Game</button>
-				<button id="disconnect">Disconnect</button>
-			</div>
-
-			<div id="leaveOptions">
-				<button id="stop">Leave Game</button>
-			</div>
-
-			<span class="option">
-					sound: <input type="checkbox" id="sound" checked>
-				</span>
-
 			<div id="playerListContainer">
-				<h3 id="gameTitle">Lobby</h3>
+				<h2 id="gameTitle">Lobby</h2>
 				<table id="playerList">
 					<thead><tr><th>Player</th><th>Status</th><th>Points</th></tr>
 				</thead><tbody></tbody></table>
@@ -119,6 +25,77 @@
 				<div id="chatContainer">
 					<ul id="debugLog"></ul>
 				</div>
+			</div>
+
+			<div id="options">
+				<button id="disconnect" class="danger">Disconnect</button>
+				<button id="stop" class="danger">Leave Game</button>
+
+				<span class="option" id="soundOption">
+						sound: <input type="checkbox" id="sound" checked>
+				</span>
+			</div>
+		</div>
+
+		<div id="content">
+			<div id="gameContainer">
+				<div id="canvasContainer"></div>
+				<div id="status"></div>
+			</div>
+
+			<div id="connectionContainer">
+				<input type="text" id="playername" placeholder="playername" />
+				<button id="lobby" class="primary">Connect to Server</button>
+			</div>
+
+			<div id="gameListContainer">
+				<h2>Game List</h2>
+				<table id="gameList" class="zebra-striped bordered-table">
+					<thead><tr><th>#</th><th>Type</th><th>State</th><th>Minplayers</th>
+					<th>Maxplayers</th><th>Players</th><th></th></tr>
+					</thead><tbody></tbody></table>
+				</table>
+
+				<h2>Automatch</h2>
+				<div id="automatch">
+					<span class="option">
+						Minimum players: <input type="number" min="1" max="8" steps="1" value="2" id="minplayers" />
+					</span>
+					<span class="option">
+						Maximum players: <input type="number" min="1" max="8" steps="1" value="8" id="maxplayers" />
+					</span>
+					<button id="start" class="primary">Request Game</button>
+				</div>
+			</div>
+
+			<div id="gameDetails">
+				<h2>Game Details</h2>
+				<table id="details">
+					<tr>
+						<td>Minimum players</td>
+						<td><input id="nmin" type="number" disabled /></td>
+					</tr>
+					<tr>
+						<td>Maximum players</td>
+						<td><input id="nmax" type="number" disabled /></td>
+					</tr>
+					<tr>
+						<td>Velocity</td>
+						<td><input id="velocity" type="number" disabled /></td>
+					</tr>
+					<tr>
+						<td>Turn speed</td>
+						<td><input id="turnSpeed" type="number" disabled /></td>
+					</tr>
+					<tr>
+						<td>Hole size</td>
+						<td><input id="holeSize" type="number" disabled /></td>
+					</tr>
+					<tr>
+						<td>Hole frequency</td>
+						<td><input id="holeFreq" type="number" disabled /></td>
+					</tr>
+				</table>
 			</div>
 		</div>
 	</body>

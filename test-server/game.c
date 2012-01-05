@@ -70,7 +70,7 @@ void startgame(struct game *gm) {
 		usr->ts = gm->ts;
 		usr->lastinputtick = -1;
 		usr->ignoreinput = 1;
-		if(gm->pencilgame)
+		if(gm->pencilmode != PM_OFF)
 			resetpencil(&usr->pencil, usr);
 	}
 	
@@ -277,7 +277,7 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	gm->state = GS_LOBBY;
 	gm->v = VELOCITY;
 	gm->ts = TURN_SPEED;
-	gm->pencilgame = PENCIL_GAME;
+	gm->pencilmode = PM_DEFAULT;
 	gm->nxt = headgame;
 	headgame = gm;
 
@@ -479,7 +479,7 @@ int simuser(struct user *usr, int tick) {
 			usr->inputtail = 0;
 	}
 	
-	if(usr->gm->pencilgame)
+	if(usr->gm->pencilmode != PM_OFF)
 		simpencil(&usr->pencil);
 
 	usr->inputs *= !!(tick % INPUT_CONTROL_INTERVAL);
@@ -603,7 +603,7 @@ void endround(struct game *gm) {
 			free(inp);
 		}
 		usr->inputhead = usr->inputtail = 0;
-		if(gm->pencilgame)
+		if(gm->pencilmode != PM_OFF)
 			cleanpencil(&usr->pencil);
 	}
 	 
@@ -789,6 +789,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 	cJSON *j = cJSON_CreateArray();
 	int send = 0;
 	json = jsongetjson(json, "data")->child;
+
 	while(json) {
 		float x = json->valuedouble, y;
 		int tick;

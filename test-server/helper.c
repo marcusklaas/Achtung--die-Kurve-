@@ -88,6 +88,7 @@ cJSON *getjsongamepars(struct game *gm) {
 	jsonaddnum(json, "ts", gm->ts);
 	jsonaddnum(json, "id", gm->id);
 	jsonaddstr(json, "type", gametypetostr(gm->type));
+	jsonaddstr(json, "pencilmode", pencilmodetostr(gm->pencilmode));
 	
 	return json;
 }
@@ -187,6 +188,19 @@ char *statetostr(int gamestate) {
 		strcpy(str, "started");
 	else
 		strcpy(str, "ended");
+
+	return str;
+}
+
+char *pencilmodetostr(int pencilmode) {
+	char *str = smalloc(10);
+
+	if(pencilmode == PM_ON)
+		strcpy(str, "on");
+	else if(pencilmode == PM_ONDEATH)
+		strcpy(str, "ondeath");
+	else
+		strcpy(str, "off");
 
 	return str;
 }

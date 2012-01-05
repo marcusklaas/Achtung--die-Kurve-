@@ -38,7 +38,10 @@
 #define MAX_CHATS 5 // per check interval
 
 /* pencil */
-#define PENCIL_GAME 1
+#define PM_ON 0
+#define PM_ONDEATH 1
+#define PM_OFF 2
+#define PM_DEFAULT PM_ON
 #define INK_PER_SEC 25
 #define MAX_INK 200
 #define START_INK MAX_INK
@@ -94,7 +97,7 @@ struct game {
 	struct user *usr;	// user list
 	struct game *nxt;
 	struct seg *tosend;	// voor de DEBUG_SEGMENTS
-	char pencilgame;
+	char pencilmode;
 };
 
 struct pencilseg {
@@ -157,3 +160,4 @@ void endgame(struct game *gm, struct user *winner);
 void joingame(struct game *gm, struct user *newusr);
 float getlength(float x, float y);
 char *gametypetostr(int gametype);
+char *pencilmodetostr(int pencilmode);
