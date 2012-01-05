@@ -390,7 +390,7 @@ int lineboxcollision(struct seg *seg, int left, int bottom, int right, int top) 
 // returns 1 in case of collision, 0 other wise
 int addsegment(struct game *gm, struct seg *seg, char checkcollision, struct point *collision_point) {
 	int left_tile, right_tile, bottom_tile, top_tile, swap, tiles = 0, collision = 0;
-	struct seg *current, *copy, **newsegs;
+	struct seg *current, *copy, **newsegs = 0;
 
 	left_tile = seg->x1/ gm->tilew;
 	right_tile = seg->x2/ gm->tilew;

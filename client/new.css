@@ -93,6 +93,10 @@ h2 {
 	bottom: 10px;
 }
 
+#sound {
+	vertical-align: -20%;
+}
+
 input[type=number] {
 	max-width: 50px;
 }
@@ -334,6 +338,7 @@ table {
 	padding: 0;
 	font-size: 13px;
 	border-collapse: collapse;
+	border-spacing: 0;
 }
 
 table th, table td {

@@ -10,6 +10,8 @@ transparency ipv een lichte kleur voor de gaten werkt misschien toch niet zo goe
 
 - dat je ook op maps kan spelen waar bij de start al muren zijn geplaatst (en evt vaste startposities). niet willekeurig maar door ons gemaakt. want vaak wordt het spel leuk als er bv 'kamertjes' ontstaan, dus het lijkt me dat er best leuke maps gemaakt kunnen worden. optioneel nog een mode dat de spelers omstebeurt zelf ff snel een map kunnen tekenen waar dan elk 3 potjes op worden gespeeld. ook kunnen er bv 'modderplassen' in een map liggen waar je dan langzamer gaat.
 
-- fixen dat het uiteinde van je snake bij botsing niet door de muur heen blijft liggen. (dat ie uberhaupt niet door de muur heengaat zal niet goed lukken.) of misschien kunnen we er juist gebruik van maken, dat we bijvoorbeeld de snake niet abrupt laten stoppen, maar langzaam laten afremmen (in 2 seconden ofzo tot stilstand brengen), en dan ook op de server de segmenten nog toevoegen. (we doen dan alsof de snake de botsing gwon niet meteen doorheeft). [en anders zouden we in een effectje het deel van de snake na de botsing kunnen uitgummen. hiervoor kunnen we niet gwon de player context clearen en basecontext gebruiken, omdat daar al segmenten na de botsing in kunnen staan.]
+- spambeveiliging doet 't niet meer (maar waaorm niet?)
+
+- soms heeft input echt dikke vertraging, niet 1 of 2 ticks. maar echt 10 ~ 20 ofzo! jij ook gemerkt?
 
 - een powerup mogelijk maken. en als we een powerup toevoegen zou ik zeggen dat deze erg klein moet zijn, zodat het beetje moeilijk is om hem te pakken. 
