@@ -123,7 +123,7 @@ struct user {
 	int id;
 	struct game *gm;
 	struct user *nxt;
-	char *name;			
+	char *name;
 	
 	char *sb[SB_MAX];	// sendbuffer
 	int sbat;			// sendbuffer at

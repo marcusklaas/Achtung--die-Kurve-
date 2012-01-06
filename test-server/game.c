@@ -135,7 +135,8 @@ struct game *findgame(int nmin, int nmax) {
 		printf("findgame called \n");
 
 	for(gm = headgame; gm; gm = gm->nxt)
-		if(gm->state == GS_LOBBY && gm->nmin <= nmax && gm->nmax >= nmin) {
+		if(gm->state == GS_LOBBY && gm->nmin <= nmax && gm->nmax >= nmin
+		 && gm->type == GT_AUTO) {
 			if(gm->nmin < nmin || gm->nmax > nmax) {
 				gm->nmin = max(gm->nmin, nmin);
 				gm->nmax = min(gm->nmax, nmax);
@@ -154,7 +155,7 @@ struct game *searchgame(int gameid) {
 	struct game *gm;
 
 	for(gm = headgame; gm; gm = gm->nxt)
-		if(gm->state == GS_LOBBY && gameid == gm->id && gm->nmin > gm->n)
+		if(gm->state == GS_LOBBY && gameid == gm->id && gm->nmax > gm->n)
 			return gm;
 
 	return 0;
@@ -209,6 +210,12 @@ void joingame(struct game *gm, struct user *newusr) {
 	if(!gm->n++)
 		broadcastgamelist();
 
+	newusr->gm = gm;
+	newusr->hsize = gm->hsize;
+	newusr->hfreq = gm->hfreq;
+	newusr->inputs = 0;
+	newusr->points = 0;
+
 	// tell user s/he joined a game.
 	json = jsoncreate("joinedGame");
 	jsonaddstr(json, "type", gametypetostr(gm->type));
@@ -233,14 +240,9 @@ void joingame(struct game *gm, struct user *newusr) {
 
 	jsonsetstr(json, "playerName", duplicatestring(lastusedname));
 	jsondel(json);
-
+	
 	newusr->nxt = gm->usr;
 	gm->usr = newusr;
-	newusr->gm = gm;
-	newusr->hsize = gm->hsize;
-	newusr->hfreq = gm->hfreq;
-	newusr->inputs = 0;
-	newusr->points = 0;
 
 	/* send either game details or game list */
 	if(gm->type == GT_LOBBY)
@@ -251,7 +253,7 @@ void joingame(struct game *gm, struct user *newusr) {
 	sendjson(json, newusr);
 	jsondel(json);
 
-	if(gm->type != GT_LOBBY && gm->n >= gm->nmin) {
+	if(gm->type == GT_AUTO && gm->n >= gm->nmin) {
 		// goal = avg points per player * constant
 		gm->goal = (gm->n - 1) * TWO_PLAYER_POINTS;
 		startgame(gm);
