@@ -238,7 +238,8 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'adjustGameTime':
 			if(acceptGameTimeAdjustments) {
 				debugLog('adjusted game time by ' + obj.forward + ' msec');
-				this.ping -= obj.forward;
+				this.gameStartTimestamp -= obj.forward;
+				this.ping += obj.forward;
 				this.adjustGameTimeMessagesReceived++;
 				this.displayDebugStatus();
 			}else
@@ -1218,13 +1219,18 @@ Pencil.prototype.drawPlayerSegs = function(redraw) {
 				this.inbufferSolid[i].push(seg);
 		}
 
-		this.inbufferIndex[i] = index; // even if redraw, right?
+		this.inbufferIndex[i] = index;
 		buffer =  this.inbufferSolid[i];
 		index = (redraw) ? 0 : this.inbufferSolidIndex[i];
 
 		while(index < buffer.length && buffer[index].tickSolid <= this.game.tick) {
 			var seg = buffer[index++];
 			this.drawSegment(seg.x1, seg.y1, seg.x2, seg.y2, i, 1);
+
+			if(!redraw) {
+				this.inbuffer[i].shift();
+				this.inbufferIndex[i]--;
+			}
 		}
 
 		this.inbufferSolidIndex[i] = index;
