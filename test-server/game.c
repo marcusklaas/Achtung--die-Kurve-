@@ -669,13 +669,15 @@ static void resetGameChatCounters(struct game *gm) {
 
 // deze functie called simgame zo goed als mogelijk elke TICK_LENGTH msec (voor elke game)
 void mainloop() {
-	int sleepuntil, resetChat = !(serverticks % SPAM_CHECK_INTERVAL);
+	int sleepuntil, resetChat;
 	struct game *gm, *nxtgm;
 	static int lastheavyloadmsg;
 
 	while(1) {
+		resetChat = !(serverticks % SPAM_CHECK_INTERVAL);
+
 		for(gm = headgame; gm; gm = nxtgm) {
-			nxtgm = gm->nxt; // in the case that gm gets freed
+			nxtgm = gm->nxt; // in the case that gm gets freed. is this still possible? game only freed after last player leaves
 			if(gm->state == GS_STARTED)
 				simgame(gm);
 
