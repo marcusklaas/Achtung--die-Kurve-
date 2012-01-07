@@ -288,7 +288,7 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 
 	// how big we should choose our tiles depends only on segment length
 	float seglen = gm->v * TICK_LENGTH / 1000.0;
-	gm->tilew = gm->tileh = TILE_SIZE_MULTIPLIER * seglen;
+	gm->tilew = gm->tileh = ceil(TILE_SIZE_MULTIPLIER * seglen);
 	gm->htiles = ceil(1.0 * gm->w / gm->tilew);
 	gm->vtiles = ceil(1.0 * gm->h / gm->tileh);
 	gm->seg = scalloc(gm->htiles * gm->vtiles, sizeof(struct seg*));

@@ -25,6 +25,9 @@ function GameEngine(containerId, playerListId, chatBarId, audioController) {
 	this.holeFreq = null; // for certain players by powerups or whatever
 	this.countdown = null; // countdown time in msecs
 
+	// pencil
+	this.pencil = null;
+
 	// connection state
 	this.websocket = null;
 	this.connected = false;
@@ -267,6 +270,9 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			var player = this.players[index];
 			player.points = obj.points;
 			player.finalSteer(obj);
+
+			if(index == 0 && this.pencilMode == 'ondeath')
+				this.pencil.drawingAllowed = true;
 			break;
 		case 'endRound':
 			window.clearTimeout(this.gameloopTimeout);
@@ -484,16 +490,15 @@ GameEngine.prototype.syncWithServer = function() {
 
 GameEngine.prototype.doTick = function() {
 	var player = this.players[0];
-
 	this.tick++;
+
+	if(this.pencilMode != 'off')
+		this.pencil.doTick();
 
 	if(!player.alive)
 		return;
 
 	player.simulate(this.tick, player.context);
-	
-	if(this.pencilMode != 'off')
-		this.pencil.doTick();
 }
 
 GameEngine.prototype.doTock = function() {
@@ -1080,7 +1085,7 @@ function Pencil(game) {
 	var self = this;
 
 	canvas.addEventListener('mousedown', function(ev) {
-		if(!self.down && self.ink > mousedownInk) {
+		if(self.drawingAllowed && !self.down && self.ink > mousedownInk) {
 			self.ink -= mousedownInk;
 			self.last = self.cur = ev;
 			var pos = self.getRelativeMousePos(ev);
@@ -1092,12 +1097,12 @@ function Pencil(game) {
 	}, false);
 
 	canvas.addEventListener('mousemove', function(ev) {
-		if(self.down)
+		if(self.drawingAllowed && self.down)
 			self.cur = ev;
 	}, false);
 
 	canvas.addEventListener('mouseup', function(ev) {
-		if(self.down) {
+		if(self.drawingAllowed && self.down) {
 			self.cur = ev;
 			self.down = false;
 			self.upped = true;
@@ -1106,7 +1111,7 @@ function Pencil(game) {
 	}, false);
 
 	canvas.addEventListener('mouseout', function(ev) {
-		if(self.down) {
+		if(self.drawingAllowed && self.down) {
 			self.cur = ev;
 			self.down = false;
 			self.out = true;
@@ -1116,6 +1121,7 @@ function Pencil(game) {
 }
 
 Pencil.prototype.reset = function() {
+	this.drawingAllowed = (this.game.pencilMode == 'on');
 	this.buffer = [];
 	this.down = false;
 	this.upped = false;
@@ -1147,10 +1153,7 @@ Pencil.prototype.doTick = function() {
 	if(this.ink > maxInk)
 		this.ink = maxInk;
 
-	var allowedToDraw = (this.game.pencilMode == 'on' ||
-	 (this.game.pencilMode == 'ondeath' && !this.game.players[0].alive));
-
-	if(allowedToDraw && (this.down || this.upped || this.out)) {
+	if(this.drawingAllowed && (this.down || this.upped || this.out)) {
 		var pos = this.getRelativeMousePos(this.last);
 		var x1 = pos[0];
 		var y1 = pos[1];

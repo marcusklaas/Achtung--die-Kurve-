@@ -41,7 +41,7 @@
 #define PM_ON 0
 #define PM_ONDEATH 1
 #define PM_OFF 2
-#define PM_DEFAULT PM_ON
+#define PM_DEFAULT PM_ONDEATH
 #define INK_PER_SEC 25
 #define MAX_INK 200
 #define START_INK MAX_INK
