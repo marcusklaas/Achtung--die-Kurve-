@@ -7,6 +7,7 @@
 #define jsonaddfalse cJSON_AddFalseToObject
 #define jsonaddtrue cJSON_AddTrueToObject
 #define jsonaddjson cJSON_AddItemToObject
+#define jsonaddbool(json, name, value) cJSON_AddItemToObject(json, name, cJSON_CreateBool(value))
 #define jsondel	cJSON_Delete
 #define max(a,b) ((b) > (a) ? (b) : (a))
 #define min(a,b) ((b) > (a) ? (a) : (b))
@@ -46,6 +47,16 @@ void jsonsetstr(cJSON *json, char* obj, char* str) {
 		return ;
 	}
 	json->valuestring = str;
+}
+
+
+void jsonsetbool(cJSON *json, char* obj, char value) {
+	json = cJSON_GetObjectItem(json, obj);
+	if(!json) {
+		if(DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
+		return ;
+	}
+	json->type = value ? cJSON_True : cJSON_False;
 }
 
 void jsonsetnum(cJSON *json, char* obj, double val) {

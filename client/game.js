@@ -170,7 +170,8 @@ GameEngine.prototype.joinLobby = function(player) {
 	if(this.gameState != 'new')
 		return;
 
-	this.addPlayer(player);
+	// w8 for joinedGame message
+	//this.addPlayer(player);
 	this.sendMsg('joinLobby', {'playerName': player.playerName});
 }
 
@@ -199,7 +200,6 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.setIndex(obj.playerId, 0);
 			break;
 		case 'joinedGame':
-			var localPlayer = this.players[0];
 			this.setGameState((obj.type == 'lobby') ? 'lobby' : 'waiting');
 			this.resetPlayers();
 			this.addPlayer(localPlayer);
@@ -216,7 +216,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.addPlayer(newPlayer);
 			this.audioController.playSound('newPlayer');
 			//debugLog(obj.playerName + ' joined the game (id = ' + obj.playerId + ')');
-			break;
+			break;		
 		case 'startGame':
 			/* keep displaying old game for a while so ppl can see what happened */
 			var nextRoundDelay = obj.startTime + this.serverTimeDifference - this.ping
@@ -452,11 +452,19 @@ GameEngine.prototype.requestGame = function(player, minPlayers, maxPlayers) {
 	if(this.gameState != 'lobby')
 		return;
 
-	this.setGameState('waiting');
-	this.resetPlayers();
-	this.addPlayer(player);
+	// w8 for joinedGame message
+	//this.setGameState('waiting');
+	//this.resetPlayers();
+	//this.addPlayer(player);
 	this.sendMsg('requestGame', {'playerName': player.playerName,
 	 'minPlayers': minPlayers, 'maxPlayers': maxPlayers});
+}
+
+GameEngine.prototype.createGame = function(player) {
+	if(this.gameState != 'lobby')
+		return;
+
+	this.sendMsg('createGame', {});
 }
 
 GameEngine.prototype.sendMsg = function(mode, data) {
@@ -710,9 +718,10 @@ GameEngine.prototype.appendPlayerList = function(index) {
 	var statusNode = document.createElement('td');
 	var pointsNode = document.createElement('td');
 
-	// alleen naam in spelerkleur of ook status?
+	// alleen naam in spelerkleur of ook status? - misschien nog mooier als er een 
+	// vierkantje/rondje voor de spelernaam staat die in de kleur is van de speler? 
 	if(this.gameState != 'lobby' && this.gameState != 'new')
-		row.style.color = 'rgb(' + player.color[0] + ', ' + player.color[1] + ', '
+		nameNode.style.color = 'rgb(' + player.color[0] + ', ' + player.color[1] + ', '
 		 + player.color[2] + ')';
 
 	row.id = 'player' + index;
@@ -1387,6 +1396,9 @@ window.onload = function() {
 
 	var startButton = document.getElementById('start');
 	startButton.addEventListener('click', reqGame, false);
+	
+	var createButton = document.getElementById('createGame');
+	createButton.addEventListener('click', function() { game.createGame(localPlayer); }, false);
 
 	var leaveButton = document.getElementById('stop');
 	leaveButton.addEventListener('click', function() {
@@ -1397,6 +1409,9 @@ window.onload = function() {
 	disconnectButton.addEventListener('click', function() {
 		game.disconnect();
 	}, false);
+	
+	var startGameButton = game.startGameButton = document.getElementById('startGame');
+	startGameButton.addEventListener('click', function() { game.sendMsg('startGame', {}); }, false);
 
 	var minPlayers = getCookie('minPlayers');
 	if(minPlayers != null)
@@ -1417,6 +1432,9 @@ window.onload = function() {
 		this.resizeTimeout = this.setTimeout(function() { game.resizeNeeded = true; }, 
 		 resizeDelay);
 	}
+	
+	window.addEventListener('mousedown', function(ev) { mouseDown = true; }, false);
+	window.addEventListener('mouseup', function(ev) { mouseDown = false; }, false);
 }
 
 /* canvas context color setter */

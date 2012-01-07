@@ -226,16 +226,32 @@ callback_game(struct libwebsocket_context * context,
 
 			int nmin= jsongetint(json, "minPlayers");
 			int nmax= jsongetint(json, "maxPlayers");
-			if(0 < nmin && nmin <= nmax && nmax < 17) { //omg eerst moest nmin < nmax!!
+			if(0 < nmin && nmin <= nmax && nmax < 17) {
 				struct game *gm = findgame(nmin, nmax);
 				if(!gm)
 					gm = creategame(GT_AUTO, nmin, nmax);
 				joingame(gm, u);
 			}
 		}
+		else if(!strcmp(mode, "createGame")) {
+			if(DEBUG_MODE) printf("user %d is creating a game\n", u->id);
+
+			if(u->gm != lobby) {
+				printf("user tried to create game. but he is not in lobby. he might not have a name etc.\n");
+				break;
+			}
+			
+			joingame(creategame(GT_CUSTOM, 2, 4), u);
+			
+		}
 		else if(!strcmp(mode, "leaveGame")) {
 			if(u->gm && u->gm - lobby)
 				joingame(lobby, u);
+		}
+		else if(!strcmp(mode, "startGame")) {
+			// check here for host
+			if(u->gm && u->gm->type == GT_CUSTOM && u->gm->state == GS_LOBBY)
+				startgame(u->gm);
 		}
 		else if(strcmp(mode, "newInput") == 0) {
 			if(++(u->inputs) <= MAX_INPUTS && u->gm

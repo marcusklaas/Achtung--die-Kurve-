@@ -1,6 +1,6 @@
 /*=============================================================
   Filename: canvasStack1v00.js
-  Rev: 1
+  Rev: 1 (with custom edits!)
   By: A.R.Collins
   Description: A set of utilities create canvas elements able
   to have multiple transparent canvas layers.
