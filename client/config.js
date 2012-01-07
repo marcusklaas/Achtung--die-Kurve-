@@ -31,7 +31,9 @@ var localPlayer = null;
 var touchDevice = null;
 var safeTickDifference = 60; // TODO: should depend on 2*ping & SERVER_DELAY
 var resizeDelay = 1000; // the duration the window should have a constant size before calling resize
-var mouseDown = false;
+
+var customGameWaitMessage = 'Waiting for host to start the game..';
+var autoMatchWaitMessage = 'Waiting for more players..';
 
 /* debugging */
 var ultraVerbose = false;
@@ -52,7 +54,7 @@ var inkPerSec = 25;
 var pencilAlpha = .2;
 
 /* editor */
-var editorStepTime = 50;
+var editorStepTime = 150;
 
 /* these are the segment RGBs for the players. in client order, so the 
  * first one is always for the human player */

@@ -249,8 +249,8 @@ callback_game(struct libwebsocket_context * context,
 				joingame(lobby, u);
 		}
 		else if(!strcmp(mode, "startGame")) {
-			// check here for host
-			if(u->gm && u->gm->type == GT_CUSTOM && u->gm->state == GS_LOBBY)
+			if(u->gm && u->gm->type == GT_CUSTOM && u->gm->state == GS_LOBBY && 
+			 u->gm->host == u)
 				startgame(u->gm);
 		}
 		else if(strcmp(mode, "newInput") == 0) {

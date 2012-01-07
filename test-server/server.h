@@ -94,7 +94,7 @@ struct game {
 		hmin, hmax,			// min/ max ticks before start of first hole
 		start, rsn;			// start in msecs after epoch, #players at round start
 	struct seg **seg;	// two dimensional array of linked lists, one for each tile
-	struct user *usr;	// user list
+	struct user *usr, *host;	// user list
 	struct game *nxt;
 	struct seg *tosend;	// voor de DEBUG_SEGMENTS
 	char pencilmode;
