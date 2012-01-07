@@ -206,6 +206,11 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.addPlayer(localPlayer);
 			if(obj.type == 'lobby') 
 				this.updateTitle('Lobby');
+			else
+				this.waitMessageElement.innerHTML = obj.type == 'custom' ? customGameWaitMessage :
+				 autoMatchWaitMessage;
+			if(obj.type == 'auto')
+				this.setHost(null);
 			break;
 		case 'gameParameters':
 			this.setParams(obj);
@@ -251,11 +256,12 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;
 		case 'playerLeft':
 			var index = this.getIndex(obj.playerId);
-			this.splicePlayerList(index);
 			if(this.gameState != 'lobby')
 				debugLog(this.players[index].playerName + " left the game");
 
 			if(this.gameState == 'waiting' || this.gameState == 'lobby') {
+				this.splicePlayerList(index);
+				
 				for(var i = index + 1; i < this.players.length; i++)
 					this.setIndex(this.players[i].playerId, i - 1);
 
@@ -312,7 +318,8 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			debugLog('You are flooding the chat. Your latest message has been blocked');
 			break;
 		case 'setHost':
-			this.setHost(this.getIndex(obj.playerId));
+			if(this.gameState == 'waiting')
+				this.setHost(this.getIndex(obj.playerId));
 			break;
 		default:
 			debugLog('unknown mode ' + obj.mode + '!');
@@ -327,9 +334,11 @@ GameEngine.prototype.setHost = function(id) {
 		this.host = this.players[id];
 	} else
 		this.host = null;
-	// show/hide host controls
-	var block = this.host == localPlayer ? 'block' : 'none';
-	this.startGameButton.style.display = block;
+		
+	var hostBlock = this.host == localPlayer ? 'block' : 'none';
+	var nonhostBlock = this.host == localPlayer ? 'none' : 'block';
+	this.hostContainer.style.display = hostBlock;
+	this.nonhostContainer.style.display = nonhostBlock;
 }
 
 GameEngine.prototype.buildGameList = function(list) {
@@ -753,6 +762,8 @@ GameEngine.prototype.appendPlayerList = function(index) {
 
 GameEngine.prototype.updatePlayerList = function(index, status, points) {
 	var row = document.getElementById('player' + index);
+
+	//debugLog('updatePlayerList(' + index + ', ' + status + ', ' + points + ', row = ' + row);
 
 	if(status != null)
 		row.childNodes[1].innerHTML = status;
@@ -1427,8 +1438,12 @@ window.onload = function() {
 		game.disconnect();
 	}, false);
 	
-	var startGameButton = game.startGameButton = document.getElementById('startGame');
+	var startGameButton = document.getElementById('startGame');
 	startGameButton.addEventListener('click', function() { game.sendMsg('startGame', {}); }, false);
+	
+	game.hostContainer = document.getElementById('hostContainer');
+	game.nonhostContainer = document.getElementById('nonhostContainer');
+	game.waitMessageElement = document.getElementById('waitMessage');
 
 	var minPlayers = getCookie('minPlayers');
 	if(minPlayers != null)
@@ -1449,9 +1464,6 @@ window.onload = function() {
 		this.resizeTimeout = this.setTimeout(function() { game.resizeNeeded = true; }, 
 		 resizeDelay);
 	}
-	
-	window.addEventListener('mousedown', function(ev) { mouseDown = true; }, false);
-	window.addEventListener('mouseup', function(ev) { mouseDown = false; }, false);
 }
 
 /* canvas context color setter */

@@ -1,19 +1,24 @@
 zet hier je todos en ideeen.
 
-transparency ipv een lichte kleur voor de gaten werkt misschien toch niet zo goed? als je goed kijkt zag je eerst namelijk stippeltjes in de gaten, omdat de afzonderlijke beginpath() & stroke() overlap hebben. nu opgelost door ipv 'round' als lineCap, 'butt' te gebruiken voor de gaten. maar dat geeft miss weer meer overhead, telksn dat wisselen van lineCap. al zou lichte kleur dan op lagere layer moeten wat wss ook overhead geeft (anders teken je over de snake heen en heeft ie geen ronde uiteinden meer). [gebruik nu ook butt voor de muren die je tekent, voordat ze solid zijn, maar bij scherpe bochten krijg je alsnog overlap en bovendien scheurtjes. dat zou dus ook op lagere layer kunnen.]
+= cruciaal =
 
-- custom games? dus met host die instellingen bepaalt. en dus met een gamelijst waar gebruikers kunnen kiezen wel te joinen. aantal designkeuzes te maken: als vervanging van de automatch, of als ernaast? wat als de host de game leavet terwijl ie nog niet is gestart? wordt de volgende player (als die er is) de host, of wordt de game ontbonden? => volgende player host
+- fixen dat als iemand leaved en mensen andere index krijgen, ze ook de kleur krijgen die bij die index hoort. misschien meteen elke client dezelfde kleuren laten zien? want stel iemand gaat schelden op blauw in de chat. [dan beter wel 'you' ofzo naast jouw start indicator.]
+
+- soms heeft input echt dikke vertraging, niet 1 of 2 ticks. maar echt 10 ~ 20 ofzo! jij ook gemerkt?
+
+
+= niet cruciaal =
 
 - ff herzien scope van sommige variabelen, welke property staat waar? global, lokaal in de window.onload functie, als property van een GameEngine instantie of als property van een kind van GameEngine (zoals player, audioengine, canvasStack enz..)
 
 - omzetten van enkele default game properties van TICK specificatie naar tijd specificatie zoals hole grootte/ freq en countdown enzo. zo opzetten op zo'n manier dat het niet veelvoud van TICK_LENGTH hoeft te zijn maar dat bij het laden van deze defaults (waarvan het meeste in creategame gebeurt) er een veelvoud van wordt gemaakt
 
-- elke client dezelfde kleuren laten zien? want stel iemand gaat schelden op blauw in de chat. dan beter wel 'you' ofzo naast jouw start indicator.
+
+= ideeen =
 
 - game mode waarbij je punten verliest als iemand door jou gaten gaat en punten krijgt als je door gaten van iemand anders gaat?
 
 - dat je ook op maps kan spelen waar bij de start al muren zijn geplaatst (en evt vaste startposities). niet willekeurig maar door ons gemaakt. want vaak wordt het spel leuk als er bv 'kamertjes' ontstaan, dus het lijkt me dat er best leuke maps gemaakt kunnen worden. optioneel nog een mode dat de spelers omstebeurt zelf ff snel een map kunnen tekenen waar dan elk 3 potjes op worden gespeeld. ook kunnen er bv 'modderplassen' in een map liggen waar je dan langzamer gaat.
 
-- soms heeft input echt dikke vertraging, niet 1 of 2 ticks. maar echt 10 ~ 20 ofzo! jij ook gemerkt?
-
 - een powerup mogelijk maken. en als we een powerup toevoegen zou ik zeggen dat deze erg klein moet zijn, zodat het beetje moeilijk is om hem te pakken. 
+
