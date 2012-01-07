@@ -503,10 +503,8 @@ GameEngine.prototype.doTick = function() {
 	if(this.pencilMode != 'off')
 		this.pencil.doTick();
 
-	if(!player.alive)
-		return;
-
-	player.simulate(this.tick, player.context);
+	if(player.alive)
+		player.simulate(this.tick, player.context);
 }
 
 GameEngine.prototype.doTock = function() {
