@@ -161,6 +161,16 @@ struct game *searchgame(int gameid) {
 	return 0;
 }
 
+void tellhost(struct game *gm, struct user *usr) {
+	cJSON *j = jsoncreate("setHost");
+	jsonaddnum(j, "playerId", gm->host->id);
+	if(usr)
+		sendjson(j, usr);
+	else
+		sendjsontogame(j, gm, 0);
+	jsondel(j);
+}
+
 void leavegame(struct user *usr) {
 	struct game *gm = usr->gm;
 	struct user *curr;
@@ -170,9 +180,13 @@ void leavegame(struct user *usr) {
 
 	if(gm->usr == usr) {
 		gm->usr = usr->nxt;
-	}else{
+	} else {
 		for(curr = gm->usr; curr->nxt && curr->nxt != usr; curr = curr->nxt);
 		curr->nxt = usr->nxt;
+		if(gm->host == usr) {
+			gm->host = curr;
+			tellhost(gm, 0);
+		}
 	}
 
 	gm->alive -= usr->alive;
@@ -243,6 +257,11 @@ void joingame(struct game *gm, struct user *newusr) {
 	
 	newusr->nxt = gm->usr;
 	gm->usr = newusr;
+	if(gm->type == GT_CUSTOM) {
+		if(!gm->host)
+			gm->host = newusr;
+		tellhost(gm, newusr);
+	}
 
 	/* send either game details or game list */
 	if(gm->type == GT_LOBBY)

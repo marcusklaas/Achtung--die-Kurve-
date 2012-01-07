@@ -73,6 +73,7 @@ GameEngine.prototype.reset = function() {
 GameEngine.prototype.resetPlayers = function() {
 	this.players = [];
 	this.clearPlayerList();
+	this.host = null;
 }
 
 GameEngine.prototype.getIndex = function(playerId) {
@@ -310,9 +311,25 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'stopSpamming':
 			debugLog('You are flooding the chat. Your latest message has been blocked');
 			break;
+		case 'setHost':
+			this.setHost(this.getIndex(obj.playerId));
+			break;
 		default:
 			debugLog('unknown mode ' + obj.mode + '!');
 	}
+}
+
+GameEngine.prototype.setHost = function(id) {
+	if(this.host != null)
+		this.updatePlayerList(this.host.index, 'ready', null);
+	if(id != null) {
+		this.updatePlayerList(id, 'host', null);
+		this.host = this.players[id];
+	} else
+		this.host = null;
+	// show/hide host controls
+	var block = this.host == localPlayer ? 'block' : 'none';
+	this.startGameButton.style.display = block;
 }
 
 GameEngine.prototype.buildGameList = function(list) {
