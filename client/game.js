@@ -152,7 +152,7 @@ GameEngine.prototype.setGameState = function(newState) {
 			break;
 		case 'waiting':
 			setOptionVisibility('stop');
-			setContentVisibility('gameDetails');
+			setContentVisibility('waitContainer');
 			break;
 		case 'new':
 			setContentVisibility('connectionContainer');
@@ -211,6 +211,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 				 autoMatchWaitMessage;
 			if(obj.type == 'auto')
 				this.setHost(null);
+			this.editor.hide();
 			break;
 		case 'gameParameters':
 			this.setParams(obj);
@@ -1464,6 +1465,8 @@ window.onload = function() {
 		this.resizeTimeout = this.setTimeout(function() { game.resizeNeeded = true; }, 
 		 resizeDelay);
 	}
+	
+	game.editor = new Editor();
 }
 
 /* canvas context color setter */
@@ -1509,7 +1512,7 @@ function setOptionVisibility(target) {
 }
 
 function setContentVisibility(target) {
-	var sections = ['connectionContainer', 'gameListContainer', 'gameDetails', 'gameContainer'];
+	var sections = ['connectionContainer', 'gameListContainer', 'waitContainer', 'gameContainer'];
 
 	for(var i = 0; i < sections.length; i++) {
 		var elt = document.getElementById(sections[i]);
@@ -1548,4 +1551,105 @@ function getMousePos(e) {
 	}
 	// posx and posy contain the mouse position relative to the document
 	return [posx, posy];
+}
+
+Editor = function() {
+	this.down = false;
+	var canvas = this.canvas = document.getElementById('editorCanvas');
+	this.context = canvas.getContext('2d');
+	this.container = document.getElementById('editor');
+	this.pos = [0, 0];
+	var self = this;
+	canvas.style.backgroundColor = canvasBgcolor;
+	canvas.addEventListener('mousedown', function(ev) { self.onmouse('down', ev); }, false);
+	canvas.addEventListener('mousemove', function(ev) { self.onmouse('move', ev); }, false);
+	document.body.addEventListener('mouseup',   function(ev) { self.onmouse('up', ev); }, false);
+	canvas.addEventListener('mouseout',  function(ev) { self.onmouse('out', ev); }, false);
+	canvas.addEventListener('mouseover',  function(ev) { self.onmouse('over', ev); }, false);
+	var reset = document.getElementById('editorReset');
+	reset.addEventListener('click', function() { self.reset(1024, 644); }, false);
+	this.textField = document.getElementById('editorTextField');
+	var copy = document.getElementById('editorCopy');
+	copy.addEventListener('click', function() { self.copy(); }, false);
+	var load = document.getElementById('editorLoad');
+	load.addEventListener('click', function() { self.load(); }, false);
+	var button = document.getElementById('editorButton');
+	button.addEventListener('click', function() { self.show(); }, false);
+}
+
+Editor.prototype.onmouse = function(type, ev) {
+	var pos = getMousePos(ev);
+	pos[0] -= this.pos[0];
+	pos[1] -= this.pos[1];
+	if(type == 'down' || (this.out && type == 'over' && this.down)) {
+		this.lastPos = pos;
+		this.lastTime = Date.now();
+		this.out = false;
+		this.down = true;
+	}
+	else if(this.down && (type == 'out' || type == 'up' || 
+	 (type == 'move' && Date.now() - this.lastTime > editorStepTime))) {
+	 	if(!this.out) {
+			var seg = new BasicSegment(this.lastPos[0], this.lastPos[1], pos[0], pos[1]);
+			this.segments.push(seg);
+			this.drawSegment(seg);
+			this.lastPos = pos;
+			this.lastTime = Date.now();
+		}
+		if(type == 'out')
+			this.out = true;
+		else if(type == 'up')
+			this.down = false;
+	}
+}
+
+Editor.prototype.drawSegment = function(seg) {
+	this.context.beginPath();
+	this.context.moveTo(seg.x1, seg.y1);
+	this.context.lineTo(seg.x2, seg.y2);
+	this.context.stroke();
+}
+
+Editor.prototype.show = function(seg) {
+	this.container.style.display = 'block';
+	this.reset(1024, 644);
+}
+
+Editor.prototype.hide = function(seg) {
+	this.container.style.display = 'none';
+}
+
+Editor.prototype.reset = function(w, h) {
+	this.canvas.width = w;
+	this.canvas.height = h;
+	this.context.lineWidth = 3;
+	this.context.strokeStyle = '#606060';
+	this.context.lineCap = 'round';
+	this.pos = findPos(this.canvas);
+	this.segments = [];
+	this.out = false;
+}
+
+Editor.prototype.copy = function() {
+	this.textField.value = JSON.stringify(this.segments);
+}
+
+Editor.prototype.load = function() {
+	
+	try {
+		var segs = JSON.parse(this.textField.value);
+		for(var i = 0; i < segs.length; i++)
+			this.drawSegment(segs[i]);
+		this.segments = this.segments.concat(segs);
+	}
+	catch(ex) {
+		debugLog('JSON parse exception!');
+	}
+}
+
+BasicSegment = function(x1, y1, x2, y2) {
+	this.x1 = x1;
+	this.y1 = y1;
+	this.x2 = x2;
+	this.y2 = y2;
 }

@@ -54,7 +54,7 @@ var inkPerSec = 25;
 var pencilAlpha = .2;
 
 /* editor */
-var editorStepTime = 50;
+var editorStepTime = 150;
 
 /* these are the segment RGBs for the players. in client order, so the 
  * first one is always for the human player */

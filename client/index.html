@@ -73,37 +73,49 @@
 				</div>
 			</div>
 
-			<div id="gameDetails">
-				<h2>Game Details</h2>
-				<table id="details">
-					<tr>
-						<td>Minimum players</td>
-						<td><input id="nmin" type="number" disabled /></td>
-					</tr>
-					<tr>
-						<td>Maximum players</td>
-						<td><input id="nmax" type="number" disabled /></td>
-					</tr>
-					<tr>
-						<td>Velocity</td>
-						<td><input id="velocity" type="number" disabled /></td>
-					</tr>
-					<tr>
-						<td>Turn speed</td>
-						<td><input id="turnSpeed" type="number" disabled /></td>
-					</tr>
-					<tr>
-						<td>Hole size</td>
-						<td><input id="holeSize" type="number" disabled /></td>
-					</tr>
-					<tr>
-						<td>Hole frequency</td>
-						<td><input id="holeFreq" type="number" disabled /></td>
-					</tr>
-				</table>
-				<div id="hostContainer">
-					<button id="startGame" class="primary">Start Game</button>
+			<div id="waitContainer">
+				<div id="gameDetails">
+					<h2>Game Details</h2>
+					<table id="details">
+						<tr>
+							<td>Minimum players</td>
+							<td><input id="nmin" type="number" disabled /></td>
+						</tr>
+						<tr>
+							<td>Maximum players</td>
+							<td><input id="nmax" type="number" disabled /></td>
+						</tr>
+						<tr>
+							<td>Velocity</td>
+							<td><input id="velocity" type="number" disabled /></td>
+						</tr>
+						<tr>
+							<td>Turn speed</td>
+							<td><input id="turnSpeed" type="number" disabled /></td>
+						</tr>
+						<tr>
+							<td>Hole size</td>
+							<td><input id="holeSize" type="number" disabled /></td>
+						</tr>
+						<tr>
+							<td>Hole frequency</td>
+							<td><input id="holeFreq" type="number" disabled /></td>
+						</tr>
+					</table>
 				</div>
+				
+				<div id="hostContainer">
+					<button id="editorButton" class="primary">Draw Custom Map</button>
+					<button id="startGame" class="primary">Start Game</button>
+					<div id="editor">
+						<canvas id="editorCanvas"></canvas>
+						<button id="editorCopy" class="primary">Copy to Text Field</button>
+						<button id="editorLoad" class="primary">Load from Text Field</button>
+						<input id="editorTextField" type="text" />
+						<button id="editorReset" class="danger">Reset</button>
+					</div>
+				</div>
+				
 				<div id="nonhostContainer">
 					<div id="waitMessage"></div>
 				</div>
