@@ -81,6 +81,10 @@ struct point {
 	float x, y;
 };
 
+struct map {
+	struct seg *seg;
+};
+
 struct game {
 	int id, type,			// game_id, game_type
 		n, w, h,			// number of players, width, height
@@ -98,6 +102,7 @@ struct game {
 	struct game *nxt;
 	struct seg *tosend;	// voor de DEBUG_SEGMENTS
 	char pencilmode;
+	struct map *map;
 };
 
 struct pencilseg {
@@ -161,3 +166,5 @@ void joingame(struct game *gm, struct user *newusr);
 float getlength(float x, float y);
 char *gametypetostr(int gametype);
 char *pencilmodetostr(int pencilmode);
+int addsegment(struct game *gm, struct seg *seg, char checkcollision, struct point *collision_point,
+ char dontadd);

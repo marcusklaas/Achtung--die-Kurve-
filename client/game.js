@@ -223,7 +223,10 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.addPlayer(newPlayer);
 			this.audioController.playSound('newPlayer');
 			//debugLog(obj.playerName + ' joined the game (id = ' + obj.playerId + ')');
-			break;		
+			break;
+		case 'setMap':
+			this.mapSegments = obj.segments;
+			break;
 		case 'startGame':
 			/* keep displaying old game for a while so ppl can see what happened */
 			var nextRoundDelay = obj.startTime + this.serverTimeDifference - this.ping
@@ -292,6 +295,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;			
 		case 'endGame':
 			this.setGameState('ended');
+			this.mapSegments = undefined;
 			window.clearTimeout(this.gameloopTimeout);
 			debugLog('game over. ' + this.players[this.getIndex(obj.winnerId)].playerName + ' won!');
 
@@ -579,6 +583,13 @@ GameEngine.prototype.calcScale = function() {
 	this.scale = Math.min(scaleX, scaleY);
 }
 
+GameEngine.prototype.sendStartGame = function() {
+	var obj = {};
+	if(this.editor.segments != undefined && this.editor.segments.length > 0)
+		obj.segments = this.editor.segments;
+	this.sendMsg('startGame', obj);
+}
+
 GameEngine.prototype.start = function(startPositions, startTime) {
 	this.gameStartTimestamp = startTime + this.serverTimeDifference - this.ping
 	 + extraGameStartTimeDifference;
@@ -606,6 +617,7 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	this.baseCanvas = canvas;
 	this.baseContext = canvas.getContext('2d');
 	this.setDefaultValues(this.baseContext);
+	this.drawMapSegments();
 
 	/* init players */
 	for(var i = 0; i < startPositions.length; i++) {
@@ -633,6 +645,7 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 GameEngine.prototype.realStart = function() {
 	// clearing angle indicators from base layer
 	this.baseContext.clearRect(0, 0, this.width, this.height);
+	this.drawMapSegments();
 	this.audioController.playSound('gameStart');
 	this.setGameState('playing');
 	this.sendMsg('enableInput', {});
@@ -668,6 +681,20 @@ GameEngine.prototype.realStart = function() {
 	gameloop();
 }
 
+GameEngine.prototype.drawMapSegments = function() {
+	if(this.mapSegments == undefined)
+		return;
+	var ctx = this.baseContext;
+	ctx.beginPath();
+	setLineColor(ctx, mapSegmentColor, 1);
+	for(var i = 0; i < this.mapSegments.length; i++) {
+		var seg = this.mapSegments[i];
+		ctx.moveTo(seg.x1, seg.y1);
+		ctx.lineTo(seg.x2, seg.y2);
+	}
+	ctx.stroke();
+}
+
 GameEngine.prototype.resize = function() {
 	this.resizeNeeded = false;
 	this.calcScale();
@@ -682,6 +709,8 @@ GameEngine.prototype.resize = function() {
 	canvas.width = scaledWidth;
 	canvas.height = scaledHeight;
 	this.setDefaultValues(ctx);
+	
+	this.drawMapSegments();
 	
 	ctx = this.foregroundContext;
 	canvas = this.foregroundCanvas;
@@ -1440,7 +1469,7 @@ window.onload = function() {
 	}, false);
 	
 	var startGameButton = document.getElementById('startGame');
-	startGameButton.addEventListener('click', function() { game.sendMsg('startGame', {}); }, false);
+	startGameButton.addEventListener('click', function() { game.sendStartGame(); }, false);
 	
 	game.hostContainer = document.getElementById('hostContainer');
 	game.nonhostContainer = document.getElementById('nonhostContainer');
@@ -1623,7 +1652,7 @@ Editor.prototype.reset = function(w, h) {
 	this.canvas.width = w;
 	this.canvas.height = h;
 	this.context.lineWidth = 3;
-	this.context.strokeStyle = '#606060';
+	setLineColor(this.context, mapSegmentColor, 1);
 	this.context.lineCap = 'round';
 	this.pos = findPos(this.canvas);
 	this.segments = [];

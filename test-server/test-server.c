@@ -250,8 +250,18 @@ callback_game(struct libwebsocket_context * context,
 		}
 		else if(!strcmp(mode, "startGame")) {
 			if(u->gm && u->gm->type == GT_CUSTOM && u->gm->state == GS_LOBBY && 
-			 u->gm->host == u)
+			 u->gm->host == u){
+				cJSON *j = jsongetjson(json, "segments");
+				if(j) {
+					u->gm->map = createmap(j->child);
+					cJSON *root = jsoncreate("setMap");
+					cJSON *ar = encodesegments(u->gm->map->seg);
+					jsonaddjson(root, "segments", ar);
+					sendjsontogame(root, u->gm, 0);
+					jsondel(root);
+				}
 				startgame(u->gm);
+			}
 		}
 		else if(strcmp(mode, "newInput") == 0) {
 			if(++(u->inputs) <= MAX_INPUTS && u->gm
