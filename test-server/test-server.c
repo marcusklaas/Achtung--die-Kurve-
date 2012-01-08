@@ -252,7 +252,7 @@ callback_game(struct libwebsocket_context * context,
 			if(u->gm && u->gm->type == GT_CUSTOM && u->gm->state == GS_LOBBY && 
 			 u->gm->host == u){
 				cJSON *j = jsongetjson(json, "segments");
-				if(j) {
+				if(j && j->child) {
 					u->gm->map = createmap(j->child);
 					cJSON *root = jsoncreate("setMap");
 					cJSON *ar = encodesegments(u->gm->map->seg);

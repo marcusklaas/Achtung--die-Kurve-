@@ -477,13 +477,14 @@ int lineboxcollision(struct seg *seg, int left, int bottom, int right, int top) 
 }
 
 // returns 1 in case of collision, 0 other wise
-// we hebben geen functie checkcollion(gm, seg), hier zit dat wel ingebakken.
+// we hebben geen functie checkcollision(gm, seg), hier zit dat wel ingebakken.
 // vandaar een dontadd parameter
 // declaration in server.h !
+// TODO: segfaults!
 int addsegment(struct game *gm, struct seg *seg, char checkcollision, struct point *collision_point,
  char dontadd) {
 	int left_tile, right_tile, bottom_tile, top_tile, swap, tiles = 0, collision = 0;
-	struct seg *current, *copy, **newsegs = 0;
+	struct seg *current, *copy, **newsegs;
 	struct point point;
 
 	left_tile = seg->x1/ gm->tilew;
@@ -560,8 +561,9 @@ int addsegment(struct game *gm, struct seg *seg, char checkcollision, struct poi
 		free(newsegs);
 
 	if(SEND_SEGMENTS) {
-		seg->nxt = gm->tosend;
-		gm->tosend = copyseg(seg);
+		copy = copyseg(seg);
+		copy->nxt = gm->tosend;
+		gm->tosend = copy;
 	}
 
 	return !GOD_MODE && collision;
@@ -602,7 +604,6 @@ int simuser(struct user *usr, int tick) {
 		return 0;
 
 	struct seg newseg;
-	newseg.nxt = 0;
 	newseg.x1 = oldx;
 	newseg.y1 = oldy;
 	newseg.x2 = usr->x;
@@ -871,13 +872,13 @@ void interpretinput(cJSON *json, struct user *usr) {
 /* pencil game */
 void handlepencilmsg(cJSON *json, struct user *u) {
 	struct pencil *p = &u->pencil;
-	cJSON *j = cJSON_CreateArray();
-	int send = 0;
+	cJSON *j = 0;
+	
 	json = jsongetjson(json, "data");
 	if(!json)
 		return;
 	json = json->child;
-
+	
 	while(json) {
 		float x = json->valuedouble, y;
 		int tick;
@@ -943,15 +944,16 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 				jsonaddnum(k, "playerId", u->id);
 				jsonaddnum(k, "tickVisible", tick + INK_VISIBLE / TICK_LENGTH);
 				jsonaddnum(k, "tickSolid", tickSolid);
+				if(!j)
+					j = cJSON_CreateArray();
 				cJSON_AddItemToArray(j, k);
-				send = 1;
 				p->x = x;
 				p->y = y;
 			}else
 				break;
 		}
 	}
-	if(send) {
+	if(j) {
 		cJSON *k = jsoncreate("pencil");
 		jsonaddjson(k, "data", j);
 		sendjsontogame(k, u->gm, 0);

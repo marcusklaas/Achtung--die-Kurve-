@@ -226,6 +226,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;
 		case 'setMap':
 			this.mapSegments = obj.segments;
+			debugLog("map segs " + obj.segments.count);
 			break;
 		case 'startGame':
 			/* keep displaying old game for a while so ppl can see what happened */
