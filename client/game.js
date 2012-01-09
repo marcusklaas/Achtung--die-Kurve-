@@ -85,8 +85,8 @@ GameEngine.prototype.setIndex = function(playerId, index) {
 }
 
 GameEngine.prototype.disconnect = function() {
-	if(this.gameState == 'new')
-		return;
+	//if(this.gameState == 'new')
+	//	return;
 
 	debugLog('Disconnecting..');
 
@@ -130,8 +130,13 @@ GameEngine.prototype.connect = function(url, name, callback) {
 }
 
 GameEngine.prototype.leaveGame = function() {
-	if(this.gameState != 'new' && this.gameState != 'lobby')
-		this.sendMsg('leaveGame', {});
+	//if(this.gameState != 'new' && this.gameState != 'lobby')
+	this.sendMsg('leaveGame', {});
+	
+	// tegen bug dat als je leaved tijdens de countdown (comment kan weer weg)
+	window.clearTimeout(this.gameloopTimeout);
+	
+	// moet hier ook al de gamestate worden veranderd?
 }
 
 /* this function handles user interface changes for state transitions */
@@ -168,8 +173,8 @@ GameEngine.prototype.joinGame = function(gameId) {
 }
 
 GameEngine.prototype.joinLobby = function(player) {
-	if(this.gameState != 'new')
-		return;
+	//if(this.gameState != 'new')
+	//	return;
 
 	// w8 for joinedGame message
 	//this.addPlayer(player);
@@ -202,6 +207,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;
 		case 'joinedGame':
 			this.setGameState((obj.type == 'lobby') ? 'lobby' : 'waiting');
+			this.mapSegments = undefined;
 			this.resetPlayers();
 			this.addPlayer(localPlayer);
 			if(obj.type == 'lobby') 
@@ -226,7 +232,6 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;
 		case 'setMap':
 			this.mapSegments = obj.segments;
-			debugLog("map segs " + obj.segments.count);
 			break;
 		case 'startGame':
 			/* keep displaying old game for a while so ppl can see what happened */
@@ -296,7 +301,6 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;			
 		case 'endGame':
 			this.setGameState('ended');
-			this.mapSegments = undefined;
 			window.clearTimeout(this.gameloopTimeout);
 			debugLog('game over. ' + this.players[this.getIndex(obj.winnerId)].playerName + ' won!');
 
@@ -481,8 +485,9 @@ GameEngine.prototype.setParams = function(obj) {
 }
 
 GameEngine.prototype.requestGame = function(player, minPlayers, maxPlayers) {
-	if(this.gameState != 'lobby')
-		return;
+	// als je op de knop kan drukken moet er ook wat gebeuren
+	//if(this.gameState != 'lobby')
+	//	return;
 
 	// w8 for joinedGame message
 	//this.setGameState('waiting');
@@ -490,12 +495,12 @@ GameEngine.prototype.requestGame = function(player, minPlayers, maxPlayers) {
 	//this.addPlayer(player);
 	this.sendMsg('requestGame', {'playerName': player.playerName,
 	 'minPlayers': minPlayers, 'maxPlayers': maxPlayers});
+	// TODO: zet de knop disabled tot bericht van de server? dan ziet de user
+	// dat er echt op de knop is gedrukt bij veel lag
+	// ook bij andere knoppen als createGame, leaveGame, joinLobby, joinGame
 }
 
 GameEngine.prototype.createGame = function(player) {
-	if(this.gameState != 'lobby')
-		return;
-
 	this.sendMsg('createGame', {});
 }
 
@@ -586,8 +591,10 @@ GameEngine.prototype.calcScale = function() {
 
 GameEngine.prototype.sendStartGame = function() {
 	var obj = {};
-	if(this.editor.segments != undefined && this.editor.segments.length > 0)
+	if(this.editor.segments.length > 0) {
 		obj.segments = this.editor.segments;
+		this.editor.segments = [];
+	}
 	this.sendMsg('startGame', obj);
 }
 
@@ -1589,6 +1596,7 @@ Editor = function() {
 	this.context = canvas.getContext('2d');
 	this.container = document.getElementById('editor');
 	this.pos = [0, 0];
+	this.segments = [];
 	var self = this;
 	canvas.style.backgroundColor = canvasBgcolor;
 	canvas.addEventListener('mousedown', function(ev) { self.onmouse('down', ev); }, false);

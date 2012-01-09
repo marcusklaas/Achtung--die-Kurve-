@@ -104,6 +104,20 @@ void startgame(struct game *gm) {
 		for(; seg; seg = seg->nxt)
 			addsegment(gm, seg, 0, 0, 0);
 	}
+	
+	// add border segments
+	struct seg seg;
+	seg.x1 = seg.y1 = seg.y2 = 0;
+	seg.x2 = gm->w;
+	addsegment(gm, &seg, 0, 0, 0);
+	seg.x1 = seg.x2;
+	seg.y1 = gm->h;
+	addsegment(gm, &seg, 0, 0, 0);
+	seg.x2 = 0;
+	seg.y2 = seg.y1;
+	addsegment(gm, &seg, 0, 0, 0);
+	seg.x1 = seg.y1 = 0;
+	addsegment(gm, &seg, 0, 0, 0);
 		
 	// reset users
 	for(usr = gm->usr; usr; usr = usr->nxt){
@@ -156,8 +170,8 @@ struct map *createmap(cJSON *j) {
 	while(j) {
 		struct seg *seg = smalloc(sizeof(struct seg));
 		seg->x1 = jsongetint(j, "x1");
-		seg->x2 = jsongetint(j, "y1");
-		seg->y1 = jsongetint(j, "x2");
+		seg->y1 = jsongetint(j, "y1");
+		seg->x2 = jsongetint(j, "x2");
 		seg->y2 = jsongetint(j, "y2");
 		seg->nxt = map->seg;
 		map->seg = seg;
@@ -401,8 +415,9 @@ int segcollision(struct seg *seg1, struct seg *seg2, struct point *collision_poi
 	 (seg1->y2 - seg1->y1) * (seg1->x1 - seg2->x1);
 
 	/* segments are parallel */
-	if(fabs(denom) < EPS) {
-		/* segments are on same line */
+	// misschien toch weg? collision point is dan ook niet duidelijk
+	/*if(fabs(denom) < EPS) {
+		/* segments are on same line
 		if(fabs(numer_a) < EPS && fabs(numer_b) < EPS) {
 			float a, b, c, d, e;
 
@@ -419,7 +434,11 @@ int segcollision(struct seg *seg1, struct seg *seg2, struct point *collision_poi
 		}
 
 		return 0;
-	}
+	}*/
+	
+	/* segments are parallel */
+	if(denom == 0)
+		return 0;
 
 	float a = numer_a/ denom;
 	float b = numer_b/ denom;
@@ -499,8 +518,9 @@ int addsegment(struct game *gm, struct seg *seg, char checkcollision, struct poi
 		swap = bottom_tile; bottom_tile = top_tile; top_tile = swap;
 	}
 
+	// het is op deze manier ook lastig snijpunt te bepalen.
 	/* run off screen */
-	if(seg->x2 < 0 || seg->x2 >= gm->w || seg->y2 < 0 || seg->y2 >= gm->h) {
+	/*if(seg->x2 < 0 || seg->x2 >= gm->w || seg->y2 < 0 || seg->y2 >= gm->h) {
 		if(checkcollision) {
 			collision = 1;
 			point.x = min(gm->w, max(0, seg->x2));
@@ -510,7 +530,11 @@ int addsegment(struct game *gm, struct seg *seg, char checkcollision, struct poi
 		right_tile = min(right_tile, gm->htiles - 1);
 		bottom_tile = max(bottom_tile, 0);
 		top_tile = min(top_tile, gm->vtiles - 1);
-	}
+	}*/
+	left_tile = max(left_tile, 0);
+	right_tile = min(right_tile, gm->htiles - 1);
+	bottom_tile = max(bottom_tile, 0);
+	top_tile = min(top_tile, gm->vtiles - 1);
 	
 	if(checkcollision)
 		newsegs = smalloc((top_tile - bottom_tile + 1) * (right_tile - left_tile + 1)
