@@ -1,18 +1,56 @@
-void randomizePlayerStarts(struct game *gm) {
+void randomizeplayerstarts(struct game *gm) {
 	// diameter of your circle in pixels when you turn at max rate
-	int turningCircle = ceil(2.0 * gm->v/ gm->ts);
+	int diameter = ceil(2.0 * gm->v/ gm->ts);
 	struct user *usr;
 
 	if(DEBUG_MODE)
 		printf("Entered randomization\n");
 
-	/* set the players locs and hstart */
-	for(usr = gm->usr; usr; usr = usr->nxt) {
-		usr->x = turningCircle + rand() % (gm->w - 2 * turningCircle);
-		usr->y =  turningCircle + rand() % (gm->h - 2 * turningCircle);
-		usr->angle = rand() % 628 / 100.0;
-		usr->hstart = gm->hmin + rand() % (gm->hmax - gm->hmin + 1);
+	if(gm->map) {
+		for(usr = gm->usr; usr; usr = usr->nxt) {
+			struct seg seg;
+			do {
+				usr->x = diameter + rand() % (gm->w - 2 * diameter);
+				usr->y =  diameter + rand() % (gm->h - 2 * diameter);
+				usr->angle = rand() % 628 / 100.0;
+				seg.x1 = usr->x;
+				seg.y1 = usr->y;
+				seg.x2 = cos(usr->angle) * diameter + usr->x;
+				seg.y2 = sin(usr->angle) * diameter + usr->y;
+			} while(addsegment(gm, &seg, 1, 0, 1));
+			usr->hstart = gm->hmin + rand() % (gm->hmax - gm->hmin + 1);
+		}
+	} else {
+		/* set the players locs and hstart */
+		for(usr = gm->usr; usr; usr = usr->nxt) {
+			usr->x = diameter + rand() % (gm->w - 2 * diameter);
+			usr->y =  diameter + rand() % (gm->h - 2 * diameter);
+			usr->angle = rand() % 628 / 100.0;
+			usr->hstart = gm->hmin + rand() % (gm->hmax - gm->hmin + 1);
+		}
 	}
+}
+
+void freesegments(struct seg *seg) {
+	struct seg *nxt;
+	for(; seg; seg = nxt) {
+		nxt = seg->nxt;
+		free(seg);
+	}
+}
+
+cJSON *encodesegments(struct seg *seg) {
+	cJSON *ar = cJSON_CreateArray();
+	while(seg) {
+		cJSON *a = cJSON_CreateObject();
+		jsonaddnum(a,"x1", seg->x1);
+		jsonaddnum(a,"y1", seg->y1);
+		jsonaddnum(a,"x2", seg->x2);
+		jsonaddnum(a,"y2", seg->y2);
+		cJSON_AddItemToArray(ar, a);
+		seg = seg->nxt;
+	}
+	return ar;
 }
 
 cJSON *encodegame(struct game *gm) {
@@ -60,7 +98,13 @@ void startgame(struct game *gm) {
 
 	if(DEBUG_MODE)
 		printf("starting game %p!\n", (void*)gm);
-
+	
+	if(gm->map) {
+		struct seg *seg = gm->map->seg;
+		for(; seg; seg = seg->nxt)
+			addsegment(gm, seg, 0, 0, 0);
+	}
+		
 	// reset users
 	for(usr = gm->usr; usr; usr = usr->nxt){
 		usr->turn = 0;
@@ -75,7 +119,7 @@ void startgame(struct game *gm) {
 	}
 	
 	gm->rsn = gm->n;
-	randomizePlayerStarts(gm);
+	randomizeplayerstarts(gm);
 
 	int laterround = gm->usr->points || (gm->usr->nxt && gm->usr->nxt->points);
 	gm->start = (laterround * COOLDOWN + serverticks + COUNTDOWN) * TICK_LENGTH;
@@ -105,6 +149,28 @@ void startgame(struct game *gm) {
 	jsondel(root);
 }
 
+struct map *createmap(cJSON *j) {
+	if(!j)
+		return 0;
+	struct map *map = scalloc(1, sizeof(struct map));
+	while(j) {
+		struct seg *seg = smalloc(sizeof(struct seg));
+		seg->x1 = jsongetint(j, "x1");
+		seg->x2 = jsongetint(j, "y1");
+		seg->y1 = jsongetint(j, "x2");
+		seg->y2 = jsongetint(j, "y2");
+		seg->nxt = map->seg;
+		map->seg = seg;
+		j = j->next;
+	}
+	return map;
+}
+
+void freemap(struct map *map) {
+	freesegments(map->seg);
+	free(map);
+}
+
 void remgame(struct game *gm) {
 	if(DEBUG_MODE)
 		printf("deleting game %p\n", (void *) gm);
@@ -123,6 +189,8 @@ void remgame(struct game *gm) {
 		joingame(lobby, usr);
 	}
 
+	if(gm->map)
+		freemap(gm->map);
 	free(gm->seg);
 	free(gm);
 	broadcastgamelist();
@@ -409,9 +477,15 @@ int lineboxcollision(struct seg *seg, int left, int bottom, int right, int top) 
 }
 
 // returns 1 in case of collision, 0 other wise
-int addsegment(struct game *gm, struct seg *seg, char checkcollision, struct point *collision_point) {
+// we hebben geen functie checkcollision(gm, seg), hier zit dat wel ingebakken.
+// vandaar een dontadd parameter
+// declaration in server.h !
+// TODO: segfaults!
+int addsegment(struct game *gm, struct seg *seg, char checkcollision, struct point *collision_point,
+ char dontadd) {
 	int left_tile, right_tile, bottom_tile, top_tile, swap, tiles = 0, collision = 0;
-	struct seg *current, *copy, **newsegs = 0;
+	struct seg *current, *copy, **newsegs;
+	struct point point;
 
 	left_tile = seg->x1/ gm->tilew;
 	right_tile = seg->x2/ gm->tilew;
@@ -429,8 +503,8 @@ int addsegment(struct game *gm, struct seg *seg, char checkcollision, struct poi
 	if(seg->x2 < 0 || seg->x2 >= gm->w || seg->y2 < 0 || seg->y2 >= gm->h) {
 		if(checkcollision) {
 			collision = 1;
-			collision_point->x = min(gm->w, max(0, seg->x2));
-			collision_point->y = min(gm->h, max(0, seg->y2));
+			point.x = min(gm->w, max(0, seg->x2));
+			point.y = min(gm->h, max(0, seg->y2));
 		}
 		left_tile = max(left_tile, 0);
 		right_tile = min(right_tile, gm->htiles - 1);
@@ -439,7 +513,7 @@ int addsegment(struct game *gm, struct seg *seg, char checkcollision, struct poi
 	}
 	
 	if(checkcollision)
-		newsegs = smalloc((top_tile - bottom_tile + 1) * (left_tile - right_tile + 1)
+		newsegs = smalloc((top_tile - bottom_tile + 1) * (right_tile - left_tile + 1)
 		 * sizeof(struct seg *));
 
 	for(int i = left_tile; i <= right_tile; i++) {
@@ -452,7 +526,7 @@ int addsegment(struct game *gm, struct seg *seg, char checkcollision, struct poi
 				float maxcut = 1;
 
 				for(current = gm->seg[gm->htiles * j + i]; current; current = current->nxt)
-					if(segcollision(current, seg, collision_point, &maxcut)) {
+					if(segcollision(current, seg, &point, &maxcut)) {
 						if(DEBUG_MODE) {
 							printseg(current);printf(" collided with ");printseg(seg);printf("\n");
 						}
@@ -461,30 +535,36 @@ int addsegment(struct game *gm, struct seg *seg, char checkcollision, struct poi
 					}
 			}
 			
-			copy = copyseg(seg);
-			copy->nxt = gm->seg[gm->htiles * j + i];
-			gm->seg[gm->htiles * j + i] = copy;
+			if(!dontadd) {
+				copy = copyseg(seg);
+				copy->nxt = gm->seg[gm->htiles * j + i];
+				gm->seg[gm->htiles * j + i] = copy;
 
-			if(checkcollision)
-				newsegs[tiles++] = copy;
+				if(checkcollision)
+					newsegs[tiles++] = copy;
+			}
 		}
 	}
 
-	if(collision)
+	if(collision) {
 		for(int i = 0; i < tiles; i++) {
-			newsegs[i]->x2 = collision_point->x;
-			newsegs[i]->y2 = collision_point->y;
+			newsegs[i]->x2 = point.x;
+			newsegs[i]->y2 = point.y;
 		}
+		if(collision_point) {
+			collision_point->x = point.x;
+			collision_point->y = point.y;
+		}
+	}
 	
 	if(checkcollision)
 		free(newsegs);
 
-	// we dont need the original any more: free it
 	if(SEND_SEGMENTS) {
-		seg->nxt = gm->tosend;
-		gm->tosend = seg;
-	}else
-		free(seg);
+		copy = copyseg(seg);
+		copy->nxt = gm->tosend;
+		gm->tosend = copy;
+	}
 
 	return !GOD_MODE && collision;
 }
@@ -523,15 +603,14 @@ int simuser(struct user *usr, int tick) {
 	 && ((tick + usr->hstart) % (usr->hsize + usr->hfreq)) < usr->hsize)
 		return 0;
 
-	struct seg *newseg = smalloc(sizeof(struct seg));
-	newseg->nxt = 0;
-	newseg->x1 = oldx;
-	newseg->y1 = oldy;
-	newseg->x2 = usr->x;
-	newseg->y2 = usr->y;
+	struct seg newseg;
+	newseg.x1 = oldx;
+	newseg.y1 = oldy;
+	newseg.x2 = usr->x;
+	newseg.y2 = usr->y;
 	
 	struct point collision_point;
-	char collision = addsegment(usr->gm, newseg, 1, &collision_point);
+	char collision = addsegment(usr->gm, &newseg, 1, &collision_point, 0);
 	if(collision){
 		usr->x = collision_point.x;
 		usr->y = collision_point.y;
@@ -554,22 +633,12 @@ void deadplayermsg(struct user *usr, int tick) {
 void sendsegments(struct game *gm) {
 	if(gm->tosend) {
 		cJSON *json = jsoncreate("segments");
-		cJSON *ar = cJSON_CreateArray();
-		struct seg *seg = gm->tosend;
-		while(seg) {
-			struct seg *nxt = seg->nxt;
-			cJSON *a = cJSON_CreateObject();
-			jsonaddnum(a,"x1", seg->x1);
-			jsonaddnum(a,"y1", seg->y1);
-			jsonaddnum(a,"x2", seg->x2);
-			jsonaddnum(a,"y2", seg->y2);
-			cJSON_AddItemToArray(ar, a);
-			free(seg);
-			seg = nxt;
-		}
+		cJSON *ar = encodesegments(gm->tosend);
+		freesegments(gm->tosend);
 		gm->tosend = 0;
 		jsonaddjson(json, "segments", ar);
 		sendjsontogame(json, gm, 0);
+		jsondel(json);
 	}
 }
 
@@ -631,13 +700,7 @@ void endround(struct game *gm) {
 	/* freeing up segments */
 	int i, num_tiles = gm->htiles * gm->vtiles;
 	for(i =0; i < num_tiles; i++) {
-		struct seg *a, *b;
-		
-		for(a = gm->seg[i]; a; a = b) {
-			b = a->nxt;
-			free(a);
-		}
-		
+		freesegments(gm->seg[i]);
 		gm->seg[i] = 0;
 	}
 
@@ -809,10 +872,13 @@ void interpretinput(cJSON *json, struct user *usr) {
 /* pencil game */
 void handlepencilmsg(cJSON *json, struct user *u) {
 	struct pencil *p = &u->pencil;
-	cJSON *j = cJSON_CreateArray();
-	int send = 0;
-	json = jsongetjson(json, "data")->child;
-
+	cJSON *j = 0;
+	
+	json = jsongetjson(json, "data");
+	if(!json)
+		return;
+	json = json->child;
+	
 	while(json) {
 		float x = json->valuedouble, y;
 		int tick;
@@ -878,25 +944,27 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 				jsonaddnum(k, "playerId", u->id);
 				jsonaddnum(k, "tickVisible", tick + INK_VISIBLE / TICK_LENGTH);
 				jsonaddnum(k, "tickSolid", tickSolid);
+				if(!j)
+					j = cJSON_CreateArray();
 				cJSON_AddItemToArray(j, k);
-				send = 1;
 				p->x = x;
 				p->y = y;
 			}else
 				break;
 		}
 	}
-	if(send) {
+	if(j) {
 		cJSON *k = jsoncreate("pencil");
 		jsonaddjson(k, "data", j);
 		sendjsontogame(k, u->gm, 0);
+		jsondel(k);
 	}
 }
 
 void simpencil(struct pencil *p) {
 	if(p->psegtail && p->psegtail->tick == p->usr->gm->tick) {
 		struct pencilseg *tail = p->psegtail;
-		addsegment(p->usr->gm, copyseg(&tail->seg), 0, 0);
+		addsegment(p->usr->gm, &tail->seg, 0, 0, 0);
 		if(tail->prev) {
 			tail->prev->nxt = 0;
 			p->psegtail = tail->prev;

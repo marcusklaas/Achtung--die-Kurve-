@@ -55,6 +55,7 @@ var pencilAlpha = .2;
 
 /* editor */
 var editorStepTime = 150;
+var mapSegmentColor = [96, 96, 96];
 
 /* these are the segment RGBs for the players. in client order, so the 
  * first one is always for the human player */
