@@ -13,7 +13,7 @@ struct libwebsocket_context *ctx;
 static struct game *lobby, *headgame = 0;
 static int usrc = 0; // user count
 static int gmc = 1; // game count
-static unsigned long serverticks = 0; // yes this will underflow, but not fast ;p
+static unsigned long serverticks = 0;
 
 #include "helper.c"
 #include "game.c"
@@ -149,31 +149,22 @@ callback_game(struct libwebsocket_context * context,
 
 		/* buffer msg */
 		if(libwebsockets_remaining_packet_payload(wsi) > 0) {
-			u->msgbuf = realloc(u->msgbuf, (bufsize + msgsize + 1) * sizeof(char));
-			if(!u->msgbuf) { // srealloc? :P
-				printf("no mem available for bigger msgbuf\n");
-				exit(500);
-			}
-
+			u->msgbuf = srealloc(u->msgbuf, (bufsize + msgsize + 1) * sizeof(char));
 			strcpy(u->msgbuf + bufsize, inchar);
 			break; 
 		}
 
 		/* unbuffer msg */
 		if(u->msgbuf) {
-			inchar = realloc(inchar, bufsize + msgsize + 1);
-			if(!inchar) { // srealloc? :P
-				printf("no mem available for bigger msgbuf\n");
-				exit(500);
-			}
-
-			strcpy(inchar + bufsize, inchar);
-			memcpy(inchar, u->msgbuf, bufsize); // not strcpy! it will overwrite first byte of inchar
+			u->msgbuf = srealloc(u->msgbuf, (bufsize + msgsize + 1) * sizeof(char));
+			strcpy(u->msgbuf + bufsize, inchar);
+			json = cJSON_Parse(u->msgbuf);
 			free(u->msgbuf);
 			u->msgbuf = 0;
 		}
+		else
+			json = cJSON_Parse(inchar);
 
-		json = cJSON_Parse(inchar);
 		if(!json) {
 			if(DEBUG_MODE){ 
 				printf("invalid json!\n");

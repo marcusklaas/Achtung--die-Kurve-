@@ -165,11 +165,21 @@ void *smalloc(size_t size) {
 void *scalloc(size_t num, size_t size) {
 	void *a = calloc(num, size);
 	if(!a) {
-		printf("malloc failed, exiting..\n");
+		printf("calloc failed, exiting..\n");
 		exit(500);
 	}
 	return a;
 }
+
+void *srealloc(void *ptr, size_t size) {
+	void *a = realloc(ptr, size);
+	if(!a) {
+		printf("realloc failed, exiting..\n");
+		exit(500);
+	}
+	return a;
+}
+
 
 struct seg *copyseg(const struct seg *a) {
 	struct seg *b = smalloc(sizeof(struct seg));
