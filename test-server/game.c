@@ -105,6 +105,20 @@ void startgame(struct game *gm) {
 		for(seg = gm->map->seg; seg; seg = seg->nxt)
 			addsegment(gm, seg);
 	}
+	
+	// add border segments
+	struct seg seg;
+	seg.x1 = seg.y1 = seg.y2 = 0;
+	seg.x2 = gm->w;
+	addsegment(gm, &seg, 0, 0, 0);
+	seg.x1 = seg.x2;
+	seg.y1 = gm->h;
+	addsegment(gm, &seg, 0, 0, 0);
+	seg.x2 = 0;
+	seg.y2 = seg.y1;
+	addsegment(gm, &seg, 0, 0, 0);
+	seg.x1 = seg.y1 = 0;
+	addsegment(gm, &seg, 0, 0, 0);
 		
 	// reset users
 	for(usr = gm->usr; usr; usr = usr->nxt){
@@ -157,8 +171,8 @@ struct map *createmap(cJSON *j) {
 	while(j) {
 		struct seg *seg = smalloc(sizeof(struct seg));
 		seg->x1 = jsongetint(j, "x1");
-		seg->x2 = jsongetint(j, "y1");
-		seg->y1 = jsongetint(j, "x2");
+		seg->y1 = jsongetint(j, "y1");
+		seg->x2 = jsongetint(j, "x2");
 		seg->y2 = jsongetint(j, "y2");
 		seg->nxt = map->seg;
 		map->seg = seg;
@@ -399,30 +413,10 @@ float segcollision(struct seg *seg1, struct seg *seg2) {
 
 	float numer_b = (seg1->x2 - seg1->x1) * (seg1->y1 - seg2->y1) -
 	 (seg1->y2 - seg1->y1) * (seg1->x1 - seg2->x1);
-
+	
 	/* segments are parallel */
-	if(fabs(denom) < EPS) {
-		/* segments are on same line */
-		if(fabs(numer_a) < EPS && fabs(numer_b) < EPS) {
-			float a, b, c, d, e;
-
-			if(seg1->x1 - seg1->x2 < EPS) {
-				a = seg1->y1; b = seg1->y2; c = seg2->y1; d = seg2->y2;
-			} else {
-				a = seg1->x1; b = seg1->x2; c = seg2->x1; d = seg2->x2;
-			}
-
-			if(a > b) { e = a; a = b; b = e; }
-			if(c > d) { e = c; c = d; d = c; }
-
-			if(c < b && d > a)
-				return .5; // FIXME: what to do here?
-			else
-				return -1;
-		}
-
+	if(fabs(denom) < EPS)
 		return -1;
-	}
 
 	float a = numer_a/ denom;
 	float b = numer_b/ denom;

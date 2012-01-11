@@ -146,7 +146,10 @@ callback_game(struct libwebsocket_context * context,
 
 		json= cJSON_Parse(inchar);
 		if(!json) {
-			if(DEBUG_MODE) printf("invalid json!\n");
+			if(DEBUG_MODE){ 
+				printf("invalid json!\n");
+				printf("received: %s\n", inchar);
+			}
 			break;
 		}
 		mode= jsongetstr(json, "mode");

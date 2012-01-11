@@ -2,12 +2,17 @@ zet hier je todos en ideeen.
 
 = cruciaal =
 
+- is het toch mogelijk om out of sync te raken met de lokale snake? 
+
 - fixen dat als iemand leaved en mensen andere index krijgen, ze ook de kleur krijgen die bij die index hoort. misschien meteen elke client dezelfde kleuren laten zien? want stel iemand gaat schelden op blauw in de chat. [dan beter wel 'you' ofzo naast jouw start indicator.]
 
 - soms heeft input echt dikke vertraging, niet 1 of 2 ticks. maar echt 10 ~ 20 ofzo! jij ook gemerkt?
 
-
 = niet cruciaal =
+
+- als joingame mislukt dan zeggen waarom. (en misschien de knop uitzetten als het sowieso niet kan vanwege gamestate of #spelers)
+
+- disconnect niet meteen bij escape
 
 - ff herzien scope van sommige variabelen, welke property staat waar? global, lokaal in de window.onload functie, als property van een GameEngine instantie of als property van een kind van GameEngine (zoals player, audioengine, canvasStack enz..)
 

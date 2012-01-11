@@ -69,6 +69,10 @@ h2 {
 	margin: auto;
 }
 
+#editor {
+	margin-top: 10px;
+}
+
 #details td:last-child {
 	text-align: right;
 }
