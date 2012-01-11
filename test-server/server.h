@@ -166,5 +166,5 @@ void joingame(struct game *gm, struct user *newusr);
 float getlength(float x, float y);
 char *gametypetostr(int gametype);
 char *pencilmodetostr(int pencilmode);
-int addsegment(struct game *gm, struct seg *seg, char checkcollision, struct point *collision_point,
- char dontadd);
+void addsegment(struct game *gm, struct seg *seg);
+float checkcollision(struct game *gm, struct seg *seg);

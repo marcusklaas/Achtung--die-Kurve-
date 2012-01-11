@@ -17,7 +17,8 @@ void randomizeplayerstarts(struct game *gm) {
 				seg.y1 = usr->y;
 				seg.x2 = cos(usr->angle) * diameter + usr->x;
 				seg.y2 = sin(usr->angle) * diameter + usr->y;
-			} while(addsegment(gm, &seg, 1, 0, 1));
+			} while(checkcollision(gm, &seg) != -1.0);
+
 			usr->hstart = gm->hmin + rand() % (gm->hmax - gm->hmin + 1);
 		}
 	} else {
@@ -100,9 +101,9 @@ void startgame(struct game *gm) {
 		printf("starting game %p!\n", (void*)gm);
 	
 	if(gm->map) {
-		struct seg *seg = gm->map->seg;
-		for(; seg; seg = seg->nxt)
-			addsegment(gm, seg, 0, 0, 0);
+		struct seg *seg;
+		for(seg = gm->map->seg; seg; seg = seg->nxt)
+			addsegment(gm, seg);
 	}
 		
 	// reset users
@@ -385,11 +386,10 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	return gm;
 }
 
-// returns 1 if collision, 0 if no collision
-int segcollision(struct seg *seg1, struct seg *seg2, struct point *collision_point, float *maxcut) {
-	// ok we dont want two consecutive segments from player to collide
+// returns -1 if collision, between 0 and 1 other wise
+float segcollision(struct seg *seg1, struct seg *seg2) {
 	if(seg1->x2 == seg2->x1 && seg1->y2 == seg2->y1)
-		return 0;
+		return -1;
 
 	float denom = (seg1->x1 - seg1->x2) * (seg2->y1 - seg2->y2) -
 	 (seg1->y1 - seg1->y2) * (seg2->x1 - seg2->x2);
@@ -415,25 +415,22 @@ int segcollision(struct seg *seg1, struct seg *seg2, struct point *collision_poi
 			if(a > b) { e = a; a = b; b = e; }
 			if(c > d) { e = c; c = d; d = c; }
 
-			return (c < b && d > a);
+			if(c < b && d > a)
+				return .5; // FIXME: what to do here?
+			else
+				return -1;
 		}
 
-		return 0;
+		return -1;
 	}
 
 	float a = numer_a/ denom;
 	float b = numer_b/ denom;
 
-	if(a >= 0 && a <= 1 && b >= 0 && b <= 1) {
-		if(collision_point && b <= *maxcut) {
-			*maxcut = b;
-			collision_point->x = (1 - b) * seg2->x1 + b * seg2->x2;
-			collision_point->y = (1 - b) * seg2->y1 + b * seg2->y2;
-		}
-		return 1;
-	}
+	if(a >= 0 && a <= 1 && b >= 0 && b <= 1)
+		return b;
 
-	return 0;
+	return -1;
 }
 
 // returns 1 in case the segment intersects the box
@@ -454,119 +451,166 @@ int lineboxcollision(struct seg *seg, int left, int bottom, int right, int top) 
 	edge.x1 = edge.x2 = left;
 	edge.y1 = bottom;
 	edge.y2 = top;
-	if(segcollision(seg, &edge, 0, 0))
+	if(segcollision(seg, &edge) != -1.0)
 		return 1;
 
 	/* check intersect right border */
 	edge.x1 = edge.x2 = right;
-	if(segcollision(seg, &edge, 0, 0))
+	if(segcollision(seg, &edge) != -1.0)
 		return 1;
 
 	/* check intersect top border */
 	edge.x1 = left;
 	edge.y1 = edge.y2 = top;
-	if(segcollision(seg, &edge, 0, 0))
+	if(segcollision(seg, &edge) != -1.0)
 		return 1;
 
 	/* check intersect top border */
 	edge.y1 = edge.y2 = bottom;
-	if(segcollision(seg, &edge, 0, 0))
+	if(segcollision(seg, &edge) != -1.0)
 		return 1;
 
 	return 0;
 }
 
-// returns 1 in case of collision, 0 other wise
-// we hebben geen functie checkcollision(gm, seg), hier zit dat wel ingebakken.
-// vandaar een dontadd parameter
-// declaration in server.h !
-// TODO: segfaults!
-int addsegment(struct game *gm, struct seg *seg, char checkcollision, struct point *collision_point,
- char dontadd) {
-	int left_tile, right_tile, bottom_tile, top_tile, swap, tiles = 0, collision = 0;
-	struct seg *current, *copy, **newsegs;
+// returns -1 in case no collision, else between 0 and -1
+float checktilecollision(struct seg *tile, struct seg *seg) {
+	struct seg *current;
+	float cut, mincut = -1;
+
+	for(current = tile; current; current = current->nxt) {
+		cut = segcollision(current, seg);
+
+		if(cut != -1.0) {
+			mincut = (mincut == -1.0) ? cut : min(cut, mincut);
+
+			if(DEBUG_MODE) {
+				printseg(current);printf(" collided with ");printseg(seg);printf("\n");
+			}
+		}
+	}
+
+	return mincut;
+}
+
+// fills tileindices: top right bottom left. returns #endpoints that are out of bounds
+int tiles(struct game *gm, struct seg *seg, int *tileindices) {
+	int swap, fpob, spob;
+	float fswap;
+
+	tileindices[3] = seg->x1/ gm->tilew;
+	tileindices[1] = seg->x2/ gm->tilew;
+	if(tileindices[3] > tileindices[1]) {
+		swap = tileindices[3];
+		tileindices[3] = tileindices[1];
+		tileindices[1] = swap;
+	}
+
+	tileindices[2] = seg->y1/ gm->tileh;
+	tileindices[0] = seg->y2/ gm->tileh;
+	if(tileindices[2] > tileindices[0]) {
+		swap = tileindices[2];
+		tileindices[2] = tileindices[0];
+		tileindices[0] = swap;
+	}
+
+	int firstoutbound = seg->x1 < 0 || seg->x1 >= gm->w || seg->y1 < 0 || seg->y1 >= gm->h;
+	int secondoutbound = seg->x2 < 0 || seg->x2 >= gm->w || seg->y2 < 0 || seg->y2 >= gm->h;
+
+	if(firstoutbound && secondoutbound)
+		return 2;
+
+	if(secondoutbound && !firstoutbound) {
+		/* swapping endpoints */
+
+		fswap = seg->x1;
+		seg->x1 = seg->x2;
+		seg->x2 = seg->x1;
+
+		fswap = seg->y1;
+		seg->y1 = seg->y2;
+		seg->y2 = fswap;
+
+		firstoutbound = 1;
+		secondoutbound = 0;
+	}
+
+	if(firstoutbound && !secondoutbound) {
+		tileindices[3] = min(max(tileindices[3], 0), gm->htiles - 1);
+		tileindices[1] = min(max(tileindices[1], 0), gm->htiles - 1);
+		tileindices[2] = min(max(tileindices[2], 0), gm->vtiles - 1);
+		tileindices[0] = min(max(tileindices[0], 0), gm->vtiles - 1);
+
+		return 1;
+	}
+
+	return 0;
+}
+
+// returns -1 in case of no collision, between 0 and 1 else
+float checkcollision(struct game *gm, struct seg *seg) {
+	int tileindices[4], boundstatus;
+	float cut, mincut = -1;
+	struct seg *current;
 	struct point point;
 
-	left_tile = seg->x1/ gm->tilew;
-	right_tile = seg->x2/ gm->tilew;
-	if(left_tile > right_tile) {
-		swap = left_tile; left_tile = right_tile; right_tile = swap;
+	boundstatus = tiles(gm, seg, tileindices);
+
+	if(boundstatus == 2) {
+		return 1; // pretend it collides
 	}
 
-	bottom_tile = seg->y1/ gm->tileh;
-	top_tile = seg->y2/ gm->tileh;
-	if(bottom_tile > top_tile) {
-		swap = bottom_tile; bottom_tile = top_tile; top_tile = swap;
-	}
-
-	/* run off screen */
-	if(seg->x2 < 0 || seg->x2 >= gm->w || seg->y2 < 0 || seg->y2 >= gm->h) {
-		if(checkcollision) {
-			collision = 1;
-			point.x = min(gm->w, max(0, seg->x2));
-			point.y = min(gm->h, max(0, seg->y2));
-		}
-		left_tile = max(left_tile, 0);
-		right_tile = min(right_tile, gm->htiles - 1);
-		bottom_tile = max(bottom_tile, 0);
-		top_tile = min(top_tile, gm->vtiles - 1);
+	if(boundstatus == 1) {
+		mincut = 1; // TODO: we should calc the real mincut?
 	}
 	
-	if(checkcollision)
-		newsegs = smalloc((top_tile - bottom_tile + 1) * (right_tile - left_tile + 1)
-		 * sizeof(struct seg *));
-
-	for(int i = left_tile; i <= right_tile; i++) {
-		for(int j = bottom_tile; j <= top_tile; j++) {
+	for(int i = tileindices[3]; i <= tileindices[1]; i++) {
+		for(int j = tileindices[2]; j <= tileindices[0]; j++) {
 			if(!lineboxcollision(seg, i * gm->tilew, j * gm->tileh,
 			 (i + 1) * gm->tilew, (j + 1) * gm->tileh))
 				continue;
 
-			if(checkcollision && !collision) {
-				float maxcut = 1;
+			cut = checktilecollision(gm->seg[gm->htiles * j + i], seg);
 
-				for(current = gm->seg[gm->htiles * j + i]; current; current = current->nxt)
-					if(segcollision(current, seg, &point, &maxcut)) {
-						if(DEBUG_MODE) {
-							printseg(current);printf(" collided with ");printseg(seg);printf("\n");
-						}
-						collision = 1;
-						break;
-					}
-			}
-			
-			if(!dontadd) {
-				copy = copyseg(seg);
-				copy->nxt = gm->seg[gm->htiles * j + i];
-				gm->seg[gm->htiles * j + i] = copy;
-
-				if(checkcollision)
-					newsegs[tiles++] = copy;
-			}
+			if(cut != -1.0)
+				mincut = (mincut == -1.0) ? cut : min(cut, mincut);
 		}
 	}
 
-	if(collision) {
-		for(int i = 0; i < tiles; i++) {
-			newsegs[i]->x2 = point.x;
-			newsegs[i]->y2 = point.y;
-		}
-		if(collision_point) {
-			collision_point->x = point.x;
-			collision_point->y = point.y;
-		}
-	}
-	
-	if(checkcollision)
-		free(newsegs);
+	return mincut;
+}
 
-	if(SEND_SEGMENTS) {
-		copy = copyseg(seg);
-		copy->nxt = gm->tosend;
-		gm->tosend = copy;
+
+
+// simply adds segment to the game -- collision detection and cutoffs happen
+// in different functions now
+void addsegment(struct game *gm, struct seg *seg) {
+	int tileindices[4];
+	struct seg *copy;
+
+	if(2 == tiles(gm, seg, tileindices)) {
+		printf("segment completely out of bounds, not adding\n");
+		return;
 	}
 
-	return !GOD_MODE && collision;
+	for(int i = tileindices[3]; i <= tileindices[1]; i++) {
+		for(int j = tileindices[2]; j <= tileindices[0]; j++) {
+			if(!lineboxcollision(seg, i * gm->tilew, j * gm->tileh,
+			 (i + 1) * gm->tilew, (j + 1) * gm->tileh))
+				continue;
+
+			copy = copyseg(seg);
+			copy->nxt = gm->seg[gm->htiles * j + i];
+			gm->seg[gm->htiles * j + i] = copy;
+		}
+	}
+}
+
+// queues player segment to send for debugging
+void queueseg(struct game *gm, struct seg *seg) {
+	struct seg *copy = copyseg(seg);
+	copy->nxt = gm->tosend;
+	gm->tosend = copy;
 }
 
 // simulate user tick. returns 1 if player dies during this tick, 0 otherwise
@@ -609,13 +653,19 @@ int simuser(struct user *usr, int tick) {
 	newseg.x2 = usr->x;
 	newseg.y2 = usr->y;
 	
-	struct point collision_point;
-	char collision = addsegment(usr->gm, &newseg, 1, &collision_point, 0);
-	if(collision){
-		usr->x = collision_point.x;
-		usr->y = collision_point.y;
+	float cut = checkcollision(usr->gm, &newseg);
+
+	if(cut != -1.0) {
+		usr->x = newseg.x2 = (1 - cut) * newseg.x1 + cut * newseg.x2;
+		usr->y = newseg.y2 = (1 - cut) * newseg.y1 + cut * newseg.y2;
 	}
-	return collision;
+
+	addsegment(usr->gm, &newseg);
+
+	if(SEND_SEGMENTS)
+		queueseg(usr->gm, &newseg);
+
+	return cut != -1.0;
 }
 
 // send message to group: this player died
@@ -962,16 +1012,21 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 }
 
 void simpencil(struct pencil *p) {
-	if(p->psegtail && p->psegtail->tick == p->usr->gm->tick) {
-		struct pencilseg *tail = p->psegtail;
-		addsegment(p->usr->gm, &tail->seg, 0, 0, 0);
-		if(tail->prev) {
-			tail->prev->nxt = 0;
-			p->psegtail = tail->prev;
-		}else
-			p->psegtail = p->pseghead = 0;
-		free(tail);
+	if(!p->psegtail || p->psegtail->tick != p->usr->gm->tick)
+		return;
+
+	struct pencilseg *tail = p->psegtail;
+
+	addsegment(p->usr->gm, &tail->seg);
+
+	if(tail->prev) {
+		tail->prev->nxt = 0;
+		p->psegtail = tail->prev;
 	}
+	else
+		p->psegtail = p->pseghead = 0;
+
+	free(tail);
 }
 
 // to be called at startgame
