@@ -111,11 +111,11 @@ void startgame(struct game *gm) {
 	seg.x1 = seg.y1 = seg.y2 = 0;
 	seg.x2 = gm->w;
 	addsegment(gm, &seg);
-	seg.x1 = seg.x2;
+	seg.x1 = gm->w;
 	seg.y1 = gm->h;
 	addsegment(gm, &seg);
 	seg.x2 = 0;
-	seg.y2 = seg.y1;
+	seg.y2 = gm->h;
 	addsegment(gm, &seg);
 	seg.x1 = seg.y1 = 0;
 	addsegment(gm, &seg);
@@ -415,7 +415,7 @@ float segcollision(struct seg *seg1, struct seg *seg2) {
 	 (seg1->y2 - seg1->y1) * (seg1->x1 - seg2->x1);
 	
 	/* segments are parallel */
-	if(fabs(denom) < EPS)
+	if(denom == 0)
 		return -1;
 
 	float a = numer_a/ denom;
@@ -433,10 +433,10 @@ int lineboxcollision(struct seg *seg, int left, int bottom, int right, int top) 
 	 * or there is intersection with the edges. note: this is naive way.
 	 * there is probably a more efficient way to do it */
 
-	if(seg->x1 >= left && seg->x1 < right && seg->y1 >= bottom && seg->y1 < top)
+	if(seg->x1 >= left && seg->x1 <= right && seg->y1 >= bottom && seg->y1 <= top)
 		return 1;
 
-	if(seg->x2 >= left && seg->x2 < right && seg->y2 >= bottom && seg->y2 < top)
+	if(seg->x2 >= left && seg->x2 <= right && seg->y2 >= bottom && seg->y2 <= top)
 		return 1;
 
 	struct seg edge;
@@ -488,57 +488,31 @@ float checktilecollision(struct seg *tile, struct seg *seg) {
 }
 
 // fills tileindices: top right bottom left. returns #endpoints that are out of bounds
-int tiles(struct game *gm, struct seg *seg, int *tileindices) {
+// NOTE: bottom means greater y-values 
+void tiles(struct game *gm, struct seg *seg, int *tileindices) {
 	int swap, fpob, spob;
 	float fswap;
 
-	tileindices[3] = seg->x1/ gm->tilew;
-	tileindices[1] = seg->x2/ gm->tilew;
+	tileindices[3] = floor(seg->x1/ gm->tilew);
+	tileindices[1] = floor(seg->x2/ gm->tilew);
 	if(tileindices[3] > tileindices[1]) {
 		swap = tileindices[3];
 		tileindices[3] = tileindices[1];
 		tileindices[1] = swap;
 	}
 
-	tileindices[2] = seg->y1/ gm->tileh;
-	tileindices[0] = seg->y2/ gm->tileh;
-	if(tileindices[2] > tileindices[0]) {
+	tileindices[2] = floor(seg->y1/ gm->tileh);
+	tileindices[0] = floor(seg->y2/ gm->tileh);
+	if(tileindices[2] < tileindices[0]) {
 		swap = tileindices[2];
 		tileindices[2] = tileindices[0];
 		tileindices[0] = swap;
 	}
 
-	int firstoutbound = seg->x1 < 0 || seg->x1 >= gm->w || seg->y1 < 0 || seg->y1 >= gm->h;
-	int secondoutbound = seg->x2 < 0 || seg->x2 >= gm->w || seg->y2 < 0 || seg->y2 >= gm->h;
-
-	if(firstoutbound && secondoutbound)
-		return 2;
-
-	if(secondoutbound && !firstoutbound) {
-		/* swapping endpoints */
-
-		fswap = seg->x1;
-		seg->x1 = seg->x2;
-		seg->x2 = seg->x1;
-
-		fswap = seg->y1;
-		seg->y1 = seg->y2;
-		seg->y2 = fswap;
-
-		firstoutbound = 1;
-		secondoutbound = 0;
-	}
-
-	if(firstoutbound && !secondoutbound) {
-		tileindices[3] = min(max(tileindices[3], 0), gm->htiles - 1);
-		tileindices[1] = min(max(tileindices[1], 0), gm->htiles - 1);
-		tileindices[2] = min(max(tileindices[2], 0), gm->vtiles - 1);
-		tileindices[0] = min(max(tileindices[0], 0), gm->vtiles - 1);
-
-		return 1;
-	}
-
-	return 0;
+	tileindices[3] = max(tileindices[3], 0);
+	tileindices[1] = min(tileindices[1], gm->htiles - 1);
+	tileindices[0] = max(tileindices[0], 0);
+	tileindices[2] = min(tileindices[2], gm->vtiles - 1);
 }
 
 // returns -1 in case of no collision, between 0 and 1 else
@@ -547,12 +521,10 @@ float checkcollision(struct game *gm, struct seg *seg) {
 	float cut, mincut = -1;
 	struct seg *current;
 
-	if(tiles(gm, seg, tileindices) == 2) {
-		return 1; // pretend it collides
-	}
+	tiles(gm, seg, tileindices);
 	
 	for(int i = tileindices[3]; i <= tileindices[1]; i++) {
-		for(int j = tileindices[2]; j <= tileindices[0]; j++) {
+		for(int j = tileindices[0]; j <= tileindices[2]; j++) {
 			if(!lineboxcollision(seg, i * gm->tilew, j * gm->tileh,
 			 (i + 1) * gm->tilew, (j + 1) * gm->tileh))
 				continue;
@@ -573,13 +545,10 @@ void addsegment(struct game *gm, struct seg *seg) {
 	int tileindices[4];
 	struct seg *copy;
 
-	if(2 == tiles(gm, seg, tileindices)) {
-		printf("segment completely out of bounds, not adding\n");
-		return;
-	}
+	tiles(gm, seg, tileindices);
 
 	for(int i = tileindices[3]; i <= tileindices[1]; i++) {
-		for(int j = tileindices[2]; j <= tileindices[0]; j++) {
+		for(int j = tileindices[0]; j <= tileindices[2]; j++) {
 			if(!lineboxcollision(seg, i * gm->tilew, j * gm->tileh,
 			 (i + 1) * gm->tilew, (j + 1) * gm->tileh))
 				continue;
