@@ -110,15 +110,15 @@ void startgame(struct game *gm) {
 	struct seg seg;
 	seg.x1 = seg.y1 = seg.y2 = 0;
 	seg.x2 = gm->w;
-	addsegment(gm, &seg, 0, 0, 0);
+	addsegment(gm, &seg);
 	seg.x1 = seg.x2;
 	seg.y1 = gm->h;
-	addsegment(gm, &seg, 0, 0, 0);
+	addsegment(gm, &seg);
 	seg.x2 = 0;
 	seg.y2 = seg.y1;
-	addsegment(gm, &seg, 0, 0, 0);
+	addsegment(gm, &seg);
 	seg.x1 = seg.y1 = 0;
-	addsegment(gm, &seg, 0, 0, 0);
+	addsegment(gm, &seg);
 		
 	// reset users
 	for(usr = gm->usr; usr; usr = usr->nxt){
@@ -543,19 +543,12 @@ int tiles(struct game *gm, struct seg *seg, int *tileindices) {
 
 // returns -1 in case of no collision, between 0 and 1 else
 float checkcollision(struct game *gm, struct seg *seg) {
-	int tileindices[4], boundstatus;
+	int tileindices[4];
 	float cut, mincut = -1;
 	struct seg *current;
-	struct point point;
 
-	boundstatus = tiles(gm, seg, tileindices);
-
-	if(boundstatus == 2) {
+	if(tiles(gm, seg, tileindices) == 2) {
 		return 1; // pretend it collides
-	}
-
-	if(boundstatus == 1) {
-		mincut = 1; // TODO: we should calc the real mincut?
 	}
 	
 	for(int i = tileindices[3]; i <= tileindices[1]; i++) {
@@ -573,8 +566,6 @@ float checkcollision(struct game *gm, struct seg *seg) {
 
 	return mincut;
 }
-
-
 
 // simply adds segment to the game -- collision detection and cutoffs happen
 // in different functions now
