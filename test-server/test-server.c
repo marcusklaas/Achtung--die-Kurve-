@@ -144,7 +144,36 @@ callback_game(struct libwebsocket_context * context,
 	case LWS_CALLBACK_RECEIVE:
 		if(ULTRA_VERBOSE) printf("received: %s\n", inchar);
 
-		json= cJSON_Parse(inchar);
+		int msgsize = strlen(inchar);
+		int bufsize = u->msgbuf ? strlen(u->msgbuf) : 0;
+
+		/* buffer msg */
+		if(libwebsockets_remaining_packet_payload(wsi) > 0) {
+			u->msgbuf = realloc(u->msgbuf, (bufsize + msgsize + 1) * sizeof(char));
+			if(!u->msgbuf) { // srealloc? :P
+				printf("no mem available for bigger msgbuf\n");
+				exit(500);
+			}
+
+			strcpy(u->msgbuf + bufsize, inchar);
+			break; 
+		}
+
+		/* unbuffer msg */
+		if(u->msgbuf) {
+			inchar = realloc(inchar, bufsize + msgsize + 1);
+			if(!inchar) { // srealloc? :P
+				printf("no mem available for bigger msgbuf\n");
+				exit(500);
+			}
+
+			strcpy(inchar + bufsize, inchar);
+			memcpy(inchar, u->msgbuf, bufsize); // not strcpy! it will overwrite first byte of inchar
+			free(u->msgbuf);
+			u->msgbuf = 0;
+		}
+
+		json = cJSON_Parse(inchar);
 		if(!json) {
 			if(DEBUG_MODE){ 
 				printf("invalid json!\n");

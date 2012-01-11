@@ -130,6 +130,7 @@ struct user {
 	struct user *nxt;
 	char *name;
 	
+	char *msgbuf;		// receivebuffer
 	char *sb[SB_MAX];	// sendbuffer
 	int sbat;			// sendbuffer at
 
