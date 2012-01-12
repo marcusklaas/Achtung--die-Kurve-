@@ -26,7 +26,7 @@
 #define ULTRA_VERBOSE 0
 #define SHOW_WARNING 1
 #define GOD_MODE 0
-#define SEND_SEGMENTS 0 // om de hoeveel ticks het moet gebeuren (0=nooit)
+#define SEND_SEGMENTS 40 // om de hoeveel ticks het moet gebeuren (0=nooit)
 
 /* input control */
 #define MAX_FILE_REQ_LEN 100
@@ -87,18 +87,18 @@ struct map {
 
 struct game {
 	int id, type,			// game_id, game_type
-		n, w, h,			// number of players, width, height
+		n, w, h, v,			// number of players, width, height, velocity
 		nmin, nmax,			// desired number of players
 		tilew, tileh,		// tile width & height
 		htiles, vtiles,		// number of horizontal tiles & vertical tiles
 		goal, state,		// required points to win, game state, see GS_* definitions
-		v, ts,				// velocity, turn speed
 		tick, alive,		// #ticks that have passed, #alive players
 		hsize, hfreq,		// hole size and frequency in ticks
 		hmin, hmax,			// min/ max ticks before start of first hole
 		start, rsn;			// start in msecs after epoch, #players at round start
+	float ts;				// turning speed in radians per sec
 	struct seg **seg;		// two dimensional array of linked lists, one for each tile
-	struct user *usr, *host;// user list
+	struct user *usr, *host;// user list, game host
 	struct game *nxt;
 	struct seg *tosend;		// voor de DEBUG_SEGMENTS
 	char pencilmode;		// zie PM_*

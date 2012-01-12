@@ -1,5 +1,5 @@
 /* game engine */
-function GameEngine(containerId, playerListId, chatBarId, audioController) {
+function GameEngine(audioController) {
 	// game variables
 	this.players = [];
 	this.dict = []; // maps playerId.toString() to index of this.players
@@ -35,7 +35,7 @@ function GameEngine(containerId, playerListId, chatBarId, audioController) {
 
 	// canvas related
 	this.scale = null;		// canvas size/ game size
-	this.containerId = containerId; // id of DOM object that contains canvas layers
+	this.containerId = 'canvasContainer'; // id of DOM object that contains canvas layers
 	this.canvasStack = null; // object that manages canvas layers
 	this.baseContext = null; // on this we draw conclusive segments
 
@@ -44,10 +44,10 @@ function GameEngine(containerId, playerListId, chatBarId, audioController) {
 
 	// player list related
 	this.localPlayerId = null;
-	this.playerList = document.getElementById(playerListId).lastChild;
+	this.playerList = document.getElementById('playerList').lastChild;
 
 	// chat
-	this.chatBar = document.getElementById(chatBarId);
+	this.chatBar = document.getElementById('chat');
 }
 
 /* this only resets things like canvas, but keeps the player info */
@@ -349,6 +349,10 @@ GameEngine.prototype.setHost = function(id) {
 	var nonhostBlock = this.host == localPlayer ? 'none' : 'block';
 	this.hostContainer.style.display = hostBlock;
 	this.nonhostContainer.style.display = nonhostBlock;
+
+	var inputElts = document.getElementById('details').getElementsByTagName('input');
+	for(var i = 0; i < inputElts.length; i++)
+		inputElts[i].disabled = (this.host != localPlayer);
 }
 
 GameEngine.prototype.buildGameList = function(list) {
@@ -472,27 +476,22 @@ GameEngine.prototype.setParams = function(obj) {
 	this.pencilMode = obj.pencilmode;
 	
 	if(obj.type != 'lobby') {
-		// TODO: set pencil mode in gamedetails
 		document.getElementById('nmin').value = obj.nmin;
 		document.getElementById('nmax').value = obj.nmax;
+		document.getElementById('width').value = this.width;
+		document.getElementById('height').value = this.height;
 		document.getElementById('velocity').value = this.velocity;
 		document.getElementById('turnSpeed').value = this.turnSpeed;
 		document.getElementById('holeSize').value = this.holeSize;
 		document.getElementById('holeFreq').value = this.holeFreq;
+		document.getElementById('goal').value = obj.goal;
+		setPencilMode(obj.pencilmode);
 
 		this.updateTitle('Game ' + obj.id);
 	}
 }
 
 GameEngine.prototype.requestGame = function(player, minPlayers, maxPlayers) {
-	// als je op de knop kan drukken moet er ook wat gebeuren
-	//if(this.gameState != 'lobby')
-	//	return;
-
-	// w8 for joinedGame message
-	//this.setGameState('waiting');
-	//this.resetPlayers();
-	//this.addPlayer(player);
 	this.sendMsg('requestGame', {'playerName': player.playerName,
 	 'minPlayers': minPlayers, 'maxPlayers': maxPlayers});
 	// TODO: zet de knop disabled tot bericht van de server? dan ziet de user
@@ -500,7 +499,7 @@ GameEngine.prototype.requestGame = function(player, minPlayers, maxPlayers) {
 	// ook bij andere knoppen als createGame, leaveGame, joinLobby, joinGame
 }
 
-GameEngine.prototype.createGame = function(player) {
+GameEngine.prototype.createGame = function() {
 	this.sendMsg('createGame', {});
 }
 
@@ -587,12 +586,34 @@ GameEngine.prototype.calcScale = function() {
 	this.scale = Math.min(scaleX, scaleY);
 }
 
-GameEngine.prototype.sendStartGame = function() {
+GameEngine.prototype.sendParams = function() {
 	var obj = {};
+	obj.goal = parseInt(document.getElementById('goal').value);
+	obj.v = parseInt(document.getElementById('velocity').value);
+	obj.w = parseInt(document.getElementById('width').value);
+	obj.h = parseInt(document.getElementById('height').value);
+	obj.ts = parseFloat(document.getElementById('turnSpeed').value);
+	obj.hsize = parseInt(document.getElementById('holeSize').value);
+	obj.hfreq = parseInt(document.getElementById('holeFreq').value);
+	obj.pencilmode = getPencilMode();
+	obj.nmax = parseInt(document.getElementById('nmax').value);
+
+	this.sendMsg('setParams', obj);
+}
+
+GameEngine.prototype.sendStartGame = function() {
+	// TODO: params moeten eig eerder worden gestuurd want nu zien users van de game
+	// de instellingen niet. dus met aparte knop oid en daarna min timer to start game
+	// of automatisch bij het aanpassen van de settings? (na 3 sec inactivity op de instellingen oid)
+	this.sendParams();
+
+	var obj = {};
+
 	if(this.editor.segments.length > 0) {
 		obj.segments = this.editor.segments;
 		this.editor.segments = [];
 	}
+
 	this.sendMsg('startGame', obj);
 }
 
@@ -1341,13 +1362,117 @@ Pencil.prototype.getRelativeMousePos = function(ev) {
 	return pos;
 }
 
+/* Map editor */
+Editor = function() {
+	this.down = false;
+	var canvas = this.canvas = document.getElementById('editorCanvas');
+	this.context = canvas.getContext('2d');
+	this.container = document.getElementById('editor');
+	this.pos = [0, 0];
+	this.segments = [];
+	var self = this;
+	canvas.style.backgroundColor = canvasBgcolor;
+	canvas.addEventListener('mousedown', function(ev) { self.onmouse('down', ev); }, false);
+	canvas.addEventListener('mousemove', function(ev) { self.onmouse('move', ev); }, false);
+	document.body.addEventListener('mouseup',   function(ev) { self.onmouse('up', ev); }, false);
+	canvas.addEventListener('mouseout',  function(ev) { self.onmouse('out', ev); }, false);
+	canvas.addEventListener('mouseover',  function(ev) { self.onmouse('over', ev); }, false);
+	var reset = document.getElementById('editorReset');
+	reset.addEventListener('click', function() { self.reset(1024, 644); }, false);
+	this.textField = document.getElementById('editorTextField');
+	var copy = document.getElementById('editorCopy');
+	copy.addEventListener('click', function() { self.copy(); }, false);
+	var load = document.getElementById('editorLoad');
+	load.addEventListener('click', function() { self.load(); }, false);
+	var button = document.getElementById('editorButton');
+	button.addEventListener('click', function() { self.show(); }, false);
+}
+
+Editor.prototype.onmouse = function(type, ev) {
+	var pos = getMousePos(ev);
+	pos[0] -= this.pos[0];
+	pos[1] -= this.pos[1];
+	if(type == 'down' || (this.out && type == 'over' && this.down)) {
+		this.lastPos = pos;
+		this.lastTime = Date.now();
+		this.out = false;
+		this.down = true;
+	}
+	else if(this.down && (type == 'out' || type == 'up' || 
+	 (type == 'move' && Date.now() - this.lastTime > editorStepTime))) {
+	 	if(!this.out) {
+			var seg = new BasicSegment(this.lastPos[0], this.lastPos[1], pos[0], pos[1]);
+			this.segments.push(seg);
+			this.drawSegment(seg);
+			this.lastPos = pos;
+			this.lastTime = Date.now();
+		}
+		if(type == 'out')
+			this.out = true;
+		else if(type == 'up')
+			this.down = false;
+	}
+}
+
+Editor.prototype.drawSegment = function(seg) {
+	this.context.beginPath();
+	this.context.moveTo(seg.x1, seg.y1);
+	this.context.lineTo(seg.x2, seg.y2);
+	this.context.stroke();
+}
+
+Editor.prototype.show = function(seg) {
+	this.container.style.display = 'block';
+	this.reset(1024, 644);
+}
+
+Editor.prototype.hide = function(seg) {
+	this.container.style.display = 'none';
+}
+
+Editor.prototype.reset = function(w, h) {
+	this.canvas.width = w;
+	this.canvas.height = h;
+	this.context.lineWidth = 3;
+	setLineColor(this.context, mapSegmentColor, 1);
+	this.context.lineCap = 'round';
+	this.pos = findPos(this.canvas);
+	this.segments = [];
+	this.out = false;
+}
+
+Editor.prototype.copy = function() {
+	this.textField.value = JSON.stringify(this.segments);
+}
+
+Editor.prototype.load = function() {
+	try {
+		var segs = JSON.parse(this.textField.value);
+	}
+	catch(ex) {
+		debugLog('JSON parse exception!');
+	}
+
+	for(var i = 0; i < segs.length; i++)
+		this.drawSegment(segs[i]);
+
+	this.segments = this.segments.concat(segs);
+}
+
+BasicSegment = function(x1, y1, x2, y2) {
+	this.x1 = x1;
+	this.y1 = y1;
+	this.x2 = x2;
+	this.y2 = y2;
+}
+
 /* create game */
 window.onload = function() {
 
 	/* some objects */
 	touchDevice = 'createTouch' in document;
 	var audioController = new AudioController();
-	game = new GameEngine('canvasContainer', 'playerList', 'chat', audioController);
+	game = new GameEngine(audioController);
 	localPlayer = new Player(playerColors[0], true, 0);
 	var inputControl = new InputController(localPlayer, keyCodeLeft, keyCodeRight);
 
@@ -1359,7 +1484,6 @@ window.onload = function() {
 	audioController.addSound('localWin', 'sounds/winning', ['mp3']);
 	
 	/* delegate key presses and releases */
-	// stond document.body maar dan werken je keys niet meer na muisklik
 	window.addEventListener('keydown',
 	 function(e) { inputControl.keyDown(e.keyCode, e); }, false);
 	window.addEventListener('keyup',
@@ -1462,7 +1586,7 @@ window.onload = function() {
 	startButton.addEventListener('click', reqGame, false);
 	
 	var createButton = document.getElementById('createGame');
-	createButton.addEventListener('click', function() { game.createGame(localPlayer); }, false);
+	createButton.addEventListener('click', function() { game.createGame(); }, false);
 
 	var leaveButton = document.getElementById('stop');
 	leaveButton.addEventListener('click', function() {
@@ -1555,6 +1679,32 @@ function setContentVisibility(target) {
 	}
 }
 
+function getPencilMode() {
+	if(document.getElementById('pencilOn').lastChild.checked)
+		return 'on';
+
+	if(document.getElementById('pencilOff').lastChild.checked)
+		return 'off';
+
+	if(document.getElementById('pencilOnDeath').lastChild.checked)
+		return 'ondeath';
+
+	return null;
+}
+
+function setPencilMode(mode) {
+	var sections = ['pencilOn', 'pencilOff', 'pencilOnDeath'];
+	var selected = 0;
+
+	if(mode == 'off')
+		selected = 1;
+	if(mode == 'ondeath')
+		selected = 2;
+
+	for(var i = 0; i < sections.length; i++)
+		document.getElementById(sections[i]).lastChild.checked = (i == selected);
+}
+
 function getLength(x, y) {
 	return Math.sqrt(x * x + y * y);
 }
@@ -1586,106 +1736,4 @@ function getMousePos(e) {
 	}
 	// posx and posy contain the mouse position relative to the document
 	return [posx, posy];
-}
-
-Editor = function() {
-	this.down = false;
-	var canvas = this.canvas = document.getElementById('editorCanvas');
-	this.context = canvas.getContext('2d');
-	this.container = document.getElementById('editor');
-	this.pos = [0, 0];
-	this.segments = [];
-	var self = this;
-	canvas.style.backgroundColor = canvasBgcolor;
-	canvas.addEventListener('mousedown', function(ev) { self.onmouse('down', ev); }, false);
-	canvas.addEventListener('mousemove', function(ev) { self.onmouse('move', ev); }, false);
-	document.body.addEventListener('mouseup',   function(ev) { self.onmouse('up', ev); }, false);
-	canvas.addEventListener('mouseout',  function(ev) { self.onmouse('out', ev); }, false);
-	canvas.addEventListener('mouseover',  function(ev) { self.onmouse('over', ev); }, false);
-	var reset = document.getElementById('editorReset');
-	reset.addEventListener('click', function() { self.reset(1024, 644); }, false);
-	this.textField = document.getElementById('editorTextField');
-	var copy = document.getElementById('editorCopy');
-	copy.addEventListener('click', function() { self.copy(); }, false);
-	var load = document.getElementById('editorLoad');
-	load.addEventListener('click', function() { self.load(); }, false);
-	var button = document.getElementById('editorButton');
-	button.addEventListener('click', function() { self.show(); }, false);
-}
-
-Editor.prototype.onmouse = function(type, ev) {
-	var pos = getMousePos(ev);
-	pos[0] -= this.pos[0];
-	pos[1] -= this.pos[1];
-	if(type == 'down' || (this.out && type == 'over' && this.down)) {
-		this.lastPos = pos;
-		this.lastTime = Date.now();
-		this.out = false;
-		this.down = true;
-	}
-	else if(this.down && (type == 'out' || type == 'up' || 
-	 (type == 'move' && Date.now() - this.lastTime > editorStepTime))) {
-	 	if(!this.out) {
-			var seg = new BasicSegment(this.lastPos[0], this.lastPos[1], pos[0], pos[1]);
-			this.segments.push(seg);
-			this.drawSegment(seg);
-			this.lastPos = pos;
-			this.lastTime = Date.now();
-		}
-		if(type == 'out')
-			this.out = true;
-		else if(type == 'up')
-			this.down = false;
-	}
-}
-
-Editor.prototype.drawSegment = function(seg) {
-	this.context.beginPath();
-	this.context.moveTo(seg.x1, seg.y1);
-	this.context.lineTo(seg.x2, seg.y2);
-	this.context.stroke();
-}
-
-Editor.prototype.show = function(seg) {
-	this.container.style.display = 'block';
-	this.reset(1024, 644);
-}
-
-Editor.prototype.hide = function(seg) {
-	this.container.style.display = 'none';
-}
-
-Editor.prototype.reset = function(w, h) {
-	this.canvas.width = w;
-	this.canvas.height = h;
-	this.context.lineWidth = 3;
-	setLineColor(this.context, mapSegmentColor, 1);
-	this.context.lineCap = 'round';
-	this.pos = findPos(this.canvas);
-	this.segments = [];
-	this.out = false;
-}
-
-Editor.prototype.copy = function() {
-	this.textField.value = JSON.stringify(this.segments);
-}
-
-Editor.prototype.load = function() {
-	
-	try {
-		var segs = JSON.parse(this.textField.value);
-		for(var i = 0; i < segs.length; i++)
-			this.drawSegment(segs[i]);
-		this.segments = this.segments.concat(segs);
-	}
-	catch(ex) {
-		debugLog('JSON parse exception!');
-	}
-}
-
-BasicSegment = function(x1, y1, x2, y2) {
-	this.x1 = x1;
-	this.y1 = y1;
-	this.x2 = x2;
-	this.y2 = y2;
 }

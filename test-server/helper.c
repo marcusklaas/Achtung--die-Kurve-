@@ -14,22 +14,34 @@
 
 // returns NULL on error
 char *jsongetstr(cJSON *json, char* obj) {
-	json = cJSON_GetObjectItem(json,obj);
+	json = cJSON_GetObjectItem(json, obj);
 	if(!json) {
 		if(DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
 		return 0;
 	}
 	return json->valuestring;
 }
+
 // returns -1 on error
 int jsongetint(cJSON *json, char* obj) {
-	json = cJSON_GetObjectItem(json,obj);
+	json = cJSON_GetObjectItem(json, obj);
 	if(!json) {
 		if(DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
 		return -1;
 	}
 	return json->valueint;
 }
+
+// returns -1 on error
+float jsongetfloat(cJSON *json, char* obj) {
+	json = cJSON_GetObjectItem(json, obj);
+	if(!json) {
+		if(DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
+		return -1;
+	}
+	return json->valuedouble;
+}
+
 // returns NULL on error
 cJSON *jsongetjson(cJSON *json, char* obj) {
 	json = cJSON_GetObjectItem(json, obj);
@@ -41,7 +53,7 @@ cJSON *jsongetjson(cJSON *json, char* obj) {
 }
 
 void jsonsetstr(cJSON *json, char* obj, char* str) {
-	json = cJSON_GetObjectItem(json,obj);
+	json = cJSON_GetObjectItem(json, obj);
 	if(!json) {
 		if(DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
 		return ;
@@ -60,13 +72,13 @@ void jsonsetbool(cJSON *json, char* obj, char value) {
 }
 
 void jsonsetnum(cJSON *json, char* obj, double val) {
-	json = cJSON_GetObjectItem(json,obj);
+	json = cJSON_GetObjectItem(json, obj);
 	if(!json) {
 		if(DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
 		return ;
 	}
 	json->valuedouble = val;
-	json->valueint = (int)val;
+	json->valueint = val;
 }
 
 cJSON *jsoncreate(char *mode) {
@@ -88,7 +100,7 @@ char *jsongetpacket(cJSON *json) {
 cJSON *getjsongamepars(struct game *gm) {
 	cJSON *json = jsoncreate("gameParameters");
 
-	jsonaddnum(json, "countdown", COUNTDOWN * TICK_LENGTH);
+	jsonaddnum(json, "countdown", COUNTDOWN);
 	jsonaddnum(json, "hsize", gm->hsize);
 	jsonaddnum(json, "hfreq", gm->hfreq);
 	jsonaddnum(json, "w", gm->w);
@@ -98,6 +110,7 @@ cJSON *getjsongamepars(struct game *gm) {
 	jsonaddnum(json, "v", gm->v);
 	jsonaddnum(json, "ts", gm->ts);
 	jsonaddnum(json, "id", gm->id);
+	jsonaddnum(json, "goal", gm->goal);
 	jsonaddstr(json, "type", gametypetostr(gm->type));
 	jsonaddstr(json, "pencilmode", pencilmodetostr(gm->pencilmode));
 	

@@ -169,26 +169,6 @@ callback_game(struct libwebsocket_context * context,
 			printf("no mode specified!\n");
 			break;
 		}
-		else if(!strcmp(mode, "setParams")) {
-			if(!u->gm || u->gm->host != u || u->gm->state != GS_LOBBY) {
-				printf("User tried to set params, but s/he is not host of a game in lobby state\n");
-				break;
-			}
-
-			u->gm->w = min(2000, max(100, jsongetint(json, "w")));
-			u->gm->h = min(2000, max(100, jsongetint(json, "h")));
-			u->gm->v = min(1000, max(0, jsongetint(json, "v")));
-			u->gm->ts = min(10, max(0, jsongetint(json, "ts")));
-			u->gm->hsize = min(1000, max(0, jsongetint(json, "hsize")));
-			u->gm->hfreq = min(10000, max(0, jsongetint(json, "hsize")));
-			u->gm->goal = min(1000, max(1, jsongetint(json, "goal")));
-			u->gm->nmax = min(32, max(0, jsongetint(json, "nmax")));
-			u->gm->pencilmode = strtopencilmode(jsongetstr(json, "pencilMode"));
-
-			cJSON *json = getjsongamepars(u->gm);
-			sendjsontogame(json, u->gm, 0); // ook host want shit kan geminmaxt zijn
-			jsondel(json);
-		}
 		else if(!strcmp(mode, "join")) {
 			int gameid;
 			struct game *gm;
@@ -272,31 +252,61 @@ callback_game(struct libwebsocket_context * context,
 			if(DEBUG_MODE) printf("user %d is creating a game\n", u->id);
 
 			if(u->gm != lobby) {
-				printf("user tried to create game. but he is not in lobby. he might not have a name etc.\n");
+				printf("user tried to create game. but he is not in lobby."
+				 " he might not have a name etc.\n");
 				break;
 			}
 			
 			joingame(creategame(GT_CUSTOM, 2, 4), u);
-			
 		}
 		else if(!strcmp(mode, "leaveGame")) {
 			if(u->gm && u->gm - lobby)
 				joingame(lobby, u);
 		}
-		else if(!strcmp(mode, "startGame")) {
-			if(u->gm && u->gm->type == GT_CUSTOM && u->gm->state == GS_LOBBY && 
-			 u->gm->host == u){
-				cJSON *j = jsongetjson(json, "segments");
-				if(j && j->child) {
-					u->gm->map = createmap(j->child);
-					cJSON *root = jsoncreate("setMap");
-					cJSON *ar = encodesegments(u->gm->map->seg);
-					jsonaddjson(root, "segments", ar);
-					sendjsontogame(root, u->gm, 0);
-					jsondel(root);
-				}
-				startgame(u->gm);
+		else if(!strcmp(mode, "setParams")) {
+			if(!u->gm || u->gm->type != GT_CUSTOM || u->gm->state != GS_LOBBY || 
+			 u->gm->host != u) {
+				printf("user %d tried to set params but not host of custom game"
+				 " in lobby state\n", u->id);
+				break;
 			}
+
+			if(DEBUG_MODE)
+				printf("Setting params for game %p.\n", (void *) u->gm);
+
+			u->gm->w = min(2000, max(100, jsongetint(json, "w")));
+			u->gm->h = min(2000, max(100, jsongetint(json, "h")));
+			u->gm->v = min(1000, max(0, jsongetint(json, "v")));
+			u->gm->ts = min(10, max(0, jsongetfloat(json, "ts"))); 
+			u->gm->hsize = min(1000, max(0, jsongetint(json, "hsize")));
+			u->gm->hfreq = min(10000, max(0, jsongetint(json, "hsize")));
+			u->gm->goal = min(1000, max(1, jsongetint(json, "goal")));
+			u->gm->nmax = min(u->gm->n, max(0, jsongetint(json, "nmax")));
+			u->gm->pencilmode = strtopencilmode(jsongetstr(json, "pencilMode"));
+
+			cJSON *j = getjsongamepars(u->gm);
+			sendjsontogame(j, u->gm, 0); // ook host want shit kan geminmaxt zijn
+			jsondel(j);
+		}
+		else if(!strcmp(mode, "startGame")) {
+			if(!u->gm || u->gm->type != GT_CUSTOM || u->gm->state != GS_LOBBY || 
+			 u->gm->host != u) {
+				printf("user %d tried to start game but not host of custom game"
+				 " in lobby state\n", u->id);
+				break;
+			}
+
+			cJSON *j = jsongetjson(json, "segments");
+			if(j && j->child) {
+				u->gm->map = createmap(j->child);
+				cJSON *root = jsoncreate("setMap");
+				cJSON *ar = encodesegments(u->gm->map->seg);
+				jsonaddjson(root, "segments", ar);
+				sendjsontogame(root, u->gm, 0);
+				jsondel(root);
+			}
+
+			startgame(u->gm);
 		}
 		else if(strcmp(mode, "newInput") == 0) {
 			if(++(u->inputs) <= MAX_INPUTS && u->gm
@@ -305,7 +315,8 @@ callback_game(struct libwebsocket_context * context,
 		}
 		else if(!strcmp(mode, "pencil")) {
 			if(u->gm && u->gm->state == GS_STARTED && !u->ignoreinput
-			 && (u->gm->pencilmode == PM_ON || (u->gm->pencilmode == PM_ONDEATH && !u->alive)))
+			 && (u->gm->pencilmode == PM_ON
+			 || (u->gm->pencilmode == PM_ONDEATH && !u->alive)))
 				handlepencilmsg(json, u); 		
 		}
 		else if(!strcmp(mode, "enableInput")) {
@@ -353,8 +364,7 @@ static struct option options[] = {
 };
 
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
 	int n = 0;
 	int port = 7681;
 	struct libwebsocket_context *context;

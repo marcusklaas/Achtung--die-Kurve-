@@ -120,6 +120,8 @@ void startgame(struct game *gm) {
 		usr->deltaon = usr->deltaat = 0;
 		usr->v = gm->v;
 		usr->ts = gm->ts;
+		usr->hsize = gm->hsize;
+		usr->hfreq = gm->hfreq;
 		usr->lastinputtick = -1;
 		usr->ignoreinput = 1;
 		if(gm->pencilmode != PM_OFF)
@@ -211,16 +213,13 @@ struct game *findgame(int nmin, int nmax) {
 		printf("findgame called \n");
 
 	for(gm = headgame; gm; gm = gm->nxt)
-		if(gm->state == GS_LOBBY && gm->nmin <= nmax && gm->nmax >= nmin
-		 && gm->type == GT_AUTO) {
-			if(gm->nmin < nmin || gm->nmax > nmax) {
-				gm->nmin = max(gm->nmin, nmin);
-				gm->nmax = min(gm->nmax, nmax);
-				gm->goal = (gm->n - 1) * TWO_PLAYER_POINTS; // c * avg pts pp pr
-				cJSON *json = getjsongamepars(gm);
-				sendjsontogame(json, gm, 0);
-				jsondel(json);
-			}
+		if(gm->state == GS_LOBBY && gm->nmin <= nmax && gm->nmax >= nmin && gm->type == GT_AUTO) {
+			gm->nmin = max(gm->nmin, nmin);
+			gm->nmax = min(gm->nmax, nmax);
+			gm->goal = (gm->n - 1) * TWO_PLAYER_POINTS; // c * avg pts pp pr
+			cJSON *json = getjsongamepars(gm);
+			sendjsontogame(json, gm, 0);
+			jsondel(json);
 			return gm;
 		}
 
@@ -277,6 +276,9 @@ void leavegame(struct user *usr) {
 	sendjsontogame(json, gm, 0);
 	jsondel(json);
 
+	// FIXME: yo als user game leavet dan worden de inputs en segmentjes niet
+	// netjes opgeruimd zoals in endround gebeurt
+
 	if(gm->type != GT_LOBBY) {
 		if(gm->state == GS_STARTED && gm->n == 1)
 			endgame(gm, gm->usr);
@@ -302,8 +304,6 @@ void joingame(struct game *gm, struct user *newusr) {
 		broadcastgamelist();
 
 	newusr->gm = gm;
-	newusr->hsize = gm->hsize;
-	newusr->hfreq = gm->hfreq;
 	newusr->inputs = 0;
 	newusr->points = 0;
 
@@ -374,12 +374,13 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	gm->ts = TURN_SPEED;
 	gm->pencilmode = PM_DEFAULT;
 	gm->nxt = headgame;
+	gm->goal = TWO_PLAYER_POINTS;
 	headgame = gm;
 
-	gm->hsize = HOLE_SIZE/ TICK_LENGTH;
-	gm->hfreq = HOLE_FREQ/ TICK_LENGTH;
-	gm->hmin = HOLE_START_MIN/ TICK_LENGTH;
-	gm->hmax = HOLE_START_MAX/ TICK_LENGTH;
+	gm->hsize = HOLE_SIZE;
+	gm->hfreq = HOLE_FREQ;
+	gm->hmin = HOLE_START_MIN;
+	gm->hmax = HOLE_START_MAX;
 
 	// how big we should choose our tiles depends only on segment length
 	float seglen = gm->v * TICK_LENGTH / 1000.0;
@@ -703,7 +704,8 @@ void endround(struct game *gm) {
 		endgame(gm, winner);
 	}
 	else {
-		printf("round of game %p ended. round winner = %d\n", (void*) gm, usr ? usr->id : -1);
+		if(DEBUG_MODE)
+			printf("round of game %p ended. round winner = %d\n", (void*) gm, usr ? usr->id : -1);
 		startgame(gm);
 	}
 }
