@@ -226,6 +226,14 @@ char *pencilmodetostr(int pencilmode) {
 	return str;
 }
 
+int strtopencilmode(char *pencilstr) {
+	if(!strcmp(pencilstr, "on"))
+		return PM_ON;
+	if(!strcmp(pencilstr, "ondeath"))
+		return PM_ONDEATH;
+	return PM_OFF;
+}
+
 /* is there no extension, return "" */
 char *getFileExt(char *path) {
 	char *ext, *point = strrchr(path, '.');

@@ -9,9 +9,9 @@
 #define HOLE_START_MIN 50 // after how many ticks first hole may appear
 #define HOLE_START_MAX 200 // after how many ticks first hole must have appeared
 #define TICK_LENGTH 24 // in msecs
-#define SERVER_DELAY 9 // in ticks
-#define COUNTDOWN 42 // in ticks
-#define COOLDOWN 84 // time between end of round and countdown of next in ticks
+#define SERVER_DELAY 200 // in msecs
+#define COUNTDOWN 1000 // in msecs
+#define COOLDOWN 2000 // time between end of round and countdown of next in msecs
 #define SB_MAX 50 // sendbuffer max size
 #define DELTA_COUNT 11
 #define DELTA_MAX 25

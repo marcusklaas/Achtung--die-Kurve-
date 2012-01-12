@@ -130,8 +130,8 @@ void startgame(struct game *gm) {
 	randomizeplayerstarts(gm);
 
 	int laterround = gm->usr->points || (gm->usr->nxt && gm->usr->nxt->points);
-	gm->start = (laterround * COOLDOWN + serverticks + COUNTDOWN) * TICK_LENGTH;
-	gm->tick = -COUNTDOWN - SERVER_DELAY - laterround * COOLDOWN;
+	gm->start = serverticks * TICK_LENGTH + laterround * COOLDOWN + COUNTDOWN;
+	gm->tick = -(COUNTDOWN + SERVER_DELAY + laterround * COOLDOWN)/ TICK_LENGTH;
 	gm->state = GS_STARTED;
 	gm->alive = gm->n;
 
@@ -216,6 +216,7 @@ struct game *findgame(int nmin, int nmax) {
 			if(gm->nmin < nmin || gm->nmax > nmax) {
 				gm->nmin = max(gm->nmin, nmin);
 				gm->nmax = min(gm->nmax, nmax);
+				gm->goal = (gm->n - 1) * TWO_PLAYER_POINTS; // c * avg pts pp pr
 				cJSON *json = getjsongamepars(gm);
 				sendjsontogame(json, gm, 0);
 				jsondel(json);
@@ -348,11 +349,8 @@ void joingame(struct game *gm, struct user *newusr) {
 	sendjson(json, newusr);
 	jsondel(json);
 
-	if(gm->type == GT_AUTO && gm->n >= gm->nmin) {
-		// goal = avg points per player * constant
-		gm->goal = (gm->n - 1) * TWO_PLAYER_POINTS;
+	if(gm->type == GT_AUTO && gm->n >= gm->nmin)
 		startgame(gm);
-	}
 
 	if(DEBUG_MODE) {
 		printf("user %d joined game %p\n", newusr->id, (void *)gm);
@@ -378,10 +376,10 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	gm->nxt = headgame;
 	headgame = gm;
 
-	gm->hsize = HOLE_SIZE;
-	gm->hfreq = HOLE_FREQ;
-	gm->hmin = HOLE_START_MIN;
-	gm->hmax = HOLE_START_MAX;
+	gm->hsize = HOLE_SIZE/ TICK_LENGTH;
+	gm->hfreq = HOLE_FREQ/ TICK_LENGTH;
+	gm->hmin = HOLE_START_MIN/ TICK_LENGTH;
+	gm->hmax = HOLE_START_MAX/ TICK_LENGTH;
 
 	// how big we should choose our tiles depends only on segment length
 	float seglen = gm->v * TICK_LENGTH / 1000.0;
