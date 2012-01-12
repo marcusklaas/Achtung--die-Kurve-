@@ -87,13 +87,6 @@ void broadcastgamelist() {
 	jsondel(json);
 }
 
-void iniuser(struct user *usr, struct libwebsocket *wsi) {
-	memset(usr, 0, sizeof(struct user));
-	usr->id = usrc++;
-	usr->wsi = wsi;
-	usr->lastinputtick = -1;
-}
-
 void startgame(struct game *gm) {
 	struct user *usr;
 
@@ -428,15 +421,15 @@ float segcollision(struct seg *seg1, struct seg *seg2) {
 }
 
 // returns 1 in case the segment intersects the box
-int lineboxcollision(struct seg *seg, int left, int bottom, int right, int top) {
+int lineboxcollision(struct seg *seg, int top, int right, int bottom, int left) {
 	/* if the segment intersects box, either both points are in box, 
 	 * or there is intersection with the edges. note: this is naive way.
 	 * there is probably a more efficient way to do it */
 
-	if(seg->x1 >= left && seg->x1 <= right && seg->y1 >= bottom && seg->y1 <= top)
+	if(seg->x1 >= left && seg->x1 <= right && seg->y1 <= bottom && seg->y1 >= top)
 		return 1;
 
-	if(seg->x2 >= left && seg->x2 <= right && seg->y2 >= bottom && seg->y2 <= top)
+	if(seg->x2 >= left && seg->x2 <= right && seg->y2 <= bottom && seg->y2 >= top)
 		return 1;
 
 	struct seg edge;
@@ -459,7 +452,7 @@ int lineboxcollision(struct seg *seg, int left, int bottom, int right, int top) 
 	if(segcollision(seg, &edge) != -1.0)
 		return 1;
 
-	/* check intersect top border */
+	/* check intersect bottom border */
 	edge.y1 = edge.y2 = bottom;
 	if(segcollision(seg, &edge) != -1.0)
 		return 1;
@@ -487,7 +480,7 @@ float checktilecollision(struct seg *tile, struct seg *seg) {
 	return mincut;
 }
 
-// fills tileindices: top right bottom left. returns #endpoints that are out of bounds
+// fills tileindices: top right bottom left.
 // NOTE: bottom means greater y-values 
 void tiles(struct game *gm, struct seg *seg, int *tileindices) {
 	int swap, fpob, spob;
@@ -525,8 +518,8 @@ float checkcollision(struct game *gm, struct seg *seg) {
 	
 	for(int i = tileindices[3]; i <= tileindices[1]; i++) {
 		for(int j = tileindices[0]; j <= tileindices[2]; j++) {
-			if(!lineboxcollision(seg, i * gm->tilew, j * gm->tileh,
-			 (i + 1) * gm->tilew, (j + 1) * gm->tileh))
+			if(!lineboxcollision(seg, j * gm->tileh, (i + 1) * gm->tilew,
+			 (j + 1) * gm->tileh, i * gm->tilew))
 				continue;
 
 			cut = checktilecollision(gm->seg[gm->htiles * j + i], seg);
@@ -549,8 +542,8 @@ void addsegment(struct game *gm, struct seg *seg) {
 
 	for(int i = tileindices[3]; i <= tileindices[1]; i++) {
 		for(int j = tileindices[0]; j <= tileindices[2]; j++) {
-			if(!lineboxcollision(seg, i * gm->tilew, j * gm->tileh,
-			 (i + 1) * gm->tilew, (j + 1) * gm->tileh))
+			if(!lineboxcollision(seg, j * gm->tileh, (i + 1) * gm->tilew,
+			 (j + 1) * gm->tileh, i * gm->tilew))
 				continue;
 
 			copy = copyseg(seg);
@@ -871,6 +864,41 @@ void interpretinput(cJSON *json, struct user *usr) {
 		jsonaddnum(j, "modified", 0);
 	sendjsontogame(j, usr->gm, 0);
 	jsondel(j);
+}
+
+void iniuser(struct user *usr, struct libwebsocket *wsi) {
+	memset(usr, 0, sizeof(struct user));
+	usr->id = usrc++;
+	usr->wsi = wsi;
+	usr->lastinputtick = -1;
+}
+
+void deleteuser(struct user *usr) {
+	int i;
+	struct pencilseg *pseg, *nxt;
+	
+	if(usr->gm)
+		leavegame(usr);
+
+	while(usr->inputhead) {
+		struct userinput *nxthead = usr->inputhead->nxt;
+		free(usr->inputhead);
+		usr->inputhead = nxthead;
+	}
+
+	if(usr->name)
+		free(usr->name);
+	
+	for(i = 0; i < usr->sbat; i++)
+		free(usr->sb[i]);
+
+	if(usr->msgbuf)
+		free(usr->msgbuf);
+
+	for(pseg = usr->pencil.pseghead; pseg; pseg = nxt) {
+		nxt = pseg->nxt;
+		free(pseg);
+	}
 }
 
 /* pencil game */

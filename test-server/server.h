@@ -1,4 +1,4 @@
-#define EPS 0.00000001
+#define EPS 0.01
 #define GAME_WIDTH 1024
 #define GAME_HEIGHT 644
 #define TILE_SIZE_MULTIPLIER 4 // tilesize/ segmentlength
@@ -12,7 +12,7 @@
 #define SERVER_DELAY 9 // in ticks
 #define COUNTDOWN 42 // in ticks
 #define COOLDOWN 84 // time between end of round and countdown of next in ticks
-#define SB_MAX 10 // sendbuffer max size
+#define SB_MAX 50 // sendbuffer max size
 #define DELTA_COUNT 11
 #define DELTA_MAX 25
 #define PRE_PADDING	LWS_SEND_BUFFER_PRE_PADDING
@@ -97,11 +97,11 @@ struct game {
 		hsize, hfreq,		// hole size and frequency in ticks
 		hmin, hmax,			// min/ max ticks before start of first hole
 		start, rsn;			// start in msecs after epoch, #players at round start
-	struct seg **seg;	// two dimensional array of linked lists, one for each tile
-	struct user *usr, *host;	// user list
+	struct seg **seg;		// two dimensional array of linked lists, one for each tile
+	struct user *usr, *host;// user list
 	struct game *nxt;
-	struct seg *tosend;	// voor de DEBUG_SEGMENTS
-	char pencilmode;
+	struct seg *tosend;		// voor de DEBUG_SEGMENTS
+	char pencilmode;		// zie PM_*
 	struct map *map;
 };
 

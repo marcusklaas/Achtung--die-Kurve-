@@ -114,15 +114,7 @@ callback_game(struct libwebsocket_context * context,
 
 	case LWS_CALLBACK_CLOSED:
 		if(DEBUG_MODE) printf("LWS_CALLBACK_CLOSED\n");
-		if(u->gm)
-			leavegame(u);
-		while(u->inputhead) {
-			struct userinput *nxthead= u->inputhead->nxt;
-			free(u->inputhead);
-			u->inputhead= nxthead;
-		}
-		if(u->name)
-			free(u->name);
+		deleteuser(u);		
 		break;
 
 	case LWS_CALLBACK_SERVER_WRITEABLE:
