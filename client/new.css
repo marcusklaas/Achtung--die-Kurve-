@@ -6,7 +6,7 @@ html, body, #sidebar, #game {
 }
 
 #gameContainer, #gameListContainer,
- #waitContainer, #status, #stop {
+ #waitContainer, #status, #stop, #editor {
 	display: none;
 }
 
@@ -19,6 +19,10 @@ table, tr, th, td {
 	font-size: 100%;
 	line-height: 1;
 	font-family: inherit;
+}
+
+canvas {
+	display: block;
 }
 
 body {
@@ -63,14 +67,10 @@ h2 {
 	margin: auto;
 }
 
-#gameDetails, #connectionContainer {
+#waitContainer, #connectionContainer {
 	padding-top: 20px;
 	width: 400px;
 	margin: auto;
-}
-
-#editor {
-	margin-top: 10px;
 }
 
 #details td:last-child {

@@ -279,7 +279,7 @@ callback_game(struct libwebsocket_context * context,
 			u->gm->v = min(1000, max(0, jsongetint(json, "v")));
 			u->gm->ts = min(10, max(0, jsongetfloat(json, "ts"))); 
 			u->gm->hsize = min(1000, max(0, jsongetint(json, "hsize")));
-			u->gm->hfreq = min(10000, max(0, jsongetint(json, "hsize")));
+			u->gm->hfreq = min(10000, max(0, jsongetint(json, "hfreq")));
 			u->gm->goal = min(1000, max(1, jsongetint(json, "goal")));
 			u->gm->nmax = min(u->gm->n, max(0, jsongetint(json, "nmax")));
 			u->gm->pencilmode = strtopencilmode(jsongetstr(json, "pencilMode"));
