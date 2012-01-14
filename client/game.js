@@ -275,6 +275,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 				this.splicePlayerList(index);
 				
 				for(var i = index + 1; i < this.players.length; i++) {
+					this.players[i].index--;
 					this.players[i].color = playerColors[i - 1];
 					this.setIndex(this.players[i].playerId, i - 1);
 				}
@@ -988,6 +989,7 @@ Player.prototype.simulate = function(endTick, ctx) {
 		 	inHole = !inHole;
 			ctx.stroke();
 			ctx.beginPath();
+			ctx.moveTo(this.x, this.y);
 			setLineColor(ctx, this.color, inHole ? gapAlpha : 1);
 			ctx.lineCap = inHole ? 'butt' : lineCapStyle;
 			if(debugBaseContext && ctx == this.game.baseContext)
@@ -1062,7 +1064,7 @@ Player.prototype.initialise = function(x, y, angle, holeStart) {
 	this.lastSteerTick = -1;
 	this.finalTick = Infinity;
 
-	this.game.updatePlayerList(this.game.getIndex(this.playerId), 'alive', null)
+	this.game.updatePlayerList(this.index, 'alive', null)
 
 	/* create canvas */
 	var canvas = document.getElementById(this.game.canvasStack.createLayer());
