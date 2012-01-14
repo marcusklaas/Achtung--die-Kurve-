@@ -8,8 +8,6 @@ function GameEngine(audioController) {
 	this.tock = 0; // seperate tick for the other clients
 	this.behind = behind;
 	this.gameState = 'new'; // new, lobby, editing, waiting, countdown, playing, watching, ended
-	this.width = -1;
-	this.height = -1;
 	
 	// debug counters
 	this.redraws = 0;
@@ -18,6 +16,8 @@ function GameEngine(audioController) {
 	this.modifiedInputs = 0;
 
 	// game properties
+	this.width = -1;
+	this.height = -1;
 	this.pencilMode = null; // on, off or ondeath
 	this.velocity = null;
 	this.turnSpeed = null;
@@ -25,8 +25,13 @@ function GameEngine(audioController) {
 	this.holeFreq = null; // for certain players by powerups or whatever
 	this.countdown = null; // countdown time in msecs
 
-	// pencil
+	// children
 	this.pencil = null;
+	this.audioController = audioController;
+	this.localPlayerId = null;
+	this.playerList = document.getElementById('playerList').lastChild;
+	this.chatBar = document.getElementById('chat');
+	this.editor = new Editor(this);
 
 	// connection state
 	this.websocket = null;
@@ -38,19 +43,11 @@ function GameEngine(audioController) {
 	this.containerId = 'canvasContainer'; // id of DOM object that contains canvas layers
 	this.canvasStack = null; // object that manages canvas layers
 	this.baseContext = null; // on this we draw conclusive segments
+	this.resizeNeeded = false;
 
-	// audio controller
-	this.audioController = audioController;
-
-	// player list related
-	this.localPlayerId = null;
-	this.playerList = document.getElementById('playerList').lastChild;
-
-	// chat
-	this.chatBar = document.getElementById('chat');
-
-	// map editor
-	this.editor = new Editor(this);
+	// game param timers
+	this.paramTimeout = null;
+	this.unlockTimeout = null;
 }
 
 /* this only resets things like canvas, but keeps the player info */
@@ -285,7 +282,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 				this.players.splice(index, 1);
 			}
 			else{
-				this.players[index].alive = false;
+				this.players[index].state = 'left';
 				this.updatePlayerList(index, 'left', null);
 			}
 			break;
@@ -449,15 +446,15 @@ GameEngine.prototype.handleSyncResponse = function(serverTime) {
 	if(ping > this.worstSyncPing) {
 		this.ping += Math.round(this.worstSyncPing / (syncTries - 1));
 		this.worstSyncPing = ping;
-	}else
+	} else
 		this.ping += Math.round(ping / (syncTries - 1));
 
 	if(++this.syncTries < syncTries) {
 		var self = this;
 		window.setTimeout(function() {self.syncWithServer();},
 		 this.syncTries * syncDelays);
-	}
-	else{
+	} 
+	else {
 		debugLog('Your current ping is ' + this.ping + ' msec');
 		if(ultraVerbose)
 			debugLog('synced with maximum error of ' + this.bestSyncPing + ' msec');
@@ -546,14 +543,14 @@ GameEngine.prototype.doTick = function() {
 	if(this.pencilMode != 'off')
 		this.pencil.doTick();
 
-	if(player.alive)
+	if(player.state == 'alive')
 		player.simulate(this.tick, player.context);
 }
 
 GameEngine.prototype.doTock = function() {
 	for(var i = 1; i < this.players.length; i++) {
 		var player = this.players[i];
-		if(!player.alive)
+		if(player.state != 'alive')
 			continue;
 			
 		player.simulate(this.tock + 1, player.context);
@@ -593,6 +590,11 @@ GameEngine.prototype.calcScale = function() {
 	this.scale = Math.min(scaleX, scaleY);
 }
 
+GameEngine.prototype.unlockStart = function() {
+	document.getElementById('startGame').disabled = false;
+	this.unlockTimeout = null;
+}
+
 GameEngine.prototype.sendParams = function() {
 	var obj = {};
 	obj.goal = parseInt(document.getElementById('goal').value);
@@ -605,15 +607,11 @@ GameEngine.prototype.sendParams = function() {
 	obj.pencilmode = getPencilMode();
 	obj.nmax = parseInt(document.getElementById('nmax').value);
 
+	this.paramTimeout = null;
 	this.sendMsg('setParams', obj);
 }
 
 GameEngine.prototype.sendStartGame = function() {
-	// TODO: params moeten eig eerder worden gestuurd want nu zien users van de game
-	// de instellingen niet. dus met aparte knop oid en daarna min timer to start game
-	// of automatisch bij het aanpassen van de settings? (na 3 sec inactivity op de instellingen oid)
-	this.sendParams();
-
 	var obj = {};
 
 	if(this.editor.segments.length > 0) {
@@ -633,15 +631,15 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	if(jsProfiling)
 		console.profile('canvas performance');
 
-	window.scroll(document.body.offsetWidth, 0);
 	this.audioController.playSound('countdown');
-	this.playerListStart();
-
 	this.calcScale();
 	var container = document.getElementById(this.containerId);
 	container.style.width = Math.round(this.scale * this.width) + 'px';
 	container.style.height = Math.round(this.scale * this.height) + 'px';
 	this.resizeNeeded = false;
+
+	/* Scroll to right for touch devices */
+	window.scroll(document.body.offsetWidth, 0);
 
 	/* create canvas stack */
 	this.canvasStack = new CanvasStack(this.containerId, canvasBgcolor);
@@ -656,9 +654,11 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	/* init players */
 	for(var i = 0; i < startPositions.length; i++) {
 		var index = this.getIndex(startPositions[i].playerId);
-		this.players[index].initialise(startPositions[i].startX,
-		 startPositions[i].startY, startPositions[i].startAngle,
-		 startPositions[i].holeStart);
+
+		if(this.players[index].state != 'left')
+			this.players[index].initialise(startPositions[i].startX,
+			 startPositions[i].startY, startPositions[i].startAngle,
+			 startPositions[i].holeStart);
 	}
 
 	/* create foreground canvas */
@@ -797,10 +797,6 @@ GameEngine.prototype.displayDebugStatus = function() {
 	 ', game time adjustments: ' + this.adjustGameTimeMessagesReceived;
 }
 
-GameEngine.prototype.playerListStart = function() {
-	for(var i = 0; i < this.players.length; this.updatePlayerList(i++, 'alive', null));
-}
-
 GameEngine.prototype.appendPlayerList = function(index) {
 	var player = this.players[index];
 	var row = document.createElement('tr');
@@ -808,9 +804,7 @@ GameEngine.prototype.appendPlayerList = function(index) {
 	var statusNode = document.createElement('td');
 	var pointsNode = document.createElement('td');
 
-	// alleen naam in spelerkleur of ook status? - misschien nog mooier als er een 
-	// vierkantje/rondje voor de spelernaam staat die in de kleur is van de speler? 
-	if(this.gameState != 'lobby' && this.gameState != 'new')
+	if(this.gameState != 'lobby')
 		nameNode.style.color = 'rgb(' + player.color[0] + ', ' + player.color[1] + ', '
 		 + player.color[2] + ')';
 
@@ -826,8 +820,6 @@ GameEngine.prototype.appendPlayerList = function(index) {
 
 GameEngine.prototype.updatePlayerList = function(index, status, points) {
 	var row = document.getElementById('player' + index);
-
-	//debugLog('updatePlayerList(' + index + ', ' + status + ', ' + points + ', row = ' + row);
 
 	if(status != null)
 		row.childNodes[1].innerHTML = status;
@@ -883,7 +875,7 @@ function Player(color, local, index) {
 	this.turn = 0; // -1 is turn left, 0 is straight, 1 is turn right
 	this.game = null; // to which game does this player belong
 	this.context = null; // this is the canvas context in which we draw simulation
-	this.alive = true;
+	this.state = 'alive'; // alive, dead or left
 	this.inputs = [];
 	this.nextInput = 0;
 	this.inputsReceived = 0; // only for local player
@@ -986,7 +978,6 @@ Player.prototype.simulate = function(endTick, ctx) {
 	if(debugBaseContext && ctx == this.game.baseContext)
 		setLineColor(ctx, [0,0,0], inHole ? gapAlpha : 1);
 	ctx.moveTo(this.x, this.y);
-	
 
 	if(this.nextInput < this.inputs.length)
 		input = this.inputs[this.nextInput];
@@ -1009,10 +1000,10 @@ Player.prototype.simulate = function(endTick, ctx) {
 				this.y = input.y;
 				ctx.lineTo(this.x, this.y);
 				ctx.stroke();
-				if(this.alive)
+				if(this.state == 'alive')
 					this.simulateDead();
 				return;
-			}else{
+			} else {
 				this.turn = input.turn;
 				input = (++this.nextInput < this.inputs.length) ? this.inputs[this.nextInput] : null;
 			}
@@ -1027,21 +1018,13 @@ Player.prototype.simulate = function(endTick, ctx) {
 		this.x += this.velocity * step * cos;
 		this.y += this.velocity * step * sin;
 		
-		/* zo weer weg
-		var a = 70/2;
-		this.velocity += Math.cos(this.angle) * a / 1000 * simStep;
-		if(this.velocity < 70)
-			this.velocity = 70;
-		else if(this.velocity > 105)
-			this.velocity = 105; */
-		
 		ctx.lineTo(this.x, this.y);
 	}
 	ctx.stroke();
 }
 
 Player.prototype.simulateDead = function() {
-	this.alive = false;
+	this.state = 'dead';
 	this.game.updatePlayerList(this.index, 'dead', this.points);
 	if(this.index == 0) {
 		this.game.setGameState('watching');
@@ -1065,7 +1048,7 @@ Player.prototype.initialise = function(x, y, angle, holeStart) {
 	this.holeStart = holeStart;
 	this.holeSize = this.game.holeSize;
 	this.holeFreq = this.game.holeFreq;
-	this.alive = true;
+	this.state = 'alive';
 	this.startX = this.lcx = this.x = x;
 	this.startY = this.lcy = this.y = y;
 	this.lctick = this.nextInput = 0;
@@ -1078,6 +1061,8 @@ Player.prototype.initialise = function(x, y, angle, holeStart) {
 	this.inputsReceived = 0;
 	this.lastSteerTick = -1;
 	this.finalTick = Infinity;
+
+	this.game.updatePlayerList(this.game.getIndex(this.playerId), 'alive', null)
 
 	/* create canvas */
 	var canvas = document.getElementById(this.game.canvasStack.createLayer());
@@ -1482,7 +1467,6 @@ BasicSegment = function(x1, y1, x2, y2) {
 
 /* create game */
 window.onload = function() {
-
 	/* some objects */
 	touchDevice = 'createTouch' in document;
 	var audioController = new AudioController();
@@ -1637,6 +1621,29 @@ window.onload = function() {
 		this.clearTimeout(this.resizeTimeout);
 		this.resizeTimeout = this.setTimeout(function() { game.resizeNeeded = true; }, 
 		 resizeDelay);
+	}
+
+	/* add event handlers to schedule paramupdate message when game options are changed */
+	var inputElts = document.getElementById('details').getElementsByTagName('input');
+	for(var i = 0; i < inputElts.length; i++) {
+		inputElts[i].addEventListener('input', function() {
+			/* if paramTimeout != null, then a paramupdate is already scheduled
+			 * and it will pick this change as well so we dont need 2 do nething */
+			if(game.paramTimeout === null) {
+				game.paramTimeout = window.setTimeout(function() {
+					game.sendParams();
+				}, paramUpdateInterval);
+
+				document.getElementById('startGame').disabled = true;
+
+				if(game.unlockTimeout !== null)
+					window.clearTimeout(game.unlockTimeout);
+
+				game.unlockTimeout = window.setTimeout(function() {
+					game.unlockStart();
+				}, unlockInterval + paramUpdateInterval);
+			}
+		}, false);
 	}
 }
 

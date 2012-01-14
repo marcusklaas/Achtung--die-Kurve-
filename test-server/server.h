@@ -36,6 +36,8 @@
 #define SPAM_CHECK_INTERVAL 200 // in ticks
 #define MAX_INPUTS 60 // per control interval
 #define MAX_CHATS 5 // per check interval
+#define PARAM_UPDATE_INTERVAL 500 // min time between 2 game param updates in msecs
+#define UNLOCK_INTERVAL 5000 // min time between param update & game start in msecs
 
 /* pencil */
 #define PM_ON 0
@@ -95,7 +97,8 @@ struct game {
 		tick, alive,		// #ticks that have passed, #alive players
 		hsize, hfreq,		// hole size and frequency in ticks
 		hmin, hmax,			// min/ max ticks before start of first hole
-		start, rsn;			// start in msecs after epoch, #players at round start
+		start, rsn,			// start in msecs after epoch, #players at round start
+		paramupd;			// servermsecs at time of last paramupdate
 	float ts;				// turning speed in radians per sec
 	struct seg **seg;		// two dimensional array of linked lists, one for each tile
 	struct user *usr, *host;// user list, game host
@@ -169,3 +172,4 @@ char *gametypetostr(int gametype);
 char *pencilmodetostr(int pencilmode);
 void addsegment(struct game *gm, struct seg *seg);
 float checkcollision(struct game *gm, struct seg *seg);
+void endround(struct game *gm);

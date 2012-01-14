@@ -180,7 +180,8 @@ callback_game(struct libwebsocket_context * context,
 			gm = searchgame(gameid);
 
 			if(DEBUG_MODE)
-				printf("Received join package! Game-id: %d, user-id: %d, gm: %p\n", gameid, u->id, (void *) gm);
+				printf("Received join package! Game-id: %d, user-id: %d, gm: %p\n",
+				 gameid, u->id, (void *) gm);
 
 			if(gm)
 				joingame(gm, u);
@@ -235,7 +236,8 @@ callback_game(struct libwebsocket_context * context,
 			if(DEBUG_MODE) printf("user %d requested game\n", u->id);
 
 			if(u->gm != lobby) {
-				printf("user tried to join game. but he is not in lobby. he might not have a name etc.\n");
+				printf("user tried to join game. but he is not in lobby."
+				 " he might not have a name etc.\n");
 				break;
 			}
 
@@ -271,9 +273,17 @@ callback_game(struct libwebsocket_context * context,
 				break;
 			}
 
+			int now = servermsecs();
+
+			if(now - u->gm->paramupd < PARAM_UPDATE_INTERVAL) {
+				printf("user %d is trying to update game params too quickly\n", u->id);
+				break;
+			}
+
 			if(DEBUG_MODE)
 				printf("Setting params for game %p.\n", (void *) u->gm);
 
+			u->gm->paramupd = now;
 			u->gm->w = min(2000, max(100, jsongetint(json, "w")));
 			u->gm->h = min(2000, max(100, jsongetint(json, "h")));
 			u->gm->v = min(1000, max(0, jsongetint(json, "v")));
@@ -281,7 +291,7 @@ callback_game(struct libwebsocket_context * context,
 			u->gm->hsize = min(1000, max(0, jsongetint(json, "hsize")));
 			u->gm->hfreq = min(10000, max(0, jsongetint(json, "hfreq")));
 			u->gm->goal = min(1000, max(1, jsongetint(json, "goal")));
-			u->gm->nmax = min(u->gm->n, max(0, jsongetint(json, "nmax")));
+			u->gm->nmax = min(32, max(u->gm->n, jsongetint(json, "nmax")));
 			u->gm->pencilmode = strtopencilmode(jsongetstr(json, "pencilMode"));
 
 			cJSON *j = getjsongamepars(u->gm);
@@ -293,6 +303,11 @@ callback_game(struct libwebsocket_context * context,
 			 u->gm->host != u) {
 				printf("user %d tried to start game but not host of custom game"
 				 " in lobby state\n", u->id);
+				break;
+			}
+
+			if(servermsecs() - u->gm->paramupd < UNLOCK_INTERVAL) {
+				printf("user %d is trying to start game too soon after update\n", u->id);
 				break;
 			}
 

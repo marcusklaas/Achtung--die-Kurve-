@@ -276,12 +276,9 @@ void leavegame(struct user *usr) {
 	sendjsontogame(json, gm, 0);
 	jsondel(json);
 
-	// FIXME: yo als user game leavet dan worden de inputs en segmentjes niet
-	// netjes opgeruimd zoals in endround gebeurt
-
 	if(gm->type != GT_LOBBY) {
 		if(gm->state == GS_STARTED && gm->n == 1)
-			endgame(gm, gm->usr);
+			endround(gm);
 		else if(gm->state != GS_REMOVING_GAME && gm->n == 0)
 			remgame(gm);
 	}
