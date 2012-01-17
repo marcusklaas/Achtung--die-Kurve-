@@ -20,6 +20,7 @@
 #define SHOW_DELAY 0
 #define MIN_WIN_DIFF 2 // minimum point lead required to win a game
 #define TWO_PLAYER_POINTS 3 // points required to win two player game
+#define MAX_PLAYERSTART_TRIES 500
 #define TORUS_MODE 1
 
 /* debugging */

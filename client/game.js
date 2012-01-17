@@ -925,17 +925,6 @@ Player.prototype.steer = function(obj) {
 		
 		this.game.modifiedInputs++;
 		this.game.displayDebugStatus();
-		
-		// if we receive a local steer message that should happen in the future, we simulate to
-		// that future. this can only happen when the steer message is modified AND the game is
-		// running behind the simulation on the server. 
-		/*if(obj.tick > localTick) {
-			while(obj.tick > this.game.tick)
-				this.game.doTick();
-			debugLog('your game is running behind! ' + (this.game.tick - localTick) + 
-			 ' ticks forwarded');
-			localTick = this.game.tick;
-		}*/
 	}
 	
 	this.loadLocation();
