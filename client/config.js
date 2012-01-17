@@ -45,6 +45,7 @@ var acceptGameTimeAdjustments = true;
 var jsProfiling = false;
 var simulateCPUlag = false;
 var debugBaseContext = false; // sets different color for segments in basecontext
+var displayDebugStatus = false;
 
 /* pencil game. FIXME: all deze parameters moeten van server komen (behalve pencilAlpha) */
 var mousedownInk = 30;
