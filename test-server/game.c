@@ -103,7 +103,7 @@ void startgame(struct game *gm) {
 	}
 	
 	// add border segments
-	if(!TORUS_MODE) {
+	if(!gm->torus) {
 		struct seg seg;
 		seg.x1 = seg.y1 = seg.y2 = 0;
 		seg.x2 = gm->w - EPS;
@@ -377,6 +377,10 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	gm->pencilmode = PM_DEFAULT;
 	gm->nxt = headgame;
 	gm->goal = TWO_PLAYER_POINTS;
+	gm->torus = TORUS_MODE;
+	gm->inkcap = MAX_INK;
+	gm->inkregen = INK_PER_SEC;
+	gm->inkdelay = INK_SOLID;
 	headgame = gm;
 
 	gm->hsize = HOLE_SIZE;
@@ -921,6 +925,9 @@ void deleteuser(struct user *usr) {
 }
 
 /* pencil game */
+
+/* TODO: deze functie is een beetje dik.. kan ie wat opgebroken worden in
+ * slankere, overzichtelijkere functies? */
 void handlepencilmsg(cJSON *json, struct user *u) {
 	struct pencil *p = &u->pencil;
 	cJSON *j = 0;
@@ -929,11 +936,15 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 	if(!json)
 		return;
 	json = json->child;
+
+	int inkvisibledelay = INK_VISIBLE; // dit zou ook nog in gm kunnen
+	int inksoliddelay = u->gm->inkdelay;
 	
 	while(json) {
 		float x = json->valuedouble, y;
 		int tick;
 		int newstroke = 0;
+
 		json = json->next;
 		if(!json) break;
 		y = json->valuedouble;
@@ -950,6 +961,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 		if(!(tick > p->lasttick || (newstroke && tick == p->lasttick)))
 			break;
 		gototick(p, tick);
+
 		if(newstroke) {
 			if(p->ink > MOUSEDOWN_INK - EPS) {
 				p->x = x;
@@ -961,10 +973,11 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 		}else{
 			float d = getlength(p->x - x, p->y - y);
 			if((d >= INK_MIN_DISTANCE - EPS || d >= p->ink - EPS) && p->ink > 0) {
-				int tickSolid = tick + (INK_VISIBLE + INK_SOLID) / TICK_LENGTH;
+				int tickSolid = tick + (inkvisibledelay + inksoliddelay) / TICK_LENGTH;
 				struct pencilseg *pseg = smalloc(sizeof(struct pencilseg));
 				struct seg *seg = &pseg->seg;
 				cJSON *k = cJSON_CreateObject();
+
 				if(p->ink < d) {
 					float a = x - p->x;
 					float b = y - p->y;
@@ -993,7 +1006,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 				jsonaddnum(k, "x2", x);
 				jsonaddnum(k, "y2", y);
 				jsonaddnum(k, "playerId", u->id);
-				jsonaddnum(k, "tickVisible", tick + INK_VISIBLE / TICK_LENGTH);
+				jsonaddnum(k, "tickVisible", tick + inkvisibledelay / TICK_LENGTH);
 				jsonaddnum(k, "tickSolid", tickSolid);
 				if(!j)
 					j = cJSON_CreateArray();
@@ -1051,7 +1064,7 @@ void cleanpencil(struct pencil *pen) {
 
 void gototick(struct pencil *p, int tick) {
 	int ticks = tick - p->tick;
-	p->ink += ticks * TICK_LENGTH / 1000.0 * INK_PER_SEC;
-	if(p->ink > MAX_INK)
-		p->ink = MAX_INK;
+	float inc = ticks * TICK_LENGTH / 1000.0 * p->usr->gm->inkregen;
+
+	p->ink = min(p->ink + inc, p->usr->gm->inkcap);
 }

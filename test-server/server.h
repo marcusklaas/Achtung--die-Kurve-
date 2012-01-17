@@ -21,6 +21,7 @@
 #define MIN_WIN_DIFF 2 // minimum point lead required to win a game
 #define TWO_PLAYER_POINTS 3 // points required to win two player game
 #define MAX_PLAYERSTART_TRIES 500
+#define TORUS_MODE 1
 
 /* debugging */
 #define DEBUG_MODE 1
@@ -28,9 +29,6 @@
 #define SHOW_WARNING 1
 #define GOD_MODE 0
 #define SEND_SEGMENTS 20 // om de hoeveel ticks het moet gebeuren (0=nooit)
-
-/* XPERIMENTAL */
-#define TORUS_MODE 1
 
 /* input control */
 #define MAX_FILE_REQ_LEN 100
@@ -102,13 +100,15 @@ struct game {
 		hsize, hfreq,		// hole size and frequency in ticks
 		hmin, hmax,			// min/ max ticks before start of first hole
 		start, rsn,			// start in msecs after epoch, #players at round start
-		paramupd;			// servermsecs at time of last paramupdate
+		paramupd,			// servermsecs at time of last paramupdate
+		inkcap, inkregen,	// ink capacity, ink regen/ sec
+		inkdelay;			// ink harden time in msec
 	float ts;				// turning speed in radians per sec
 	struct seg **seg;		// two dimensional array of linked lists, one for each tile
 	struct user *usr, *host;// user list, game host
 	struct game *nxt;
 	struct seg *tosend;		// voor de DEBUG_SEGMENTS
-	char pencilmode;		// zie PM_*
+	char pencilmode, torus;	// see PM_*, torus enabled y/n
 	struct map *map;
 };
 

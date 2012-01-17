@@ -10,6 +10,7 @@ function GameEngine(audioController) {
 	this.gameState = 'new'; // new, lobby, editing, waiting, countdown, playing, watching, ended
 
 	// game properties
+	this.torus = false;
 	this.width = -1;
 	this.height = -1;
 	this.pencilMode = null; // on, off or ondeath
@@ -18,14 +19,6 @@ function GameEngine(audioController) {
 	this.holeSize = null; // default game values, may be overwritten during game
 	this.holeFreq = null; // for certain players by powerups or whatever
 	this.countdown = null; // countdown time in msecs
-
-	// children
-	this.pencil = null;
-	this.audioController = audioController;
-	this.localPlayerId = null;
-	this.playerList = document.getElementById('playerList').lastChild;
-	this.chatBar = document.getElementById('chat');
-	this.editor = new Editor(this);
 
 	// connection state
 	this.websocket = null;
@@ -38,6 +31,14 @@ function GameEngine(audioController) {
 	this.canvasStack = null; // object that manages canvas layers
 	this.baseContext = null; // on this we draw conclusive segments
 	this.resizeNeeded = false;
+
+	// children
+	this.pencil = new Pencil(this);
+	this.audioController = audioController;
+	this.localPlayerId = null;
+	this.playerList = document.getElementById('playerList').lastChild;
+	this.chatBar = document.getElementById('chat');
+	this.editor = new Editor(this);
 
 	// game param timers
 	this.paramTimeout = null;
@@ -57,7 +58,7 @@ GameEngine.prototype.reset = function() {
 	this.adjustGameTimeMessagesReceived = 0;
 	this.modifiedInputs = 0;
 
-	if(this.pencil != null && this.pencilMode != 'off')
+	if(this.pencilMode != 'off')
 		this.pencil.reset();
 
 	var container = document.getElementById(this.containerId);
@@ -459,6 +460,13 @@ GameEngine.prototype.setParams = function(obj) {
 	this.holeSize = obj.hsize;
 	this.holeFreq = obj.hfreq;
 	this.pencilMode = obj.pencilmode;
+	this.torus = (obj.torus != 0);
+
+	if(this.pencilMode != 'off') {
+		this.pencil.inkPerSec = obj.inkregen;
+		this.pencil.maxInk = obj.inkcap;
+		// TODO: set the rest of the pencils vars
+	}
 	
 	if(obj.type != 'lobby') {
 		document.getElementById('nmin').value = obj.nmin;
@@ -470,6 +478,11 @@ GameEngine.prototype.setParams = function(obj) {
 		document.getElementById('holeSize').value = this.holeSize;
 		document.getElementById('holeFreq').value = this.holeFreq;
 		document.getElementById('goal').value = obj.goal;
+		document.getElementById('torus').checked = this.torus;
+		document.getElementById('inkCapacity').value = obj.inkcap;
+		document.getElementById('inkRegen').value = obj.inkregen;
+		document.getElementById('inkDelay').value = obj.inkdelay;
+
 		setPencilMode(obj.pencilmode);
 		this.updateTitle('Game ' + obj.id);
 	}
@@ -586,6 +599,10 @@ GameEngine.prototype.sendParams = function() {
 	obj.hfreq = parseInt(document.getElementById('holeFreq').value);
 	obj.pencilmode = getPencilMode();
 	obj.nmax = parseInt(document.getElementById('nmax').value);
+	obj.torus = document.getElementById('torus').checked ? 1 : 0;
+	obj.inkcap = parseInt(document.getElementById('inkCapacity').value);
+	obj.inkregen = parseInt(document.getElementById('inkRegen').value);
+	obj.inkdelay = parseInt(document.getElementById('inkDelay').value);
 
 	this.paramTimeout = null;
 	this.sendMsg('setParams', obj);
@@ -646,10 +663,6 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	this.foregroundCanvas = canvas;
 	this.foregroundContext = canvas.getContext('2d');
 	this.setDefaultValues(this.foregroundContext);
-
-	/* create pencil if it isn't there yet */
-	if(this.pencil == null && this.pencilMode != 'off')
-		this.pencil = new Pencil(this);
 	
 	var self = this;
 	this.gameloopTimeout = window.setTimeout(function() { self.realStart(); }, delay + simStep);
@@ -1001,7 +1014,8 @@ Player.prototype.simulate = function(endTick, ctx) {
 		ctx.lineTo(this.x += this.velocity * step * cos, this.y += this.velocity * step * sin);
 
 		/* wrap around */
-		if(this.x < 0 || this.x > this.game.width || this.y < 0 || this.y > this.game.height) {
+		if(this.game.torus && (this.x < 0 || this.x > this.game.width ||
+		 this.y < 0 || this.y > this.game.height)) {
 			if(this.x > this.game.width)
 				this.x = oldx - this.game.width;
 			else if(this.x < 0)
@@ -1160,6 +1174,8 @@ AudioController.prototype.playSound = function(name) {
 
 /* Pencil */
 function Pencil(game) {
+	this.maxInk = 0;
+	this.inkPerSec = 0;
 	this.game = game;
 	this.reset();
 	
@@ -1230,10 +1246,10 @@ Pencil.prototype.reset = function() {
 }
 
 Pencil.prototype.doTick = function() {
-	this.ink += inkPerSec / 1000 * simStep;
+	this.ink += this.inkPerSec / 1000 * simStep;
 
-	if(this.ink > maxInk)
-		this.ink = maxInk;
+	if(this.ink > this.maxInk)
+		this.ink = this.maxInk;
 
 	if(this.drawingAllowed && (this.down || this.upped || this.out)) {
 		var pos = this.getRelativeMousePos(this.last);

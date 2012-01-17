@@ -47,13 +47,11 @@ var simulateCPUlag = false;
 var debugBaseContext = false; // sets different color for segments in basecontext
 var displayDebugStatus = false;
 
-/* pencil game */
+/* pencil game. FIXME: all deze parameters moeten van server komen (behalve pencilAlpha) */
 var mousedownInk = 30;
 var inkBufferTicks = 5;
 var inkMinimumDistance = 5;
-var maxInk = 200;
-var startInk = maxInk;
-var inkPerSec = 25;
+var startInk = 200;
 var pencilAlpha = .2;
 
 /* editor */

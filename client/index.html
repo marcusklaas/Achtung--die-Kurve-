@@ -67,15 +67,17 @@
 
 			<div id="editor">
 				<canvas id="editorCanvas"></canvas>
-				<button id="editorCopy">Copy to Text Field</button>
-				<button id="editorLoad">Load from Text Field</button>
-				<input id="editorTextField" type="text" />
-				<button id="editorReset" class="danger">Reset</button>
-				<button id="editorStop" class="primary">Done</button>		
+				<div id="editorControls">
+					<button id="editorCopy">Copy to Text Field</button>
+					<button id="editorLoad">Load from Text Field</button>
+					<input id="editorTextField" type="text" />
+					<button id="editorReset" class="danger">Reset</button>
+					<button id="editorStop" class="primary">Done</button>
+				</div>		
 			</div>
 
 			<div id="waitContainer">
-				<h2>Game Details</h2>
+				<h2>Game Settings</h2>
 				<table id="details">
 					<tr>
 						<td>Minimum players</td>
@@ -114,12 +116,28 @@
 						<td><input id="holeFreq" type="number" disabled /></td>
 					</tr>
 					<tr>
+						<td>Doorlaatbare borders</td>
+						<td><input type="checkbox" id="torus" disabled /></td>
+					</tr>
+					<tr>
 						<td>Pencil mode</td>
 						<td>
 							<label id="pencilOn">On <input type="radio" name="pencilMode" disabled /></label>
 							<label id="pencilOff">Off <input type="radio" name="pencilMode" disabled /></label>
 							<label id="pencilOnDeath">On death <input type="radio" name="pencilMode" disabled /></label>
 						</td>
+					</tr>
+					<tr>
+						<td>Pencil capacity</td>
+						<td><input id="inkCapacity" type="number" disabled /></td>
+					</tr>
+					<tr>
+						<td>Ink regeneration</td>
+						<td><input id="inkRegen" type="number" disabled /></td>
+					</tr>
+					<tr>
+						<td>Ink harden time</td>
+						<td><input id="inkDelay" type="number" disabled /></td>
 					</tr>
 				</table>
 

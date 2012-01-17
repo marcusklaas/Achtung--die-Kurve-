@@ -113,6 +113,10 @@ cJSON *getjsongamepars(struct game *gm) {
 	jsonaddnum(json, "goal", gm->goal);
 	jsonaddstr(json, "type", gametypetostr(gm->type));
 	jsonaddstr(json, "pencilmode", pencilmodetostr(gm->pencilmode));
+	jsonaddnum(json, "torus", gm->torus);
+	jsonaddnum(json, "inkcap", gm->inkcap);
+	jsonaddnum(json, "inkregen", gm->inkregen);
+	jsonaddnum(json, "inkdelay", gm->inkdelay);
 	
 	return json;
 }

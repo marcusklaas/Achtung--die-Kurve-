@@ -62,7 +62,7 @@ h2 {
 }
 
 #gameListContainer {
-	padding-top: 20px;
+	padding: 20px 5px 0 5px;;
 	width: 600px;
 	margin: auto;
 	text-align: right;
@@ -73,9 +73,20 @@ h2 {
 }
 
 #waitContainer, #connectionContainer {
-	padding-top: 20px;
+	padding: 20px 5px 0 5px;
 	width: 400px;
 	margin: auto;
+}
+
+#canvasContainer {
+	position: relative;
+	border-bottom: 1px solid #808080;
+	border-right: 1px solid #808080;
+}
+
+#editorControls {
+	padding: 3px 5px 0 5px;
+	text-align: right;
 }
 
 #details td:last-child {
@@ -117,12 +128,6 @@ input {
 
 #chat {
 	width: 280px;
-}
-
-#canvasContainer {
-	position: relative;
-	border-bottom: 1px solid #808080;
-	border-right: 1px solid #808080;
 }
 
 /* fancy input css van bootstrap */

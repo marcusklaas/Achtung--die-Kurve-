@@ -10,7 +10,11 @@ zet hier je todos en ideeen.
 
 = niet cruciaal =
 
+- easy join game met linkjes oid/ rematch?
+
 - server compilen op win32
+
+- pencil controls voor touch devices (iig wanneer dood)
 
 - op chrom(e/ium) werkt t disconnecten niet. ik dacht dat het bug van chrome was, maar blijkbaar is ie gefixt en komt ie door de tests
 http://code.google.com/p/chromium/issues/detail?id=93609
@@ -28,13 +32,13 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 
 - inputcontroller mergen met GameEngine? heeft niet zoveel zin om t in apart object te houden denk ik. we moeten wel de mogelijkheid open houden om later misschien meerdere personen op 1 computer te laten spelen dus dat we niet overal blindelings vanuitgaan dat we players[0] besturen (alhoewel dat eig wel overal al gebeurt :P)
 
-- toevoegen aan game settings: wel of niet door randen, hole start min, hole hole start max, inkt max, inkt regen
+- toevoegen aan game settings: hole start min, hole hole start max en misschien wat andere dingen?
 
 - toevoegen inkt indicatortje ergens? (op canvas? zo ja, dan doorzichtig en alleen zichtbaar als je rechten hebt om te tekenen)
 
 - groeperen messages en spam protectie op elke groep
 
-- editor resizeable
+- editor zo groot mogelijk en resizeable (net als gamecanvas dus)
 
 - chatten lukt niet op android devices blijkbaar (gesuggereerde oplossing: zet input in form, maar dan moeten we wss submit even afvangen ipv enter key)
 
@@ -42,13 +46,9 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 
 - min/ max players is op t moment niet zo heel geslaagd qua positionering -- oplossingen?
 
-- containers zoals gamedetails, connection/ waitcontainer padding links en rechts van 5px
-
-- lineheight fixen voor sound en radiobuttons
+- lineheight fixen voor sound en radiobuttons en checkbox
 
 - status messages en chat visueel onderscheiden in debugLog, You: ipv Je_naam: in chat?
-
-- editor buttons in divje en wat padding/ margin top
 
 - elementen van tabel centreren (maar niet playernames)? is misschien mooier? ff proberen
 
