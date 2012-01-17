@@ -42,6 +42,8 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 
 - chatten lukt niet op android devices blijkbaar (gesuggereerde oplossing: zet input in form, maar dan moeten we wss submit even afvangen ipv enter key)
 
+- als je een change maakt dan wordt creategame button voor 5 sec disabled, maar als je in tussentijd weer change maakt, dan wordt het niet uitgesteld
+
 = opmaakdingen =
 
 - min/ max players is op t moment niet zo heel geslaagd qua positionering -- oplossingen?
@@ -61,3 +63,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 - dat je ook op maps kan spelen waar bij de start al muren zijn geplaatst (en evt vaste startposities). niet willekeurig maar door ons gemaakt. want vaak wordt het spel leuk als er bv 'kamertjes' ontstaan, dus het lijkt me dat er best leuke maps gemaakt kunnen worden. optioneel nog een mode dat de spelers omstebeurt zelf ff snel een map kunnen tekenen waar dan elk 3 potjes op worden gespeeld. ook kunnen er bv 'modderplassen' in een map liggen waar je dan langzamer gaat.
 
 - een powerup mogelijk maken. en als we een powerup toevoegen zou ik zeggen dat deze erg klein moet zijn, zodat het beetje moeilijk is om hem te pakken.
+
+- meerdere spelerts op zelfde computer
+
+- ai spelerts
