@@ -18,7 +18,7 @@ var lineCapStyle = 'round';
 var indicatorLength = 15;
 var indicatorArrowLength = 8;
 var indicatorArrowOffset = 2;
-var simStep = null; // in milliseconds
+var simStep = null; // in msecs, determined by server
 var syncTries = 2;
 var syncDelays = 50;
 var behind = 2; // desired difference between tock and tick
@@ -31,6 +31,8 @@ var localPlayer = null;
 var touchDevice = null;
 var safeTickDifference = 60; // TODO: should depend on 2*ping & SERVER_DELAY
 var resizeDelay = 1000; // the duration the window should have a constant size before calling resize
+var paramUpdateInterval = 1000; // don't send game intervals more often that one per this many msecs
+var unlockInterval = 5000; // minimum time between last changing settings and gamestart in msecs
 
 var customGameWaitMessage = 'Waiting for host to start the game..';
 var autoMatchWaitMessage = 'Waiting for more players..';

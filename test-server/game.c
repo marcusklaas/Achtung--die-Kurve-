@@ -1,3 +1,5 @@
+/* TODO: check voor infinite loop bij maps. als het gebeurt weg map gooien 
+ * en spelers dit vertellen? */
 void randomizeplayerstarts(struct game *gm) {
 	// diameter of your circle in pixels when you turn at max rate
 	int diameter = ceil(2.0 * gm->v/ gm->ts);
@@ -56,7 +58,6 @@ cJSON *encodesegments(struct seg *seg) {
 
 cJSON *encodegame(struct game *gm) {
 	cJSON *json = cJSON_CreateObject();
-
 	jsonaddnum(json, "id", gm->id);
 	jsonaddnum(json, "n", gm->n);
 	jsonaddnum(json, "nmin", gm->nmin);
@@ -100,18 +101,20 @@ void startgame(struct game *gm) {
 	}
 	
 	// add border segments
-	struct seg seg;
-	seg.x1 = seg.y1 = seg.y2 = 0;
-	seg.x2 = gm->w;
-	addsegment(gm, &seg);
-	seg.x1 = gm->w;
-	seg.y1 = gm->h;
-	addsegment(gm, &seg);
-	seg.x2 = 0;
-	seg.y2 = gm->h;
-	addsegment(gm, &seg);
-	seg.x1 = seg.y1 = 0;
-	addsegment(gm, &seg);
+	if(!TORUS_MODE) {
+		struct seg seg;
+		seg.x1 = seg.y1 = seg.y2 = 0;
+		seg.x2 = gm->w - EPS;
+		addsegment(gm, &seg);
+		seg.x1 = gm->w - EPS;
+		seg.y1 = gm->h - EPS;
+		addsegment(gm, &seg);
+		seg.x2 = 0;
+		seg.y2 = gm->h - EPS;
+		addsegment(gm, &seg);
+		seg.x1 = seg.y1 = 0;
+		addsegment(gm, &seg);
+	}
 		
 	// reset users
 	for(usr = gm->usr; usr; usr = usr->nxt){
@@ -276,12 +279,9 @@ void leavegame(struct user *usr) {
 	sendjsontogame(json, gm, 0);
 	jsondel(json);
 
-	// FIXME: yo als user game leavet dan worden de inputs en segmentjes niet
-	// netjes opgeruimd zoals in endround gebeurt
-
 	if(gm->type != GT_LOBBY) {
 		if(gm->state == GS_STARTED && gm->n == 1)
-			endgame(gm, gm->usr);
+			endround(gm);
 		else if(gm->state != GS_REMOVING_GAME && gm->n == 0)
 			remgame(gm);
 	}
@@ -482,8 +482,7 @@ float checktilecollision(struct seg *tile, struct seg *seg) {
 // fills tileindices: top right bottom left.
 // NOTE: bottom means greater y-values 
 void tiles(struct game *gm, struct seg *seg, int *tileindices) {
-	int swap, fpob, spob;
-	float fswap;
+	int swap;
 
 	tileindices[3] = floor(seg->x1/ gm->tilew);
 	tileindices[1] = floor(seg->x2/ gm->tilew);
@@ -580,17 +579,11 @@ int simuser(struct user *usr, int tick) {
 	usr->x += cos(usr->angle) * usr->v * TICK_LENGTH / 1000.0;
 	usr->y += sin(usr->angle) * usr->v * TICK_LENGTH / 1000.0;
 	
-	/* zo weer weg
-	float a = 70.0/2;
-	usr->v += cos(usr->angle) * a / 1000.0 * TICK_LENGTH;
-	if(usr->v < 70)
-		usr->v = 70;
-	else if(usr->v > 105)
-		usr->v = 105;*/
+	int inhole = (tick > usr->hstart
+	 && ((tick + usr->hstart) % (usr->hsize + usr->hfreq)) < usr->hsize);
+	int inside = usr->x >= 0 && usr->x <= usr->gm->w && usr->y >= 0 && usr->y <= usr->gm->h;
 
-	// check if usr in a hole. hole starts _AFTER_ hstart
-	if(tick > usr->hstart
-	 && ((tick + usr->hstart) % (usr->hsize + usr->hfreq)) < usr->hsize)
+	if(inhole && inside)
 		return 0;
 
 	struct seg newseg;
@@ -606,12 +599,35 @@ int simuser(struct user *usr, int tick) {
 		usr->y = newseg.y2 = (1 - cut) * newseg.y1 + cut * newseg.y2;
 	}
 
-	addsegment(usr->gm, &newseg);
+	if(!inhole)
+		addsegment(usr->gm, &newseg);
 
 	if(SEND_SEGMENTS)
 		queueseg(usr->gm, &newseg);
 
-	return cut != -1.0;
+	if(cut != -1.0)
+		return 1;
+
+	/* wrap around */
+	if(!inside) {
+		if(usr->x > usr->gm->w)
+			usr->x = oldx - usr->gm->w;
+		else if(usr->x < 0)
+			usr->x = oldx + usr->gm->w;
+
+		if(usr->y > usr->gm->h)
+			usr->y = oldy - usr->gm->h;
+		else if(usr->y < 0)
+			usr->y = oldy + usr->gm->h;
+
+		usr->angle -= usr->turn * usr->ts * TICK_LENGTH / 1000.0;
+
+		// CHECK: gaat dit goed qua inputs en sturen enzo? ik heb erover nagedacht volgens mij wel
+		// zodra jij != marcus && jij denkt het gaat ook goed dan free(this_comment)
+		return simuser(usr, tick);
+	}
+
+	return 0;
 }
 
 // send message to group: this player died

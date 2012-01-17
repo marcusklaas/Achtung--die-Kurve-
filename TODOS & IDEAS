@@ -2,22 +2,55 @@ zet hier je todos en ideeen.
 
 = cruciaal =
 
+- je gaat soms dood door zijkant te gaan met TORUS_MODE != 0 (hoe te herproduceren?)
+
 - is het toch mogelijk om out of sync te raken met de lokale snake? 
 
-- soms heeft input echt dikke vertraging, niet 1 of 2 ticks. maar echt 10 ~ 20 ofzo! jij ook gemerkt?
+- soms heeft input echt dikke vertraging. gebeurt als je tijd anders loopt dan de server maar nog niet is gecorrigeerd volgens mij
 
 = niet cruciaal =
 
-- als joingame mislukt dan zeggen waarom. (en misschien de knop uitzetten als het sowieso niet kan vanwege gamestate of #spelers)
+- server compilen op win32
+
+- op chrom(e/ium) werkt t disconnecten niet. ik dacht dat het bug van chrome was, maar blijkbaar is ie gefixt en komt ie door de tests
+http://code.google.com/p/chromium/issues/detail?id=93609
+
+- als joingame mislukt dan zeggen waarom. (en misschien de knop uitzetten als het sowieso niet kan vanwege gamestate of #spelers) de knop staat al uit als het niet kan. maar de lijst wordt niet geupdate als iemand een game joint en dus soms zit een game vol maar weet de client niet. wat wel gedaan kan worden is wanneer je zo'n "je kan niet joinen" msg krijgt vervolgens de ondrukbaar te maken. gevaar is wel dat je ook niet meer kunt proberen terwijl er misschien plaats is vrijgekomen!!
 
 - disconnect niet meteen bij escape. IS FIREFOX BUG: niet ons probleem :P
 https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 
-- simulate lijkt er 1 tick naast te zitten wat betreft holes, iig bij het doodgaan. probeer maar eens met hele hoge snelheid en debug segmentjes aan (nu extra makkelijk te testen ;-))
-
 - ff herzien scope van sommige variabelen, welke property staat waar? global, lokaal in de window.onload functie, als property van een GameEngine instantie of als property van een kind van GameEngine (zoals player, audioengine, canvasStack enz..)
 
 - omzetten van enkele default game properties van TICK specificatie naar tijd specificatie zoals hole grootte/ freq en countdown enzo. zo opzetten op zo'n manier dat het niet veelvoud van TICK_LENGTH hoeft te zijn maar dat bij het laden van deze defaults (waarvan het meeste in creategame gebeurt) er een veelvoud van wordt gemaakt
+
+- betere geluidjes en voor wat meer dingen en ook alles in zowel ogg als mp3
+
+- inputcontroller mergen met GameEngine? heeft niet zoveel zin om t in apart object te houden denk ik. we moeten wel de mogelijkheid open houden om later misschien meerdere personen op 1 computer te laten spelen dus dat we niet overal blindelings vanuitgaan dat we players[0] besturen (alhoewel dat eig wel overal al gebeurt :P)
+
+- toevoegen aan game settings: wel of niet door randen, hole start min, hole hole start max, inkt max, inkt regen
+
+- toevoegen inkt indicatortje ergens? (op canvas? zo ja, dan doorzichtig en alleen zichtbaar als je rechten hebt om te tekenen)
+
+- groeperen messages en spam protectie op elke groep
+
+- editor resizeable
+
+- chatten lukt niet op android devices blijkbaar (gesuggereerde oplossing: zet input in form, maar dan moeten we wss submit even afvangen ipv enter key)
+
+= opmaakdingen =
+
+- min/ max players is op t moment niet zo heel geslaagd qua positionering -- oplossingen?
+
+- containers zoals gamedetails, connection/ waitcontainer padding links en rechts van 5px
+
+- lineheight fixen voor sound en radiobuttons
+
+- status messages en chat visueel onderscheiden in debugLog, You: ipv Je_naam: in chat?
+
+- editor buttons in divje en wat padding/ margin top
+
+- elementen van tabel centreren (maar niet playernames)? is misschien mooier? ff proberen
 
 = ideeen =
 
@@ -27,5 +60,4 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 
 - dat je ook op maps kan spelen waar bij de start al muren zijn geplaatst (en evt vaste startposities). niet willekeurig maar door ons gemaakt. want vaak wordt het spel leuk als er bv 'kamertjes' ontstaan, dus het lijkt me dat er best leuke maps gemaakt kunnen worden. optioneel nog een mode dat de spelers omstebeurt zelf ff snel een map kunnen tekenen waar dan elk 3 potjes op worden gespeeld. ook kunnen er bv 'modderplassen' in een map liggen waar je dan langzamer gaat.
 
-- een powerup mogelijk maken. en als we een powerup toevoegen zou ik zeggen dat deze erg klein moet zijn, zodat het beetje moeilijk is om hem te pakken. 
-
+- een powerup mogelijk maken. en als we een powerup toevoegen zou ik zeggen dat deze erg klein moet zijn, zodat het beetje moeilijk is om hem te pakken.
