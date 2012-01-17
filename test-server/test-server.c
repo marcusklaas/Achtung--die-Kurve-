@@ -293,6 +293,10 @@ callback_game(struct libwebsocket_context * context,
 			u->gm->goal = min(1000, max(1, jsongetint(json, "goal")));
 			u->gm->nmax = min(32, max(u->gm->n, jsongetint(json, "nmax")));
 			u->gm->pencilmode = strtopencilmode(jsongetstr(json, "pencilMode"));
+			u->gm->inkcap = min(1000, max(0, jsongetint(json, "inkcap")));
+			u->gm->inkregen = min(1000, max(0, jsongetint(json, "inkregen")));
+			u->gm->inkdelay = min(20000, max(0, jsongetint(json, "inkdelay")));
+			u->gm->torus = (0 != jsongetint(json, "torus"));
 
 			cJSON *j = getjsongamepars(u->gm);
 			sendjsontogame(j, u->gm, 0); // ook host want shit kan geminmaxt zijn
