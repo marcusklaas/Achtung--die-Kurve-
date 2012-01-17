@@ -26,7 +26,10 @@
 #define ULTRA_VERBOSE 0
 #define SHOW_WARNING 1
 #define GOD_MODE 0
-#define SEND_SEGMENTS 40 // om de hoeveel ticks het moet gebeuren (0=nooit)
+#define SEND_SEGMENTS 20 // om de hoeveel ticks het moet gebeuren (0=nooit)
+
+/* XPERIMENTAL */
+#define TORUS_MODE 1
 
 /* input control */
 #define MAX_FILE_REQ_LEN 100
@@ -173,3 +176,4 @@ char *pencilmodetostr(int pencilmode);
 void addsegment(struct game *gm, struct seg *seg);
 float checkcollision(struct game *gm, struct seg *seg);
 void endround(struct game *gm);
+void tiles(struct game *gm, struct seg *seg, int *tileindices);

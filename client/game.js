@@ -85,26 +85,22 @@ GameEngine.prototype.setIndex = function(playerId, index) {
 }
 
 GameEngine.prototype.disconnect = function() {
-	//if(this.gameState == 'new')
-	//	return;
-
 	debugLog('Disconnecting..');
 
 	this.setGameState('new');
 	this.connected = false;
-	this.websocket.close();
 	this.websocket = null;
 	this.resetPlayers();
 	this.reset();
 }		
 
 GameEngine.prototype.connect = function(url, name, callback) {
-	if(typeof MozWebSocket != "undefined")
+	if('MozWebSocket' in window)
 		this.websocket = new MozWebSocket(url, name);
-	else
+	else if('WebSocket' in window)
 		this.websocket = new WebSocket(url, name);
 	
-	this.websocket.parent = this;
+	this.websocket.parent = this; // umm waarom?
 	var game = this;
 	
 	try {
@@ -124,19 +120,13 @@ GameEngine.prototype.connect = function(url, name, callback) {
 			game.disconnect();
 		}
 	} catch(exception) {
-		debugLog('websocket exception! name = ' + exception.name + ", message = "
-		 + exception.message);
+		debugLog('Websocket exception! ' + exception.name + ': ' + exception.message);
 	}
 }
 
 GameEngine.prototype.leaveGame = function() {
-	//if(this.gameState != 'new' && this.gameState != 'lobby')
 	this.sendMsg('leaveGame', {});
-	
-	// tegen bug dat als je leaved tijdens de countdown (comment kan weer weg)
 	window.clearTimeout(this.gameloopTimeout);
-	
-	// moet hier ook al de gamestate worden veranderd?
 }
 
 /* this function handles user interface changes for state transitions */
@@ -176,11 +166,6 @@ GameEngine.prototype.joinGame = function(gameId) {
 }
 
 GameEngine.prototype.joinLobby = function(player) {
-	//if(this.gameState != 'new')
-	//	return;
-
-	// w8 for joinedGame message
-	//this.addPlayer(player);
 	this.sendMsg('joinLobby', {'playerName': player.playerName});
 }
 
@@ -216,7 +201,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			if(obj.type == 'lobby') 
 				this.updateTitle('Lobby');
 			else
-				this.waitMessageElement.innerHTML = obj.type == 'custom' ? customGameWaitMessage :
+				this.nonhostContainer.innerHTML = obj.type == 'custom' ? customGameWaitMessage :
 				 autoMatchWaitMessage;
 			if(obj.type == 'auto')
 				this.setHost(null);
@@ -299,15 +284,15 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'endRound':
 			window.clearTimeout(this.gameloopTimeout);
 			var index = (obj.winnerId != -1) ? this.getIndex(obj.winnerId) : null;
-			var winner = (index != null) ? (this.players[index].playerName + ' won') : 'draw';
+			var winner = (index != null) ? (this.players[index].playerName + ' won') : 'It is a draw!';
 			this.setGameState('countdown');
 			this.updatePlayerList(index, null, obj.points);
-			debugLog('round over. ' + winner);
+			debugLog('Round ended. ' + winner);
 			break;			
 		case 'endGame':
 			this.setGameState('ended');
 			window.clearTimeout(this.gameloopTimeout);
-			debugLog('game over. ' + this.players[this.getIndex(obj.winnerId)].playerName + ' won!');
+			debugLog('Game over. ' + this.players[this.getIndex(obj.winnerId)].playerName + ' won!');
 
 			if(obj.winnerId == this.localPlayerId)
 				this.audioController.playSound('localWin');
@@ -491,7 +476,6 @@ GameEngine.prototype.setParams = function(obj) {
 		document.getElementById('holeFreq').value = this.holeFreq;
 		document.getElementById('goal').value = obj.goal;
 		setPencilMode(obj.pencilmode);
-
 		this.updateTitle('Game ' + obj.id);
 	}
 }
@@ -1016,11 +1000,25 @@ Player.prototype.simulate = function(endTick, ctx) {
 			cos = Math.cos(this.angle);
 			sin = Math.sin(this.angle);
 		}
-			
-		this.x += this.velocity * step * cos;
-		this.y += this.velocity * step * sin;
-		
-		ctx.lineTo(this.x, this.y);
+
+		var oldx = this.x, oldy = this.y;
+		ctx.lineTo(this.x += this.velocity * step * cos, this.y += this.velocity * step * sin);
+
+		/* wrap around */
+		if(this.x < 0 || this.x > this.game.width || this.y < 0 || this.y > this.game.height) {
+			if(this.x > this.game.width)
+				this.x = oldx - this.game.width;
+			else if(this.x < 0)
+				this.x = oldx + this.game.width;
+
+			if(this.y > this.game.height)
+				this.y = oldy - this.game.height;
+			else if(this.y < 0)
+				this.y = oldy + this.game.height;
+
+			ctx.moveTo(this.x, this.y);
+			ctx.lineTo(this.x += this.velocity * step * cos, this.y += this.velocity * step * sin);
+		}
 	}
 	ctx.stroke();
 }
@@ -1523,6 +1521,10 @@ window.onload = function() {
 		canvas.addEventListener('touchend', function(e) { touch(e, false); });
 	}
 
+	/* hide alert box for browsers with websockets */
+	if('WebSocket' in window || 'MozWebSocket' in window)
+		document.getElementById('noWebsocket').style.display = 'none';
+
 	/* listen to sound checkbox */
 	var checkBox = document.getElementById('sound');
 	checkBox.addEventListener('change', function(e) {
@@ -1595,7 +1597,7 @@ window.onload = function() {
 
 	var disconnectButton = document.getElementById('disconnect');
 	disconnectButton.addEventListener('click', function() {
-		game.disconnect();
+		game.websocket.close();
 	}, false);
 	
 	var startGameButton = document.getElementById('startGame');
@@ -1603,7 +1605,6 @@ window.onload = function() {
 	
 	game.hostContainer = document.getElementById('hostContainer');
 	game.nonhostContainer = document.getElementById('nonhostContainer');
-	game.waitMessageElement = document.getElementById('waitMessage');
 
 	var minPlayers = getCookie('minPlayers');
 	if(minPlayers != null)
@@ -1625,28 +1626,29 @@ window.onload = function() {
 		 resizeDelay);
 	}
 
+	function updateParams() {
+		/* if paramTimeout != null, then a paramupdate is already scheduled
+		 * and it will pick this change as well so we dont need 2 do nething */
+		if(game.paramTimeout === null) {
+			game.paramTimeout = window.setTimeout(function() {
+				game.sendParams();
+			}, paramUpdateInterval);
+
+			document.getElementById('startGame').disabled = true;
+
+			if(game.unlockTimeout !== null)
+				window.clearTimeout(game.unlockTimeout);
+
+			game.unlockTimeout = window.setTimeout(function() {
+				game.unlockStart();
+			}, unlockInterval + paramUpdateInterval);
+		}
+	}
+
 	/* add event handlers to schedule paramupdate message when game options are changed */
 	var inputElts = document.getElementById('details').getElementsByTagName('input');
-	for(var i = 0; i < inputElts.length; i++) {
-		inputElts[i].addEventListener('input', function() {
-			/* if paramTimeout != null, then a paramupdate is already scheduled
-			 * and it will pick this change as well so we dont need 2 do nething */
-			if(game.paramTimeout === null) {
-				game.paramTimeout = window.setTimeout(function() {
-					game.sendParams();
-				}, paramUpdateInterval);
-
-				document.getElementById('startGame').disabled = true;
-
-				if(game.unlockTimeout !== null)
-					window.clearTimeout(game.unlockTimeout);
-
-				game.unlockTimeout = window.setTimeout(function() {
-					game.unlockStart();
-				}, unlockInterval + paramUpdateInterval);
-			}
-		}, false);
-	}
+	for(var i = 0; i < inputElts.length; i++)
+		inputElts[i].addEventListener(inputElts[i].type == 'text' ? 'input' : 'change', updateParams, false);
 }
 
 /* canvas context color setter */

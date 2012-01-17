@@ -101,18 +101,20 @@ void startgame(struct game *gm) {
 	}
 	
 	// add border segments
-	struct seg seg;
-	seg.x1 = seg.y1 = seg.y2 = 0;
-	seg.x2 = gm->w - EPS;
-	addsegment(gm, &seg);
-	seg.x1 = gm->w - EPS;
-	seg.y1 = gm->h - EPS;
-	addsegment(gm, &seg);
-	seg.x2 = 0;
-	seg.y2 = gm->h - EPS;
-	addsegment(gm, &seg);
-	seg.x1 = seg.y1 = 0;
-	addsegment(gm, &seg);
+	if(!TORUS_MODE) {
+		struct seg seg;
+		seg.x1 = seg.y1 = seg.y2 = 0;
+		seg.x2 = gm->w - EPS;
+		addsegment(gm, &seg);
+		seg.x1 = gm->w - EPS;
+		seg.y1 = gm->h - EPS;
+		addsegment(gm, &seg);
+		seg.x2 = 0;
+		seg.y2 = gm->h - EPS;
+		addsegment(gm, &seg);
+		seg.x1 = seg.y1 = 0;
+		addsegment(gm, &seg);
+	}
 		
 	// reset users
 	for(usr = gm->usr; usr; usr = usr->nxt){
@@ -502,6 +504,11 @@ void tiles(struct game *gm, struct seg *seg, int *tileindices) {
 	tileindices[1] = min(tileindices[1], gm->htiles - 1);
 	tileindices[0] = max(tileindices[0], 0);
 	tileindices[2] = min(tileindices[2], gm->vtiles - 1);
+
+	if(tileindices[0] < 0 || tileindices[1] < 0 || tileindices[2] < 0 || tileindices[3] < 0) {
+		printf("SMALLER THAN 0 OMFG\n");
+		exit(501);
+	}
 }
 
 // returns -1 in case of no collision, between 0 and 1 else
@@ -514,6 +521,11 @@ float checkcollision(struct game *gm, struct seg *seg) {
 	
 	for(int i = tileindices[3]; i <= tileindices[1]; i++) {
 		for(int j = tileindices[0]; j <= tileindices[2]; j++) {
+			if(i < 0 || j < 0 || i >= gm->htiles || j >= gm->vtiles) {
+				printf("OMFG OUTTA BOUNDS\n");
+				exit(502);
+			}
+
 			if(!lineboxcollision(seg, j * gm->tileh, (i + 1) * gm->tilew,
 			 (j + 1) * gm->tileh, i * gm->tilew))
 				continue;
@@ -538,6 +550,11 @@ void addsegment(struct game *gm, struct seg *seg) {
 
 	for(int i = tileindices[3]; i <= tileindices[1]; i++) {
 		for(int j = tileindices[0]; j <= tileindices[2]; j++) {
+			if(i < 0 || j < 0 || i >= gm->htiles || j >= gm->vtiles) {
+				printf("OMFG OUTTA BOUNDS!!\n");
+				exit(502);
+			}
+
 			if(!lineboxcollision(seg, j * gm->tileh, (i + 1) * gm->tilew,
 			 (j + 1) * gm->tileh, i * gm->tilew))
 				continue;
@@ -577,17 +594,11 @@ int simuser(struct user *usr, int tick) {
 	usr->x += cos(usr->angle) * usr->v * TICK_LENGTH / 1000.0;
 	usr->y += sin(usr->angle) * usr->v * TICK_LENGTH / 1000.0;
 	
-	/* zo weer weg
-	float a = 70.0/2;
-	usr->v += cos(usr->angle) * a / 1000.0 * TICK_LENGTH;
-	if(usr->v < 70)
-		usr->v = 70;
-	else if(usr->v > 105)
-		usr->v = 105;*/
+	int inhole = (tick > usr->hstart
+	 && ((tick + usr->hstart) % (usr->hsize + usr->hfreq)) < usr->hsize);
+	int inside = usr->x >= 0 && usr->x <= usr->gm->w && usr->y >= 0 && usr->y <= usr->gm->h;
 
-	// check if usr in a hole. hole starts _AFTER_ hstart
-	if(tick > usr->hstart
-	 && ((tick + usr->hstart) % (usr->hsize + usr->hfreq)) < usr->hsize)
+	if(inhole && inside)
 		return 0;
 
 	struct seg newseg;
@@ -603,12 +614,37 @@ int simuser(struct user *usr, int tick) {
 		usr->y = newseg.y2 = (1 - cut) * newseg.y1 + cut * newseg.y2;
 	}
 
-	addsegment(usr->gm, &newseg);
+	if(!inhole)
+		addsegment(usr->gm, &newseg);
 
 	if(SEND_SEGMENTS)
 		queueseg(usr->gm, &newseg);
 
-	return cut != -1.0;
+	if(cut != -1.0)
+		return 1;
+
+	/* WRAP AROUND :D */
+	if(!inside) {
+		if(usr->x > usr->gm->w)
+			usr->x = oldx - usr->gm->w;
+		else if(usr->x < 0)
+			usr->x = oldx + usr->gm->w;
+
+		if(usr->y > usr->gm->h)
+			usr->y = oldy - usr->gm->h;
+		else if(usr->y < 0)
+			usr->y = oldy + usr->gm->h;
+
+		printf("wrapping .. \n");
+
+		usr->angle -= usr->turn * usr->ts * TICK_LENGTH / 1000.0;
+
+		// CHECK: gaat dit goed qua inputs en sturen enzo? ik heb erover nagedacht volgens mij wel
+		// zodra jij != marcus && jij denkt het gaat ook goed dan free(this_comment)
+		return simuser(usr, tick);
+	}
+
+	return 0;
 }
 
 // send message to group: this player died
