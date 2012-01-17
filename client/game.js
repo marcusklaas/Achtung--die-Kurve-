@@ -10,12 +10,6 @@ function GameEngine(audioController) {
 	this.gameState = 'new'; // new, lobby, editing, waiting, countdown, playing, watching, ended
 	this.width = -1;
 	this.height = -1;
-	
-	// debug counters
-	this.redraws = 0;
-	this.redrawsPossible = 0;
-	this.adjustGameTimeMessagesReceived = 0;
-	this.modifiedInputs = 0;
 
 	// game properties
 	this.pencilMode = null; // on, off or ondeath
@@ -60,8 +54,9 @@ GameEngine.prototype.reset = function() {
 	this.tick = 0;
 	this.tock = 0;
 	
+	// debug counters
 	this.redraws = 0;
-	this.redrawsPossible = 0;
+	this.redrawsPrevented = 0;
 	this.adjustGameTimeMessagesReceived = 0;
 	this.modifiedInputs = 0;
 
@@ -791,10 +786,11 @@ GameEngine.prototype.setDefaultValues = function(ctx) {
 }
 
 GameEngine.prototype.displayDebugStatus = function() {
-	document.getElementById('status').innerHTML = 
-	 'redraws: ' + this.redraws + ' / ' + this.redrawsPossible +
-	 ', modified inputs: ' + this.modifiedInputs +
-	 ', game time adjustments: ' + this.adjustGameTimeMessagesReceived;
+	if(displayDebugStatus)
+		document.getElementById('status').innerHTML = 
+		 'redraws: ' + this.redraws + ' (' + this.redrawsPrevented +
+		 ' prevented), modified inputs: ' + this.modifiedInputs +
+		 ', game time adjustments: ' + this.adjustGameTimeMessagesReceived;
 }
 
 GameEngine.prototype.playerListStart = function() {
@@ -916,39 +912,50 @@ Player.prototype.loadLocation = function() {
 
 Player.prototype.steer = function(obj) {
 	var localTick = this.isLocal ? this.game.tick : this.game.tock;
-	if(!this.isLocal)
-		this.inputs.push(obj);
-	if(obj.tick > localTick && this.isLocal && obj.modified != undefined) {
-		while(obj.tick > this.game.tick)
-			this.game.doTick();
-		debugLog('your game is running behind! ' + (this.game.tick - localTick) + 
-		 ' ticks forwarded');
-		localTick = this.game.tick;
-	}else if(obj.tick >= localTick || (this.isLocal && obj.modified == undefined)) {
-		if(!this.isLocal) {
-			this.game.redrawsPossible++;
-			this.game.displayDebugStatus();
-		}else
-			this.inputsReceived++;
-		return;
-	}
 	
-	if(this.isLocal && obj.modified != undefined) {
+	if(!this.isLocal) {
+		// inputs of non-local user can just be added
+		this.inputs.push(obj);
+		
+		// if we have not yet simulated the tick of this message, return;
+		if(obj.tick >= localTick) {
+			if(obj.tick < this.game.tick) {
+				this.game.redrawsPrevented++;
+				this.game.displayDebugStatus();
+			}
+			return;
+		}
+	} else if(!obj.modified) {
+		// nothing to be done for unmodified local steer message
+		this.inputsReceived++;
+		return;	
+	} else {
+		// modify corresponding local input entry
 		this.inputs[this.inputsReceived++].tick = obj.tick;
-		// FIXME: inputs mogelijk niet meer op volgorde
+		
 		this.game.modifiedInputs++;
 		this.game.displayDebugStatus();
+		
+		// if we receive a local steer message that should happen in the future, we simulate to
+		// that future. this can only happen when the steer message is modified AND the game is
+		// running behind the simulation on the server. 
+		/*if(obj.tick > localTick) {
+			while(obj.tick > this.game.tick)
+				this.game.doTick();
+			debugLog('your game is running behind! ' + (this.game.tick - localTick) + 
+			 ' ticks forwarded');
+			localTick = this.game.tick;
+		}*/
 	}
 	
 	this.loadLocation();
-	var endTick = Math.min(obj.tick, localTick - safeTickDifference);
+	var endTick = Math.min(obj.tick + 1, localTick - safeTickDifference);
 	this.simulate(endTick, this.game.baseContext);
 	this.saveLocation();
 
 	this.context.clearRect(0, 0, this.game.width, this.game.height);
 	if(!this.isLocal) {
 		this.game.redraws++;
-		this.game.redrawsPossible++;
 		this.game.displayDebugStatus();
 	}
 	this.simulate(localTick, this.context);

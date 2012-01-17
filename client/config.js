@@ -43,6 +43,7 @@ var acceptGameTimeAdjustments = true;
 var jsProfiling = false;
 var simulateCPUlag = false;
 var debugBaseContext = false; // sets different color for segments in basecontext
+var displayDebugStatus = false;
 
 /* pencil game */
 var mousedownInk = 30;

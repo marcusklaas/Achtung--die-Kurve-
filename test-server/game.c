@@ -861,7 +861,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 	jsonaddnum(j, "playerId", usr->id);
 	jsonaddnum(j, "turn", turn);
 	if(modified)
-		jsonaddnum(j, "modified", 0);
+		jsonaddnum(j, "modified", 1);
 	sendjsontogame(j, usr->gm, 0);
 	jsondel(j);
 }
