@@ -1,5 +1,6 @@
 /* TODO: check voor infinite loop bij maps. als het gebeurt weg map gooien 
- * en spelers dit vertellen? */
+ * en spelers dit vertellen? => nu zo dat spelers gewoon spawnen, en de
+ * server probeert het niet zovaak zodat het niet veel cpu gaat kosten */
 void randomizeplayerstarts(struct game *gm) {
 	// diameter of your circle in pixels when you turn at max rate
 	int diameter = ceil(2.0 * gm->v/ gm->ts);
@@ -11,6 +12,7 @@ void randomizeplayerstarts(struct game *gm) {
 	if(gm->map) {
 		for(usr = gm->usr; usr; usr = usr->nxt) {
 			struct seg seg;
+			int tries = 0;
 			do {
 				usr->x = diameter + rand() % (gm->w - 2 * diameter);
 				usr->y =  diameter + rand() % (gm->h - 2 * diameter);
@@ -19,7 +21,7 @@ void randomizeplayerstarts(struct game *gm) {
 				seg.y1 = usr->y;
 				seg.x2 = cos(usr->angle) * diameter + usr->x;
 				seg.y2 = sin(usr->angle) * diameter + usr->y;
-			} while(checkcollision(gm, &seg) != -1.0);
+			} while(checkcollision(gm, &seg) != -1.0 && tries++ < MAX_PLAYERSTART_TRIES);
 
 			usr->hstart = gm->hmin + rand() % (gm->hmax - gm->hmin + 1);
 		}
@@ -559,6 +561,7 @@ void queueseg(struct game *gm, struct seg *seg) {
 }
 
 // simulate user tick. returns 1 if player dies during this tick, 0 otherwise
+// warning: this function can be called multiple times with same tick value
 int simuser(struct user *usr, int tick) {
 	if(usr->inputhead && usr->inputhead->tick == tick) {
 		struct userinput *input = usr->inputhead;
@@ -583,6 +586,7 @@ int simuser(struct user *usr, int tick) {
 	 && ((tick + usr->hstart) % (usr->hsize + usr->hfreq)) < usr->hsize);
 	int inside = usr->x >= 0 && usr->x <= usr->gm->w && usr->y >= 0 && usr->y <= usr->gm->h;
 
+	// we still collide with map border while in hole
 	if(inhole && inside)
 		return 0;
 
@@ -591,7 +595,7 @@ int simuser(struct user *usr, int tick) {
 	newseg.y1 = oldy;
 	newseg.x2 = usr->x;
 	newseg.y2 = usr->y;
-	
+
 	float cut = checkcollision(usr->gm, &newseg);
 
 	if(cut != -1.0) {
@@ -599,11 +603,12 @@ int simuser(struct user *usr, int tick) {
 		usr->y = newseg.y2 = (1 - cut) * newseg.y1 + cut * newseg.y2;
 	}
 
-	if(!inhole)
+	if(!inhole) {
 		addsegment(usr->gm, &newseg);
-
-	if(SEND_SEGMENTS)
-		queueseg(usr->gm, &newseg);
+		
+		if(SEND_SEGMENTS)
+			queueseg(usr->gm, &newseg);
+	}
 
 	if(cut != -1.0)
 		return 1;
@@ -620,10 +625,8 @@ int simuser(struct user *usr, int tick) {
 		else if(usr->y < 0)
 			usr->y = oldy + usr->gm->h;
 
+		// reset angle and simulate this tick again. usr->turn will keep the right value.
 		usr->angle -= usr->turn * usr->ts * TICK_LENGTH / 1000.0;
-
-		// CHECK: gaat dit goed qua inputs en sturen enzo? ik heb erover nagedacht volgens mij wel
-		// zodra jij != marcus && jij denkt het gaat ook goed dan free(this_comment)
 		return simuser(usr, tick);
 	}
 
