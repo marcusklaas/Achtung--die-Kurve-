@@ -504,11 +504,6 @@ void tiles(struct game *gm, struct seg *seg, int *tileindices) {
 	tileindices[1] = min(tileindices[1], gm->htiles - 1);
 	tileindices[0] = max(tileindices[0], 0);
 	tileindices[2] = min(tileindices[2], gm->vtiles - 1);
-
-	if(tileindices[0] < 0 || tileindices[1] < 0 || tileindices[2] < 0 || tileindices[3] < 0) {
-		printf("SMALLER THAN 0 OMFG\n");
-		exit(501);
-	}
 }
 
 // returns -1 in case of no collision, between 0 and 1 else
@@ -521,11 +516,6 @@ float checkcollision(struct game *gm, struct seg *seg) {
 	
 	for(int i = tileindices[3]; i <= tileindices[1]; i++) {
 		for(int j = tileindices[0]; j <= tileindices[2]; j++) {
-			if(i < 0 || j < 0 || i >= gm->htiles || j >= gm->vtiles) {
-				printf("OMFG OUTTA BOUNDS\n");
-				exit(502);
-			}
-
 			if(!lineboxcollision(seg, j * gm->tileh, (i + 1) * gm->tilew,
 			 (j + 1) * gm->tileh, i * gm->tilew))
 				continue;
@@ -550,11 +540,6 @@ void addsegment(struct game *gm, struct seg *seg) {
 
 	for(int i = tileindices[3]; i <= tileindices[1]; i++) {
 		for(int j = tileindices[0]; j <= tileindices[2]; j++) {
-			if(i < 0 || j < 0 || i >= gm->htiles || j >= gm->vtiles) {
-				printf("OMFG OUTTA BOUNDS!!\n");
-				exit(502);
-			}
-
 			if(!lineboxcollision(seg, j * gm->tileh, (i + 1) * gm->tilew,
 			 (j + 1) * gm->tileh, i * gm->tilew))
 				continue;
@@ -623,7 +608,7 @@ int simuser(struct user *usr, int tick) {
 	if(cut != -1.0)
 		return 1;
 
-	/* WRAP AROUND :D */
+	/* wrap around */
 	if(!inside) {
 		if(usr->x > usr->gm->w)
 			usr->x = oldx - usr->gm->w;
@@ -634,8 +619,6 @@ int simuser(struct user *usr, int tick) {
 			usr->y = oldy - usr->gm->h;
 		else if(usr->y < 0)
 			usr->y = oldy + usr->gm->h;
-
-		printf("wrapping .. \n");
 
 		usr->angle -= usr->turn * usr->ts * TICK_LENGTH / 1000.0;
 
