@@ -2,7 +2,10 @@ zet hier je todos en ideeen.
 
 = cruciaal =
 
-- je gaat soms dood door zijkant te gaan met TORUS_MODE != 0 (hoe te herproduceren?)
+- je gaat soms dood door zijkant te gaan met TORUS_MODE != 0. het lijkt echt compleet random. heb dit kunnen vangen 1x toen het gebeurde
+(345.1, 8.5)->(345.0, 6.8) collided with (345.0, 0.1)->(345.0, -1.6)
+player 13 died
+maar die 2 segmenten snijden dus helemaal niet ;o hoe kan dit? misschien iets dat fout gaat in segcollision voor negatieve waarden?
 
 - is het toch mogelijk om out of sync te raken met de lokale snake? 
 
@@ -34,13 +37,11 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 
 - toevoegen aan game settings: hole start min, hole hole start max en misschien wat andere dingen?
 
-- toevoegen inkt indicatortje ergens? (op canvas? zo ja, dan doorzichtig en alleen zichtbaar als je rechten hebt om te tekenen)
+- toevoegen inkt indicatortje ergens? (op canvas? zo ja, dan doorzichtig en alleen zichtbaar als je rechten hebt om te tekenen) // GECLAIMED DOOR MARCUS te doen op 18/19 jan 2012
 
 - groeperen messages en spam protectie op elke groep
 
 - editor zo groot mogelijk en resizeable (net als gamecanvas dus)
-
-- chatten lukt niet op android devices blijkbaar (gesuggereerde oplossing: zet input in form, maar dan moeten we wss submit even afvangen ipv enter key)
 
 - als je een change maakt dan wordt creategame button voor 5 sec disabled, maar als je in tussentijd weer change maakt, dan wordt het niet uitgesteld
 
@@ -49,8 +50,6 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 - min/ max players is op t moment niet zo heel geslaagd qua positionering -- oplossingen?
 
 - lineheight fixen voor sound en radiobuttons en checkbox
-
-- status messages en chat visueel onderscheiden in debugLog, You: ipv Je_naam: in chat?
 
 - elementen van tabel centreren (maar niet playernames)? is misschien mooier? ff proberen
 

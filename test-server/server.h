@@ -4,7 +4,7 @@
 #define TILE_SIZE_MULTIPLIER 4 // tilesize/ segmentlength
 #define VELOCITY 70 // pixels per sec
 #define TURN_SPEED 2.5 // radians per sec
-#define HOLE_SIZE 7 // in ticks
+#define HOLE_SIZE 5 // in ticks
 #define HOLE_FREQ 150 // number of ticks between holes
 #define HOLE_START_MIN 50 // after how many ticks first hole may appear
 #define HOLE_START_MAX 200 // after how many ticks first hole must have appeared
@@ -21,7 +21,7 @@
 #define MIN_WIN_DIFF 2 // minimum point lead required to win a game
 #define TWO_PLAYER_POINTS 3 // points required to win two player game
 #define MAX_PLAYERSTART_TRIES 500
-#define TORUS_MODE 1
+#define TORUS_MODE 0
 
 /* debugging */
 #define DEBUG_MODE 1

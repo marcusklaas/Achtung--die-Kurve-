@@ -1,7 +1,6 @@
 var enableSound = true; // this is not constant! may change during execution of game.js
 var keyCodeLeft = 37; // left arrow button
 var keyCodeRight = 39; // right arrow button
-var chatSendKeyCode = 13; // enter
 
 var serverURL = "ws://marcusklaas.nl:7681"; // websocket game server
 if(location.href.indexOf('localhost') != -1)
@@ -47,7 +46,7 @@ var simulateCPUlag = false;
 var debugBaseContext = false; // sets different color for segments in basecontext
 var displayDebugStatus = false;
 
-/* pencil game. FIXME: all deze parameters moeten van server komen (behalve pencilAlpha) */
+/* pencil game. FIXME: al deze parameters moeten van server komen (behalve pencilAlpha) */
 var mousedownInk = 30;
 var inkBufferTicks = 5;
 var inkMinimumDistance = 5;

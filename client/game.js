@@ -81,7 +81,7 @@ GameEngine.prototype.setIndex = function(playerId, index) {
 }
 
 GameEngine.prototype.disconnect = function() {
-	debugLog('Disconnecting..');
+	this.gameMessage('Disconnecting..');
 
 	this.setGameState('new');
 	this.connected = false;
@@ -101,7 +101,7 @@ GameEngine.prototype.connect = function(url, name, callback) {
 	
 	try {
 		this.websocket.onopen = function() {
-			debugLog('Connected to server');
+			game.gameMessage('Connected to server');
 			game.connected = true;
 			game.syncWithServer();
 			callback();
@@ -116,7 +116,7 @@ GameEngine.prototype.connect = function(url, name, callback) {
 			game.disconnect();
 		}
 	} catch(exception) {
-		debugLog('Websocket exception! ' + exception.name + ': ' + exception.message);
+		game.gameMessage('Websocket exception! ' + exception.name + ': ' + exception.message);
 	}
 }
 
@@ -173,15 +173,17 @@ GameEngine.prototype.updateTitle = function(title) {
 }	
 
 GameEngine.prototype.interpretMsg = function(msg) {
+	var self = this;
+	
 	try {
 		var obj = JSON.parse(msg.data);
 	}
 	catch(ex) {
-		debugLog('JSON parse exception!');
+		self.gameMessage('JSON parse exception!');
 	}
 	
 	if(ultraVerbose && obj.mode != 'segments')
-		debugLog('received data: ' + msg.data);
+		this.gameMessage('Received data: ' + msg.data);
 
 	switch(obj.mode) {
 		case 'acceptUser':
@@ -211,7 +213,6 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			newPlayer.playerName = obj.playerName;
 			this.addPlayer(newPlayer);
 			this.audioController.playSound('newPlayer');
-			//debugLog(obj.playerName + ' joined the game (id = ' + obj.playerId + ')');
 			break;
 		case 'setMap':
 			this.mapSegments = obj.segments;
@@ -239,18 +240,18 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;
 		case 'adjustGameTime':
 			if(acceptGameTimeAdjustments) {
-				debugLog('adjusted game time by ' + obj.forward + ' msec');
+				this.gameMessage('Adjusted game time by ' + obj.forward + ' msec');
 				this.gameStartTimestamp -= obj.forward;
 				this.ping += obj.forward;
 				this.adjustGameTimeMessagesReceived++;
 				this.displayDebugStatus();
-			}else
-				debugLog('game time adjustment of ' + obj.forward + ' msec rejected');
+			} else
+				this.gameMessage('Game time adjustment of ' + obj.forward + ' msec rejected');
 			break;
 		case 'playerLeft':
 			var index = this.getIndex(obj.playerId);
 			if(this.gameState != 'lobby')
-				debugLog(this.players[index].playerName + " left the game");
+				this.gameMessage(this.players[index].playerName + " left the game");
 
 			if(this.gameState == 'waiting' || this.gameState == 'lobby') {
 				this.splicePlayerList(index);
@@ -280,15 +281,15 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'endRound':
 			window.clearTimeout(this.gameloopTimeout);
 			var index = (obj.winnerId != -1) ? this.getIndex(obj.winnerId) : null;
-			var winner = (index != null) ? (this.players[index].playerName + ' won') : 'It is a draw!';
+			var winner = (index != null) ? (this.players[index].playerName + ' won') : 'draw!';
 			this.setGameState('countdown');
 			this.updatePlayerList(index, null, obj.points);
-			debugLog('Round ended. ' + winner);
+			this.gameMessage('Round ended: ' + winner);
 			break;			
 		case 'endGame':
 			this.setGameState('ended');
 			window.clearTimeout(this.gameloopTimeout);
-			debugLog('Game over. ' + this.players[this.getIndex(obj.winnerId)].playerName + ' won!');
+			this.gameMessage('Game over: ' + this.players[this.getIndex(obj.winnerId)].playerName + ' won!');
 
 			if(obj.winnerId == this.localPlayerId)
 				this.audioController.playSound('localWin');
@@ -311,14 +312,14 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.pencil.handleMessage(obj.data);
 			break;
 		case 'stopSpamming':
-			debugLog('You are flooding the chat. Your latest message has been blocked');
+			this.gameMessage('You are flooding the chat. Your latest message has been blocked');
 			break;
 		case 'setHost':
 			if(this.gameState == 'waiting')
 				this.setHost(this.getIndex(obj.playerId));
 			break;
 		default:
-			debugLog('unknown mode ' + obj.mode + '!');
+			this.gameMessage('Unknown mode ' + obj.mode + '!');
 	}
 }
 
@@ -396,7 +397,27 @@ GameEngine.prototype.buildGameList = function(list) {
 
 GameEngine.prototype.printChat = function(playerId, message) {
 	var escaped = String(message).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-	debugLog(this.players[this.getIndex(playerId)].playerName + ': ' + escaped);
+	var container = document.getElementById('messages');
+	var elt = document.createElement('li');
+	var nameContainer = document.createElement('span');
+	var displayName = playerId == this.localPlayerId ? 'me' : this.players[this.getIndex(playerId)].playerName;
+
+	nameContainer.innerHTML = displayName;
+	nameContainer.className = 'player';
+	elt.innerHTML = escaped;
+	elt.className = 'chatMessage';
+	
+	elt.insertBefore(nameContainer, elt.firstChild);
+    container.insertBefore(elt, container.firstChild);
+}
+
+GameEngine.prototype.gameMessage = function(msg) {
+	var container = document.getElementById('messages');
+	var elt = document.createElement('li');
+
+	elt.innerHTML = msg;
+	elt.className = 'gameMessage';
+    container.insertBefore(elt, container.firstChild);
 }
 
 GameEngine.prototype.handleSegmentsMessage = function(segments) {
@@ -437,9 +458,9 @@ GameEngine.prototype.handleSyncResponse = function(serverTime) {
 		 this.syncTries * syncDelays);
 	} 
 	else {
-		debugLog('Your current ping is ' + this.ping + ' msec');
+		this.gameMessage('Your current ping is ' + this.ping + ' msec');
 		if(ultraVerbose)
-			debugLog('synced with maximum error of ' + this.bestSyncPing + ' msec');
+			this.gameMessage('synced with maximum error of ' + this.bestSyncPing + ' msec');
 		this.syncTries = 0;
 	}
 }
@@ -502,7 +523,7 @@ GameEngine.prototype.createGame = function() {
 
 GameEngine.prototype.sendMsg = function(mode, data) {
 	if(this.connected === false) {
-		debugLog('tried to send msg, but no websocket connection');
+		this.gameMessage('Tried to send msg, but no websocket connection');
 		return;
 	}
 
@@ -514,13 +535,13 @@ GameEngine.prototype.sendMsg = function(mode, data) {
 		window.setTimeout(function() {
 			that.websocket.send(str);
 			if(ultraVerbose)
-				debugLog('sending data: ' + str);
+				this.gameMessage('Sending data: ' + str);
 		}, simulatedPing);	
 	}
 	else{
 		this.websocket.send(str);
 		if(ultraVerbose)
-			debugLog('sending data: ' + str);
+			this.gameMessage('Sending data: ' + str);
 	}
 }
 
@@ -690,7 +711,7 @@ GameEngine.prototype.realStart = function() {
 				self.resize();
 
 			if(tellert++ > 100) {
-		 		debugLog("ERROR. stopping gameloop. debug information: next tick time = " +
+		 		this.gameMessage("ERROR. stopping gameloop. debug information: next tick time = " +
 		 		 ((self.tick + 1) * simStep) + ", current game time = " + 
 		 		 (Date.now() - self.gameStartTimestamp));
 		 		return;
@@ -1457,11 +1478,13 @@ Editor.prototype.copy = function() {
 }
 
 Editor.prototype.load = function() {
+	var game = this.game;
+
 	try {
 		var segs = JSON.parse(this.textField.value);
 	}
 	catch(ex) {
-		debugLog('JSON parse exception!');
+		game.gameMessage('JSON parse exception!');
 	}
 
 	for(var i = 0; i < segs.length; i++)
@@ -1499,10 +1522,10 @@ window.onload = function() {
 	window.addEventListener('keyup',
 	 function(e) { inputControl.keyUp(e.keyCode, e); }, false);
 
-	/* add listener for enter press for sending chat */
-	document.getElementById('chat').addEventListener('keydown', function(e) {
-		if(e.keyCode == chatSendKeyCode)
-			game.sendChat();
+	/* add listener for chat submit */
+	document.getElementById('chatForm').addEventListener('submit', function(e) {
+		game.sendChat();
+		e.preventDefault();
 	}, false);
 
 	/* register touches for fancy phones n tablets */
@@ -1558,7 +1581,7 @@ window.onload = function() {
 		var playerName = document.getElementById('playername').value;
 
 		if(typeof playerName != "string" || playerName.length < 1) {
-			debugLog('enter a cool playername please');
+			game.gameMessage('Enter a cool nickname please');
 			return;
 		}
 
@@ -1578,7 +1601,7 @@ window.onload = function() {
 	
 		if(maxPlayers > 8 || maxPlayers < 1 || minPlayers > 8 || minPlayers < 1
 		 || minPlayers > maxPlayers) {
-			debugLog('min/ maxplayers unacceptable!');
+			game.gameMessage('Min/ maxplayers unacceptable!');
 			return;
 		}
 
@@ -1686,14 +1709,6 @@ function getCookie(c_name) {
 		if (x == c_name)
 			return unescape(y);
 	}
-}
-
-function debugLog(msg) {
-	var container = document.getElementById('debugLog');
-	var elt = document.createElement('li');
-
-	elt.innerHTML = msg;
-    container.insertBefore(elt, container.firstChild);
 }
 
 function setOptionVisibility(target) {

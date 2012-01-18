@@ -21,9 +21,11 @@
 			</div>
 
 			<div id="messagingContainer">
-				<input type="text" id="chat" placeholder="insults go here" />
+				<form id="chatForm">
+					<input type="text" id="chat" placeholder="insults go here" />
+				</form>
 				<div id="chatContainer">
-					<ul id="debugLog"></ul>
+					<ul id="messages"></ul>
 				</div>
 			</div>
 
@@ -116,7 +118,7 @@
 						<td><input id="holeFreq" type="number" disabled /></td>
 					</tr>
 					<tr>
-						<td>Doorlaatbare borders</td>
+						<td>Permeable borders</td>
 						<td><input type="checkbox" id="torus" disabled /></td>
 					</tr>
 					<tr>
