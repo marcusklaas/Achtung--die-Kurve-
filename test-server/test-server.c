@@ -183,8 +183,21 @@ callback_game(struct libwebsocket_context * context,
 				printf("Received join package! Game-id: %d, user-id: %d, gm: %p\n",
 				 gameid, u->id, (void *) gm);
 
-			if(gm)
+			if(gm && gm->state == GS_LOBBY && gm->nmax > gm->n)
 				joingame(gm, u);
+			else {
+				cJSON *j = jsoncreate("joinFailed");
+				jsonaddnum(j, "id", gameid); // remind client what client he tried to join
+
+				if(!gm) // this should very rarely occur
+					jsonaddstr(j, "reason", "notFound");
+				else if(gm->state - GS_LOBBY)
+					jsonaddstr(j, "reason", "started");
+				else
+					jsonaddstr(j, "reason", "full");
+
+				sendjson(j, u);
+			}
 		}
 		else if(!strcmp(mode, "chat")) {
 			cJSON *j;

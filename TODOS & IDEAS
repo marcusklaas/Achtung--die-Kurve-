@@ -7,13 +7,15 @@ zet hier je todos en ideeen.
 player 13 died
 maar die 2 segmenten snijden dus helemaal niet ;o hoe kan dit? misschien iets dat fout gaat in segcollision voor negatieve waarden?
 
+- server crasht soms bij games met pencil door dubbele free
+
 - is het toch mogelijk om out of sync te raken met de lokale snake? 
 
 - soms heeft input echt dikke vertraging. gebeurt als je tijd anders loopt dan de server maar nog niet is gecorrigeerd volgens mij
 
 = niet cruciaal =
 
-- easy join game met linkjes oid/ rematch?
+- easy join game met linkjes oid (en wachtwoord?)/ rematch?
 
 - server compilen op win32
 
@@ -21,8 +23,6 @@ maar die 2 segmenten snijden dus helemaal niet ;o hoe kan dit? misschien iets da
 
 - op chrom(e/ium) werkt t disconnecten niet. ik dacht dat het bug van chrome was, maar blijkbaar is ie gefixt en komt ie door de tests
 http://code.google.com/p/chromium/issues/detail?id=93609
-
-- als joingame mislukt dan zeggen waarom. (en misschien de knop uitzetten als het sowieso niet kan vanwege gamestate of #spelers) de knop staat al uit als het niet kan. maar de lijst wordt niet geupdate als iemand een game joint en dus soms zit een game vol maar weet de client niet. wat wel gedaan kan worden is wanneer je zo'n "je kan niet joinen" msg krijgt vervolgens de ondrukbaar te maken. gevaar is wel dat je ook niet meer kunt proberen terwijl er misschien plaats is vrijgekomen!!
 
 - disconnect niet meteen bij escape. IS FIREFOX BUG: niet ons probleem :P
 https://bugzilla.mozilla.org/show_bug.cgi?id=676881
@@ -37,15 +37,13 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 
 - toevoegen aan game settings: hole start min, hole hole start max en misschien wat andere dingen?
 
-- toevoegen inkt indicatortje ergens? (op canvas? zo ja, dan doorzichtig en alleen zichtbaar als je rechten hebt om te tekenen) // GECLAIMED DOOR MARCUS te doen op 18/19 jan 2012
-
 - groeperen messages en spam protectie op elke groep
 
 - editor zo groot mogelijk en resizeable (net als gamecanvas dus)
 
-- als je een change maakt dan wordt creategame button voor 5 sec disabled, maar als je in tussentijd weer change maakt, dan wordt het niet uitgesteld
-
 = opmaakdingen =
+
+- ink indicator positie/ opmaak
 
 - min/ max players is op t moment niet zo heel geslaagd qua positionering -- oplossingen?
 

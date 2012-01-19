@@ -61,6 +61,9 @@ GameEngine.prototype.reset = function() {
 	if(this.pencilMode != 'off')
 		this.pencil.reset();
 
+	/* FIXME: alles weggooien lijkt me een beetje excessief. laten we enkel player
+	 * layers weghalen en dat bovendien doen in resetPlayers. wel alle layers
+	 * clearen. we hoeven dan ook geen nieuwe canvas stack aan te maken */
 	var container = document.getElementById(this.containerId);
 	while(container.hasChildNodes())
 		container.removeChild(container.firstChild);
@@ -226,14 +229,11 @@ GameEngine.prototype.interpretMsg = function(msg) {
 				var self = this;
 
 				this.gameloopTimeout = window.setTimeout(function() {
-					self.reset();
 					self.start(obj.startPositions, obj.startTime);
 				}, nextRoundDelay - this.countdown);
 			}
-			else {
-				this.reset();
+			else
 				this.start(obj.startPositions, obj.startTime);
-			}
 			break;
 		case 'newInput':
 			this.players[this.getIndex(obj.playerId)].steer(obj);
@@ -275,8 +275,10 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			player.points = obj.points;
 			player.finalSteer(obj);
 
-			if(index == 0 && this.pencilMode == 'ondeath')
+			if(index == 0 && this.pencilMode == 'ondeath') {
 				this.pencil.drawingAllowed = true;
+				document.getElementById('inkIndicator').style.display = 'block';
+			}
 			break;
 		case 'endRound':
 			window.clearTimeout(this.gameloopTimeout);
@@ -315,8 +317,13 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.gameMessage('You are flooding the chat. Your latest message has been blocked');
 			break;
 		case 'setHost':
-			if(this.gameState == 'waiting')
-				this.setHost(this.getIndex(obj.playerId));
+			//if(this.gameState == 'waiting')
+			this.setHost(this.getIndex(obj.playerId));
+			break;
+		case 'joinFailed':
+			this.gameMessage('Could not join game: ' + obj.reason);
+			if(obj.reason == 'started')
+				document.getElementById('game' + obj.id).getElementsByTagName('button')[0].disabled = true;
 			break;
 		default:
 			this.gameMessage('Unknown mode ' + obj.mode + '!');
@@ -460,7 +467,7 @@ GameEngine.prototype.handleSyncResponse = function(serverTime) {
 	else {
 		this.gameMessage('Your current ping is ' + this.ping + ' msec');
 		if(ultraVerbose)
-			this.gameMessage('synced with maximum error of ' + this.bestSyncPing + ' msec');
+			this.gameMessage('Synced with maximum error of ' + this.bestSyncPing + ' msec');
 		this.syncTries = 0;
 	}
 }
@@ -645,6 +652,8 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	 + extraGameStartTimeDifference;
 	this.setGameState('countdown');
 	var delay = this.gameStartTimestamp - Date.now();
+
+	this.reset();
 	
 	if(jsProfiling)
 		console.profile('canvas performance');
@@ -1198,8 +1207,8 @@ function Pencil(game) {
 	this.maxInk = 0;
 	this.inkPerSec = 0;
 	this.game = game;
-	this.reset();
-	
+	this.indicator = document.getElementById('ink');
+	/* this.reset(); */
 	var canvas = document.getElementById(game.containerId);
 	var self = this;
 
@@ -1241,6 +1250,7 @@ function Pencil(game) {
 
 Pencil.prototype.reset = function() {
 	this.drawingAllowed = (this.game.pencilMode == 'on');
+	document.getElementById('inkIndicator').style.display = this.drawingAllowed ? 'block' : 'none';
 	this.buffer = [];
 	this.down = false;
 	this.upped = false;
@@ -1249,7 +1259,7 @@ Pencil.prototype.reset = function() {
 	this.inbufferIndex = [];
 	this.inbufferSolid = [];
 	this.inbufferSolidIndex = [];
-	this.ink = startInk;
+	this.setInk(startInk);
 	this.players = this.game.players.length;
 
 	for(var i = 0; i < this.players; i++) {
@@ -1266,11 +1276,13 @@ Pencil.prototype.reset = function() {
 	this.canvasTop = pos[1];
 }
 
-Pencil.prototype.doTick = function() {
-	this.ink += this.inkPerSec / 1000 * simStep;
+Pencil.prototype.setInk = function(ink) {
+	this.ink = Math.min(this.maxInk, ink);
+	this.indicator.style.height = ( 100 * this.ink/ this.maxInk ) + '%'; // kan ook width zijn
+}
 
-	if(this.ink > this.maxInk)
-		this.ink = this.maxInk;
+Pencil.prototype.doTick = function() {
+	this.setInk(this.ink + this.inkPerSec / 1000 * simStep);
 
 	if(this.drawingAllowed && (this.down || this.upped || this.out)) {
 		var pos = this.getRelativeMousePos(this.last);
@@ -1299,9 +1311,10 @@ Pencil.prototype.doTick = function() {
 				b *= this.ink / d;
 				x2 = x1 + a;
 				y2 = y1 + b;
-				this.ink = 0;
+
+				this.setInk(0);
 			}else
-				this.ink -= d;
+				this.setInk(this.ink - d);
 
 			this.buffer.push(x2);
 			this.buffer.push(y2);

@@ -231,15 +231,13 @@ struct game *findgame(int nmin, int nmax) {
 	return 0;
 }
 
-// takes game id and returns the game (if it exists and there is a spot)
+// takes game id and returns the game
 struct game *searchgame(int gameid) {
 	struct game *gm;
 
-	for(gm = headgame; gm; gm = gm->nxt)
-		if(gm->state == GS_LOBBY && gameid == gm->id && gm->nmax > gm->n)
-			return gm;
+	for(gm = headgame; gm && gameid != gm->id; gm = gm->nxt);
 
-	return 0;
+	return gm;
 }
 
 void tellhost(struct game *gm, struct user *usr) {
