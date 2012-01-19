@@ -1,4 +1,4 @@
-#define EPS 0.01
+#define EPS 0.0001
 #define GAME_WIDTH 1024
 #define GAME_HEIGHT 644
 #define TILE_SIZE_MULTIPLIER 4 // tilesize/ segmentlength
@@ -178,3 +178,4 @@ void addsegment(struct game *gm, struct seg *seg);
 float checkcollision(struct game *gm, struct seg *seg);
 void endround(struct game *gm);
 void tiles(struct game *gm, struct seg *seg, int *tileindices);
+void clearinputs(struct user *usr);

@@ -304,7 +304,7 @@ void printgames() {
 }
 
 void printseg(struct seg *seg) {
-	printf("(%.1f, %.1f)->(%.1f, %.1f)",seg->x1,seg->y1,seg->x2,seg->y2);
+	printf("(%.2f, %.2f)->(%.2f, %.2f)", seg->x1, seg->y1, seg->x2, seg->y2);
 }
 
 float getlength(float x, float y) {

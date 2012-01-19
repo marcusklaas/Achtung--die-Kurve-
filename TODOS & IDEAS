@@ -5,9 +5,7 @@ zet hier je todos en ideeen.
 - je gaat soms dood door zijkant te gaan met TORUS_MODE != 0. het lijkt echt compleet random. heb dit kunnen vangen 1x toen het gebeurde
 (345.1, 8.5)->(345.0, 6.8) collided with (345.0, 0.1)->(345.0, -1.6)
 player 13 died
-maar die 2 segmenten snijden dus helemaal niet ;o hoe kan dit? misschien iets dat fout gaat in segcollision voor negatieve waarden?
-
-- server crasht soms bij games met pencil door dubbele free
+maar die 2 segmenten snijden dus helemaal niet ;o hoe kan dit? denom nagenoeg 0.. maar waarom gaat t dan alleen fout wanneer je door rand heen probeert te gaan?
 
 - is het toch mogelijk om out of sync te raken met de lokale snake? 
 

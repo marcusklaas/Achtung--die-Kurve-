@@ -129,6 +129,8 @@ void startgame(struct game *gm) {
 		usr->hfreq = gm->hfreq;
 		usr->lastinputtick = -1;
 		usr->ignoreinput = 1;
+		clearinputs(usr);
+
 		if(gm->pencilmode != PM_OFF)
 			resetpencil(&usr->pencil, usr);
 	}
@@ -417,8 +419,10 @@ float segcollision(struct seg *seg1, struct seg *seg2) {
 	float a = numer_a/ denom;
 	float b = numer_b/ denom;
 
-	if(a >= 0 && a <= 1 && b >= 0 && b <= 1)
+	if(a >= 0 && a <= 1 && b >= 0 && b <= 1) {
+		printf("collision! a = %.2f, b = %.2f, denom = %.2f\n", a, b, denom);
 		return b;
+	}
 
 	return -1;
 }
@@ -579,7 +583,7 @@ int simuser(struct user *usr, int tick) {
 
 	usr->inputs *= !!(tick % INPUT_CONTROL_INTERVAL);
 
-	float oldx = usr->x, oldy = usr->y;
+	float oldx = usr->x, oldy = usr->y, oldangle = usr->angle;
 	usr->angle += usr->turn * usr->ts * TICK_LENGTH / 1000.0;
 	usr->x += cos(usr->angle) * usr->v * TICK_LENGTH / 1000.0;
 	usr->y += sin(usr->angle) * usr->v * TICK_LENGTH / 1000.0;
@@ -617,6 +621,8 @@ int simuser(struct user *usr, int tick) {
 
 	/* wrap around */
 	if(!inside) {
+		printf("wrapping\n");
+
 		if(usr->x > usr->gm->w)
 			usr->x = oldx - usr->gm->w;
 		else if(usr->x < 0)
@@ -628,7 +634,7 @@ int simuser(struct user *usr, int tick) {
 			usr->y = oldy + usr->gm->h;
 
 		// reset angle and simulate this tick again. usr->turn will keep the right value.
-		usr->angle -= usr->turn * usr->ts * TICK_LENGTH / 1000.0;
+		usr->angle = oldangle;
 		return simuser(usr, tick);
 	}
 
@@ -701,17 +707,6 @@ void endround(struct game *gm) {
 		}
 		else if(usr->points > secondpoints)
 			secondpoints = usr->points;
-	}
-
-	// clean users
-	for(usr = gm->usr; usr; usr = usr->nxt){
-		for(inp = usr->inputhead; inp; inp = nxt) {
-			nxt = inp->nxt;
-			free(inp);
-		}
-		usr->inputhead = usr->inputtail = 0;
-		if(gm->pencilmode != PM_OFF)
-			cleanpencil(&usr->pencil);
 	}
 	 
 	/* freeing up segments */
@@ -887,6 +882,17 @@ void interpretinput(cJSON *json, struct user *usr) {
 	jsondel(j);
 }
 
+void clearinputs(struct user *usr) {
+	struct userinput *inp, *nxt;
+
+	for(inp = usr->inputhead; inp; inp = nxt) {
+		nxt = inp->nxt;
+		free(inp);
+	}
+
+	usr->inputhead = usr->inputtail = 0;
+}
+
 void iniuser(struct user *usr, struct libwebsocket *wsi) {
 	memset(usr, 0, sizeof(struct user));
 	usr->id = usrc++;
@@ -895,31 +901,20 @@ void iniuser(struct user *usr, struct libwebsocket *wsi) {
 }
 
 void deleteuser(struct user *usr) {
-	int i;
-	struct pencilseg *pseg, *nxt;
-	
 	if(usr->gm)
 		leavegame(usr);
 
-	while(usr->inputhead) {
-		struct userinput *nxthead = usr->inputhead->nxt;
-		free(usr->inputhead);
-		usr->inputhead = nxthead;
-	}
+	clearinputs(usr);
+	cleanpencil(&(usr->pencil));
 
 	if(usr->name)
 		free(usr->name);
 	
-	for(i = 0; i < usr->sbat; i++)
+	for(int i = 0; i < usr->sbat; i++)
 		free(usr->sb[i]);
 
 	if(usr->msgbuf)
 		free(usr->msgbuf);
-
-	for(pseg = usr->pencil.pseghead; pseg; pseg = nxt) {
-		nxt = pseg->nxt;
-		free(pseg);
-	}
 }
 
 /* pencil game */
@@ -1044,20 +1039,21 @@ void simpencil(struct pencil *p) {
 // to be called at startgame
 void resetpencil(struct pencil *p, struct user *u) {
 	p->ink = START_INK;
-	p->psegtail = p->pseghead = 0;
+	cleanpencil(p);
 	p->usr = u;
 	p->tick = 0;
 	p->lasttick = -1;
 }
 
-// to be called at endround
 void cleanpencil(struct pencil *pen) {
-	struct pencilseg *p = pen->pseghead, *q;
-	while(p) {
-		q = p->nxt;
-		free(p);
-		p = q;
+	struct pencilseg *curr, *nxt;
+
+	for(curr = pen->pseghead; curr; curr = nxt) {
+		nxt = curr->nxt;
+		free(curr);
 	}
+
+	pen->pseghead = pen->psegtail = 0;
 }
 
 void gototick(struct pencil *p, int tick) {
