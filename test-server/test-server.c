@@ -404,6 +404,18 @@ int main(int argc, char **argv) {
 	char interface_name[128] = "";
 	const char * interface = NULL;
 
+	/* temporary - inspect saved segments
+	FILE *f=fopen("1726779616","r");
+	struct seg a, b;
+	fread(&a,sizeof(a),1,f);
+	fread(&b,sizeof(a),1,f);
+	fclose(f);
+	printseg(&a);
+	printseg(&b);
+	printf("\n");
+	segcollision(&a,&b);
+	return 0;*/
+
 	while (n >= 0) {
 		n = getopt_long(argc, argv, "ci:khsp:", options, NULL);
 		if (n < 0)

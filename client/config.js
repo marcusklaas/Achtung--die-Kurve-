@@ -31,7 +31,7 @@ var touchDevice = null;
 var safeTickDifference = 60; // TODO: should depend on 2*ping & SERVER_DELAY
 var resizeDelay = 1000; // the duration the window should have a constant size before calling resize
 var paramUpdateInterval = 1000; // don't send game intervals more often that one per this many msecs
-var unlockInterval = 5000; // minimum time between last changing settings and gamestart in msecs
+var unlockInterval = 0; // minimum time between last changing settings and gamestart in msecs
 
 var customGameWaitMessage = 'Waiting for host to start the game..';
 var autoMatchWaitMessage = 'Waiting for more players..';

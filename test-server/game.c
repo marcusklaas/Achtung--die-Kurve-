@@ -413,14 +413,14 @@ float segcollision(struct seg *seg1, struct seg *seg2) {
 	 (seg1->y2 - seg1->y1) * (seg1->x1 - seg2->x1);
 	
 	/* segments are parallel */
-	if(denom == 0)
+	if(fabs(denom) < EPS)
 		return -1;
 
 	float a = numer_a/ denom;
 	float b = numer_b/ denom;
 
 	if(a >= 0 && a <= 1 && b >= 0 && b <= 1) {
-		printf("collision! a = %.2f, b = %.2f, denom = %.2f\n", a, b, denom);
+		//printf("collision! a = %.2f, b = %.2f, denom = %.2f\n", a, b, denom);
 		return b;
 	}
 
@@ -480,6 +480,16 @@ float checktilecollision(struct seg *tile, struct seg *seg) {
 
 			if(DEBUG_MODE) {
 				printseg(current);printf(" collided with ");printseg(seg);printf("\n");
+				
+				/* temporary - save colliding segments to file
+				srand(servermsecs());
+				char y[200];
+				sprintf(y,"%d",rand());
+				FILE *f=fopen(y,"w");
+				fwrite(current,sizeof(struct seg),1,f);
+				fwrite(seg,sizeof(struct seg),1,f);
+				fclose(f);
+				printf("collision written to %s\n",y);*/
 			}
 		}
 	}
@@ -621,7 +631,7 @@ int simuser(struct user *usr, int tick) {
 
 	/* wrap around */
 	if(!inside) {
-		printf("wrapping\n");
+		//printf("wrapping\n");
 
 		if(usr->x > usr->gm->w)
 			usr->x = oldx - usr->gm->w;
