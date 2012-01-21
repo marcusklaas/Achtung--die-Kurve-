@@ -2,18 +2,11 @@ zet hier je todos en ideeen.
 
 = cruciaal =
 
-- je gaat soms dood door zijkant te gaan met TORUS_MODE != 0. het lijkt echt compleet random. heb dit kunnen vangen 1x toen het gebeurde
-(345.1, 8.5)->(345.0, 6.8) collided with (345.0, 0.1)->(345.0, -1.6)
-player 13 died
-maar die 2 segmenten snijden dus helemaal niet ;o hoe kan dit? denom nagenoeg 0.. maar waarom gaat t dan alleen fout wanneer je door rand heen probeert te gaan?
-
 - is het toch mogelijk om out of sync te raken met de lokale snake? 
 
 - soms heeft input echt dikke vertraging. gebeurt als je tijd anders loopt dan de server maar nog niet is gecorrigeerd volgens mij
 
 = niet cruciaal =
-
-- easy join game met linkjes oid (en wachtwoord?)/ rematch?
 
 - server compilen op win32
 
@@ -25,13 +18,9 @@ http://code.google.com/p/chromium/issues/detail?id=93609
 - disconnect niet meteen bij escape. IS FIREFOX BUG: niet ons probleem :P
 https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 
-- ff herzien scope van sommige variabelen, welke property staat waar? global, lokaal in de window.onload functie, als property van een GameEngine instantie of als property van een kind van GameEngine (zoals player, audioengine, canvasStack enz..)
-
 - omzetten van enkele default game properties van TICK specificatie naar tijd specificatie zoals hole grootte/ freq en countdown enzo. zo opzetten op zo'n manier dat het niet veelvoud van TICK_LENGTH hoeft te zijn maar dat bij het laden van deze defaults (waarvan het meeste in creategame gebeurt) er een veelvoud van wordt gemaakt
 
 - betere geluidjes en voor wat meer dingen en ook alles in zowel ogg als mp3
-
-- inputcontroller mergen met GameEngine? heeft niet zoveel zin om t in apart object te houden denk ik. we moeten wel de mogelijkheid open houden om later misschien meerdere personen op 1 computer te laten spelen dus dat we niet overal blindelings vanuitgaan dat we players[0] besturen (alhoewel dat eig wel overal al gebeurt :P)
 
 - toevoegen aan game settings: hole start min, hole hole start max en misschien wat andere dingen?
 
@@ -39,9 +28,11 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 
 - editor zo groot mogelijk en resizeable (net als gamecanvas dus)
 
-= opmaakdingen =
+- ink indicator als canvas ipv DOM elt - ben ik mee bezig!!
 
-- ink indicator positie/ opmaak
+- we kunnen eig best zonder canvaslayer.js, deruit gooien?
+
+= opmaakdingen =
 
 - min/ max players is op t moment niet zo heel geslaagd qua positionering -- oplossingen?
 
@@ -50,6 +41,8 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 - elementen van tabel centreren (maar niet playernames)? is misschien mooier? ff proberen
 
 = ideeen =
+
+- easy join game met linkjes oid (en wachtwoord?)/ rematch?
 
 - misschien elke client dezelfde kleuren laten zien? want stel iemand gaat schelden op blauw in de chat. [dan beter wel 'you' ofzo naast jouw start indicator.]
 
