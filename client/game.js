@@ -1358,12 +1358,12 @@ Pencil.prototype.drawPlayerSegs = function(redraw) {
 		while(index < buffer.length && buffer[index].tickSolid <= this.game.tick) {
 			var seg = buffer[index++];
 			this.drawSegment(seg.x1, seg.y1, seg.x2, seg.y2, i, 1);
-
+			
 			if(!redraw)
 				this.inbuffer[i].shift();
 		}
-
-		this.inbufferSolidIndex[i] = index;
+		if(!redraw)
+			this.inbufferSolidIndex[i] = index;
 	}
 }
 
@@ -1382,8 +1382,10 @@ Pencil.prototype.drawSegment = function(x1, y1, x2, y2, playerIndex, alpha) {
 Pencil.prototype.handleMessage = function(ar) {
 	for(var i = 0; i < ar.length; i++) {
 		var a = ar[i];
-		this.inbuffer[this.game.getIndex(a.playerId)].push(a);
-		this.inbufferSolid[this.game.getIndex(a.playerId)].push(a);
+		var index = this.game.getIndex(a.playerId);
+		this.drawSegment(a.x1, a.y1, a.x2, a.y2, index, pencilAlpha);
+		this.inbuffer[index].push(a);
+		this.inbufferSolid[index].push(a);
 	}
 }
 

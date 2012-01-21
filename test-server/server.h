@@ -38,7 +38,7 @@
 #define SPAM_CHECK_INTERVAL 200 // in ticks
 #define MAX_INPUTS 60 // per control interval
 #define MAX_CHATS 5 // per check interval
-#define PARAM_UPDATE_INTERVAL 500 // min time between 2 game param updates in msecs
+#define PARAM_UPDATE_INTERVAL 100 // min time between 2 game param updates in msecs
 #define UNLOCK_INTERVAL 0 // min time between param update & game start in msecs
 
 /* pencil */
