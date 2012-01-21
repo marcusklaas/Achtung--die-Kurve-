@@ -1,0 +1,26 @@
+= messages sent by client =
+
+mode: pencil
+data: [array with every four consecutive elements corresponding to a pencil action]
+every action is encoded by four elements: int type, int x, int y, int tick. a type of 1 corresponds to pencilDown, type = 0 is pencilMove and type = -1 is pencilUp.
+all actions cost ink. the cost of pencilMove or pencilUp is the length over which the pencil is moved, the cost of pencilDown is pencilDownInk.
+things to note:
+- always send actions in chronological order. however, strictly increasing ticks are not necessary.
+- a pencilMove message should always move the pencil at least inkMinDistance
+- never move the pencil outside the map
+- it is not specified what happens when you send actions which can not be executed (e.g. there is not enough ink, the message has not the right format, ...).
+
+
+= messages sent by server =
+
+mode: pencil
+data: [array of objects]
+every object has members x1, x2, y1, y2, tickSolid, playerId. this corresponds to a segment of player playerId which is going to spawn at tick tickSolid.
+
+
+= more info =
+
+- pencil -
+you start with maxInk ink. every tick you get inkPerSec * tickLength ink, taking maxInk into account.
+you have three actions: pencilDown, pencilMove and pencilUp. all are send through the pencil message. you will receive drawings from other players also through a pencil message.
+

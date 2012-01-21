@@ -1239,12 +1239,15 @@ function Pencil(game) {
 	canvas.addEventListener('mousedown', function(ev) {
 		if(self.drawingAllowed && !self.down && self.ink > mousedownInk) {
 			self.ink -= mousedownInk;
-			self.last = self.cur = ev;
 			var pos = self.getRelativeMousePos(ev);
-			self.buffer.push(pos[0]);
-			self.buffer.push(pos[1]);
-			self.buffer.push(-self.game.tick - 1);
+			self.x = pos[0];
+			self.y = pos[1];
+			self.buffer.push(1);
+			self.buffer.push(self.x);
+			self.buffer.push(self.y);
+			self.buffer.push(self.game.tick);
 			self.down = true;
+			self.cur = ev; // since we handle movements in gameloop and not in mousemove
 		}
 	}, false);
 
@@ -1252,24 +1255,17 @@ function Pencil(game) {
 		if(self.drawingAllowed && self.down)
 			self.cur = ev;
 	}, false);
-
-	canvas.addEventListener('mouseup', function(ev) {
+	
+	var f = function(ev) {
 		if(self.drawingAllowed && self.down) {
 			self.cur = ev;
 			self.down = false;
 			self.upped = true;
-			this.game.focusChat();
+			self.game.focusChat();
 		}
-	}, false);
-
-	canvas.addEventListener('mouseout', function(ev) {
-		if(self.drawingAllowed && self.down) {
-			self.cur = ev;
-			self.down = false;
-			self.out = true;
-			this.game.focusChat();
-		}
-	}, false);
+	};
+	canvas.addEventListener('mouseup', f, false);
+	canvas.addEventListener('mouseout', f, false);
 }
 
 Pencil.prototype.reset = function() {
@@ -1278,9 +1274,7 @@ Pencil.prototype.reset = function() {
 	this.buffer = [];
 	this.down = false;
 	this.upped = false;
-	this.out = false;
 	this.inbuffer = [];
-	this.inbufferIndex = [];
 	this.inbufferSolid = [];
 	this.inbufferSolidIndex = [];
 	this.setInk(startInk);
@@ -1288,13 +1282,12 @@ Pencil.prototype.reset = function() {
 
 	for(var i = 0; i < this.players; i++) {
 		this.inbuffer[i] = [];
-		this.inbufferIndex[i] = 0;
 		this.inbufferSolid[i] = [];
 		this.inbufferSolidIndex[i] = 0;
 	}
 
 	this.inbufferSolid.length = this.inbuffer.length = this.players;
-	this.inbufferIndex.length = this.inbufferSolidIndex.length = this.players;
+	this.inbufferSolidIndex.length = this.players;
 	var pos = findPos(document.getElementById(this.game.containerId));
 	this.canvasLeft = pos[0];
 	this.canvasTop = pos[1];
@@ -1308,50 +1301,37 @@ Pencil.prototype.setInk = function(ink) {
 Pencil.prototype.doTick = function() {
 	this.setInk(this.ink + this.inkPerSec / 1000 * simStep);
 
-	if(this.drawingAllowed && (this.down || this.upped || this.out)) {
-		var pos = this.getRelativeMousePos(this.last);
-		var x1 = pos[0];
-		var y1 = pos[1];
+	if(this.drawingAllowed && (this.down || this.upped)) {
 		pos = this.getRelativeMousePos(this.cur);
-		var x2 = pos[0];
-		var y2 = pos[1];
-		var d = getLength(x2 - x1, y2 - y1);
+		var x = pos[0];
+		var y = pos[1];
+		var d = getLength(x - this.x, y - this.y);
 
-		// zodat de muur niet net voor de rand stopt
-		if(this.out && d < inkMinimumDistance) {
-			var a = x2 - x1;
-			var b = y2 - y1;
-			a *= inkMinimumDistance / d;
-			b *= inkMinimumDistance / d;
-			x2 = x1 + a;
-			y2 = y1 + b;
-		}
-
-		if((d >= inkMinimumDistance || d >= this.ink) && this.ink > 0) {
+		if(this.upped || d >= inkMinimumDistance) {
 			if(this.ink < d) {
-				var a = x2 - x1;
-				var b = y2 - y1;
+				// shorten move
+				var a = x - this.x;
+				var b = y - this.y;
 				a *= this.ink / d;
 				b *= this.ink / d;
-				x2 = x1 + a;
-				y2 = y1 + b;
-
-				this.setInk(0);
-			}else
-				this.setInk(this.ink - d);
-
-			this.buffer.push(x2);
-			this.buffer.push(y2);
-			this.buffer.push(this.game.tick);
-			this.drawSegment(x1, y1, x2, y2, 0, pencilAlpha);
-			this.last = this.cur;
-			if(this.ink == 0) {
+				x = this.x + a;
+				y = this.y + b;
+				d = this.ink;
+				
 				this.down = false;
+				this.upped = true;
 				this.game.focusChat();
 			}
+			this.setInk(this.ink - d);
+			this.buffer.push(this.upped ? -1 : 0);
+			this.buffer.push(x);
+			this.buffer.push(y);
+			this.buffer.push(this.game.tick);
+			this.drawSegment(this.x, this.y, x, y, 0, pencilAlpha);
+			this.x = x;
+			this.y = y;
+			this.upped = false;
 		}
-
-		this.upped = this.out = false;
 	}
 
 	if(this.game.tick % inkBufferTicks == 0 && this.buffer.length > 0) {
@@ -1364,35 +1344,27 @@ Pencil.prototype.doTick = function() {
 
 Pencil.prototype.drawPlayerSegs = function(redraw) {
 	for(var i = 0; i < this.players; i++) {
-		var buffer = this.inbuffer[i];
-		var index = (redraw) ? 0 : this.inbufferIndex[i];
-		var seg;
+		var index, seg, buffer = this.inbuffer[i];
 
-		while(index < buffer.length && buffer[index].tickVisible <= this.game.tick) {
-			seg = buffer[index++];
-			
-			if((i > 0 || redraw) && seg.tickSolid > this.game.tick)
+		if(redraw) {
+			for(index = 0; index < buffer.length; index++) {
+				seg = buffer[index];
 				this.drawSegment(seg.x1, seg.y1, seg.x2, seg.y2, i, pencilAlpha);
-
-			if(!redraw)
-				this.inbufferSolid[i].push(seg);
-		}
-
-		this.inbufferIndex[i] = index;
-		buffer =  this.inbufferSolid[i];
-		index = (redraw) ? 0 : this.inbufferSolidIndex[i];
-
-		while(index < buffer.length && buffer[index].tickSolid <= this.game.tick) {
-			var seg = buffer[index++];
-			this.drawSegment(seg.x1, seg.y1, seg.x2, seg.y2, i, 1);
-
-			if(!redraw) {
-				this.inbuffer[i].shift();
-				this.inbufferIndex[i]--;
 			}
 		}
 
-		this.inbufferSolidIndex[i] = index;
+		buffer =  this.inbufferSolid[i];
+		index = (redraw) ? 0 : this.inbufferSolidIndex[i];
+		
+		while(index < buffer.length && buffer[index].tickSolid <= this.game.tick) {
+			var seg = buffer[index++];
+			this.drawSegment(seg.x1, seg.y1, seg.x2, seg.y2, i, 1);
+			
+			if(!redraw)
+				this.inbuffer[i].shift();
+		}
+		if(!redraw)
+			this.inbufferSolidIndex[i] = index;
 	}
 }
 
@@ -1411,7 +1383,10 @@ Pencil.prototype.drawSegment = function(x1, y1, x2, y2, playerIndex, alpha) {
 Pencil.prototype.handleMessage = function(ar) {
 	for(var i = 0; i < ar.length; i++) {
 		var a = ar[i];
-		this.inbuffer[this.game.getIndex(a.playerId)].push(a);
+		var index = this.game.getIndex(a.playerId);
+		this.drawSegment(a.x1, a.y1, a.x2, a.y2, index, pencilAlpha);
+		this.inbuffer[index].push(a);
+		this.inbufferSolid[index].push(a);
 	}
 }
 
@@ -1421,6 +1396,8 @@ Pencil.prototype.getRelativeMousePos = function(ev) {
 	pos[1] -= this.canvasTop;
 	pos[0] /= this.game.scale;
 	pos[1] /= this.game.scale;
+	pos[0] = Math.round(Math.max(Math.min(this.game.width, pos[0]), 0));
+	pos[1] = Math.round(Math.max(Math.min(this.game.height, pos[1]), 0));
 	return pos;
 }
 
