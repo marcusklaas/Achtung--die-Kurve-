@@ -939,58 +939,46 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 	if(!json)
 		return;
 	json = json->child;
-
-	int inkvisibledelay = INK_VISIBLE; // dit zou ook nog in gm kunnen
-	int inksoliddelay = u->gm->inkdelay;
 	
 	while(json) {
-		float x = json->valuedouble, y;
+		int x, y;
 		int tick;
-		int newstroke = 0;
+		char type;
 
-		json = json->next;
-		if(!json) break;
-		y = json->valuedouble;
-		json = json->next;
-		if(!json) break;
+		// read next block
+		type = json->valueint;
+		if(!(json = json->next)) break;
+		x= json->valueint;
+		if(!(json = json->next)) break;
+		y = json->valueint;
+		if(!(json = json->next)) break;
 		tick = json->valueint;
 		json = json->next;
-		if(tick < 0) {
-			tick = -tick - 1;
-			newstroke = 1;
-		}
-		if(tick < u->gm->tick)
-			tick = u->gm->tick;
-		if(!(tick > p->lasttick || (newstroke && tick == p->lasttick)))
+		
+		if(tick < p->tick || x < 0 || y < 0 || x > u->gm->w || y > u->gm->h)
 			break;
 		gototick(p, tick);
 
-		if(newstroke) {
+		if(type == 1) {
 			if(p->ink > MOUSEDOWN_INK - EPS) {
 				p->x = x;
 				p->y = y;
 				p->ink -= MOUSEDOWN_INK;
-				p->lasttick = tick - 1; // so that a seg on tick is also possible
+				p->down = 1;
 			}else
 				break;
 		}else{
 			float d = getlength(p->x - x, p->y - y);
-			if((d >= INK_MIN_DISTANCE - EPS || d >= p->ink - EPS) && p->ink > 0) {
-				int tickSolid = tick + (inkvisibledelay + inksoliddelay) / TICK_LENGTH;
+			if(p->ink < d - EPS || !p->down)
+				break;
+			p->ink -= d;
+			if(type == -1 || d >= INK_MIN_DISTANCE) {
+				int tickSolid = max(tick, u->gm->tick) + u->gm->inkdelay / TICK_LENGTH;
 				struct pencilseg *pseg = smalloc(sizeof(struct pencilseg));
 				struct seg *seg = &pseg->seg;
 				cJSON *k = cJSON_CreateObject();
 
-				if(p->ink < d) {
-					float a = x - p->x;
-					float b = y - p->y;
-					a *= p->ink / d;
-					b *= p->ink / d;
-					x = p->x + a;
-					y = p->y + b;
-					p->ink = 0;
-				}else
-					p->ink -= d;
+				// queue pencil segment for simulation
 				seg->x1 = p->x;
 				seg->y1 = p->y;
 				seg->x2 = x;
@@ -1003,19 +991,22 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 				p->pseghead = pseg;
 				if(!p->psegtail)
 					p->psegtail = pseg;
-				p->lasttick = tick;
+				
+				// add it to the json which will be broadcasted
 				jsonaddnum(k, "x1", p->x);
 				jsonaddnum(k, "y1", p->y);
 				jsonaddnum(k, "x2", x);
 				jsonaddnum(k, "y2", y);
 				jsonaddnum(k, "playerId", u->id);
-				jsonaddnum(k, "tickVisible", tick + inkvisibledelay / TICK_LENGTH);
 				jsonaddnum(k, "tickSolid", tickSolid);
 				if(!j)
 					j = cJSON_CreateArray();
 				cJSON_AddItemToArray(j, k);
+				
 				p->x = x;
 				p->y = y;
+				if(type == -1)
+					p->down = 0;
 			}else
 				break;
 		}
@@ -1052,7 +1043,7 @@ void resetpencil(struct pencil *p, struct user *u) {
 	cleanpencil(p);
 	p->usr = u;
 	p->tick = 0;
-	p->lasttick = -1;
+	p->down = 0;
 }
 
 void cleanpencil(struct pencil *pen) {

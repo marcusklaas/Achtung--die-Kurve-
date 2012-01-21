@@ -52,6 +52,11 @@ cJSON *jsongetjson(cJSON *json, char* obj) {
 	return json;
 }
 
+// to check if a member exists
+cJSON *jsoncheckjson(cJSON *json, char* obj) {
+	return cJSON_GetObjectItem(json, obj);
+}
+
 void jsonsetstr(cJSON *json, char* obj, char* str) {
 	json = cJSON_GetObjectItem(json, obj);
 	if(!json) {
@@ -271,7 +276,6 @@ char *getFileExt(char *path) {
 	return ext;
 }
 
-/* renamed to servermsecs */
 static long servermsecs() {
 	static struct timeval tv;
 	static long serverstart = -1;
@@ -305,6 +309,12 @@ void printgames() {
 
 void printseg(struct seg *seg) {
 	printf("(%.2f, %.2f)->(%.2f, %.2f)", seg->x1, seg->y1, seg->x2, seg->y2);
+}
+
+void printjson(cJSON *json) {
+	char *buf = cJSON_Print(json);
+	printf("%s\n", buf);
+	free(buf);
 }
 
 float getlength(float x, float y) {

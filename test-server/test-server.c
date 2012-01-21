@@ -328,7 +328,7 @@ callback_game(struct libwebsocket_context * context,
 				break;
 			}
 
-			cJSON *j = jsongetjson(json, "segments");
+			cJSON *j = jsoncheckjson(json, "segments");
 			if(j && j->child) {
 				u->gm->map = createmap(j->child);
 				cJSON *root = jsoncreate("setMap");
@@ -405,7 +405,7 @@ int main(int argc, char **argv) {
 	const char * interface = NULL;
 
 	/* temporary - inspect saved segments
-	FILE *f=fopen("1726779616","r");
+	FILE *f=fopen("1726779616","r"); // 1719191937
 	struct seg a, b;
 	fread(&a,sizeof(a),1,f);
 	fread(&b,sizeof(a),1,f);

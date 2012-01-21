@@ -119,10 +119,11 @@ struct pencilseg {
 };
 
 struct pencil {
-	float ink, x, y;
+	float ink;
+	int x, y, tick;
+	char down;
 	struct pencilseg *pseghead, *psegtail;
 	struct user *usr;
-	int tick, lasttick;
 };
 
 struct userinput {
