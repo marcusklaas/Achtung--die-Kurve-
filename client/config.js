@@ -24,6 +24,8 @@ var behind = 2; // desired difference between tock and tick
 var canvasMinimumWidth = 200;
 var crossRadius = 6;
 var crossLineWidth = 2;
+var disabledColor = '#808080';
+var inputColor = 'black';
 
 var touchDevice = 'createTouch' in document;
 var safeTickDifference = 60; // TODO: should depend on 2*ping & SERVER_DELAY

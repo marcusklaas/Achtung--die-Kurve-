@@ -72,6 +72,12 @@ h2 {
 	text-align: right;
 }
 
+#noGames {
+	text-align: center;
+	width: 100%;
+	margin-bottom: 15px;
+}
+
 #waitContainer {
 	text-align: right;
 }
@@ -197,6 +203,14 @@ select,
   -webkit-border-radius: 3px;
   -moz-border-radius: 3px;
   border-radius: 3px;
+}
+
+/* zelf toegevoegd */
+input, textarea, select {
+	color: #000;
+}
+#chat {
+	color: #808080;
 }
 
 input, textarea {

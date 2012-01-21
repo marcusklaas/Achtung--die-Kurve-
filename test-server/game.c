@@ -214,23 +214,27 @@ void remgame(struct game *gm) {
 }
 
 struct game *findgame(int nmin, int nmax) {
-	struct game *gm;
+	struct game *gm, *bestgame = 0;
 
 	if(DEBUG_MODE)
 		printf("findgame called \n");
 
+	// get oldest suitable game
 	for(gm = headgame; gm; gm = gm->nxt)
-		if(gm->state == GS_LOBBY && gm->nmin <= nmax && gm->nmax >= nmin && gm->type == GT_AUTO) {
-			gm->nmin = max(gm->nmin, nmin);
-			gm->nmax = min(gm->nmax, nmax);
-			gm->goal = (gm->n - 1) * TWO_PLAYER_POINTS; // c * avg pts pp pr
-			cJSON *json = getjsongamepars(gm);
-			sendjsontogame(json, gm, 0);
-			jsondel(json);
-			return gm;
-		}
-
-	return 0;
+		if(gm->state == GS_LOBBY && gm->nmin <= nmax && gm->nmax >= nmin && gm->type == GT_AUTO)
+			bestgame = gm;
+			
+	if(bestgame) {
+		gm = bestgame;
+		gm->nmin = max(gm->nmin, nmin);
+		gm->nmax = min(gm->nmax, nmax);
+		gm->goal = (gm->n - 1) * TWO_PLAYER_POINTS; // c * avg pts pp pr
+		cJSON *json = getjsongamepars(gm);
+		sendjsontogame(json, gm, 0);
+		jsondel(json);
+	}
+	
+	return bestgame;
 }
 
 // takes game id and returns the game

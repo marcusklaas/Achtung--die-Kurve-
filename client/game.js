@@ -270,7 +270,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			}
 			else{
 				this.players[index].state = 'left';
-				this.updatePlayerList(index, 'left', null);
+				this.updatePlayerList(index, 'left', null, true);
 			}
 			break;
 		case 'playerDied':
@@ -342,15 +342,19 @@ GameEngine.prototype.setHost = function(id) {
 		this.host = this.players[id];
 	} else
 		this.host = null;
-		
-	var hostBlock = this.host == this.localPlayer ? 'block' : 'none';
-	var nonhostBlock = this.host == this.localPlayer ? 'none' : 'block';
+	
+	var localHost = this.host == this.localPlayer;
+	
+	var hostBlock = localHost  ? 'block' : 'none';
+	var nonhostBlock = localHost ? 'none' : 'block';
 	this.hostContainer.style.display = hostBlock;
 	this.nonhostContainer.style.display = nonhostBlock;
 
 	var inputElts = document.getElementById('details').getElementsByTagName('input');
-	for(var i = 0; i < inputElts.length; i++)
-		inputElts[i].disabled = (this.host != this.localPlayer);
+	for(var i = 0; i < inputElts.length; i++) {
+		inputElts[i].disabled = !localHost;
+		inputElts[i].style.color = localHost ? inputColor : disabledColor;
+	}
 }
 
 GameEngine.prototype.buildGameList = function(list) {
@@ -359,6 +363,8 @@ GameEngine.prototype.buildGameList = function(list) {
 
 	while(tbody.hasChildNodes())
 		tbody.removeChild(tbody.firstChild);
+
+	document.getElementById('noGames').style.display = list.length == 0 ? 'block' : 'none';
 
 	/* beetje getructe oplossing, maar volgens mij moet 't zo */
 	var clickHandler = function(id) {
@@ -828,7 +834,7 @@ GameEngine.prototype.appendPlayerList = function(index) {
 	this.updatePlayerList(index, 'ready', 0);
 }
 
-GameEngine.prototype.updatePlayerList = function(index, status, points) {
+GameEngine.prototype.updatePlayerList = function(index, status, points, lineThrough) {
 	var row = document.getElementById('player' + index);
 
 	if(status != null)
@@ -836,6 +842,9 @@ GameEngine.prototype.updatePlayerList = function(index, status, points) {
 
 	if(points != null)
 		row.childNodes[2].innerHTML = points;
+	
+	if(lineThrough != undefined && lineThrough != null)
+		row.childNodes[0].style.textDecoration = lineThrough ? 'line-through' : 'none';
 }
 
 GameEngine.prototype.splicePlayerList = function(index) {
@@ -856,6 +865,7 @@ GameEngine.prototype.sendChat = function() {
 
 	this.sendMsg('chat', {'message': msg});
 	this.chatBar.value = '';
+	this.chatBar.style.color = disabledColor;
 	this.printChat(this.localPlayerId, msg);
 }
 
@@ -1617,6 +1627,10 @@ window.onload = function() {
 	
 	game.hostContainer = document.getElementById('hostContainer');
 	game.nonhostContainer = document.getElementById('nonhostContainer');
+	
+	game.chatBar.addEventListener('focus', function() {
+		game.chatBar.style.color = inputColor;
+	}, false);
 
 	var minPlayers = getCookie('minPlayers');
 	if(minPlayers != null)
