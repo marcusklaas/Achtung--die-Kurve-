@@ -10,6 +10,12 @@ things to note:
 - never move the pencil outside the map
 - it is not specified what happens when you send actions which can not be executed (e.g. there is not enough ink, the message has not the right format, ...).
 
+mode: input
+steer: -1 for right steer key down, 0 for current steer key up, 1 for left steer key down
+tick: tick in which this input will be simulated
+- inputs should be sent with strictly increasing tick value.
+- server will modify tick value when simulation is ahead of tick
+
 
 = messages sent by server =
 
@@ -17,6 +23,11 @@ mode: pencil
 data: [array of objects]
 every object has members x1, x2, y1, y2, tickSolid, playerId. this corresponds to a segment of player playerId which is going to spawn at tick tickSolid.
 
+mode: input
+playerId:
+steer:
+tick:
+[modified: 1], only set when tick value is modified
 
 = more info =
 

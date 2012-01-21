@@ -882,7 +882,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 	}
 	
 	// send to other players
-	cJSON *j = jsoncreate("newInput");
+	cJSON *j = jsoncreate("input");
 	jsonaddnum(j, "tick", tick);
 	jsonaddnum(j, "playerId", usr->id);
 	jsonaddnum(j, "turn", turn);
@@ -928,9 +928,6 @@ void deleteuser(struct user *usr) {
 }
 
 /* pencil game */
-
-/* TODO: deze functie is een beetje dik.. kan ie wat opgebroken worden in
- * slankere, overzichtelijkere functies? */
 void handlepencilmsg(cJSON *json, struct user *u) {
 	struct pencil *p = &u->pencil;
 	cJSON *j = 0;

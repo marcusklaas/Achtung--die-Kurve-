@@ -239,7 +239,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			else
 				this.start(obj.startPositions, obj.startTime);
 			break;
-		case 'newInput':
+		case 'input':
 			this.players[this.getIndex(obj.playerId)].steer(obj);
 			break;
 		case 'adjustGameTime':
@@ -631,7 +631,6 @@ GameEngine.prototype.sendParams = function() {
 	obj.inkregen = parseInt(document.getElementById('inkRegen').value);
 	obj.inkdelay = parseInt(document.getElementById('inkDelay').value);
 
-	this.paramTimeout = null;
 	this.sendMsg('setParams', obj);
 }
 
@@ -1205,7 +1204,7 @@ InputController.prototype.steerLocal = function(turn) {
 	
 	this.player.inputs.push(obj);
 
-	game.sendMsg('newInput', obj);
+	game.sendMsg('input', obj);
 }
 
 /* Audio manager */
@@ -1517,6 +1516,9 @@ window.onload = function() {
 	var localPlayer = new Player(playerColors[0], true, 0);
 	var game = new GameEngine(localPlayer, audioController);
 	var inputControl = new InputController(localPlayer, keyCodeLeft, keyCodeRight);
+	
+	// just for debugging
+	echo = function(msg) { game.gameMessage(msg); };
 
 	/* add sounds to controller */
 	audioController.addSound('localDeath', 'sounds/wilhelm', ['ogg']);
@@ -1636,13 +1638,27 @@ window.onload = function() {
 		 resizeDelay);
 	}
 
-	function updateParams() {
-		/* if paramTimeout != null, then a paramupdate is already scheduled
-		 * and it will pick this change as well so we dont need 2 do nething */
-		if(game.paramTimeout === null) {
+	function sendParams(timeout, onlyAllowReplacement) {
+		return function() {
+			if(game.host != game.localPlayer || game.gameState != 'waiting')
+				return;
+			
+			/* onlyAllowReplacement allows us not to send the params when it is not
+			 * needed. ie, when we already sent the params after an onInput event.
+			 * onChange would then still fire, which is annoying if you just pressed
+			 * start game */
+			if(onlyAllowReplacement && game.paramTimeout == null)
+				return;
+				
+			window.clearTimeout(game.paramTimeout);
+		
+			/* if paramTimeout != null, then a paramupdate is already scheduled
+			 * and it will pick this change as well so we dont need 2 do nething */
+			//if(game.paramTimeout === null) {
 			game.paramTimeout = window.setTimeout(function() {
 				game.sendParams();
-			}, paramUpdateInterval);
+				game.paramTimeout = null;
+			}, timeout);
 
 			document.getElementById('startGame').disabled = true;
 
@@ -1651,14 +1667,20 @@ window.onload = function() {
 
 			game.unlockTimeout = window.setTimeout(function() {
 				game.unlockStart();
-			}, unlockInterval + paramUpdateInterval);
+			}, unlockInterval + timeout);
+			//}
 		}
 	}
 
 	/* add event handlers to schedule paramupdate message when game options are changed */
 	var inputElts = document.getElementById('details').getElementsByTagName('input');
-	for(var i = 0; i < inputElts.length; i++)
-		inputElts[i].addEventListener(inputElts[i].type == 'text' ? 'input' : 'change', updateParams, false);
+	for(var i = 0; i < inputElts.length; i++) {
+		if(inputElts[i].type == 'text') {
+			inputElts[i].addEventListener('input', sendParams(paramInputInterval), false);
+			inputElts[i].addEventListener('change', sendParams(paramUpdateInterval, true), false);
+		} else 
+			inputElts[i].addEventListener('change', sendParams(paramUpdateInterval), false);
+	}
 }
 
 /* canvas context color setter */
