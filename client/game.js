@@ -266,6 +266,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 					this.setIndex(this.players[i].playerId, i - 1);
 				}
 
+				this.canvasStack.deleteLayer(this.players[index].canvas.id);
 				this.players.splice(index, 1);
 			}
 			else{
