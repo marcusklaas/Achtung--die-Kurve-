@@ -6,7 +6,7 @@ html, body, #sidebar, #game {
 }
 
 #gameContainer, #gameListContainer, #disconnect,
- #waitContainer, #status, #stop, #editor {
+ #waitContainer, #status, #stop, #editor, #back {
 	display: none;
 }
 

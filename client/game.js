@@ -8,6 +8,7 @@ function GameEngine(localPlayer, audioController) {
 	this.tock = 0; // seperate tick for the other clients
 	this.behind = behind;
 	this.gameState = 'new'; // new, lobby, editing, waiting, countdown, playing, watching, ended
+	this.gameType = null;
 
 	// game properties
 	this.torus = false;
@@ -155,6 +156,13 @@ GameEngine.prototype.setGameState = function(newState) {
 			setOptionVisibility('stop');
 			setContentVisibility('waitContainer');
 			break;
+		case 'playing':
+			setOptionVisibility('stop');
+			break;
+		case 'ended':
+			if(this.gameType == 'custom')
+				setOptionVisibility('back');
+			break;
 		case 'new':
 			setContentVisibility('connectionContainer');
 			setOptionVisibility('nothing');
@@ -199,6 +207,9 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.setIndex(obj.playerId, 0);
 			break;
 		case 'joinedGame':
+			this.localPlayer.status = 'ready';
+			this.localPlayer.isHost = false;
+			this.gameType = obj.type;
 			this.setGameState((obj.type == 'lobby') ? 'lobby' : 'waiting');
 			this.mapSegments = undefined;
 			this.resetPlayers();
@@ -254,23 +265,16 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;
 		case 'playerLeft':
 			var index = this.getIndex(obj.playerId);
+			var player = this.players[index];
 			if(this.gameState != 'lobby')
-				this.gameMessage(this.players[index].playerName + " left the game");
+				this.gameMessage(player.playerName + " left the game");
 
 			if(this.gameState == 'waiting' || this.gameState == 'lobby') {
-				this.splicePlayerList(index);
-				
-				for(var i = index + 1; i < this.players.length; i++) {
-					this.players[i].index--;
-					this.players[i].color = playerColors[i - 1];
-					this.setIndex(this.players[i].playerId, i - 1);
-				}
-
-				this.players.splice(index, 1);
+				this.removePlayer(index);
 			}
 			else{
-				this.players[index].state = 'left';
-				this.updatePlayerList(index, 'left', null, true);
+				player.status = 'left';
+				player.updateList();
 			}
 			break;
 		case 'playerDied':
@@ -289,7 +293,11 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			var index = (obj.winnerId != -1) ? this.getIndex(obj.winnerId) : null;
 			var winner = (index != null) ? (this.players[index].playerName + ' won') : 'draw!';
 			this.setGameState('countdown');
-			this.updatePlayerList(index, null, obj.points);
+			if(index != null) {
+				var player = this.players[index];
+				player.points = obj.points;
+				player.updateList();
+			}
 			this.gameMessage('Round ended: ' + winner);
 			break;			
 		case 'endGame':
@@ -321,7 +329,6 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.gameMessage('You are flooding the chat. Your latest message has been blocked');
 			break;
 		case 'setHost':
-			//if(this.gameState == 'waiting')
 			this.setHost(this.getIndex(obj.playerId));
 			break;
 		case 'joinFailed':
@@ -334,12 +341,35 @@ GameEngine.prototype.interpretMsg = function(msg) {
 	}
 }
 
+GameEngine.prototype.removePlayer = function(index) {
+	this.splicePlayerList(index);
+	this.canvasStack.deleteLayer(this.players[index].canvas.id);
+				
+	for(var i = index + 1; i < this.players.length; i++) {
+		document.getElementById('player' + i).id = 'player' + (i - 1);
+		this.players[i].index--;
+		this.players[i].color = playerColors[i - 1];
+		this.setIndex(this.players[i].playerId, i - 1);
+	}
+
+	this.players.splice(index, 1);
+}
+
 GameEngine.prototype.setHost = function(id) {
-	if(this.host != null)
-		this.updatePlayerList(this.host.index, 'ready', null);
+	if(this.host != null) {
+		this.host.isHost = false;
+		if(this.gameState == 'waiting' || this.gameState == 'editing') {
+			this.host.status = 'ready';
+			this.host.updateList();
+		}
+	}
 	if(id != null) {
-		this.updatePlayerList(id, 'host', null);
 		this.host = this.players[id];
+		this.host.isHost = true;
+		if(this.gameState == 'waiting' || this.gameState == 'editing') {
+			this.host.status = 'host';
+			this.host.updateList();
+		}
 	} else
 		this.host = null;
 	
@@ -568,14 +598,14 @@ GameEngine.prototype.doTick = function() {
 	if(this.pencilMode != 'off')
 		this.pencil.doTick();
 
-	if(player.state == 'alive')
+	if(player.status == 'alive')
 		player.simulate(this.tick, player.context);
 }
 
 GameEngine.prototype.doTock = function() {
 	for(var i = 1; i < this.players.length; i++) {
 		var player = this.players[i];
-		if(player.state != 'alive')
+		if(player.status != 'alive')
 			continue;
 			
 		player.simulate(this.tock + 1, player.context);
@@ -671,7 +701,7 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	for(var i = 0; i < startPositions.length; i++) {
 		var index = this.getIndex(startPositions[i].playerId);
 
-		if(this.players[index].state != 'left')
+		if(this.players[index].status != 'left')
 			this.players[index].initialise(startPositions[i].startX,
 			 startPositions[i].startY, startPositions[i].startAngle,
 			 startPositions[i].holeStart);
@@ -683,7 +713,7 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	for(var i = 0; i < startPositions.length; i++) {
 		var index = this.getIndex(startPositions[i].playerId);
 
-		if(this.players[index].state != 'left')
+		if(this.players[index].status != 'left')
 			this.players[index].drawIndicator();
 	}
 
@@ -831,20 +861,16 @@ GameEngine.prototype.appendPlayerList = function(index) {
 	row.appendChild(nameNode);
 	row.appendChild(statusNode);
 	row.appendChild(pointsNode);
-	this.updatePlayerList(index, 'ready', 0);
+	player.updateList();
 }
 
-GameEngine.prototype.updatePlayerList = function(index, status, points, lineThrough) {
-	var row = document.getElementById('player' + index);
+GameEngine.prototype.updatePlayerList = function(player) {
+	var row = document.getElementById('player' + player.index);
 
-	if(status != null)
-		row.childNodes[1].innerHTML = status;
-
-	if(points != null)
-		row.childNodes[2].innerHTML = points;
-	
-	if(lineThrough != undefined && lineThrough != null)
-		row.childNodes[0].style.textDecoration = lineThrough ? 'line-through' : 'none';
+	for(var i = 0; i < 3; i++)
+		row.childNodes[i].style.textDecoration = player.status == 'left' ? 'line-through' : 'none';
+	row.childNodes[1].innerHTML = player.status;
+	row.childNodes[2].innerHTML = player.points;
 }
 
 GameEngine.prototype.splicePlayerList = function(index) {
@@ -874,9 +900,26 @@ GameEngine.prototype.focusChat = function() {
 		this.chatBar.focus();
 }
 
+GameEngine.prototype.backToGameLobby = function() {
+	this.setGameState('waiting');
+	
+	// remove players who left game & set status for other players
+	var copy = this.players.slice(0);
+	for(var i = 0; i < copy.length; i++) {
+		if(copy[i].status == 'left')
+			this.removePlayer(copy[i].index);
+		else {
+			copy[i].status = copy[i].isHost ? 'host' : 'ready';
+			copy[i].points = 0;
+			copy[i].updateList();
+		}
+	}
+}
+
 /* players */
 function Player(color, local, index) {
 	this.isLocal = local;
+	this.isHost = false;
 	this.playerId = null;
 	this.playerName = null;
 	this.velocity = null; //pixels per sec
@@ -892,10 +935,10 @@ function Player(color, local, index) {
 	this.lcvelocity = 0;
 	this.lcnextInput = 0;
 	this.color = color;
-	this.turn = 0; // -1 is turn left, 0 is straight, 1 is turn right
+	this.turn = 0; // -1 is turn right, 0 is straight, 1 is turn left
 	this.game = null; // to which game does this player belong
 	this.context = null; // this is the canvas context in which we draw simulation
-	this.state = 'alive'; // alive, dead or left
+	this.status = 'ready'; // ready, alive, dead or left
 	this.inputs = [];
 	this.nextInput = 0;
 	this.inputsReceived = 0; // only for local player
@@ -904,6 +947,7 @@ function Player(color, local, index) {
 	this.holeFreq = 0;
 	this.tick = 0;
 	this.index = index;
+	this.points = 0;
 }
 
 Player.prototype.saveLocation = function() {
@@ -985,7 +1029,7 @@ Player.prototype.finalSteer = function(obj) {
 }
 
 Player.prototype.simulate = function(endTick, ctx) {
-	if(this.tick >= endTick || this.tick == this.finalTick)
+	if(this.tick >= endTick || this.tick > this.finalTick)
 		return;
 	var input = null, sin = Math.sin(this.angle),
 	 cos = Math.cos(this.angle), step = simStep/ 1000;
@@ -1021,8 +1065,9 @@ Player.prototype.simulate = function(endTick, ctx) {
 				this.y = input.y;
 				ctx.lineTo(this.x, this.y);
 				ctx.stroke();
-				if(this.state == 'alive')
+				if(this.status == 'alive')
 					this.simulateDead();
+				this.tick++; // so that this.tick > this.finalTick
 				return;
 			} else {
 				this.turn = input.turn;
@@ -1060,8 +1105,8 @@ Player.prototype.simulate = function(endTick, ctx) {
 }
 
 Player.prototype.simulateDead = function() {
-	this.state = 'dead';
-	this.game.updatePlayerList(this.index, 'dead', this.points);
+	this.status = 'dead';
+	this.updateList();
 	if(this.index == 0) {
 		this.game.setGameState('watching');
 		this.game.audioController.playSound('localDeath');
@@ -1078,13 +1123,17 @@ Player.prototype.simulateDead = function() {
 	ctx.lineWidth = lineWidth;
 }
 
+Player.prototype.updateList = function() {
+	this.game.updatePlayerList(this);
+}
+
 Player.prototype.initialise = function(x, y, angle, holeStart) {
 	this.startVelocity = this.lcvelocity = this.velocity = this.game.velocity;
 	this.turnSpeed = this.game.turnSpeed;
 	this.holeStart = holeStart;
 	this.holeSize = this.game.holeSize;
 	this.holeFreq = this.game.holeFreq;
-	this.state = 'alive';
+	this.status = 'alive';
 	this.startX = this.lcx = this.x = x;
 	this.startY = this.lcy = this.y = y;
 	this.lctick = this.nextInput = 0;
@@ -1097,7 +1146,7 @@ Player.prototype.initialise = function(x, y, angle, holeStart) {
 	this.inputsReceived = 0;
 	this.lastSteerTick = -1;
 	this.finalTick = Infinity;
-	this.game.updatePlayerList(this.index, 'alive', null)
+	this.updateList();
 	this.context.clearRect(0, 0, this.game.width, this.game.height);	
 }
 
@@ -1622,6 +1671,11 @@ window.onload = function() {
 		game.websocket.close();
 	}, false);
 	
+	var backButton = document.getElementById('back');
+	backButton.addEventListener('click', function() {
+		game.backToGameLobby();
+	}, false);
+	
 	var startGameButton = document.getElementById('startGame');
 	startGameButton.addEventListener('click', function() { game.sendStartGame(); }, false);
 	
@@ -1723,7 +1777,7 @@ function getCookie(c_name) {
 }
 
 function setOptionVisibility(target) {
-	var sections = ['disconnect', 'stop'];
+	var sections = ['disconnect', 'stop', 'back'];
 
 	for(var i = 0; i < sections.length; i++) {
 		var elt = document.getElementById(sections[i]);

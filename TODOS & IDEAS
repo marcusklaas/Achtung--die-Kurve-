@@ -6,6 +6,8 @@ zet hier je todos en ideeen.
 
 - soms heeft input echt dikke vertraging. gebeurt als je tijd anders loopt dan de server maar nog niet is gecorrigeerd volgens mij
 
+- de game gedraagt zich anders als ie niet op de zichtbare tab staat. als je na gameover de tab bekijkt zijn de laatste paar segmenten voor elke snake niet getekend, en is de laatste botsing niet geregistreerd (geen kruis, player status nog 'alive')
+
 = niet cruciaal =
 
 - server compilen op win32

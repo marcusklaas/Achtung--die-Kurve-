@@ -686,7 +686,11 @@ void endgame(struct game *gm, struct user *winner) {
 	jsondel(json);
 
 	printf("game %p ended. winner = %d\n", (void*) gm, winner->id);
-	gm->state = GS_ENDED;
+	
+	gm->state = GS_LOBBY;
+	struct user *usr;
+	for(usr = gm->usr; usr; usr = usr->nxt)
+		usr->points = 0;
 }
 
 void endround(struct game *gm) {
