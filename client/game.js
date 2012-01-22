@@ -1220,8 +1220,10 @@ function InputController(player, left, right) {
 	}, false);
 
 	window.addEventListener('keyup', function(e) {
-		if(self.player.status != 'alive')
+		if(self.player.status != 'alive') {
+			self.leftDown = self.rightDown = false;
 			return;
+		}
 
 		if(e.keyCode == self.leftKeyCode) {
 			self.releaseLeft();
