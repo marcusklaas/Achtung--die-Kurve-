@@ -24,11 +24,14 @@ var behind = 2; // desired difference between tock and tick
 var canvasMinimumWidth = 200;
 var crossRadius = 6;
 var crossLineWidth = 2;
+var disabledColor = '#808080';
+var inputColor = 'black';
 
 var touchDevice = 'createTouch' in document;
 var safeTickDifference = 60; // TODO: should depend on 2*ping & SERVER_DELAY
 var resizeDelay = 1000; // the duration the window should have a constant size before calling resize
 var paramUpdateInterval = 500; // don't send game intervals more often that one per this many msecs
+var paramInputInterval = 2000; // wait for this duration before sending params to server after text edit
 var unlockInterval = 0; // minimum time between last changing settings and gamestart in msecs
 
 var customGameWaitMessage = 'Waiting for host to start the game..';

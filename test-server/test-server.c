@@ -340,7 +340,7 @@ callback_game(struct libwebsocket_context * context,
 
 			startgame(u->gm);
 		}
-		else if(strcmp(mode, "newInput") == 0) {
+		else if(strcmp(mode, "input") == 0) {
 			if(++(u->inputs) <= MAX_INPUTS && u->gm
 			 && u->gm->state == GS_STARTED && !u->ignoreinput)
 				interpretinput(json, u);

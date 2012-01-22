@@ -6,7 +6,7 @@ html, body, #sidebar, #game {
 }
 
 #gameContainer, #gameListContainer, #disconnect,
- #waitContainer, #status, #stop, #editor {
+ #waitContainer, #status, #stop, #editor, #back {
 	display: none;
 }
 
@@ -70,6 +70,12 @@ h2 {
 	width: 600px;
 	margin: auto;
 	text-align: right;
+}
+
+#noGames {
+	text-align: center;
+	width: 100%;
+	margin-bottom: 15px;
 }
 
 #waitContainer {
@@ -197,6 +203,14 @@ select,
   -webkit-border-radius: 3px;
   -moz-border-radius: 3px;
   border-radius: 3px;
+}
+
+/* zelf toegevoegd */
+input, textarea, select {
+	color: #000;
+}
+#chat {
+	color: #808080;
 }
 
 input, textarea {

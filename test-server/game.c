@@ -214,23 +214,27 @@ void remgame(struct game *gm) {
 }
 
 struct game *findgame(int nmin, int nmax) {
-	struct game *gm;
+	struct game *gm, *bestgame = 0;
 
 	if(DEBUG_MODE)
 		printf("findgame called \n");
 
+	// get oldest suitable game
 	for(gm = headgame; gm; gm = gm->nxt)
-		if(gm->state == GS_LOBBY && gm->nmin <= nmax && gm->nmax >= nmin && gm->type == GT_AUTO) {
-			gm->nmin = max(gm->nmin, nmin);
-			gm->nmax = min(gm->nmax, nmax);
-			gm->goal = (gm->n - 1) * TWO_PLAYER_POINTS; // c * avg pts pp pr
-			cJSON *json = getjsongamepars(gm);
-			sendjsontogame(json, gm, 0);
-			jsondel(json);
-			return gm;
-		}
-
-	return 0;
+		if(gm->state == GS_LOBBY && gm->nmin <= nmax && gm->nmax >= nmin && gm->type == GT_AUTO)
+			bestgame = gm;
+			
+	if(bestgame) {
+		gm = bestgame;
+		gm->nmin = max(gm->nmin, nmin);
+		gm->nmax = min(gm->nmax, nmax);
+		gm->goal = (gm->n - 1) * TWO_PLAYER_POINTS; // c * avg pts pp pr
+		cJSON *json = getjsongamepars(gm);
+		sendjsontogame(json, gm, 0);
+		jsondel(json);
+	}
+	
+	return bestgame;
 }
 
 // takes game id and returns the game
@@ -682,7 +686,11 @@ void endgame(struct game *gm, struct user *winner) {
 	jsondel(json);
 
 	printf("game %p ended. winner = %d\n", (void*) gm, winner->id);
-	gm->state = GS_ENDED;
+	
+	gm->state = GS_LOBBY;
+	struct user *usr;
+	for(usr = gm->usr; usr; usr = usr->nxt)
+		usr->points = 0;
 }
 
 void endround(struct game *gm) {
@@ -727,6 +735,8 @@ void endround(struct game *gm) {
 	}
 
 	if((maxpoints >= gm->goal && maxpoints >= secondpoints + MIN_WIN_DIFF) || gm->n == 1) {
+		if(!winner)
+			winner = gm->usr; // happy you!
 		endgame(gm, winner);
 	}
 	else {
@@ -882,7 +892,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 	}
 	
 	// send to other players
-	cJSON *j = jsoncreate("newInput");
+	cJSON *j = jsoncreate("input");
 	jsonaddnum(j, "tick", tick);
 	jsonaddnum(j, "playerId", usr->id);
 	jsonaddnum(j, "turn", turn);
@@ -928,9 +938,6 @@ void deleteuser(struct user *usr) {
 }
 
 /* pencil game */
-
-/* TODO: deze functie is een beetje dik.. kan ie wat opgebroken worden in
- * slankere, overzichtelijkere functies? */
 void handlepencilmsg(cJSON *json, struct user *u) {
 	struct pencil *p = &u->pencil;
 	cJSON *j = 0;

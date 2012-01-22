@@ -32,6 +32,7 @@
 			<div id="options">
 				<button id="disconnect" class="danger">Disconnect</button>
 				<button id="stop" class="danger">Leave Game</button>
+				<button id="back" class="danger">Back</button>
 
 				<label class="option" id="soundOption">
 						sound: <input type="checkbox" id="sound" checked>
@@ -67,6 +68,7 @@
 					<th>Maxplayers</th><th>Players</th></tr>
 					</thead><tbody></tbody></table>
 				</table>
+				<div id="noGames">No games active!</div>
 				<label>Minimum players: <input type="number" min="1" max="8" steps="1" value="2" id="minplayers" /></label>
 				<label>Maximum players: <input type="number" min="1" max="8" steps="1" value="8" id="maxplayers" /></label>
 				<button id="start" class="primary">Automatch</button>
