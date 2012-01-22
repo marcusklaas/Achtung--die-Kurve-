@@ -735,6 +735,8 @@ void endround(struct game *gm) {
 	}
 
 	if((maxpoints >= gm->goal && maxpoints >= secondpoints + MIN_WIN_DIFF) || gm->n == 1) {
+		if(!winner)
+			winner = gm->usr; // happy you!
 		endgame(gm, winner);
 	}
 	else {
