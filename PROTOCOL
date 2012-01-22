@@ -32,6 +32,7 @@ tick:
 = more info =
 
 - pencil -
-you start with maxInk ink. every tick you get inkPerSec * tickLength ink, taking maxInk into account.
-you have three actions: pencilDown, pencilMove and pencilUp. all are send through the pencil message. you will receive drawings from other players also through a pencil message.
+you start with maxInk ink. RE: don't you start with startInk ink, which may or may not be maxInk, depending on what server dictates?
+every tick you get inkPerSec * tickLength ink, taking maxInk into account.
+you have three actions: pencilDown, pencilMove and pencilUp. all are sent through the pencil message. you will receive drawings from other players also through a pencil message.
 

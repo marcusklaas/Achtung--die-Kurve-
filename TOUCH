@@ -1,0 +1,35 @@
+dit is een voorstel hoe de touchcontrols aan te pakken
+
+elke nieuwe touch onthouden we en geven we een rol. de belangrijkste rollen zijn
+de links- en rechtssturende rollen. als je een touch begint in een gebied links in
+het scherm, dan stuur je naar links totdat de touch stopt of buiten dat gebied 
+treed. hetzelfde voor rechts.
+
+volg de bewegingen van deze touches. deze touchevents krijgen IDs mee, zodat wanneer
+je een touchmove event krijgt je deze kan herkennen. dus zodra je rechts drukt en naar rechts begint 
+te sturen, maar je veegt naar het midden dat je dan stopt met sturen. het is nu het geval
+dat je dan naar rechts blijft sturen wanneer je stopt met de touch. (want je begint de touch
+rechts, maar stopt niet rechts)
+
+naast de linkssturende en rechtssturende rollen is er ook de pencilrol. de
+pencil rol neemt rol over van de muis. als speler dood is en mag tekenen, dan zetten we de
+pencilpositie aan de hand van de lokatie van de touch.
+
+ten slotte er de unlockrol. die is er voor wanneer je leeft en mag tekenen. zodra
+er een event is met de unlockrol, dan neemt eerstvolgende touchevent een pencilrol (als die
+niet al vervuld wordt!). dus ook als deze links of rechts start. de unlockrol wordt
+opgenomen door een touch te starten in een gegeven gebied ergens buiten de links- en
+rechtsstuurgebieden.
+
+belangrijke punten:
+- elke rol wordt hooguit 1x vervuld. touches die een rol willen opnemen die al wordt vervuld
+worden genegeerd.
+
+- een rol wordt gegeven bij het creeren van een touchevent.
+
+- elke touchevent neemt hooguit 1 rol op zich in zijn leven. voorbeeld: een linkssturende
+touch die versleept wordt naar het midden verliest zijn rol zodra hij het linkssturende 
+gebied verlaat en kan daarna geen rol meer opnemen, waar je hem ook naartoe sleept.
+
+- alle besturing wordt afgehandeld in het InputController object, de rest van spel werkt
+(op het sizen van de canvas na) onafhankelijk van de besturing.

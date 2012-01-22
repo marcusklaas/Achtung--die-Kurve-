@@ -2,9 +2,9 @@ zet hier je todos en ideeen.
 
 = cruciaal =
 
-- is het toch mogelijk om out of sync te raken met de lokale snake? 
+- is het toch mogelijk om out of sync te raken met de lokale snake?
 
-- soms heeft input echt dikke vertraging. gebeurt als je tijd anders loopt dan de server maar nog niet is gecorrigeerd volgens mij
+- soms heeft input echt dikke vertraging.
 
 - de game gedraagt zich anders als ie niet op de zichtbare tab staat. als je na gameover de tab bekijkt zijn de laatste paar segmenten voor elke snake niet getekend, en is de laatste botsing niet geregistreerd (geen kruis, player status nog 'alive')
 
@@ -12,7 +12,7 @@ zet hier je todos en ideeen.
 
 - server compilen op win32
 
-- pencil controls voor touch devices (iig wanneer dood)
+- pencil controls voor touch devices. RE: ik voorstel geschreven hoe het aan te pakken, zie TOUCH
 
 - op chrom(e/ium) werkt t disconnecten niet. ik dacht dat het bug van chrome was, maar blijkbaar is ie gefixt en komt ie door de tests
 http://code.google.com/p/chromium/issues/detail?id=93609
@@ -30,15 +30,11 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 
 - editor zo groot mogelijk en resizeable (net als gamecanvas dus)
 
-- ink indicator als canvas ipv DOM elt - ben ik mee bezig!!
-
 - we kunnen eig best zonder canvaslayer.js, deruit gooien?
 
 = opmaakdingen =
 
 - min/ max players is op t moment niet zo heel geslaagd qua positionering -- oplossingen?
-
-- lineheight fixen voor sound en radiobuttons en checkbox
 
 - elementen van tabel centreren (maar niet playernames)? is misschien mooier? ff proberen
 

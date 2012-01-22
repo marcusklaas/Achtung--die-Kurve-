@@ -38,8 +38,6 @@ function GameEngine(localPlayer, audioController) {
 	this.foregroundCanvas = document.getElementById(this.canvasStack.createLayer(2));
 	this.foregroundContext = this.foregroundCanvas.getContext('2d');
 	this.setDefaultValues(this.foregroundContext);
-	this.inkCanvas = document.getElementById(this.canvasStack.createLayer(2)); // of de inkIndicator ook gewoon op foregroundCanvas?
-	this.inkContext = this.inkCanvas.getContext('2d');
 
 	// children
 	this.localPlayerId = null;
@@ -359,7 +357,6 @@ GameEngine.prototype.removePlayer = function(index) {
 	}
 
 	this.players.splice(index, 1);
-	this.canvasStack.deleteLayer(this.players[index].canvas.id);
 }
 
 GameEngine.prototype.setHost = function(id) {
@@ -560,7 +557,7 @@ GameEngine.prototype.setParams = function(obj) {
 			url = url.substr(0, hashPos);
 		url += '#game=' + obj.id;
 
-		document.getElementById('friendInviter').innerHTML = 'Don\'t play alone, invite your friends by' +
+		document.getElementById('friendInviter').innerHTML = 'Invite your friends by' +
 		 ' sending them this link: ' + url;
 	}
 }
@@ -1194,19 +1191,79 @@ Player.prototype.drawIndicator = function() {
 	ctx.fill();
 }
 
-/* input control */
+/* input control for steering and drawing. now UNIFIED for both mouse/ keyboard
+ * n touch */
 function InputController(player, left, right) {	
 	this.rightKeyCode = left;
 	this.leftKeyCode = right;
 	this.player = player;
+	this.leftDown = false;
+	this.rightDown = false;
 
 	var self = this;
+	var pencil = player.game.pencil;
+	var canvas = player.game.canvasContainer;
 
 	/* listen for keyboard events */
-	window.addEventListener('keydown',
-	 function(e) { self.keyDown(e); }, false);
-	window.addEventListener('keyup',
-	 function(e) { self.keyUp(e); }, false);
+	window.addEventListener('keydown', function(e) {
+		if(self.player.status != 'alive')
+			return;
+
+		if(e.keyCode == self.leftKeyCode) {
+			self.pressLeft();
+			e.preventDefault();
+		}
+		else if(e.keyCode == self.rightKeyCode) {
+			self.pressRight();
+			e.preventDefault();
+		}
+	}, false);
+
+	window.addEventListener('keyup', function(e) {
+		if(self.player.status != 'alive')
+			return;
+
+		if(e.keyCode == self.leftKeyCode) {
+			self.releaseLeft();
+			e.preventDefault();
+		}
+		else if(e.keyCode == self.rightKeyCode) {
+			self.releaseRight();
+			e.preventDefault();
+		}
+	}, false);
+
+	/* listen for mouse events on canvas (not editor) */
+	canvas.addEventListener('mousedown', function(ev) {
+		if(pencil.drawingAllowed && !pencil.down && pencil.ink > mousedownInk) {
+			pencil.ink -= mousedownInk;
+			var pos = pencil.getRelativeMousePos(ev);
+			pencil.x = pos[0];
+			pencil.y = pos[1];
+			pencil.buffer.push(1);
+			pencil.buffer.push(pencil.x);
+			pencil.buffer.push(pencil.y);
+			pencil.buffer.push(pencil.game.tick);
+			pencil.down = true;
+			pencil.cur = ev; // since we handle movements in gameloop and not in mousemove
+		}
+	}, false);
+
+	canvas.addEventListener('mousemove', function(ev) {
+		if(pencil.drawingAllowed && pencil.down)
+			pencil.cur = ev;
+	}, false);
+	
+	var f = function(ev) {
+		if(pencil.drawingAllowed && pencil.down) {
+			pencil.cur = ev;
+			pencil.down = false;
+			pencil.upped = true;
+			pencil.game.focusChat();
+		}
+	};
+	canvas.addEventListener('mouseup', f, false);
+	canvas.addEventListener('mouseout', f, false);
 
 	/* register touches for fancy phones n tablets */
 	if(touchDevice) {
@@ -1217,54 +1274,52 @@ function InputController(player, left, right) {
 			var x = touch.pageX - sidebar.offsetWidth;
 			var width = canvas.clientWidth;
 			
-			if(x < 0 || player.game.gameState != 'playing')
+			if(x < 0 || player.status != 'alive')
 				return;
 			
 			var left = (x < width / 3);
 			if(x < width * 2 / 3 && !left)
 				return;
 				
-			if(start)
-				self.keyDown(left ? keyCodeLeft : keyCodeRight);
+			if(start && left)
+				self.pressLeft();
+			else if(start && !left)
+				self.pressRight();
+			else if(!start && left)
+				self.releaseLeft();
 			else
-				self.keyUp(left ? keyCodeLeft : keyCodeRight);
+				self.releaseRight();
 
 			event.preventDefault();
 		}
 
-		player.game.canvasContainer.addEventListener('touchstart', function(e) { touch(e, true); });
-		player.game.canvasContainer.addEventListener('touchend', function(e) { touch(e, false); });
+		canvas.addEventListener('touchstart', function(e) { touch(e, true); });
+		canvas.addEventListener('touchend', function(e) { touch(e, false); });
 	}	
 }
 
-InputController.prototype.keyDown = function(e) {
-	if(this.player.game == null || this.player.game.gameState != 'playing')
-		return;
-
-	var keyCode = e.keyCode;
-		
-	if(e != undefined && (keyCode == this.rightKeyCode || keyCode == this.leftKeyCode))
-		e.preventDefault();
-
-	if(keyCode == this.rightKeyCode && this.player.turn != -1) 
-		this.steerLocal(-1);
-	
-	else if(keyCode == this.leftKeyCode && this.player.turn != 1)
+InputController.prototype.pressLeft = function() {
+	if(!this.leftDown)
 		this.steerLocal(1);
+
+	this.leftDown = true;
 }
 
-InputController.prototype.keyUp = function(e) {
-	if(this.player.game == null || this.player.game.gameState != 'playing')
-		return;
+InputController.prototype.releaseLeft = function() {
+	this.steerLocal(this.rightDown ? -1 : 0);
+	this.leftDown = false;
+}
 
-	var keyCode = e.keyCode;
-		
-	if(e != undefined && (keyCode == this.rightKeyCode || keyCode == this.leftKeyCode))
-		e.preventDefault();
+InputController.prototype.pressRight = function() {
+	if(!this.rightDown)
+		this.steerLocal(-1);
 
-	if((keyCode == this.rightKeyCode && this.player.turn == -1) ||
-	 (keyCode == this.leftKeyCode && this.player.turn == 1)) 
-		this.steerLocal(0);
+	this.rightDown = true;
+}
+
+InputController.prototype.releaseRight = function() {
+	this.steerLocal(this.leftDown ? 1 : 0);
+	this.rightDown = false;
 }
 
 InputController.prototype.steerLocal = function(turn) {
@@ -1305,39 +1360,6 @@ function Pencil(game) {
 	this.inkPerSec = 0;
 	this.game = game;
 	this.indicator = document.getElementById('ink');
-	var canvas = document.getElementById(game.containerId);
-	var self = this;
-
-	canvas.addEventListener('mousedown', function(ev) {
-		if(self.drawingAllowed && !self.down && self.ink > mousedownInk) {
-			self.ink -= mousedownInk;
-			var pos = self.getRelativeMousePos(ev);
-			self.x = pos[0];
-			self.y = pos[1];
-			self.buffer.push(1);
-			self.buffer.push(self.x);
-			self.buffer.push(self.y);
-			self.buffer.push(self.game.tick);
-			self.down = true;
-			self.cur = ev; // since we handle movements in gameloop and not in mousemove
-		}
-	}, false);
-
-	canvas.addEventListener('mousemove', function(ev) {
-		if(self.drawingAllowed && self.down)
-			self.cur = ev;
-	}, false);
-	
-	var f = function(ev) {
-		if(self.drawingAllowed && self.down) {
-			self.cur = ev;
-			self.down = false;
-			self.upped = true;
-			self.game.focusChat();
-		}
-	};
-	canvas.addEventListener('mouseup', f, false);
-	canvas.addEventListener('mouseout', f, false);
 }
 
 Pencil.prototype.reset = function() {
@@ -1589,10 +1611,8 @@ window.onload = function() {
 	var audioController = new AudioController();
 	var localPlayer = new Player(playerColors[0], true, 0);
 	var game = new GameEngine(localPlayer, audioController);
+	localPlayer.game = game;
 	var inputControl = new InputController(localPlayer, keyCodeLeft, keyCodeRight);
-	
-	// just for debugging
-	echo = function(msg) { game.gameMessage(msg); };
 
 	/* add sounds to controller */
 	audioController.addSound('localDeath', 'sounds/wilhelm', ['ogg']);
@@ -1717,6 +1737,11 @@ window.onload = function() {
 		 resizeDelay);
 	}
 
+	/* ik wou dat het niet zo hoefde -- maar het moet */
+	window.onscroll = function() {
+		document.getElementById('sidebar').style.top = window.scrollY + 'px';
+	}
+
 	function sendParams(timeout, onlyAllowReplacement) {
 		return function() {
 			if(game.host != game.localPlayer || game.gameState != 'waiting')
@@ -1726,14 +1751,11 @@ window.onload = function() {
 			 * needed. ie, when we already sent the params after an onInput event.
 			 * onChange would then still fire, which is annoying if you just pressed
 			 * start game */
-			if(onlyAllowReplacement && game.paramTimeout == null)
+			if(onlyAllowReplacement && game.paramTimeout === null)
 				return;
 				
 			window.clearTimeout(game.paramTimeout);
 		
-			/* if paramTimeout != null, then a paramupdate is already scheduled
-			 * and it will pick this change as well so we dont need 2 do nething */
-			//if(game.paramTimeout === null) {
 			game.paramTimeout = window.setTimeout(function() {
 				game.sendParams();
 				game.paramTimeout = null;
@@ -1747,7 +1769,6 @@ window.onload = function() {
 			game.unlockTimeout = window.setTimeout(function() {
 				game.unlockStart();
 			}, unlockInterval + timeout);
-			//}
 		}
 	}
 
@@ -1755,10 +1776,10 @@ window.onload = function() {
 	var inputElts = document.getElementById('details').getElementsByTagName('input');
 	for(var i = 0; i < inputElts.length; i++) {
 		if(inputElts[i].type == 'text') {
-			inputElts[i].addEventListener('input', sendParams(paramInputInterval), false);
+			inputElts[i].addEventListener('input', sendParams(paramInputInterval, false), false);
 			inputElts[i].addEventListener('change', sendParams(paramUpdateInterval, true), false);
 		} else 
-			inputElts[i].addEventListener('change', sendParams(paramUpdateInterval), false);
+			inputElts[i].addEventListener('change', sendParams(paramUpdateInterval, false), false);
 	}
 }
 
