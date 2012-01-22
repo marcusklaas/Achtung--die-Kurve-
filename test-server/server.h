@@ -64,7 +64,7 @@
 #define GS_LOBBY 0
 #define GS_STARTED 1
 #define GS_REMOVING_GAME 2
-//#define GS_ENDED 3
+#define GS_ENDED 3
 
 /* http server */
 #define LOCAL_RESOURCE_PATH "../client"

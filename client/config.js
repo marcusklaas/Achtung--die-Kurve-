@@ -4,7 +4,7 @@ var keyCodeRight = 39; // right arrow button
 
 var serverURL = "ws://marcusklaas.nl:7681"; // websocket game server
 if(location.href.indexOf('localhost') != -1)
-	serverURL = "ws://localhost:" + location.href.substr(location.href.lastIndexOf(':') + 1);
+	serverURL = "ws://localhost:7681";
 else if(location.href.indexOf('82.161') != -1)
 	serverURL = "ws://82.161.20.2:7681";
 else if(location.href.indexOf('192.168.1.101') != -1)
@@ -24,8 +24,6 @@ var behind = 2; // desired difference between tock and tick
 var canvasMinimumWidth = 200;
 var crossRadius = 6;
 var crossLineWidth = 2;
-var disabledColor = '#808080';
-var inputColor = 'black';
 
 var touchDevice = 'createTouch' in document;
 var safeTickDifference = 60; // TODO: should depend on 2*ping & SERVER_DELAY

@@ -312,7 +312,7 @@ callback_game(struct libwebsocket_context * context,
 			u->gm->torus = (0 != jsongetint(json, "torus"));
 
 			cJSON *j = getjsongamepars(u->gm);
-			sendjsontogame(j, u->gm, 0); // ook host want shit kan geminmaxt zijn
+			sendjsontogame(j, u->gm, 0);
 			jsondel(j);
 		}
 		else if(!strcmp(mode, "startGame")) {

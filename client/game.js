@@ -214,11 +214,18 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.mapSegments = undefined;
 			this.resetPlayers();
 			this.addPlayer(this.localPlayer);
-			if(obj.type == 'lobby') 
+
+			if(obj.type == 'lobby') {
 				this.updateTitle('Lobby');
+				if(window.location.hash.indexOf('#game=', 0) == 0) {
+					this.joinGame(parseInt(window.location.hash.substr(6)));
+					window.location.hash = '';
+				}
+			}
 			else
 				this.nonhostContainer.innerHTML = obj.type == 'custom' ? customGameWaitMessage :
 				 autoMatchWaitMessage;
+
 			if(obj.type == 'auto')
 				this.setHost(null);
 			break;
@@ -381,10 +388,8 @@ GameEngine.prototype.setHost = function(id) {
 	this.nonhostContainer.style.display = nonhostBlock;
 
 	var inputElts = document.getElementById('details').getElementsByTagName('input');
-	for(var i = 0; i < inputElts.length; i++) {
+	for(var i = 0; i < inputElts.length; i++)
 		inputElts[i].disabled = !localHost;
-		inputElts[i].style.color = localHost ? inputColor : disabledColor;
-	}
 }
 
 GameEngine.prototype.buildGameList = function(list) {
@@ -547,6 +552,16 @@ GameEngine.prototype.setParams = function(obj) {
 
 		setPencilMode(obj.pencilmode);
 		this.updateTitle('Game ' + obj.id);
+
+		var url = new String(window.location);
+		var hashPos = url.indexOf('#', 0);
+
+		if(hashPos != -1)
+			url = url.substr(0, hashPos);
+		url += '#game=' + obj.id;
+
+		document.getElementById('friendInviter').innerHTML = 'Don\'t play alone, invite your friends by' +
+		 ' sending them this link: ' + url;
 	}
 }
 
@@ -867,8 +882,9 @@ GameEngine.prototype.appendPlayerList = function(index) {
 GameEngine.prototype.updatePlayerList = function(player) {
 	var row = document.getElementById('player' + player.index);
 
-	for(var i = 0; i < 3; i++)
-		row.childNodes[i].style.textDecoration = player.status == 'left' ? 'line-through' : 'none';
+	if(player.status == 'left')
+		row.className = 'left';
+
 	row.childNodes[1].innerHTML = player.status;
 	row.childNodes[2].innerHTML = player.points;
 }
@@ -891,7 +907,6 @@ GameEngine.prototype.sendChat = function() {
 
 	this.sendMsg('chat', {'message': msg});
 	this.chatBar.value = '';
-	this.chatBar.style.color = disabledColor;
 	this.printChat(this.localPlayerId, msg);
 }
 
@@ -1681,10 +1696,6 @@ window.onload = function() {
 	
 	game.hostContainer = document.getElementById('hostContainer');
 	game.nonhostContainer = document.getElementById('nonhostContainer');
-	
-	game.chatBar.addEventListener('focus', function() {
-		game.chatBar.style.color = inputColor;
-	}, false);
 
 	var minPlayers = getCookie('minPlayers');
 	if(minPlayers != null)

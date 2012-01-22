@@ -687,14 +687,14 @@ void endgame(struct game *gm, struct user *winner) {
 
 	printf("game %p ended. winner = %d\n", (void*) gm, winner->id);
 	
-	gm->state = GS_LOBBY;
+	gm->state = (gm->type == GT_AUTO) ? GS_ENDED : GS_LOBBY;
 	struct user *usr;
 	for(usr = gm->usr; usr; usr = usr->nxt)
 		usr->points = 0;
 }
 
 void endround(struct game *gm) {
-	struct user *usr, *winner = 0;
+	struct user *usr, *winner = gm->usr; // winner until proven otherwise
 	int maxpoints = 0, secondpoints = 0;
 	struct userinput *inp, *nxt;
 
@@ -735,8 +735,6 @@ void endround(struct game *gm) {
 	}
 
 	if((maxpoints >= gm->goal && maxpoints >= secondpoints + MIN_WIN_DIFF) || gm->n == 1) {
-		if(!winner)
-			winner = gm->usr; // happy you!
 		endgame(gm, winner);
 	}
 	else {
