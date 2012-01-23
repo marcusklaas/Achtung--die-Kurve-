@@ -4,8 +4,6 @@ zet hier je todos en ideeen.
 
 - is het toch mogelijk om out of sync te raken met de lokale snake?
 
-- soms heeft input echt dikke vertraging.
-
 - de game gedraagt zich anders als ie niet op de zichtbare tab staat. als je na gameover de tab bekijkt zijn de laatste paar segmenten voor elke snake niet getekend, en is de laatste botsing niet geregistreerd (geen kruis, player status nog 'alive')
 
 = niet cruciaal =

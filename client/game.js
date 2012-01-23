@@ -9,6 +9,7 @@ function GameEngine(localPlayer, audioController) {
 	this.behind = behind;
 	this.gameState = 'new'; // new, lobby, editing, waiting, countdown, playing, watching, ended
 	this.gameType = null;
+	this.tickLength = null;
 
 	// game properties
 	this.torus = false;
@@ -201,7 +202,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 	switch(obj.mode) {
 		case 'acceptUser':
 			this.localPlayerId = obj.playerId;
-			simStep = obj.tickLength;
+			this.tickLength = obj.tickLength;
 			this.setIndex(obj.playerId, 0);
 			break;
 		case 'joinedGame':
@@ -730,7 +731,7 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	}
 
 	var self = this;
-	this.gameloopTimeout = window.setTimeout(function() { self.realStart(); }, delay + simStep);
+	this.gameloopTimeout = window.setTimeout(function() { self.realStart(); }, delay + this.tickLength);
 	this.focusChat();
 }
 
@@ -756,7 +757,7 @@ GameEngine.prototype.realStart = function() {
 
 			if(tellert++ > 100) {
 		 		this.gameMessage("ERROR. stopping gameloop. debug information: next tick time = " +
-		 		 ((self.tick + 1) * simStep) + ", current game time = " + 
+		 		 ((self.tick + 1) * self.tickLength) + ", current game time = " + 
 		 		 (Date.now() - self.gameStartTimestamp));
 		 		return;
 		 	}
@@ -764,7 +765,7 @@ GameEngine.prototype.realStart = function() {
 			while(self.tick - self.tock >= self.behind)
 				self.doTock();
 			self.doTick();
-		} while((timeOut = (self.tick + 1) * simStep - (Date.now() - self.gameStartTimestamp)
+		} while((timeOut = (self.tick + 1) * self.tickLength - (Date.now() - self.gameStartTimestamp)
 		 + (simulateCPUlag && self.tick % 100 == 0 ? 400 : 0)) <= 0);
 
 		self.gameloopTimeout = setTimeout(gameloop, timeOut);		
@@ -1044,7 +1045,7 @@ Player.prototype.simulate = function(endTick, ctx) {
 	if(this.tick >= endTick || this.tick > this.finalTick)
 		return;
 	var input = null, sin = Math.sin(this.angle),
-	 cos = Math.cos(this.angle), step = simStep/ 1000;
+	 cos = Math.cos(this.angle), step = this.game.tickLength/ 1000;
 	var inHole = (this.tick > this.holeStart && (this.tick + this.holeStart)
 	 % (this.holeSize + this.holeFreq) < this.holeSize);
 
@@ -1395,7 +1396,7 @@ Pencil.prototype.setInk = function(ink) {
 }
 
 Pencil.prototype.doTick = function() {
-	this.setInk(this.ink + this.inkPerSec / 1000 * simStep);
+	this.setInk(this.ink + this.inkPerSec / 1000 * this.game.tickLength);
 
 	if(this.drawingAllowed && (this.down || this.upped)) {
 		pos = this.getRelativeMousePos(this.cur);
