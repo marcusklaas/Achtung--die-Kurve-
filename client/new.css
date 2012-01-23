@@ -34,9 +34,14 @@ canvas {
 	z-index: 1;
 }
 
-#baseCanvas, #editorCanvas {
+#baseCanvas {
 	background-color: #D0D0D0;
 	z-index: 0;
+}
+
+#editorCanvas {
+	background-color: #D0D0D0;
+	position: static;
 }
 
 #foregroundCanvas {
