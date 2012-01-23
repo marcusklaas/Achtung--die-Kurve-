@@ -6,11 +6,12 @@ zet hier je todos en ideeen.
 
 - soms heeft input echt dikke vertraging.
 
-- de game gedraagt zich anders als ie niet op de zichtbare tab staat. als je na gameover de tab bekijkt zijn de laatste paar segmenten voor elke snake niet getekend, en is de laatste botsing niet geregistreerd (geen kruis, player status nog 'alive')
 
 = niet cruciaal =
 
-- server compilen op win32
+- linkje werkt nog niet als je al geconnect bent (door de # laadt ie de pagina niet opnieuw, iig in firefox)
+
+- server compilen op win32 (cJSON werkt gwon met andere compiler, dus enkel onze code nog)
 
 - pencil controls voor touch devices. RE: ik voorstel geschreven hoe het aan te pakken, zie TOUCH
 

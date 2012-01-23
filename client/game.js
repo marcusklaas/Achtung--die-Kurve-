@@ -55,7 +55,7 @@ function GameEngine(localPlayer, audioController) {
 
 /* this only resets things like canvas, but keeps the player info */
 GameEngine.prototype.reset = function() {
-	this.tick = 0;
+	this.tick = -1;
 	this.tock = 0;
 	this.redraws = 0;
 	this.redrawsPrevented = 0;
@@ -244,6 +244,8 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			/* keep displaying old game for a while so ppl can see what happened */
 			var nextRoundDelay = obj.startTime + this.serverTimeDifference - this.ping
 			 + extraGameStartTimeDifference - Date.now();
+			 
+			setOptionVisibility('stop'); // in the case that it is 'back'
 
 			if(nextRoundDelay > this.countdown) {
 				var self = this;
@@ -294,6 +296,14 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;
 		case 'endRound':
 			window.clearTimeout(this.gameloopTimeout);
+			document.getElementById('inkIndicator').style.display = 'none'; // of liever niet?
+			
+			// simulate to finalTick
+			while(this.tick <= obj.finalTick)
+				this.doTick();
+			while(this.tock <= obj.finalTick)
+				this.doTock();
+			
 			var index = (obj.winnerId != -1) ? this.getIndex(obj.winnerId) : null;
 			var winner = (index != null) ? (this.players[index].playerName + ' won') : 'draw!';
 			this.setGameState('countdown');
@@ -336,7 +346,19 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.setHost(this.getIndex(obj.playerId));
 			break;
 		case 'joinFailed':
-			this.gameMessage('Could not join game: ' + obj.reason);
+			var msg;
+			switch(obj.reason) {
+				case 'notFound':
+					msg = 'game not found';
+					break;
+				case 'started':
+					msg = 'game already started';
+					break;
+				case 'full':
+					msg = 'too many players';
+					break;
+			}
+			this.gameMessage('Could not join game: ' + msg);
 			if(obj.reason == 'started')
 				document.getElementById('game' + obj.id).getElementsByTagName('button')[0].disabled = true;
 			break;
@@ -605,13 +627,14 @@ GameEngine.prototype.syncWithServer = function() {
 
 GameEngine.prototype.doTick = function() {
 	var player = this.localPlayer;
-	this.tick++;
 
 	if(this.pencilMode != 'off')
 		this.pencil.doTick();
 
 	if(player.status == 'alive')
 		player.simulate(this.tick, player.context);
+		
+	this.tick++;
 }
 
 GameEngine.prototype.doTock = function() {
@@ -620,7 +643,7 @@ GameEngine.prototype.doTock = function() {
 		if(player.status != 'alive')
 			continue;
 			
-		player.simulate(this.tock + 1, player.context);
+		player.simulate(this.tock, player.context);
 	}
 	this.tock++;
 }
@@ -741,6 +764,7 @@ GameEngine.prototype.realStart = function() {
 	this.audioController.playSound('gameStart');
 	this.setGameState('playing');
 	this.sendMsg('enableInput', {});
+	this.tick = 0;
 
 	var self = this;
 	var gameloop = function() {
@@ -826,7 +850,7 @@ GameEngine.prototype.resize = function() {
 		if(player.isLocal)
 			knownTick = player.inputsReceived > 0 ? player.inputs[player.inputsReceived - 1].tick : 0;
 		else if(player.finalTick < this.tock)
-			knownTick = player.finalTick + 1;
+			knownTick = player.finalTick;
 		else {
 			knownTick = this.tock - safeTickDifference;
 			if(player.inputs.length > 0)
@@ -834,7 +858,7 @@ GameEngine.prototype.resize = function() {
 		}
 		player.simulate(knownTick, this.baseContext);
 		player.saveLocation();
-		player.simulate(player.isLocal ? this.tick : this.tock, player.context);
+		player.simulate(player.isLocal ? this.tick - 1 : this.tock - 1, player.context);
 	}
 
 	if(this.pencilMode != 'off')
@@ -1010,7 +1034,7 @@ Player.prototype.steer = function(obj) {
 	}
 	
 	this.loadLocation();
-	var endTick = Math.min(obj.tick + 1, localTick - safeTickDifference);
+	var endTick = Math.min(obj.tick, localTick - safeTickDifference);
 	this.simulate(endTick, this.game.baseContext);
 	this.saveLocation();
 
@@ -1019,7 +1043,7 @@ Player.prototype.steer = function(obj) {
 		this.game.redraws++;
 		this.game.displayDebugStatus();
 	}
-	this.simulate(localTick, this.context);
+	this.simulate(localTick - 1, this.context);
 }
 
 Player.prototype.finalSteer = function(obj) {
@@ -1035,13 +1059,12 @@ Player.prototype.finalSteer = function(obj) {
 		return;
 	
 	this.loadLocation();
-	this.simulate(tick + 1, this.game.baseContext);
-
+	this.simulate(tick, this.game.baseContext);
 	this.context.clearRect(0, 0, this.game.width, this.game.height);
 }
 
 Player.prototype.simulate = function(endTick, ctx) {
-	if(this.tick >= endTick || this.tick > this.finalTick)
+	if(this.tick > endTick || this.tick > this.finalTick)
 		return;
 	var input = null, sin = Math.sin(this.angle),
 	 cos = Math.cos(this.angle), step = simStep/ 1000;
@@ -1058,7 +1081,7 @@ Player.prototype.simulate = function(endTick, ctx) {
 	if(this.nextInput < this.inputs.length)
 		input = this.inputs[this.nextInput];
 	
-	for(; this.tick < endTick; this.tick++) {
+	for(; this.tick <= endTick; this.tick++) {
 		if(inHole !== (this.tick > this.holeStart && (this.tick + this.holeStart)
 		 % (this.holeSize + this.holeFreq) < this.holeSize)) {
 		 	inHole = !inHole;
@@ -1206,7 +1229,7 @@ function InputController(player, left, right) {
 
 	/* listen for keyboard events */
 	window.addEventListener('keydown', function(e) {
-		if(self.player.status != 'alive')
+		if(self.player.status != 'alive' || player.game.tick == -1)
 			return;
 
 		if(e.keyCode == self.leftKeyCode) {
@@ -1220,7 +1243,7 @@ function InputController(player, left, right) {
 	}, false);
 
 	window.addEventListener('keyup', function(e) {
-		if(self.player.status != 'alive') {
+		if(self.player.status != 'alive' || player.game.tick == -1) {
 			self.leftDown = self.rightDown = false;
 			return;
 		}
@@ -1276,7 +1299,7 @@ function InputController(player, left, right) {
 			var x = touch.pageX - sidebar.offsetWidth;
 			var width = canvas.clientWidth;
 			
-			if(x < 0 || player.status != 'alive')
+			if(x < 0 || player.status != 'alive' || player.game.tick == -1)
 				return;
 			
 			var left = (x < width / 3);
@@ -1773,6 +1796,8 @@ window.onload = function() {
 			}, unlockInterval + timeout);
 		}
 	}
+	
+	echo = function(msg) { game.gameMessage(msg); }; // for debug purposes (please do not remove)
 
 	/* add event handlers to schedule paramupdate message when game options are changed */
 	var inputElts = document.getElementById('details').getElementsByTagName('input');
