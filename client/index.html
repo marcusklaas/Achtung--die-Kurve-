@@ -8,7 +8,6 @@
 		<link rel="stylesheet" type="text/css" href="new.css" />
 		<script src="config.js"></script>
 		<script src="buzz.js"></script>
-		<script src="canvaslayers.js"></script>
 		<script src="game.js"></script>
 	</head>
 	<body>
@@ -43,6 +42,9 @@
 		<div id="content">
 			<div id="gameContainer">
 				<div id="canvasContainer">
+					<canvas id="baseCanvas">Your browser does support websockets, but it does not support canvas?</canvas>
+					<canvas id="foregroundCanvas"></canvas>
+
 					<div id="inkIndicator">
 						<div id="inkWrap">
 							<div id="ink"></div>

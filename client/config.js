@@ -12,7 +12,6 @@ else if(location.href.indexOf('192.168.1.101') != -1)
 
 var gapAlpha = 0.2;
 var lineWidth = 3; // only visual, does not influence collisions
-var canvasBgcolor = '#D0D0D0';
 var lineCapStyle = 'round';
 var indicatorLength = 15;
 var indicatorArrowLength = 8;

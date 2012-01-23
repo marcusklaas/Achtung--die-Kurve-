@@ -30,13 +30,11 @@ function GameEngine(localPlayer, audioController) {
 	// canvas related
 	this.resizeNeeded = false;
 	this.scale = null; // canvas size/ game size
-	this.containerId = 'canvasContainer'; // id of DOM object that contains canvas layers
-	this.canvasContainer = document.getElementById(this.containerId);
-	this.canvasStack = new CanvasStack(this.containerId, canvasBgcolor);
-	this.baseCanvas = document.getElementById(this.canvasStack.getBackgroundCanvasId());
+	this.canvasContainer = document.getElementById('canvasContainer');
+	this.baseCanvas = document.getElementById('baseCanvas');
 	this.baseContext = this.baseCanvas.getContext('2d');
 	this.setDefaultValues(this.baseContext);
-	this.foregroundCanvas = document.getElementById(this.canvasStack.createLayer(2));
+	this.foregroundCanvas = document.getElementById('foregroundCanvas');
 	this.foregroundContext = this.foregroundCanvas.getContext('2d');
 	this.setDefaultValues(this.foregroundContext);
 
@@ -73,7 +71,7 @@ GameEngine.prototype.reset = function() {
 
 GameEngine.prototype.resetPlayers = function() {
 	for(var i = 0; i < this.players.length; i++)
-		this.canvasStack.deleteLayer(this.players[i].canvas.id);
+		this.players[i].deleteCanvas();
 
 	this.players = [];
 	this.clearPlayerList();
@@ -372,7 +370,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 
 GameEngine.prototype.removePlayer = function(index) {
 	this.splicePlayerList(index);
-	this.canvasStack.deleteLayer(this.players[index].canvas.id);
+	this.players[index].deleteCanvas();
 				
 	for(var i = index + 1; i < this.players.length; i++) {
 		document.getElementById('player' + i).id = 'player' + (i - 1);
@@ -658,13 +656,16 @@ GameEngine.prototype.doTock = function() {
 GameEngine.prototype.addPlayer = function(player) {
 	player.game = this;
 	var index = this.players.length;
-	player.canvas = document.getElementById(this.canvasStack.createLayer(1));
+	player.canvas = document.createElement('canvas');
 	player.context = player.canvas.getContext('2d');
 
 	if(player.playerId != null)
 		this.setIndex(player.playerId, index);
 	else
 		player.playerId = this.localPlayerId;
+
+	player.canvas.id = 'playerCanvas' + player.playerId;
+	this.canvasContainer.appendChild(player.canvas);
 
 	this.players.push(player);
 	this.appendPlayerList(index);
@@ -993,6 +994,10 @@ function Player(color, local, index) {
 	this.tick = 0;
 	this.index = index;
 	this.points = 0;
+}
+
+Player.prototype.deleteCanvas = function() {
+	this.context.canvas.parentNode.removeChild(this.context.canvas);
 }
 
 Player.prototype.saveLocation = function() {
@@ -1419,7 +1424,7 @@ Pencil.prototype.reset = function() {
 
 	this.inbufferSolid.length = this.inbuffer.length = this.players;
 	this.inbufferSolidIndex.length = this.players;
-	var pos = findPos(document.getElementById(this.game.containerId));
+	var pos = findPos(this.game.canvasContainer);
 	this.canvasLeft = pos[0];
 	this.canvasTop = pos[1];
 }
@@ -1545,7 +1550,6 @@ Editor = function(game) {
 	this.canvas.width = this.canvas.height = 0;
 	var self = this;
 	
-	this.canvas.style.backgroundColor = canvasBgcolor;
 	this.canvas.addEventListener('mousedown', function(ev) { self.onmouse('down', ev); }, false);
 	this.canvas.addEventListener('mousemove', function(ev) { self.onmouse('move', ev); }, false);
 	document.body.addEventListener('mouseup', function(ev) { self.onmouse('up', ev); }, false);
