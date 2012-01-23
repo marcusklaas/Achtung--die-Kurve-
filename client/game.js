@@ -554,6 +554,9 @@ GameEngine.prototype.setParams = function(obj) {
 		// TODO: set the rest of the pencils vars
 	}
 	
+	if(this.gameState == 'editing')
+		this.editor.resize();
+	
 	if(obj.type != 'lobby') {
 		document.getElementById('nmin').value = obj.nmin;
 		document.getElementById('nmax').value = obj.nmax;
@@ -664,11 +667,13 @@ GameEngine.prototype.addPlayer = function(player) {
 	this.setDefaultValues(player.context);
 }
 
-GameEngine.prototype.calcScale = function() {
+GameEngine.prototype.calcScale = function(extraVerticalSpace) {
 	var sidebar = document.getElementById('sidebar');
 	var targetWidth = Math.max(document.body.clientWidth - sidebar.offsetWidth - 1,
 	 canvasMinimumWidth);
 	var targetHeight = document.body.clientHeight - 1;
+	if(extraVerticalSpace != undefined)
+		targetHeight -= extraVerticalSpace;
 
 	if(touchDevice) {
 		targetWidth = window.innerWidth;
@@ -1530,8 +1535,9 @@ Editor = function(game) {
 	this.textField = document.getElementById('editorTextField');
 	this.pos = [0, 0];
 	this.segments = [];
+	this.canvas.width = this.canvas.height = 0;
 	var self = this;
-
+	
 	this.canvas.style.backgroundColor = canvasBgcolor;
 	this.canvas.addEventListener('mousedown', function(ev) { self.onmouse('down', ev); }, false);
 	this.canvas.addEventListener('mousemove', function(ev) { self.onmouse('move', ev); }, false);
@@ -1539,8 +1545,11 @@ Editor = function(game) {
 	this.canvas.addEventListener('mouseout', function(ev) { self.onmouse('out', ev); }, false);
 	this.canvas.addEventListener('mouseover', function(ev) { self.onmouse('over', ev); }, false);
 
-	var reset = document.getElementById('editorReset');
-	reset.addEventListener('click', function() { self.reset(); }, false);
+	this.resetButton = document.getElementById('editorReset');
+	this.resetButton.addEventListener('click', function() { 
+		this.segments = [];
+		this.resize();	
+	}, false);
 
 	var copy = document.getElementById('editorCopy');
 	copy.addEventListener('click', function() { self.copy(); }, false);
@@ -1551,19 +1560,21 @@ Editor = function(game) {
 	var start = document.getElementById('editorStart');
 	start.addEventListener('click', function() {
 		self.game.setGameState('editing');
-
-		if(self.segments.length == 0)
-			self.reset();
+		self.pos = findPos(self.canvas);
+		self.resize();
 	}, false);
 
 	var stop = document.getElementById('editorStop');
-	stop.addEventListener('click', function() { self.game.setGameState('waiting'); }, false);
+	stop.addEventListener('click', function() { 
+		self.game.setGameState('waiting'); 
+		
+		// freeing memory - is this the right way?
+		self.canvas.height = self.canvas.width = 0;
+	}, false);
 }
 
 Editor.prototype.onmouse = function(type, ev) {
-	var pos = getMousePos(ev);
-	pos[0] -= this.pos[0];
-	pos[1] -= this.pos[1];
+	var pos = this.getMousePos(ev);
 	if(type == 'down' || (this.out && type == 'over' && this.down)) {
 		this.lastPos = pos;
 		this.lastTime = Date.now();
@@ -1586,24 +1597,20 @@ Editor.prototype.onmouse = function(type, ev) {
 	}
 }
 
+Editor.prototype.getMousePos = function(ev) {
+	var pos = getMousePos(ev);
+	pos[0] -= this.pos[0];
+	pos[1] -= this.pos[1];
+	pos[0] /= this.game.scale;
+	pos[1] /= this.game.scale;
+	return pos;
+}
+
 Editor.prototype.drawSegment = function(seg) {
 	this.context.beginPath();
 	this.context.moveTo(seg.x1, seg.y1);
 	this.context.lineTo(seg.x2, seg.y2);
 	this.context.stroke();
-}
-
-Editor.prototype.reset = function() {
-	// TODO: dit moet ook zo'n soort schaling krijgen
-	// editor full size (maar nog wel ruimte voor buttons ofc)
-	this.canvas.width = this.game.width;
-	this.canvas.height = this.game.height;
-	this.context.lineWidth = 3;
-	setLineColor(this.context, mapSegmentColor, 1);
-	this.context.lineCap = 'round';
-	this.pos = findPos(this.canvas);
-	this.segments = [];
-	this.out = false;
 }
 
 Editor.prototype.copy = function() {
@@ -1622,6 +1629,26 @@ Editor.prototype.load = function() {
 		this.drawSegment(segs[i]);
 
 	this.segments = this.segments.concat(segs);
+}
+
+Editor.prototype.resize = function() {
+	var game = this.game;
+	game.calcScale(this.resetButton.offsetHeight + 6);
+	var w = Math.round(game.scale * game.width);
+	var h = Math.round(game.scale * game.height);
+	this.canvas.width = w;
+	this.canvas.height = h;
+	this.context.scale(game.scale, game.scale);
+	this.context.lineWidth = 3;
+	setLineColor(this.context, mapSegmentColor, 1);
+	this.context.lineCap = 'round';
+	
+	for(var i = 0; i < this.segments.length; i++)
+		this.drawSegment(this.segments[i]);
+		
+	// stop drawing
+	this.down = false;
+	this.out = false;
 }
 
 BasicSegment = function(x1, y1, x2, y2) {
@@ -1758,8 +1785,12 @@ window.onload = function() {
 	
 	window.onresize = function() {
 		this.clearTimeout(this.resizeTimeout);
-		this.resizeTimeout = this.setTimeout(function() { game.resizeNeeded = true; }, 
-		 resizeDelay);
+		this.resizeTimeout = this.setTimeout(function() { 
+			if(game.gameState == 'editing')
+				game.editor.resize();
+			else
+				game.resizeNeeded = true;
+		}, resizeDelay);
 	}
 
 	/* ik wou dat het niet zo hoefde -- maar het moet */
