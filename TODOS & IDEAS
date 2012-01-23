@@ -26,8 +26,6 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 
 - groeperen messages en spam protectie op elke groep
 
-- editor zo groot mogelijk en resizeable (net als gamecanvas dus)
-
 - we kunnen eig best zonder canvaslayer.js, deruit gooien?
 
 = opmaakdingen =
@@ -35,6 +33,8 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 - min/ max players is op t moment niet zo heel geslaagd qua positionering -- oplossingen?
 
 - elementen van tabel centreren (maar niet playernames)? is misschien mooier? ff proberen
+
+- scrollbar voor playerlist en chat
 
 = ideeen =
 
@@ -49,3 +49,5 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 - meerdere spelerts op zelfde computer
 
 - ai spelerts
+
+- account systeem
