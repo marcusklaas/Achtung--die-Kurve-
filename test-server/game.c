@@ -694,7 +694,7 @@ void endgame(struct game *gm, struct user *winner) {
 }
 
 void endround(struct game *gm) {
-	struct user *usr, *winner = gm->usr; // winner until proven otherwise
+	struct user *usr, *roundwinner, *winner = gm->usr; // winner until proven otherwise
 	int maxpoints = 0, secondpoints = 0;
 	struct userinput *inp, *nxt;
 
@@ -703,7 +703,7 @@ void endround(struct game *gm) {
 
 	/* give survivor his points */
 	for(usr = gm->usr; usr && !usr->alive; usr = usr->nxt);
-	if(usr)
+	if(roundwinner = usr)
 		usr->points += gm->rsn - 1;
 
 	if(SEND_SEGMENTS)
@@ -711,6 +711,7 @@ void endround(struct game *gm) {
 
 	cJSON *json = jsoncreate("endRound");
 	jsonaddnum(json, "winnerId", usr ? usr->id : -1);
+	jsonaddnum(json, "finalTick", gm->tick);
 	if(usr)
 		jsonaddnum(json, "points", usr->points);
 	sendjsontogame(json, gm, 0);
@@ -739,7 +740,7 @@ void endround(struct game *gm) {
 	}
 	else {
 		if(DEBUG_MODE)
-			printf("round of game %p ended. round winner = %d\n", (void*) gm, usr ? usr->id : -1);
+			printf("round of game %p ended. round winner = %d\n", (void*) gm, roundwinner ? roundwinner->id : -1);
 		startgame(gm);
 	}
 }
@@ -767,12 +768,13 @@ void simgame(struct game *gm) {
 		if(usr->alive && simuser(usr, gm->tick))
 			killplayer(usr, reward);
 
-	gm->tick++;
 	if(SEND_SEGMENTS && gm->tick % SEND_SEGMENTS == 0)
 		sendsegments(gm);
 	
 	if(gm->alive <= 1 && (gm->n > 1 || gm->alive < 1))
 		endround(gm);
+	else
+		gm->tick++;
 }
 
 static void resetGameChatCounters(struct game *gm) {
