@@ -1,5 +1,3 @@
-zet hier je todos en ideeen.
-
 = cruciaal =
 
 - is het toch mogelijk om out of sync te raken met de lokale snake?
@@ -22,8 +20,6 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 
 - betere geluidjes en voor wat meer dingen en ook alles in zowel ogg als mp3
 
-- toevoegen aan game settings: hole start min, hole hole start max en misschien wat andere dingen?
-
 - groeperen messages en spam protectie op elke groep
 
 - we kunnen eig best zonder canvaslayer.js, deruit gooien?
@@ -42,8 +38,6 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 
 - game mode waarbij je punten verliest als iemand door jou gaten gaat en punten krijgt als je door gaten van iemand anders gaat?
 
-- dat je ook op maps kan spelen waar bij de start al muren zijn geplaatst (en evt vaste startposities). niet willekeurig maar door ons gemaakt. want vaak wordt het spel leuk als er bv 'kamertjes' ontstaan, dus het lijkt me dat er best leuke maps gemaakt kunnen worden. optioneel nog een mode dat de spelers omstebeurt zelf ff snel een map kunnen tekenen waar dan elk 3 potjes op worden gespeeld. ook kunnen er bv 'modderplassen' in een map liggen waar je dan langzamer gaat.
-
 - een powerup mogelijk maken. en als we een powerup toevoegen zou ik zeggen dat deze erg klein moet zijn, zodat het beetje moeilijk is om hem te pakken.
 
 - meerdere spelerts op zelfde computer
@@ -51,3 +45,5 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 - ai spelerts
 
 - account systeem
+
+- game settings wat aanpassen qua opzet. voor niet hosts bijv alleen non-default waardes tonen en voor hosts dingen opdelen in categorieen die dan gehide kunnen worden. wordt anders zo'n lange lijst. er zouden eig nog wat opties bij moeten (inkmousedown, inkstart)

@@ -122,6 +122,8 @@ cJSON *getjsongamepars(struct game *gm) {
 	jsonaddnum(json, "inkcap", gm->inkcap);
 	jsonaddnum(json, "inkregen", gm->inkregen);
 	jsonaddnum(json, "inkdelay", gm->inkdelay);
+	jsonaddnum(json, "inkstart", gm->inkstart);
+	jsonaddnum(json, "inkmousedown", gm->inkmousedown);
 	
 	return json;
 }

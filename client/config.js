@@ -17,7 +17,6 @@ var lineCapStyle = 'round';
 var indicatorLength = 15;
 var indicatorArrowLength = 8;
 var indicatorArrowOffset = 2;
-var simStep = null; // in msecs, determined by server
 var syncTries = 2;
 var syncDelays = 50;
 var behind = 2; // desired difference between tock and tick
@@ -27,13 +26,17 @@ var crossLineWidth = 2;
 
 var touchDevice = 'createTouch' in document;
 var safeTickDifference = 60; // TODO: should depend on 2*ping & SERVER_DELAY
-var resizeDelay = 1000; // the duration the window should have a constant size before calling resize
+var resizeDelay = 200; // the duration the window should have a constant size before calling resize
 var paramUpdateInterval = 500; // don't send game intervals more often that one per this many msecs
 var paramInputInterval = 2000; // wait for this duration before sending params to server after text edit
 var unlockInterval = 0; // minimum time between last changing settings and gamestart in msecs
 
 var customGameWaitMessage = 'Waiting for host to start the game..';
 var autoMatchWaitMessage = 'Waiting for more players..';
+
+/* pencil */
+var inkBufferTicks = 5;
+var pencilAlpha = 0.2;
 
 /* debugging */
 var ultraVerbose = false;
@@ -44,13 +47,6 @@ var jsProfiling = false;
 var simulateCPUlag = false;
 var debugBaseContext = false; // sets different color for segments in basecontext
 var displayDebugStatus = false;
-
-/* pencil game. FIXME: al deze parameters moeten van server komen (behalve pencilAlpha) */
-var mousedownInk = 30;
-var inkBufferTicks = 5;
-var inkMinimumDistance = 5;
-var startInk = 200;
-var pencilAlpha = .2;
 
 /* editor */
 var editorStepTime = 150;

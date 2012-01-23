@@ -1,38 +1,24 @@
-/* TODO: check voor infinite loop bij maps. als het gebeurt weg map gooien 
- * en spelers dit vertellen? => nu zo dat spelers gewoon spawnen, en de
- * server probeert het niet zovaak zodat het niet veel cpu gaat kosten */
 void randomizeplayerstarts(struct game *gm) {
 	// diameter of your circle in pixels when you turn at max rate
 	int diameter = ceil(2.0 * gm->v/ gm->ts);
 	struct user *usr;
+		
+	for(usr = gm->usr; usr; usr = usr->nxt) {
+		struct seg seg;
+		int tries = 0;
 
-	if(DEBUG_MODE)
-		printf("Entered randomization\n");
-
-	if(gm->map) {
-		for(usr = gm->usr; usr; usr = usr->nxt) {
-			struct seg seg;
-			int tries = 0;
-			do {
-				usr->x = diameter + rand() % (gm->w - 2 * diameter);
-				usr->y =  diameter + rand() % (gm->h - 2 * diameter);
-				usr->angle = rand() % 628 / 100.0;
-				seg.x1 = usr->x;
-				seg.y1 = usr->y;
-				seg.x2 = cos(usr->angle) * diameter + usr->x;
-				seg.y2 = sin(usr->angle) * diameter + usr->y;
-			} while(checkcollision(gm, &seg) != -1.0 && tries++ < MAX_PLAYERSTART_TRIES);
-
-			usr->hstart = gm->hmin + rand() % (gm->hmax - gm->hmin + 1);
-		}
-	} else {
-		/* set the players locs and hstart */
-		for(usr = gm->usr; usr; usr = usr->nxt) {
+		do {
 			usr->x = diameter + rand() % (gm->w - 2 * diameter);
 			usr->y =  diameter + rand() % (gm->h - 2 * diameter);
 			usr->angle = rand() % 628 / 100.0;
-			usr->hstart = gm->hmin + rand() % (gm->hmax - gm->hmin + 1);
-		}
+			seg.x1 = usr->x;
+			seg.y1 = usr->y;
+			seg.x2 = cos(usr->angle) * diameter + usr->x;
+			seg.y2 = sin(usr->angle) * diameter + usr->y;
+		} while(gm->map && checkcollision(gm, &seg) != -1.0 && tries++ < MAX_PLAYERSTART_TRIES);
+
+		/* hstart now between 1 and 2 times usr->hsize + usr->hfreq */
+		usr->hstart = (1 + rand() % 5000/ 2500.0) * (usr->hsize + usr->hfreq);
 	}
 }
 
@@ -385,12 +371,12 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	gm->inkcap = MAX_INK;
 	gm->inkregen = INK_PER_SEC;
 	gm->inkdelay = INK_SOLID;
+	gm->inkstart = START_INK;
+	gm->inkmousedown = MOUSEDOWN_INK;
 	headgame = gm;
 
 	gm->hsize = HOLE_SIZE;
 	gm->hfreq = HOLE_FREQ;
-	gm->hmin = HOLE_START_MIN;
-	gm->hmax = HOLE_START_MAX;
 
 	// how big we should choose our tiles depends only on segment length
 	float seglen = gm->v * TICK_LENGTH / 1000.0;

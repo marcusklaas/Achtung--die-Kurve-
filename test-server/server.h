@@ -1,13 +1,11 @@
 #define EPS 0.0001
 #define GAME_WIDTH 1024
 #define GAME_HEIGHT 644
-#define TILE_SIZE_MULTIPLIER 4 // tilesize/ segmentlength
+#define TILE_SIZE_MULTIPLIER 10 // tilesize/ segmentlength
 #define VELOCITY 70 // pixels per sec
 #define TURN_SPEED 2.5 // radians per sec
 #define HOLE_SIZE 5 // in ticks
 #define HOLE_FREQ 150 // number of ticks between holes
-#define HOLE_START_MIN 50 // after how many ticks first hole may appear
-#define HOLE_START_MAX 200 // after how many ticks first hole must have appeared
 #define TICK_LENGTH 24 // in msecs
 #define SERVER_DELAY 200 // in msecs
 #define COUNTDOWN 1000 // in msecs
@@ -18,7 +16,7 @@
 #define PRE_PADDING	LWS_SEND_BUFFER_PRE_PADDING
 #define POST_PADDING LWS_SEND_BUFFER_POST_PADDING
 #define SHOW_DELAY 0
-#define MIN_WIN_DIFF 2 // minimum point lead required to win a game
+#define MIN_WIN_DIFF 1 // minimum point lead required to win a game
 #define TWO_PLAYER_POINTS 3 // points required to win two player game
 #define MAX_PLAYERSTART_TRIES 500
 #define TORUS_MODE 1
@@ -50,9 +48,8 @@
 #define MAX_INK 200
 #define START_INK MAX_INK
 #define MOUSEDOWN_INK 30
-#define INK_BUFFER_TICKS 5
+//#define INK_BUFFER_TICKS 5 -- we can remove since we will have spam protection anyway
 #define INK_MIN_DISTANCE 5
-#define INK_VISIBLE 400
 #define INK_SOLID 5000
 
 /* game types */
@@ -98,11 +95,13 @@ struct game {
 		goal, state,		// required points to win, game state, see GS_* definitions
 		tick, alive,		// #ticks that have passed, #alive players
 		hsize, hfreq,		// hole size and frequency in ticks
-		hmin, hmax,			// min/ max ticks before start of first hole
 		start, rsn,			// start in msecs after epoch, #players at round start
 		paramupd,			// servermsecs at time of last paramupdate
 		inkcap, inkregen,	// ink capacity, ink regen/ sec
-		inkdelay;			// ink harden time in msec
+		inkdelay,			// ink harden time in msec
+		inkmousedown,		// ink cost to start new line
+		inkstart;			// amount of ink you start with when you are allowed to draw
+
 	float ts;				// turning speed in radians per sec
 	struct seg **seg;		// two dimensional array of linked lists, one for each tile
 	struct user *usr, *host;// user list, game host

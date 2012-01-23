@@ -201,8 +201,10 @@ GameEngine.prototype.interpretMsg = function(msg) {
 
 	switch(obj.mode) {
 		case 'acceptUser':
+			/* cool, we are accepted. lets adopt the server constants */
 			this.localPlayerId = obj.playerId;
 			this.tickLength = obj.tickLength;
+			this.pencil.inkMinimumDistance = obj.inkMinimumDistance;
 			this.setIndex(obj.playerId, 0);
 			break;
 		case 'joinedGame':
@@ -552,7 +554,8 @@ GameEngine.prototype.setParams = function(obj) {
 	if(this.pencilMode != 'off') {
 		this.pencil.inkPerSec = obj.inkregen;
 		this.pencil.maxInk = obj.inkcap;
-		// TODO: set the rest of the pencils vars
+		this.pencil.startInk = obj.inkstart;
+		this.pencil.mousedownInk = obj.inkmousedown;
 	}
 	
 	if(this.gameState == 'editing')
@@ -1266,8 +1269,8 @@ function InputController(player, left, right) {
 
 	/* listen for mouse events on canvas (not editor) */
 	canvas.addEventListener('mousedown', function(ev) {
-		if(pencil.drawingAllowed && !pencil.down && pencil.ink > mousedownInk) {
-			pencil.ink -= mousedownInk;
+		if(pencil.drawingAllowed && !pencil.down && pencil.ink > pencil.mousedownInk) {
+			pencil.ink -= pencil.mousedownInk;
 			var pos = pencil.getRelativeMousePos(ev);
 			pencil.x = pos[0];
 			pencil.y = pos[1];
@@ -1389,6 +1392,9 @@ AudioController.prototype.playSound = function(name) {
 function Pencil(game) {
 	this.maxInk = 0;
 	this.inkPerSec = 0;
+	this.startInk = 0;
+	this.mousedownInk = 0;
+	this.inkMinimumDistance = 0;
 	this.game = game;
 	this.indicator = document.getElementById('ink');
 }
@@ -1402,7 +1408,7 @@ Pencil.prototype.reset = function() {
 	this.inbuffer = [];
 	this.inbufferSolid = [];
 	this.inbufferSolidIndex = [];
-	this.setInk(startInk);
+	this.setInk(this.startInk);
 	this.players = this.game.players.length;
 
 	for(var i = 0; i < this.players; i++) {
@@ -1432,7 +1438,7 @@ Pencil.prototype.doTick = function() {
 		var y = pos[1];
 		var d = getLength(x - this.x, y - this.y);
 
-		if(this.upped || d >= inkMinimumDistance) {
+		if(this.upped || d >= this.inkMinimumDistance) {
 			if(this.ink < d) {
 				// shorten move
 				var a = x - this.x;
