@@ -274,6 +274,8 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'playerLeft':
 			var index = this.getIndex(obj.playerId);
 			var player = this.players[index];
+			obj.playerLeft = true;
+			player.finalSteer(obj);
 			if(this.gameState != 'lobby')
 				this.gameMessage(player.playerName + " left the game");
 
@@ -784,9 +786,6 @@ GameEngine.prototype.realStart = function() {
 		do {
 			if(self.gameState != 'playing' && self.gameState != 'watching')
 				return;
-				
-			if(self.resizeNeeded)
-				self.resize();
 
 			if(tellert++ > 100) {
 		 		this.gameMessage("ERROR. stopping gameloop. debug information: next tick time = " +
@@ -822,7 +821,6 @@ GameEngine.prototype.drawMapSegments = function() {
 }
 
 GameEngine.prototype.resize = function() {
-	this.resizeNeeded = false;
 	this.calcScale();
 	var scaledWidth = Math.round(this.scale * this.width);
 	var scaledHeight = Math.round(this.scale * this.height)
@@ -858,7 +856,7 @@ GameEngine.prototype.resize = function() {
 		player.nextInput = 0;
 		var knownTick;
 		if(player.isLocal)
-			knownTick = player.inputsReceived > 0 ? player.inputs[player.inputsReceived - 1].tick : 0;
+			knownTick = player.inputsReceived > 0 ? player.inputs[player.inputsReceived - 1].tick : -1;
 		else if(player.finalTick < this.tock)
 			knownTick = player.finalTick;
 		else {
@@ -1066,7 +1064,16 @@ Player.prototype.finalSteer = function(obj) {
 	
 	for(var i = this.inputs.length - 1; i >= 0 && this.inputs[i].tick >= tick; i--);
 	this.inputs.length = i + 2;
-	this.inputs[i + 1] = {'tick': tick, 'finalTurn': true, 'x': obj.x, 'y': obj.y};
+	
+	var input = {'tick': tick, 'finalTurn': true};
+	if(obj.playerLeft)
+		input.playerLeft = true;
+	else {
+		input.x = obj.x;
+		input.y = obj.y;
+	}
+	this.inputs[i + 1] = input;
+	
 	this.finalTick = tick;
 
 	if(tick >= localTick)
@@ -1110,12 +1117,14 @@ Player.prototype.simulate = function(endTick, ctx) {
 
 		if(input != null && input.tick == this.tick) {
 			if(input.finalTurn) {
-				this.x = input.x;
-				this.y = input.y;
-				ctx.lineTo(this.x, this.y);
-				ctx.stroke();
-				if(this.status == 'alive')
+				if(!input.playerLeft) {
+					this.x = input.x;
+					this.y = input.y;
+					ctx.lineTo(this.x, this.y);
+					ctx.stroke();
 					this.simulateDead();
+				} else
+					ctx.stroke();
 				this.tick++; // so that this.tick > this.finalTick
 				return;
 			} else {
@@ -1154,12 +1163,17 @@ Player.prototype.simulate = function(endTick, ctx) {
 }
 
 Player.prototype.simulateDead = function() {
-	this.status = 'dead';
-	this.updateList();
-	if(this.index == 0) {
-		this.game.setGameState('watching');
-		this.game.audioController.playSound('localDeath');
+	if(this.status == 'alive') {
+		this.status = 'dead';
+		this.updateList();
+		
+		if(this.index == 0) {
+			this.game.setGameState('watching');
+			this.game.audioController.playSound('localDeath');
+		}
 	}
+	
+	// draw cross
 	var ctx = this.game.foregroundContext;
 	setLineColor(ctx, [0,0,0], 1);
 	ctx.lineWidth = crossLineWidth;
@@ -1177,26 +1191,26 @@ Player.prototype.updateList = function() {
 }
 
 Player.prototype.initialise = function(x, y, angle, holeStart) {
-	this.startVelocity = this.lcvelocity = this.velocity = this.game.velocity;
+	this.startVelocity = this.velocity = this.game.velocity;
 	this.turnSpeed = this.game.turnSpeed;
 	this.holeStart = holeStart;
 	this.holeSize = this.game.holeSize;
 	this.holeFreq = this.game.holeFreq;
 	this.status = 'alive';
-	this.startX = this.lcx = this.x = x;
-	this.startY = this.lcy = this.y = y;
-	this.lctick = this.nextInput = 0;
-	this.lcnextInput = 0;
-	this.startAngle = this.lca = this.angle = angle;
-	this.turn = this.lcturn = 0;
+	this.startX = this.x = x;
+	this.startY = this.y = y;
+	this.nextInput = 0;
+	this.startAngle = this.angle = angle;
+	this.turn = 0;
 	this.inputs = [];
 	this.tick = 0;
-	this.lcnextInput = this.nextInput = 0;
+	this.nextInput = 0;
 	this.inputsReceived = 0;
 	this.lastSteerTick = -1;
 	this.finalTick = Infinity;
 	this.updateList();
 	this.context.clearRect(0, 0, this.game.width, this.game.height);	
+	this.saveLocation();
 }
 
 Player.prototype.drawIndicator = function() {
@@ -1799,8 +1813,9 @@ window.onload = function() {
 		this.resizeTimeout = this.setTimeout(function() { 
 			if(game.gameState == 'editing')
 				game.editor.resize();
-			else
-				game.resizeNeeded = true;
+			else if (game.gameState == 'playing' || game.gameState == 'watching' || 
+			 game.gameState == 'ended')
+				game.resize();
 		}, resizeDelay);
 	}
 
