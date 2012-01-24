@@ -8,7 +8,7 @@
 
 - server compilen op win32 (cJSON werkt gwon met andere compiler, dus enkel onze code nog)
 
-- pencil controls voor touch devices. RE: ik voorstel geschreven hoe het aan te pakken, zie TOUCH
+- pencil controls voor touch devices. // DOOR MARCUS TE DOEN OP 24 JAN 2012
 
 - op chrom(e/ium) werkt t disconnecten niet. ik dacht dat het bug van chrome was, maar blijkbaar is ie gefixt en komt ie door de tests
 http://code.google.com/p/chromium/issues/detail?id=93609
@@ -22,7 +22,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 
 - groeperen messages en spam protectie op elke groep
 
-- back na game met custom toon map
+- toon map in editor na het backgaan in custom game
 
 = opmaakdingen =
 

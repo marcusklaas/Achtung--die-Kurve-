@@ -175,6 +175,7 @@ GameEngine.prototype.joinGame = function(gameId) {
 
 GameEngine.prototype.joinLobby = function(player) {
 	this.sendMsg('joinLobby', {'playerName': player.playerName});
+	player.playerName = escapeString(player.playerName);
 }
 
 GameEngine.prototype.updateTitle = function(title) {
@@ -1819,9 +1820,9 @@ window.onload = function() {
 		}, resizeDelay);
 	}
 
-	/* ik wou dat het niet zo hoefde -- maar het moet */
+	/* nu is het nicer */
 	window.onscroll = function() {
-		document.getElementById('sidebar').style.top = window.scrollY + 'px';
+		document.getElementById('sidebar').style.left = -window.scrollX + 'px';
 	}
 
 	function sendParams(timeout, onlyAllowReplacement) {
