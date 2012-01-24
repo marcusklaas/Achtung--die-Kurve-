@@ -1247,8 +1247,6 @@ Player.prototype.drawIndicator = function() {
 function touchEvent(x, y, identifier) {
 	this.startX = x;
 	this.startY = y;
-	this.x = x;
-	this.y = y;
 	this.identifier = identifier;
 }
 
@@ -1302,23 +1300,30 @@ function InputController(player, left, right) {
 	}, false);
 
 	/* listen for mouse events on canvas (not editor) */
-	canvas.addEventListener('mousedown', function(ev) {
+	canvas.addEventListener('mousedown', function(e) {
 		if(pencil.drawingAllowed && !pencil.down && pencil.ink > pencil.mousedownInk)
-			pencil.startDraw(getPos(ev));
+			pencil.startDraw(pencil.getRelativePos(e));
 	}, false);
 
-	canvas.addEventListener('mousemove', function(ev) {
-		if(pencil.drawingAllowed && pencil.down)
-			pencil.cur = ev;
+	canvas.addEventListener('mousemove', function(e) {
+		if(pencil.drawingAllowed && pencil.down) {
+			var pos = pencil.getRelativePos(e);
+			pencil.curX = pos[0];
+			pencil.curY = pos[1];
+		}
 	}, false);
 	
-	var stopDraw = function(ev) {
+	var stopDraw = function(e) {
 		if(pencil.drawingAllowed && pencil.down) {
-			pencil.cur = ev;
+			var pos = pencil.getRelativePos(e);
+			pencil.curX = pos[0];
+			pencil.curY = pos[1];
+
 			pencil.down = false;
 			pencil.upped = true;
-			pencil.game.focusChat(); // dit kan misschien op touchDevices zorgen
-			// dat de pagina naar linx scrollt -- da's niet de bedoeling
+
+			if(!touchDevice)
+				pencil.game.focusChat();
 		}
 	};
 	canvas.addEventListener('mouseup', stopDraw, false);
@@ -1330,10 +1335,10 @@ function InputController(player, left, right) {
 			if(player.status != 'alive' || game.tick == -1)
 				return;
 
-			for(var i = 0; i < e.changedTouches; i++) {
+			for(var i = 0; i < e.changedTouches.length; i++) {
 				var touch = event.changedTouches[i];
-				var pos = getPos(e);
-				var totalWidth = canvas.clientWidth;
+				var pos = pencil.getRelativePos(e);
+				var totalWidth = canvas.game.width;
 				var left = (pos[0] <= totalWidth * steerBoxSize);
 				var right = (pos[0] >= (1 - steerBoxSize) * totalWidth);
 
@@ -1348,18 +1353,20 @@ function InputController(player, left, right) {
 				}
 
 				else if(!left && !right && self.pencilTouch === null &&
-				 !pencil.down && pencil.ink > pencil.mousedownInks) {
+				 !pencil.down && pencil.ink > pencil.mousedownInk) {
 					self.pencilTouch = new touchEvent(pos[0], pos[1], touch.identifier);
-					pencil.startDraw(getPos(ev));
+					pencil.startDraw(pencil.getRelativePos(e));
 				}
 			}
+
+			e.preventDefault();
 		});
 
 		canvas.addEventListener('touchend', function(e) {
 			if(player.status != 'alive' || player.game.tick == -1)
 				return;
 
-			for(var i = 0; i < e.changedTouches; i++) {
+			for(var i = 0; i < e.changedTouches.length; i++) {
 				var touch = event.changedTouches[i];
 
 				if(self.leftTouch != null &&
@@ -1380,28 +1387,29 @@ function InputController(player, left, right) {
 					self.pencilTouch = null;
 				}
 			}
+
+			e.preventDefault();
 		});
 
 		canvas.addEventListener('touchmove', function(e) {
 			if(player.status != 'alive' || player.game.tick == -1)
 				return;
 
-			for(var i = 0; i < e.changedTouches; i++) {
+			for(var i = 0; i < e.changedTouches.length; i++) {
 				var touch = event.changedTouches[i];
-				var pos = getPos(e);
-				var totalWidth = canvas.clientWidth;
+				var pos = pencil.getRelativePos(e);
+				var totalWidth = canvas.game.width;
 				var left = (pos[0] <= totalWidth * steerBoxSize);
 				var right = (pos[0] >= (1 - steerBoxSize) * totalWidth);
 
 				if(touch.identifier == self.leftTouch.identifier) {
-					var convert = (length(pos[0], pos[1], self.leftTouch.startX, self.leftTouch.startY)
-					 >= pencil.inkMinimumDistance * game.scale && self.pencilTouch === null &&
-				 	 !pencil.down && pencil.ink > pencil.mousedownInks);
+					var convert = (getLength(pos[0] - self.leftTouch.startX, pos[1] - self.leftTouch.startY) >= pencilTreshold
+					 && self.pencilTouch == null && !pencil.down && pencil.ink > pencil.mousedownInk);
 
 					/* convert this touch to pencil touch */
 					if(convert) {
 						self.pencilTouch = new touchEvent(pos[0], pos[1], touch.identifier);
-						pencil.startDraw([self.leftTocuh.startX, self.leftTouch.startY]);
+						pencil.startDraw(pos);
 					}
 
 					if(convert || !left) {
@@ -1411,13 +1419,12 @@ function InputController(player, left, right) {
 				}
 
 				else if(touch.identifier == self.rightTouch.identifier) {
-					var convert = (length(pos[0], pos[1], self.rightTouch.startX, self.rightTouch.startY)
-					 >= pencil.inkMinimumDistance * game.scale && self.pencilTouch === null &&
-				 	 !pencil.down && pencil.ink > pencil.mousedownInks);
+					var convert = (getLength(pos[0] - self.leftTouch.startX, pos[1] - self.leftTouch.startY) >= pencilTreshold
+					 && self.pencilTouch == null && !pencil.down && pencil.ink > pencil.mousedownInk);
 
 					if(convert) {
 						self.pencilTouch = new touchEvent(pos[0], pos[1], touch.identifier);
-						pencil.startDraw([self.leftTocuh.startX, self.leftTouch.startY]);
+						pencil.startDraw(pos);
 					}
 
 					if(convert || !right) {
@@ -1427,11 +1434,14 @@ function InputController(player, left, right) {
 				}
 
 				else if(touch.identifier == self.pencilTouch.identifier)
-					if(pencil.drawingAllowed && pencil.down)
-						pencil.cur = e;
-
-				e.preventDefault();
+					if(pencil.drawingAllowed && pencil.down) {
+						var pos = pencil.getRelativePos(e);
+						pencil.curX = pos[0];
+						pencil.curY = pos[1];
+					}
 			}
+
+			e.preventDefault();
 		});
 	}	
 }
@@ -1503,17 +1513,16 @@ function Pencil(game) {
 	this.indicator = document.getElementById('ink');
 }
 
-Pencil.prototype.startDraw = function(absPos) {
+/* pos is scaled location */
+Pencil.prototype.startDraw = function(pos) {
 	this.ink -= this.mousedownInk;
-	var pos = this.relativatePos(absPos);
-	this.x = pos[0];
-	this.y = pos[1];
+	this.curX = this.x = pos[0];
+	this.curY = this.y = pos[1];
 	this.buffer.push(1);
 	this.buffer.push(this.x);
 	this.buffer.push(this.y);
 	this.buffer.push(this.game.tick);
 	this.down = true;
-	this.cur = {pageX: absPos[0], pageY: absPos[1]}; // this is nasty trick, but should work
 }
 
 Pencil.prototype.reset = function() {
@@ -1550,9 +1559,8 @@ Pencil.prototype.doTick = function() {
 	this.setInk(this.ink + this.inkPerSec / 1000 * this.game.tickLength);
 
 	if(this.drawingAllowed && (this.down || this.upped)) {
-		pos = this.getRelativePos(this.cur);
-		var x = pos[0];
-		var y = pos[1];
+		var x = this.curX;
+		var y = this.curY;
 		var d = getLength(x - this.x, y - this.y);
 
 		if(this.upped || d >= this.inkMinimumDistance) {
