@@ -234,7 +234,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'newPlayer':
 			var newPlayer = new Player(playerColors[this.players.length], false, this.players.length);
 			newPlayer.playerId = obj.playerId;
-			newPlayer.playerName = obj.playerName;
+			newPlayer.playerName = escapeString(obj.playerName);
 			this.addPlayer(newPlayer);
 			this.audioController.playSound('newPlayer');
 			break;
@@ -470,7 +470,7 @@ GameEngine.prototype.buildGameList = function(list) {
 }
 
 GameEngine.prototype.printChat = function(playerId, message) {
-	var escaped = String(message).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+	var escaped = escapeString(message);
 	var container = document.getElementById('messages');
 	var elt = document.createElement('li');
 	var nameContainer = document.createElement('span');
@@ -1950,6 +1950,10 @@ function findPos(obj) {
 		} while (obj = obj.offsetParent);
 	}
 	return [curleft, curtop];
+}
+
+function escapeString(str) {
+	return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function getMousePos(e) {
