@@ -10,6 +10,7 @@ else if(location.href.indexOf('82.161') != -1)
 else if(location.href.indexOf('192.168.1.101') != -1)
 	serverURL = "ws://192.168.1.101:7681";
 
+/* visual stuff */
 var gapAlpha = 0.2;
 var lineWidth = 3; // only visual, does not influence collisions
 var lineCapStyle = 'round';
@@ -23,7 +24,6 @@ var canvasMinimumWidth = 200;
 var crossRadius = 6;
 var crossLineWidth = 2;
 
-var touchDevice = 'createTouch' in document;
 var safeTickDifference = 60; // TODO: should depend on 2*ping & SERVER_DELAY
 var resizeDelay = 200; // the duration the window should have a constant size before calling resize
 var paramUpdateInterval = 500; // don't send game intervals more often that one per this many msecs
@@ -32,6 +32,10 @@ var unlockInterval = 0; // minimum time between last changing settings and games
 
 var customGameWaitMessage = 'Waiting for host to start the game..';
 var autoMatchWaitMessage = 'Waiting for more players..';
+
+/* touch */
+var touchDevice = 'createTouch' in document;
+var steerBoxSize = 0.15;
 
 /* pencil */
 var inkBufferTicks = 5;

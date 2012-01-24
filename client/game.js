@@ -1243,6 +1243,15 @@ Player.prototype.drawIndicator = function() {
 	ctx.fill();
 }
 
+/* this is object for storing touch info */
+function touchEvent(x, y, identifier) {
+	this.startX = x;
+	this.startY = y;
+	this.x = x;
+	this.y = y;
+	this.identifier = identifier;
+}
+
 /* input control for steering and drawing. now UNIFIED for both mouse/ keyboard
  * n touch */
 function InputController(player, left, right) {	
@@ -1252,13 +1261,18 @@ function InputController(player, left, right) {
 	this.leftDown = false;
 	this.rightDown = false;
 
+	this.leftTouch = null;
+	this.rightTouch = null;
+	this.pencilTouch = null;
+
 	var self = this;
+	var game = player.game;
 	var pencil = player.game.pencil;
 	var canvas = player.game.canvasContainer;
 
 	/* listen for keyboard events */
 	window.addEventListener('keydown', function(e) {
-		if(self.player.status != 'alive' || player.game.tick == -1)
+		if(self.player.status != 'alive' || game.tick == -1)
 			return;
 
 		if(e.keyCode == self.leftKeyCode) {
@@ -1272,7 +1286,7 @@ function InputController(player, left, right) {
 	}, false);
 
 	window.addEventListener('keyup', function(e) {
-		if(self.player.status != 'alive' || player.game.tick == -1) {
+		if(self.player.status != 'alive' || game.tick == -1) {
 			self.leftDown = self.rightDown = false;
 			return;
 		}
@@ -1289,18 +1303,8 @@ function InputController(player, left, right) {
 
 	/* listen for mouse events on canvas (not editor) */
 	canvas.addEventListener('mousedown', function(ev) {
-		if(pencil.drawingAllowed && !pencil.down && pencil.ink > pencil.mousedownInk) {
-			pencil.ink -= pencil.mousedownInk;
-			var pos = pencil.getRelativeMousePos(ev);
-			pencil.x = pos[0];
-			pencil.y = pos[1];
-			pencil.buffer.push(1);
-			pencil.buffer.push(pencil.x);
-			pencil.buffer.push(pencil.y);
-			pencil.buffer.push(pencil.game.tick);
-			pencil.down = true;
-			pencil.cur = ev; // since we handle movements in gameloop and not in mousemove
-		}
+		if(pencil.drawingAllowed && !pencil.down && pencil.ink > pencil.mousedownInk)
+			pencil.startDraw(getPos(ev));
 	}, false);
 
 	canvas.addEventListener('mousemove', function(ev) {
@@ -1308,47 +1312,127 @@ function InputController(player, left, right) {
 			pencil.cur = ev;
 	}, false);
 	
-	var f = function(ev) {
+	var stopDraw = function(ev) {
 		if(pencil.drawingAllowed && pencil.down) {
 			pencil.cur = ev;
 			pencil.down = false;
 			pencil.upped = true;
-			pencil.game.focusChat();
+			pencil.game.focusChat(); // dit kan misschien op touchDevices zorgen
+			// dat de pagina naar linx scrollt -- da's niet de bedoeling
 		}
 	};
-	canvas.addEventListener('mouseup', f, false);
-	canvas.addEventListener('mouseout', f, false);
+	canvas.addEventListener('mouseup', stopDraw, false);
+	canvas.addEventListener('mouseout', stopDraw, false);
 
 	/* register touches for fancy phones n tablets */
 	if(touchDevice) {
-		var sidebar = document.getElementById('sidebar');
-		
-		function touch(event, start) {
-			var touch = event.changedTouches[0];
-			var x = touch.pageX - sidebar.offsetWidth;
-			var width = canvas.clientWidth;
-			
-			if(x < 0 || player.status != 'alive' || player.game.tick == -1)
+		canvas.addEventListener('touchstart', function(e) {
+			if(player.status != 'alive' || game.tick == -1)
 				return;
-			
-			var left = (x < width / 3);
-			if(x < width * 2 / 3 && !left)
+
+			for(var i = 0; i < e.changedTouches; i++) {
+				var touch = event.changedTouches[i];
+				var pos = getPos(e);
+				var totalWidth = canvas.clientWidth;
+				var left = (pos[0] <= totalWidth * steerBoxSize);
+				var right = (pos[0] >= (1 - steerBoxSize) * totalWidth);
+
+				if(left && self.leftTouch === null) {
+					self.leftTouch = new touchEvent(pos[0], pos[1], touch.identifier);
+					self.pressLeft();
+				}
+
+				else if(right && self.rightTouch === null) {
+					self.rightTouch = new touchEvent(pos[0], pos[1], touch.identifier);
+					self.pressRight();
+				}
+
+				else if(!left && !right && self.pencilTouch === null &&
+				 !pencil.down && pencil.ink > pencil.mousedownInks) {
+					self.pencilTouch = new touchEvent(pos[0], pos[1], touch.identifier);
+					pencil.startDraw(getPos(ev));
+				}
+			}
+		});
+
+		canvas.addEventListener('touchend', function(e) {
+			if(player.status != 'alive' || player.game.tick == -1)
 				return;
-				
-			if(start && left)
-				self.pressLeft();
-			else if(start && !left)
-				self.pressRight();
-			else if(!start && left)
-				self.releaseLeft();
-			else
-				self.releaseRight();
 
-			event.preventDefault();
-		}
+			for(var i = 0; i < e.changedTouches; i++) {
+				var touch = event.changedTouches[i];
 
-		canvas.addEventListener('touchstart', function(e) { touch(e, true); });
-		canvas.addEventListener('touchend', function(e) { touch(e, false); });
+				if(self.leftTouch != null &&
+				 touch.identifier == self.leftTouch.identifier) {
+					self.releaseLeft();
+					self.leftTouch = null;
+				}
+
+				else if(self.rightTouch != null &&
+				 touch.identifier == self.rightTouch.identifier) {
+					self.releaseRight();
+					self.rightTouch = null;
+				}
+
+				else if(self.pencilTouch != null &&
+				 touch.identifier == self.pencilTouch.identifier) {
+					stopDraw(e);
+					self.pencilTouch = null;
+				}
+			}
+		});
+
+		canvas.addEventListener('touchmove', function(e) {
+			if(player.status != 'alive' || player.game.tick == -1)
+				return;
+
+			for(var i = 0; i < e.changedTouches; i++) {
+				var touch = event.changedTouches[i];
+				var pos = getPos(e);
+				var totalWidth = canvas.clientWidth;
+				var left = (pos[0] <= totalWidth * steerBoxSize);
+				var right = (pos[0] >= (1 - steerBoxSize) * totalWidth);
+
+				if(touch.identifier == self.leftTouch.identifier) {
+					var convert = (length(pos[0], pos[1], self.leftTouch.startX, self.leftTouch.startY)
+					 >= pencil.inkMinimumDistance * game.scale && self.pencilTouch === null &&
+				 	 !pencil.down && pencil.ink > pencil.mousedownInks);
+
+					/* convert this touch to pencil touch */
+					if(convert) {
+						self.pencilTouch = new touchEvent(pos[0], pos[1], touch.identifier);
+						pencil.startDraw([self.leftTocuh.startX, self.leftTouch.startY]);
+					}
+
+					if(convert || !left) {
+						self.releaseLeft();
+						self.leftTouch = null;
+					}
+				}
+
+				else if(touch.identifier == self.rightTouch.identifier) {
+					var convert = (length(pos[0], pos[1], self.rightTouch.startX, self.rightTouch.startY)
+					 >= pencil.inkMinimumDistance * game.scale && self.pencilTouch === null &&
+				 	 !pencil.down && pencil.ink > pencil.mousedownInks);
+
+					if(convert) {
+						self.pencilTouch = new touchEvent(pos[0], pos[1], touch.identifier);
+						pencil.startDraw([self.leftTocuh.startX, self.leftTouch.startY]);
+					}
+
+					if(convert || !right) {
+						self.releaseRight();
+						self.rightTouch = null;
+					}
+				}
+
+				else if(touch.identifier == self.pencilTouch.identifier)
+					if(pencil.drawingAllowed && pencil.down)
+						pencil.cur = e;
+
+				e.preventDefault();
+			}
+		});
 	}	
 }
 
@@ -1419,6 +1503,19 @@ function Pencil(game) {
 	this.indicator = document.getElementById('ink');
 }
 
+Pencil.prototype.startDraw = function(absPos) {
+	this.ink -= this.mousedownInk;
+	var pos = this.relativatePos(absPos);
+	this.x = pos[0];
+	this.y = pos[1];
+	this.buffer.push(1);
+	this.buffer.push(this.x);
+	this.buffer.push(this.y);
+	this.buffer.push(this.game.tick);
+	this.down = true;
+	this.cur = {pageX: absPos[0], pageY: absPos[1]}; // this is nasty trick, but should work
+}
+
 Pencil.prototype.reset = function() {
 	this.drawingAllowed = (this.game.pencilMode == 'on');
 	document.getElementById('inkIndicator').style.display = this.drawingAllowed ? 'block' : 'none';
@@ -1453,7 +1550,7 @@ Pencil.prototype.doTick = function() {
 	this.setInk(this.ink + this.inkPerSec / 1000 * this.game.tickLength);
 
 	if(this.drawingAllowed && (this.down || this.upped)) {
-		pos = this.getRelativeMousePos(this.cur);
+		pos = this.getRelativePos(this.cur);
 		var x = pos[0];
 		var y = pos[1];
 		var d = getLength(x - this.x, y - this.y);
@@ -1541,15 +1638,20 @@ Pencil.prototype.handleMessage = function(ar) {
 	}
 }
 
-Pencil.prototype.getRelativeMousePos = function(ev) {
-	var pos = getMousePos(ev);
-	pos[0] -= this.canvasLeft;
-	pos[1] -= this.canvasTop;
-	pos[0] /= this.game.scale;
-	pos[1] /= this.game.scale;
-	pos[0] = Math.round(Math.max(Math.min(this.game.width, pos[0]), 0));
-	pos[1] = Math.round(Math.max(Math.min(this.game.height, pos[1]), 0));
-	return pos;
+Pencil.prototype.relativatePos = function(pos) {
+	vec = pos.slice(0); // make copy since pos is passed by reference!
+
+	vec[0] -= this.canvasLeft;
+	vec[1] -= this.canvasTop;
+	vec[0] /= this.game.scale;
+	vec[1] /= this.game.scale;
+	vec[0] = Math.round(Math.max(Math.min(this.game.width, vec[0]), 0));
+	vec[1] = Math.round(Math.max(Math.min(this.game.height, vec[1]), 0));
+	return vec;
+}
+
+Pencil.prototype.getRelativePos = function(ev) {
+	return this.relativatePos(getPos(ev));
 }
 
 /* Map editor */
@@ -1600,13 +1702,15 @@ Editor = function(game) {
 }
 
 Editor.prototype.onmouse = function(type, ev) {
-	var pos = this.getMousePos(ev);
+	var pos = this.getPos(ev);
+
 	if(type == 'down' || (this.out && type == 'over' && this.down)) {
 		this.lastPos = pos;
 		this.lastTime = Date.now();
 		this.out = false;
 		this.down = true;
 	}
+
 	else if(this.down && (type == 'out' || type == 'up' || 
 	 (type == 'move' && Date.now() - this.lastTime > editorStepTime))) {
 	 	if(!this.out) {
@@ -1623,8 +1727,8 @@ Editor.prototype.onmouse = function(type, ev) {
 	}
 }
 
-Editor.prototype.getMousePos = function(ev) {
-	var pos = getMousePos(ev);
+Editor.prototype.getPos = function(ev) {
+	var pos = getPos(ev);
 	pos[0] -= this.pos[0];
 	pos[1] -= this.pos[1];
 	pos[0] /= this.game.scale;
@@ -1957,10 +2061,12 @@ function escapeString(str) {
 	return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function getMousePos(e) {
+function getPos(e) {
 	var posx = 0;
 	var posy = 0;
+
 	if (!e) var e = window.event;
+
 	if (e.pageX || e.pageY) {
 		posx = e.pageX;
 		posy = e.pageY;
@@ -1971,6 +2077,6 @@ function getMousePos(e) {
 		posy = e.clientY + document.body.scrollTop
 			+ document.documentElement.scrollTop;
 	}
-	// posx and posy contain the mouse position relative to the document
+
 	return [posx, posy];
 }
