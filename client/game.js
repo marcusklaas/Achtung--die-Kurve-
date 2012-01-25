@@ -204,6 +204,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.localPlayerId = obj.playerId;
 			this.tickLength = obj.tickLength;
 			this.pencil.inkMinimumDistance = obj.inkMinimumDistance;
+			this.maxNameLen = obj.maxNameLength;
 			this.setIndex(obj.playerId, 0);
 			break;
 		case 'joinedGame':
@@ -995,6 +996,7 @@ function Player(color, local, index) {
 	this.tick = 0;
 	this.index = index;
 	this.points = 0;
+	this.inputController = null; // null for all but localPlayer
 }
 
 Player.prototype.deleteCanvas = function() {
@@ -1178,7 +1180,7 @@ Player.prototype.simulateDead = function() {
 	
 	// draw cross
 	var ctx = this.game.foregroundContext;
-	setLineColor(ctx, [0,0,0], 1);
+	setLineColor(ctx, crossColor, 1);
 	ctx.lineWidth = crossLineWidth;
 	ctx.beginPath();
 	ctx.moveTo(this.x - crossSize / 2, this.y - crossSize / 2);
@@ -1214,6 +1216,9 @@ Player.prototype.initialise = function(x, y, angle, holeStart) {
 	this.updateList();
 	this.context.clearRect(0, 0, this.game.width, this.game.height);	
 	this.saveLocation();
+
+	if(this.inputController != null)
+		this.inputController.reset();
 }
 
 Player.prototype.drawIndicator = function() {
@@ -1258,17 +1263,13 @@ function InputController(player, left, right) {
 	this.rightKeyCode = left;
 	this.leftKeyCode = right;
 	this.player = player;
-	this.leftDown = false;
-	this.rightDown = false;
-
-	this.leftTouch = null;
-	this.rightTouch = null;
-	this.pencilTouch = null;
 
 	var self = this;
 	var game = player.game;
 	var pencil = player.game.pencil;
 	var canvas = player.game.canvasContainer;
+
+	this.reset();
 
 	/* listen for keyboard events */
 	window.addEventListener('keydown', function(e) {
@@ -1286,10 +1287,8 @@ function InputController(player, left, right) {
 	}, false);
 
 	window.addEventListener('keyup', function(e) {
-		if(self.player.status != 'alive' || game.tick == -1) {
-			self.leftDown = self.rightDown = false;
+		if(self.player.status != 'alive' || game.tick == -1)
 			return;
-		}
 
 		if(e.keyCode == self.leftKeyCode) {
 			self.releaseLeft();
@@ -1300,6 +1299,11 @@ function InputController(player, left, right) {
 			e.preventDefault();
 		}
 	}, false);
+
+	function convertMouseToTouch(e) {
+		e.identifier = 1;
+		return {changedTouches: [e]};
+	}
 
 	function mouseMove(e) {
 		if(pencil.drawingAllowed && pencil.down) {
@@ -1313,6 +1317,13 @@ function InputController(player, left, right) {
 		if(pencil.drawingAllowed && !pencil.down && pencil.ink > pencil.mousedownInk)
 			pencil.startDraw(pencil.getRelativePos(e));
 	}
+
+	function mouseEnd(e) {
+		if(emulateTouch)
+			touchEnd(convertMouseToTouch(e));
+		else
+			stopDraw(e);
+	}
 	
 	function stopDraw(e) {
 		if(pencil.drawingAllowed && pencil.down) {
@@ -1323,8 +1334,7 @@ function InputController(player, left, right) {
 			pencil.down = false;
 			pencil.upped = true;
 
-			if(!touchDevice)
-				pencil.game.focusChat();
+			pencil.game.focusChat();
 		}
 	};
 
@@ -1336,7 +1346,7 @@ function InputController(player, left, right) {
 			var touch = e.changedTouches[i];
 			var pos = pencil.getRelativePos(touch);
 			var totalWidth = game.width;
-			var right = (pos[0] <= totalWidth * steerBoxSize);  // TODO: dit zou toch niet zo moeten!! waarom?
+			var right = (pos[0] <= totalWidth * steerBoxSize);  // TODO: dit is precies andersom als hoe t zou moeten -- ergens verderop moet fout zitten
 			var left = (pos[0] >= (1 - steerBoxSize) * totalWidth);
 
 			if(left && self.leftTouch === null) {
@@ -1398,10 +1408,8 @@ function InputController(player, left, right) {
 			var touch = e.changedTouches[i];
 			var pos = pencil.getRelativePos(touch);
 			var totalWidth = game.width;
-			var right = (pos[0] <= totalWidth * steerBoxSize);  // TODO: dit zou toch niet zo moeten!! waarom?
+			var right = (pos[0] <= totalWidth * steerBoxSize);  // TODO: zie TODO boven
 			var left = (pos[0] >= (1 - steerBoxSize) * totalWidth);
-
-			// FIXME: bij het converteren van steer naar pencil begint pencil niet op goede punt
 
 			if(self.leftTouch != null && touch.identifier == self.leftTouch.identifier) {
 				var convert = (getLength(pos[0] - self.leftTouch.startX, pos[1] - self.leftTouch.startY) >= pencilTreshold
@@ -1410,7 +1418,7 @@ function InputController(player, left, right) {
 				/* convert this touch to pencil touch */
 				if(convert) {
 					self.pencilTouch = new touchEvent(pos[0], pos[1], touch.identifier);
-					pencil.startDraw(pos);
+					pencil.startDraw([self.leftTouch.startX, self.leftTouch.startY]);
 				}
 
 				if(convert || !left) {
@@ -1425,7 +1433,7 @@ function InputController(player, left, right) {
 
 				if(convert) {
 					self.pencilTouch = new touchEvent(pos[0], pos[1], touch.identifier);
-					pencil.startDraw(pos);
+					pencil.startDraw([self.rightTouch.startX, self.rightTouch.startY]);
 				}
 
 				if(convert || !right) {
@@ -1450,19 +1458,8 @@ function InputController(player, left, right) {
 	if(touchDevice) {
 		canvas.addEventListener('touchstart', touchStart, true);
 		canvas.addEventListener('touchend', touchEnd, true);
+		canvas.addEventListener('touchcancel', touchEnd, true);
 		canvas.addEventListener('touchmove', touchMove, true);
-	}
-
-	function convertMouseToTouch(e) {
-		e.identifier = 1;
-		return {changedTouches: [e]};
-	}
-
-	function mouseEnd(e) {
-		if(emulateTouch)
-			touchEnd(convertMouseToTouch(e));
-		else
-			stopDraw(e);
 	}
 
 	/* catch mouse events (not editor!) */
@@ -1482,6 +1479,14 @@ function InputController(player, left, right) {
 
 	canvas.addEventListener('mouseup', mouseEnd, false);
 	canvas.addEventListener('mouseout', mouseEnd, false);
+}
+
+InputController.prototype.reset = function() {
+	this.leftDown = false;
+	this.rightDown = false;
+	this.leftTouch = null;
+	this.rightTouch = null;
+	this.pencilTouch = null;
 }
 
 InputController.prototype.pressLeft = function() {
@@ -1614,6 +1619,7 @@ Pencil.prototype.doTick = function() {
 				
 				this.down = false;
 				this.upped = true;
+
 				this.game.focusChat();
 			}
 			this.setInk(this.ink - d);
@@ -1647,7 +1653,7 @@ Pencil.prototype.drawPlayerSegs = function(redraw) {
 			}
 		}
 
-		buffer =  this.inbufferSolid[i];
+		buffer = this.inbufferSolid[i];
 		index = (redraw) ? 0 : this.inbufferSolidIndex[i];
 		
 		while(index < buffer.length && buffer[index].tickSolid <= this.game.tick) {
@@ -1840,7 +1846,7 @@ window.onload = function() {
 	var localPlayer = new Player(playerColors[0], true, 0);
 	var game = new GameEngine(localPlayer, audioController);
 	localPlayer.game = game;
-	var inputControl = new InputController(localPlayer, keyCodeLeft, keyCodeRight);
+	localPlayer.inputController = new InputController(localPlayer, keyCodeLeft, keyCodeRight);
 
 	/* add sounds to controller */
 	audioController.addSound('localDeath', 'sounds/wilhelm', ['ogg']);
@@ -1879,8 +1885,8 @@ window.onload = function() {
 	function joinLobby() {
 		var playerName = document.getElementById('playername').value;
 
-		if(typeof playerName != "string" || playerName.length < 1) {
-			game.gameMessage('Enter a cool nickname please');
+		if(typeof playerName != "string" || playerName.length < 1 || playerName.length > game.maxNameLen) {
+			game.gameMessage('Enter a cool nickname please (no longer than ' + game.maxNameLen + ' chars)');
 			return;
 		}
 
@@ -1970,7 +1976,7 @@ window.onload = function() {
 		}, resizeDelay);
 	}
 
-	/* nu is het nicer */
+	/* moving sidebar for horizontal scroll */
 	window.onscroll = function() {
 		document.getElementById('sidebar').style.left = -window.scrollX + 'px';
 	}

@@ -204,6 +204,23 @@ void *srealloc(void *ptr, size_t size) {
 	return a;
 }
 
+/* checks that 0 < name size <= MAX_NAME_LENGTH and does not exclusively consist of 
+ * chars like space */
+char *checkname(char *name) {
+	char nameok = 0, notonly[1] = {' '}, *checkedName;
+	int i, j;
+
+	for(i = 0; name[i]; i++)
+		for(j = 0; j < 1; j++)
+			nameok |= name[i] != notonly[j];
+
+	checkedName = smalloc(MAX_NAME_LENGTH + 1);
+	
+	strncpy(checkedName, nameok ? name : SHAME_NAME, MAX_NAME_LENGTH);
+	checkedName[MAX_NAME_LENGTH] = 0;
+
+	return checkedName;
+}
 
 struct seg *copyseg(const struct seg *a) {
 	struct seg *b = smalloc(sizeof(struct seg));

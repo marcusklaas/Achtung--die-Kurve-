@@ -1,6 +1,6 @@
 = cruciaal =
 
-- is het toch mogelijk om out of sync te raken met de lokale snake?
+- is het toch mogelijk om out of sync te raken met de lokale snake? RE: nee! is mythe ooit in t leven geroepen door spelert die niet goed tegen zn verlies kon ;-p
 
 - heftige renderproblemen op de ipad
 
@@ -8,17 +8,11 @@
 
 = niet cruciaal =
 
-- gele naam niet te lezen
-
-- lokale spelernaam op client heeft nog geen max lengte.
-
-- accepteer geen lege naam, of enkel spaties. miss nog meer. (denk dat naam ook nooit 2 regels moet kunnen innemen?)
-
 - linkje werkt nog niet als je al geconnect bent (door de # laadt ie de pagina niet opnieuw, iig in firefox)
 
 - server compilen op win32 (cJSON werkt gwon met andere compiler, dus enkel onze code nog)
 
-- touch sturen werkt af en toe niet meer?
+- touch sturen werkt af en toe niet meer? RE: zou opgelost moeten zijn, ff testen op een ipet
 
 - op chrom(e/ium) werkt t disconnecten niet. ik dacht dat het bug van chrome was, maar blijkbaar is ie gefixt en komt ie door de tests
 http://code.google.com/p/chromium/issues/detail?id=93609

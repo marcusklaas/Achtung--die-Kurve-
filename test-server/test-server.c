@@ -113,6 +113,7 @@ callback_game(struct libwebsocket_context * context,
 		jsonaddnum(json, "playerId", u->id);
 		jsonaddnum(json, "tickLength", TICK_LENGTH);
 		jsonaddnum(json, "inkMinimumDistance", INK_MIN_DISTANCE);
+		jsonaddnum(json, "maxNameLength", MAX_NAME_LENGTH);
 		sendjson(json, u);
 		jsondel(json);
 		break;
@@ -192,9 +193,9 @@ callback_game(struct libwebsocket_context * context,
 				joingame(gm, u);
 			else {
 				j = jsoncreate("joinFailed");
-				jsonaddnum(j, "id", gameid); // remind client what client he tried to join
+				jsonaddnum(j, "id", gameid); // remind client what game he tried to join
 
-				if(!gm) // this should very rarely occur
+				if(!gm)
 					jsonaddstr(j, "reason", "notFound");
 				else if(gm->state - GS_LOBBY)
 					jsonaddstr(j, "reason", "started");
@@ -232,25 +233,21 @@ callback_game(struct libwebsocket_context * context,
 			jsondel(j);
 		}
 		else if(!strcmp(mode, "getTime")) {
-			j= jsoncreate("time");
+			j = jsoncreate("time");
 			jsonaddnum(j, "time", (int)servermsecs());
 			sendjson(j, u);
 			jsondel(j);
 		}
 		else if(!strcmp(mode, "joinLobby")) {
-			char *s = jsongetstr(json, "playerName");
-			
 			// player can join only once
 			if(u->name)
 				break;
 
-			if(strlen(s) > MAX_NAME_LENGTH)
-				s[MAX_NAME_LENGTH] = 0;
+			u->name = checkname(jsongetstr(json, "playerName"));
 
 			if(DEBUG_MODE)
-				printf("player %d with name %s joined lobby\n", u->id, s);
+				printf("player %d with name %s joined lobby\n", u->id, u->name);
 
-			u->name = duplicatestring(s);
 			joingame(lobby, u);
 		}
 		else if(!strcmp(mode, "requestGame")) {

@@ -31,6 +31,7 @@
 /* input control */
 #define MAX_FILE_REQ_LEN 100
 #define MAX_NAME_LENGTH 20
+#define SHAME_NAME "newplayer500"
 #define MAX_CHAT_LENGTH 140
 #define INPUT_CONTROL_INTERVAL 60 // in ticks
 #define SPAM_CHECK_INTERVAL 200 // in ticks
@@ -179,3 +180,4 @@ float checkcollision(struct game *gm, struct seg *seg);
 void endround(struct game *gm);
 void tiles(struct game *gm, struct seg *seg, int *tileindices);
 void clearinputs(struct user *usr);
+char *checkname(char *name);

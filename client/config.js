@@ -23,6 +23,7 @@ var behind = 2; // desired difference between tock and tick
 var canvasMinimumWidth = 200;
 var crossSize = 12;
 var crossLineWidth = 2;
+var crossColor = [0, 0, 0];
 
 var safeTickDifference = 60; // TODO: should depend on 2*ping & SERVER_DELAY
 var resizeDelay = 200; // the duration the window should have a constant size before calling resize
@@ -59,6 +60,6 @@ var mapSegmentColor = [96, 96, 96];
 
 /* these are the segment RGBs for the players. in client order, so the 
  * first one is always for the human player */
-var playerColors = [[255, 0, 0], [0, 0, 255], [255, 255, 0], [0, 255, 0],
+var playerColors = [[255, 0, 0], [0, 0, 255], [0, 255, 0],
  [255, 0, 255], [229, 91, 176], [78, 42, 4], [28, 182, 25], [126, 191, 241],
- [0, 0, 0], [254, 138, 14], [149, 150, 151], [16, 98, 70]];
+ [0, 0, 0], [254, 138, 14], [149, 150, 151], [16, 98, 70], [127, 200, 0]];

@@ -1,5 +1,5 @@
 void randomizeplayerstarts(struct game *gm) {
-	int diameter = ceil(2.0 * gm->v/ gm->ts); // diameter of your circle in pixels when you turn at max rate
+	int diameter = ceil(2.0 * gm->v/ gm->ts); /* diameter of circle in px when turning at max rate */
 	struct user *usr;
 		
 	for(usr = gm->usr; usr; usr = usr->nxt) {
@@ -89,7 +89,7 @@ void startgame(struct game *gm) {
 			addsegment(gm, seg);
 	}
 	
-	// add border segments
+	/* add border segments */
 	if(!gm->torus) {
 		struct seg seg;
 		seg.x1 = seg.y1 = seg.y2 = 0;
@@ -105,7 +105,7 @@ void startgame(struct game *gm) {
 		addsegment(gm, &seg);
 	}
 		
-	// reset users
+	/* reset users */
 	for(usr = gm->usr; usr; usr = usr->nxt){
 		usr->turn = 0;
 		usr->alive = 1;
@@ -131,7 +131,6 @@ void startgame(struct game *gm) {
 	gm->state = GS_STARTED;
 	gm->alive = gm->n;
 
-	// create JSON object
 	root = jsoncreate("startGame");
 	start_locations = cJSON_CreateArray();
 
@@ -214,7 +213,7 @@ struct game *findgame(int nmin, int nmax) {
 	if(DEBUG_MODE)
 		printf("findgame called \n");
 
-	// get oldest suitable game
+	/* get oldest suitable game */
 	for(gm = headgame; gm; gm = gm->nxt)
 		if(gm->state == GS_LOBBY && gm->nmin <= nmax && gm->nmax >= nmin && gm->type == GT_AUTO)
 			bestgame = gm;
@@ -224,7 +223,7 @@ struct game *findgame(int nmin, int nmax) {
 		gm = bestgame;
 		gm->nmin = max(gm->nmin, nmin);
 		gm->nmax = min(gm->nmax, nmax);
-		gm->goal = (gm->n - 1) * TWO_PLAYER_POINTS; // c * avg pts pp pr
+		gm->goal = (gm->n - 1) * TWO_PLAYER_POINTS; /* constant * avg pts pp pr */
 		json = getjsongamepars(gm);
 		sendjsontogame(json, gm, 0);
 		jsondel(json);
@@ -233,7 +232,7 @@ struct game *findgame(int nmin, int nmax) {
 	return bestgame;
 }
 
-// takes game id and returns the game
+/* takes game id and returns pointer to game */
 struct game *searchgame(int gameid) {
 	struct game *gm;
 
@@ -276,7 +275,7 @@ void leavegame(struct user *usr) {
 	usr->nxt = 0;
 	usr->gm = 0;
 
-	// send message to group: this player left
+	/* send message to group: this player left */
 	json = jsoncreate("playerLeft");
 	jsonaddnum(json, "playerId", usr->id);
 	jsonaddnum(json, "tick", gm->tick);
@@ -311,13 +310,13 @@ void joingame(struct game *gm, struct user *newusr) {
 	newusr->inputs = 0;
 	newusr->points = 0;
 
-	// tell user s/he joined a game.
+	/* tell user s/he joined a game */
 	json = jsoncreate("joinedGame");
 	jsonaddstr(json, "type", gametypetostr(gm->type));
 	sendjson(json, newusr);
 	jsondel(json);
 
-	// tell players of game someone new joined
+	/* tell players of game someone new joined */
 	json = jsoncreate("newPlayer");
 	jsonaddnum(json, "playerId", newusr->id);
 	jsonaddstr(json, "playerName", lastusedname = newusr->name);
@@ -326,7 +325,7 @@ void joingame(struct game *gm, struct user *newusr) {
 	if(DEBUG_MODE)
 		printf("user %d has name %s\n", newusr->id, newusr->name);
 
-	// send a message to the new player for every other player that is already in the game
+	/* send a message to the new player for every other player that is already in the game */
 	for(usr = gm->usr; usr; usr = usr->nxt) {
 		jsonsetnum(json, "playerId", usr->id);
 		jsonsetstr(json, "playerName", lastusedname = usr->name);
@@ -391,7 +390,7 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	gm->hsize = HOLE_SIZE;
 	gm->hfreq = HOLE_FREQ;
 
-	// how big we should choose our tiles depends only on segment length
+	/* how big we should choose our tiles depends only on segment length */
 	seglen = gm->v * TICK_LENGTH / 1000.0;
 	gm->tilew = gm->tileh = ceil(TILE_SIZE_MULTIPLIER * seglen);
 	gm->htiles = ceil(1.0 * gm->w / gm->tilew);
@@ -401,7 +400,7 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	return gm;
 }
 
-// returns -1 if collision, between 0 and 1 other wise
+/* returns -1 if collision, between 0 and 1 other wise */
 float segcollision(struct seg *seg1, struct seg *seg2) {
 	float denom, numer_a, numer_b, a, b;
 	
@@ -432,7 +431,7 @@ float segcollision(struct seg *seg1, struct seg *seg2) {
 	return -1;
 }
 
-// returns 1 in case the segment intersects the box
+/* returns 1 in case the segment intersects the box */
 int lineboxcollision(struct seg *seg, int top, int right, int bottom, int left) {
 	struct seg edge;
 
@@ -472,7 +471,7 @@ int lineboxcollision(struct seg *seg, int top, int right, int bottom, int left) 
 	return 0;
 }
 
-// returns -1 in case no collision, else between 0 and -1
+/* returns -1 in case no collision, else between 0 and -1 */
 float checktilecollision(struct seg *tile, struct seg *seg) {
 	struct seg *current;
 	float cut, mincut = -1;
@@ -502,8 +501,8 @@ float checktilecollision(struct seg *tile, struct seg *seg) {
 	return mincut;
 }
 
-// fills tileindices: top right bottom left.
-// NOTE: bottom means greater y-values 
+/* fills tileindices: top right bottom left.
+ * NOTE: bottom means greater y-values */
 void tiles(struct game *gm, struct seg *seg, int *tileindices) {
 	int swap;
 
@@ -529,11 +528,10 @@ void tiles(struct game *gm, struct seg *seg, int *tileindices) {
 	tileindices[2] = min(tileindices[2], gm->vtiles - 1);
 }
 
-// returns -1 in case of no collision, between 0 and 1 else
+/* returns -1 in case of no collision, between 0 and 1 else */
 float checkcollision(struct game *gm, struct seg *seg) {
 	int i, j, tileindices[4];
 	float cut, mincut = -1;
-	struct seg *current;
 
 	tiles(gm, seg, tileindices);
 	
@@ -553,8 +551,7 @@ float checkcollision(struct game *gm, struct seg *seg) {
 	return mincut;
 }
 
-// simply adds segment to the game -- collision detection and cutoffs happen
-// in different functions now
+/* adds segment to the game. does not check for collision */
 void addsegment(struct game *gm, struct seg *seg) {
 	int i, j, tileindices[4];
 	struct seg *copy;
@@ -574,15 +571,15 @@ void addsegment(struct game *gm, struct seg *seg) {
 	}
 }
 
-// queues player segment to send for debugging
+/* queues player segment to send for debugging */
 void queueseg(struct game *gm, struct seg *seg) {
 	struct seg *copy = copyseg(seg);
 	copy->nxt = gm->tosend;
 	gm->tosend = copy;
 }
 
-// simulate user tick. returns 1 if player dies during this tick, 0 otherwise
-// warning: this function can be called multiple times with same tick value
+/* simulate user tick. returns 1 if player dies during this tick, 0 otherwise
+ * warning: this function can be called multiple times with same tick value   */
 int simuser(struct user *usr, int tick) {
 	int inhole, inside;
 	float cut, oldx = usr->x, oldy = usr->y, oldangle = usr->angle;
@@ -610,7 +607,7 @@ int simuser(struct user *usr, int tick) {
 	 && ((tick + usr->hstart) % (usr->hsize + usr->hfreq)) < usr->hsize);
 	inside = usr->x >= 0 && usr->x <= usr->gm->w && usr->y >= 0 && usr->y <= usr->gm->h;
 
-	// we still collide with map border while in hole
+	/* we still collide with map border while in hole */
 	if(inhole && inside)
 		return 0;
 
@@ -638,8 +635,6 @@ int simuser(struct user *usr, int tick) {
 
 	/* wrap around */
 	if(!inside) {
-		//printf("wrapping\n");
-
 		if(usr->x > usr->gm->w)
 			usr->x = oldx - usr->gm->w;
 		else if(usr->x < 0)
@@ -650,7 +645,7 @@ int simuser(struct user *usr, int tick) {
 		else if(usr->y < 0)
 			usr->y = oldy + usr->gm->h;
 
-		// reset angle and simulate this tick again. usr->turn will keep the right value.
+		/* reset angle and simulate this tick again. usr->turn will keep the right value. */
 		usr->angle = oldangle;
 		return simuser(usr, tick);
 	}
@@ -658,7 +653,7 @@ int simuser(struct user *usr, int tick) {
 	return 0;
 }
 
-// send message to group: this player died
+/* send message to group: this player died */
 void deadplayermsg(struct user *usr, int tick) {
 	cJSON *json = jsoncreate("playerDied");
 	jsonaddnum(json, "playerId", usr->id);
@@ -698,9 +693,8 @@ void endgame(struct game *gm, struct user *winner) {
 }
 
 void endround(struct game *gm) {
-	struct user *usr, *roundwinner, *winner = gm->usr; // winner until proven otherwise
+	struct user *usr, *roundwinner, *winner = gm->usr; /* winner until proven otherwise */
 	int maxpoints = 0, secondpoints = 0;
-	struct userinput *inp, *nxt;
 	cJSON *json;
 	int i, num_tiles = gm->htiles * gm->vtiles;
 
@@ -709,7 +703,7 @@ void endround(struct game *gm) {
 
 	/* give survivor his points */
 	for(usr = gm->usr; usr && !usr->alive; usr = usr->nxt);
-	if(roundwinner = usr)
+	if((roundwinner = usr))
 		usr->points += gm->rsn - 1;
 
 	if(SEND_SEGMENTS)
@@ -759,10 +753,10 @@ void killplayer(struct user *usr, int reward) {
 		printf("player %d died\n", usr->id);
 }
 
-// simulate game tick
+/* simulate game tick */
 void simgame(struct game *gm) {
 	struct user *usr;
-	int reward = gm->rsn - gm->alive; // define here for when multiple players die this tick
+	int reward = gm->rsn - gm->alive;
 
 	if(gm->tick < 0) {
 		gm->tick++;
@@ -789,17 +783,16 @@ static void resetGameChatCounters(struct game *gm) {
 		usr->chats = 0;
 }
 
-// deze functie called simgame zo goed als mogelijk elke TICK_LENGTH msec (voor elke game)
+/* tries to simgame every game every TICK_LENGTH milliseconds */
 void mainloop() {
 	int sleepuntil, resetChat;
-	struct game *gm, *nxtgm;
+	struct game *gm;
 	static int lastheavyloadmsg;
 
 	while(1) {
 		resetChat = !(serverticks % SPAM_CHECK_INTERVAL);
 
-		for(gm = headgame; gm; gm = nxtgm) {
-			nxtgm = gm->nxt; // in the case that gm gets freed. is this still possible? game only freed after last player leaves
+		for(gm = headgame; gm; gm = gm->nxt) {
 			if(gm->state == GS_STARTED)
 				simgame(gm);
 
@@ -815,7 +808,7 @@ void mainloop() {
 			printf("server is under heavy load! %d msec behind on schedule!\n", -sleepuntil);
 			lastheavyloadmsg = servermsecs();
 		}
-		do{
+		do {
 			libwebsocket_service(ctx, max(0, sleepuntil - servermsecs()));
 		}while(sleepuntil - servermsecs() > 0);
 	}
@@ -830,7 +823,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 	int minimumTick = usr->gm->tick;
 	cJSON *j;
 	
-	// some checks
+	/* some checks */
 	if(turn < -1 || turn > 1) {
 		if(SHOW_WARNING)
 			printf("invalid user input received from user %d.\n", usr->id);
@@ -853,7 +846,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 		modified = 1;
 	}
 	
-	// put it in user queue
+	/* put it in user queue */
 	usr->lastinputtick = tick;
 	input = smalloc(sizeof(struct userinput));
 	input->tick = tick;
@@ -870,7 +863,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 		printf("delay: %d\n", x);
 	}
 	
-	// check if user needs to adjust her gametime
+	/* check if user needs to adjust her gametime */
 	usr->delta[usr->deltaat++] = (servermsecs() - usr->gm->start) - time;
 	if(usr->deltaat == DELTA_COUNT) {
 		usr->deltaat = 0;
@@ -897,7 +890,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 		}
 	}
 	
-	// send to other players
+	/* send to other players */
 	j = jsoncreate("input");
 	jsonaddnum(j, "tick", tick);
 	jsonaddnum(j, "playerId", usr->id);
@@ -960,7 +953,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 		int tick;
 		char type;
 
-		// read next block
+		/* read next block */
 		type = json->valueint;
 		if(!(json = json->next)) break;
 		x= json->valueint;
@@ -993,7 +986,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 				struct seg *seg = &pseg->seg;
 				cJSON *k = cJSON_CreateObject();
 
-				// queue pencil segment for simulation
+				/* queue pencil segment for simulation */
 				seg->x1 = p->x;
 				seg->y1 = p->y;
 				seg->x2 = x;
@@ -1007,7 +1000,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 				if(!p->psegtail)
 					p->psegtail = pseg;
 				
-				// add it to the json which will be broadcasted
+				/* add it to the json which will be broadcasted */
 				jsonaddnum(k, "x1", p->x);
 				jsonaddnum(k, "y1", p->y);
 				jsonaddnum(k, "x2", x);
@@ -1052,7 +1045,7 @@ void simpencil(struct pencil *p) {
 	free(tail);
 }
 
-// to be called at startgame
+/* to be called at startgame */
 void resetpencil(struct pencil *p, struct user *u) {
 	p->ink = START_INK;
 	cleanpencil(p);
