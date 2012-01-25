@@ -212,6 +212,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.gameType = obj.type;
 			this.setGameState((obj.type == 'lobby') ? 'lobby' : 'waiting');
 			this.mapSegments = undefined;
+			this.editor.segments = [];
 			this.resetPlayers();
 			this.addPlayer(this.localPlayer);
 
@@ -247,7 +248,9 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			var nextRoundDelay = obj.startTime + this.serverTimeDifference - this.ping
 			 + extraGameStartTimeDifference - Date.now();
 			 
-			setOptionVisibility('stop'); // in the case that it is 'back'
+			// first back to game lobby for some reset work
+			if(this.gameState == 'ended')
+				this.backToGameLobby();
 
 			if(nextRoundDelay > this.countdown) {
 				var self = this;
@@ -723,7 +726,6 @@ GameEngine.prototype.sendStartGame = function() {
 
 	if(this.editor.segments.length > 0) {
 		obj.segments = this.editor.segments;
-		this.editor.segments = [];
 	}
 
 	this.sendMsg('startGame', obj);
@@ -1179,10 +1181,10 @@ Player.prototype.simulateDead = function() {
 	setLineColor(ctx, [0,0,0], 1);
 	ctx.lineWidth = crossLineWidth;
 	ctx.beginPath();
-	ctx.moveTo(this.x - crossRadius, this.y - crossRadius);
-	ctx.lineTo(this.x + crossRadius, this.y + crossRadius);
-	ctx.moveTo(this.x + crossRadius, this.y - crossRadius);
-	ctx.lineTo(this.x - crossRadius, this.y + crossRadius);
+	ctx.moveTo(this.x - crossSize / 2, this.y - crossSize / 2);
+	ctx.lineTo(this.x + crossSize / 2, this.y + crossSize / 2);
+	ctx.moveTo(this.x + crossSize / 2, this.y - crossSize / 2);
+	ctx.lineTo(this.x - crossSize / 2, this.y + crossSize / 2);
 	ctx.stroke();
 	ctx.lineWidth = lineWidth;
 }

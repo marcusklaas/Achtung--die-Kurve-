@@ -21,7 +21,7 @@ var syncTries = 2;
 var syncDelays = 50;
 var behind = 2; // desired difference between tock and tick
 var canvasMinimumWidth = 200;
-var crossRadius = 6;
+var crossSize = 12;
 var crossLineWidth = 2;
 
 var safeTickDifference = 60; // TODO: should depend on 2*ping & SERVER_DELAY

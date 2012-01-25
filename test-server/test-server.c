@@ -237,8 +237,12 @@ callback_game(struct libwebsocket_context * context,
 		}
 		else if(!strcmp(mode, "joinLobby")) {
 			char *s = jsongetstr(json, "playerName");
+			
+			// player can join only once
+			if(u->name)
+				break;
 
-			if(strlen(s) < MAX_NAME_LENGTH)
+			if(strlen(s) > MAX_NAME_LENGTH)
 				s[MAX_NAME_LENGTH] = 0;
 
 			if(DEBUG_MODE)

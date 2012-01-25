@@ -4,7 +4,15 @@
 
 - heftige renderproblemen op de ipad
 
+- in chrome (windows) speelt ie niet (echt) soepel
+
 = niet cruciaal =
+
+- gele naam niet te lezen
+
+- lokale spelernaam op client heeft nog geen max lengte.
+
+- accepteer geen lege naam, of enkel spaties. miss nog meer. (denk dat naam ook nooit 2 regels moet kunnen innemen?)
 
 - linkje werkt nog niet als je al geconnect bent (door de # laadt ie de pagina niet opnieuw, iig in firefox)
 
@@ -24,11 +32,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 
 - groeperen messages en spam protectie op elke groep
 
-- toon map in editor na het backgaan in custom game
-
 - touch controls in editor en bijgeschaafde mouse control (tekent soms niet als je snel beweegt en dan stopt)
-
-- als spelert niet back gaat na einde van spel en host start nieuwe dan blijven oude scores staan
 
 = opmaakdingen =
 
