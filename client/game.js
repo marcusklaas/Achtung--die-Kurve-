@@ -1299,21 +1299,20 @@ function InputController(player, left, right) {
 		}
 	}, false);
 
-	/* listen for mouse events on canvas (not editor) */
-	canvas.addEventListener('mousedown', function(e) {
-		if(pencil.drawingAllowed && !pencil.down && pencil.ink > pencil.mousedownInk)
-			pencil.startDraw(pencil.getRelativePos(e));
-	}, false);
-
-	canvas.addEventListener('mousemove', function(e) {
+	function mouseMove(e) {
 		if(pencil.drawingAllowed && pencil.down) {
 			var pos = pencil.getRelativePos(e);
 			pencil.curX = pos[0];
 			pencil.curY = pos[1];
 		}
-	}, false);
+	}
+
+	function mouseDown(e) {
+		if(pencil.drawingAllowed && !pencil.down && pencil.ink > pencil.mousedownInk)
+			pencil.startDraw(pencil.getRelativePos(e));
+	}
 	
-	var stopDraw = function(e) {
+	function stopDraw(e) {
 		if(pencil.drawingAllowed && pencil.down) {
 			var pos = pencil.getRelativePos(e);
 			pencil.curX = pos[0];
@@ -1326,124 +1325,161 @@ function InputController(player, left, right) {
 				pencil.game.focusChat();
 		}
 	};
-	canvas.addEventListener('mouseup', stopDraw, false);
-	canvas.addEventListener('mouseout', stopDraw, false);
 
-	/* register touches for fancy phones n tablets */
-	if(touchDevice) {
-		canvas.addEventListener('touchstart', function(e) {
-			if(player.status != 'alive' || game.tick == -1)
-				return;
+	function touchStart(e) {
+		if(player.status != 'alive' || game.tick == -1)
+			return;
 
-			for(var i = 0; i < e.changedTouches.length; i++) {
-				var touch = event.changedTouches[i];
-				var pos = pencil.getRelativePos(e);
-				var totalWidth = canvas.game.width;
-				var left = (pos[0] <= totalWidth * steerBoxSize);
-				var right = (pos[0] >= (1 - steerBoxSize) * totalWidth);
+		for(var i = 0; i < e.changedTouches.length; i++) {
+			var touch = e.changedTouches[i];
+			var pos = pencil.getRelativePos(touch);
+			var totalWidth = game.width;
+			var right = (pos[0] <= totalWidth * steerBoxSize);  // TODO: dit zou toch niet zo moeten!! waarom?
+			var left = (pos[0] >= (1 - steerBoxSize) * totalWidth);
 
-				if(left && self.leftTouch === null) {
-					self.leftTouch = new touchEvent(pos[0], pos[1], touch.identifier);
-					self.pressLeft();
-				}
-
-				else if(right && self.rightTouch === null) {
-					self.rightTouch = new touchEvent(pos[0], pos[1], touch.identifier);
-					self.pressRight();
-				}
-
-				else if(!left && !right && self.pencilTouch === null &&
-				 !pencil.down && pencil.ink > pencil.mousedownInk) {
-					self.pencilTouch = new touchEvent(pos[0], pos[1], touch.identifier);
-					pencil.startDraw(pencil.getRelativePos(e));
-				}
+			if(left && self.leftTouch === null) {
+				self.leftTouch = new touchEvent(pos[0], pos[1], touch.identifier);
+				self.pressLeft();
 			}
 
+			else if(right && self.rightTouch === null) {
+				self.rightTouch = new touchEvent(pos[0], pos[1], touch.identifier);
+				self.pressRight();
+			}
+
+			else if(!left && !right && self.pencilTouch === null &&
+			 !pencil.down && pencil.ink > pencil.mousedownInk) {
+				self.pencilTouch = new touchEvent(pos[0], pos[1], touch.identifier);
+				pencil.startDraw(pencil.getRelativePos(touch));
+			}
+		}
+
+		if(e.cancelable)
 			e.preventDefault();
-		});
+	}
 
-		canvas.addEventListener('touchend', function(e) {
-			if(player.status != 'alive' || player.game.tick == -1)
-				return;
+	function touchEnd(e) {
+		if(player.status != 'alive' || player.game.tick == -1)
+			return;
 
-			for(var i = 0; i < e.changedTouches.length; i++) {
-				var touch = event.changedTouches[i];
+		for(var i = 0; i < e.changedTouches.length; i++) {
+			var touch = e.changedTouches[i];
 
-				if(self.leftTouch != null &&
-				 touch.identifier == self.leftTouch.identifier) {
+			if(self.leftTouch != null &&
+			 touch.identifier == self.leftTouch.identifier) {
+				self.releaseLeft();
+				self.leftTouch = null;
+			}
+
+			else if(self.rightTouch != null &&
+			 touch.identifier == self.rightTouch.identifier) {
+				self.releaseRight();
+				self.rightTouch = null;
+			}
+
+			else if(self.pencilTouch != null &&
+			 touch.identifier == self.pencilTouch.identifier) {
+				stopDraw(touch);
+				self.pencilTouch = null;
+			}
+		}
+
+		if(e.cancelable)
+			e.preventDefault();
+	}
+
+	function touchMove(e) {
+		if(player.status != 'alive' || player.game.tick == -1)
+			return;
+
+		for(var i = 0; i < e.changedTouches.length; i++) {
+			var touch = e.changedTouches[i];
+			var pos = pencil.getRelativePos(touch);
+			var totalWidth = game.width;
+			var right = (pos[0] <= totalWidth * steerBoxSize);  // TODO: dit zou toch niet zo moeten!! waarom?
+			var left = (pos[0] >= (1 - steerBoxSize) * totalWidth);
+
+			// FIXME: bij het converteren van steer naar pencil begint pencil niet op goede punt
+
+			if(self.leftTouch != null && touch.identifier == self.leftTouch.identifier) {
+				var convert = (getLength(pos[0] - self.leftTouch.startX, pos[1] - self.leftTouch.startY) >= pencilTreshold
+				 && self.pencilTouch == null && !pencil.down && pencil.ink > pencil.mousedownInk);
+
+				/* convert this touch to pencil touch */
+				if(convert) {
+					self.pencilTouch = new touchEvent(pos[0], pos[1], touch.identifier);
+					pencil.startDraw(pos);
+				}
+
+				if(convert || !left) {
 					self.releaseLeft();
 					self.leftTouch = null;
 				}
+			}
 
-				else if(self.rightTouch != null &&
-				 touch.identifier == self.rightTouch.identifier) {
+			else if(self.rightTouch != null && touch.identifier == self.rightTouch.identifier) {
+				var convert = (getLength(pos[0] - self.rightTouch.startX, pos[1] - self.rightTouch.startY) >= pencilTreshold
+				 && self.pencilTouch == null && !pencil.down && pencil.ink > pencil.mousedownInk);
+
+				if(convert) {
+					self.pencilTouch = new touchEvent(pos[0], pos[1], touch.identifier);
+					pencil.startDraw(pos);
+				}
+
+				if(convert || !right) {
 					self.releaseRight();
 					self.rightTouch = null;
 				}
-
-				else if(self.pencilTouch != null &&
-				 touch.identifier == self.pencilTouch.identifier) {
-					stopDraw(e);
-					self.pencilTouch = null;
-				}
 			}
 
-			e.preventDefault();
-		});
-
-		canvas.addEventListener('touchmove', function(e) {
-			if(player.status != 'alive' || player.game.tick == -1)
-				return;
-
-			for(var i = 0; i < e.changedTouches.length; i++) {
-				var touch = event.changedTouches[i];
-				var pos = pencil.getRelativePos(e);
-				var totalWidth = canvas.game.width;
-				var left = (pos[0] <= totalWidth * steerBoxSize);
-				var right = (pos[0] >= (1 - steerBoxSize) * totalWidth);
-
-				if(touch.identifier == self.leftTouch.identifier) {
-					var convert = (getLength(pos[0] - self.leftTouch.startX, pos[1] - self.leftTouch.startY) >= pencilTreshold
-					 && self.pencilTouch == null && !pencil.down && pencil.ink > pencil.mousedownInk);
-
-					/* convert this touch to pencil touch */
-					if(convert) {
-						self.pencilTouch = new touchEvent(pos[0], pos[1], touch.identifier);
-						pencil.startDraw(pos);
-					}
-
-					if(convert || !left) {
-						self.releaseLeft();
-						self.leftTouch = null;
-					}
+			else if(self.pencilTouch != null && touch.identifier == self.pencilTouch.identifier)
+				if(pencil.drawingAllowed && pencil.down) {
+					var pos = pencil.getRelativePos(touch);
+					pencil.curX = pos[0];
+					pencil.curY = pos[1];
 				}
+		}
 
-				else if(touch.identifier == self.rightTouch.identifier) {
-					var convert = (getLength(pos[0] - self.leftTouch.startX, pos[1] - self.leftTouch.startY) >= pencilTreshold
-					 && self.pencilTouch == null && !pencil.down && pencil.ink > pencil.mousedownInk);
-
-					if(convert) {
-						self.pencilTouch = new touchEvent(pos[0], pos[1], touch.identifier);
-						pencil.startDraw(pos);
-					}
-
-					if(convert || !right) {
-						self.releaseRight();
-						self.rightTouch = null;
-					}
-				}
-
-				else if(touch.identifier == self.pencilTouch.identifier)
-					if(pencil.drawingAllowed && pencil.down) {
-						var pos = pencil.getRelativePos(e);
-						pencil.curX = pos[0];
-						pencil.curY = pos[1];
-					}
-			}
-
+		if(e.cancelable)
 			e.preventDefault();
-		});
-	}	
+	}
+
+	/* register touches for fancy phones n tablets */
+	if(touchDevice) {
+		canvas.addEventListener('touchstart', touchStart, true);
+		canvas.addEventListener('touchend', touchEnd, true);
+		canvas.addEventListener('touchmove', touchMove, true);
+	}
+
+	function convertMouseToTouch(e) {
+		e.identifier = 1;
+		return {changedTouches: [e]};
+	}
+
+	function mouseEnd(e) {
+		if(emulateTouch)
+			touchEnd(convertMouseToTouch(e));
+		else
+			stopDraw(e);
+	}
+
+	/* catch mouse events (not editor!) */
+	canvas.addEventListener('mousedown', function(e) {
+		if(emulateTouch)
+			touchStart(convertMouseToTouch(e));
+		else
+			mouseDown(e);
+	}, false);
+
+	canvas.addEventListener('mousemove', function(e) {
+		if(emulateTouch)
+			touchMove(convertMouseToTouch(e));
+		else
+			mouseMove(e);
+	}, false);
+
+	canvas.addEventListener('mouseup', mouseEnd, false);
+	canvas.addEventListener('mouseout', mouseEnd, false);
 }
 
 InputController.prototype.pressLeft = function() {
@@ -1658,8 +1694,8 @@ Pencil.prototype.relativatePos = function(pos) {
 	return vec;
 }
 
-Pencil.prototype.getRelativePos = function(ev) {
-	return this.relativatePos(getPos(ev));
+Pencil.prototype.getRelativePos = function(e) {
+	return this.relativatePos(getPos(e));
 }
 
 /* Map editor */
