@@ -1,6 +1,5 @@
 void randomizeplayerstarts(struct game *gm) {
-	// diameter of your circle in pixels when you turn at max rate
-	int diameter = ceil(2.0 * gm->v/ gm->ts);
+	int diameter = ceil(2.0 * gm->v/ gm->ts); // diameter of your circle in pixels when you turn at max rate
 	struct user *usr;
 		
 	for(usr = gm->usr; usr; usr = usr->nxt) {
@@ -78,6 +77,8 @@ void broadcastgamelist() {
 
 void startgame(struct game *gm) {
 	struct user *usr;
+	cJSON *root, *start_locations;
+	int laterround;
 
 	if(DEBUG_MODE)
 		printf("starting game %p!\n", (void*)gm);
@@ -124,15 +125,15 @@ void startgame(struct game *gm) {
 	gm->rsn = gm->n;
 	randomizeplayerstarts(gm);
 
-	int laterround = gm->usr->points || (gm->usr->nxt && gm->usr->nxt->points);
+	laterround = gm->usr->points || (gm->usr->nxt && gm->usr->nxt->points);
 	gm->start = serverticks * TICK_LENGTH + laterround * COOLDOWN + COUNTDOWN;
 	gm->tick = -(COUNTDOWN + SERVER_DELAY + laterround * COOLDOWN)/ TICK_LENGTH;
 	gm->state = GS_STARTED;
 	gm->alive = gm->n;
 
 	// create JSON object
-	cJSON *root = jsoncreate("startGame");
-	cJSON *start_locations = cJSON_CreateArray();
+	root = jsoncreate("startGame");
+	start_locations = cJSON_CreateArray();
 
 	/* fill json object */
 	for(usr = gm->usr; usr; usr = usr->nxt) {
@@ -153,9 +154,13 @@ void startgame(struct game *gm) {
 }
 
 struct map *createmap(cJSON *j) {
+	struct map *map;
+
 	if(!j)
 		return 0;
-	struct map *map = scalloc(1, sizeof(struct map));
+
+	map = scalloc(1, sizeof(struct map));
+
 	while(j) {
 		struct seg *seg = smalloc(sizeof(struct seg));
 		seg->x1 = jsongetint(j, "x1");
@@ -166,6 +171,7 @@ struct map *createmap(cJSON *j) {
 		map->seg = seg;
 		j = j->next;
 	}
+
 	return map;
 }
 
@@ -175,9 +181,13 @@ void freemap(struct map *map) {
 }
 
 void remgame(struct game *gm) {
+	struct user *usr, *nxt;
+	
 	if(DEBUG_MODE)
 		printf("deleting game %p\n", (void *) gm);
+		
 	gm->state = GS_REMOVING_GAME;
+	
 	if(headgame == gm)
 		headgame = gm->nxt;
 	else {
@@ -186,7 +196,6 @@ void remgame(struct game *gm) {
 		a->nxt = gm->nxt;
 	}
 
-	struct user *usr, *nxt;
 	for(usr = gm->usr; usr; usr = nxt) {
 		nxt = usr->nxt;
 		joingame(lobby, usr);
@@ -211,11 +220,12 @@ struct game *findgame(int nmin, int nmax) {
 			bestgame = gm;
 			
 	if(bestgame) {
+		cJSON *json;
 		gm = bestgame;
 		gm->nmin = max(gm->nmin, nmin);
 		gm->nmax = min(gm->nmax, nmax);
 		gm->goal = (gm->n - 1) * TWO_PLAYER_POINTS; // c * avg pts pp pr
-		cJSON *json = getjsongamepars(gm);
+		json = getjsongamepars(gm);
 		sendjsontogame(json, gm, 0);
 		jsondel(json);
 	}
@@ -245,6 +255,7 @@ void tellhost(struct game *gm, struct user *usr) {
 void leavegame(struct user *usr) {
 	struct game *gm = usr->gm;
 	struct user *curr;
+	cJSON *json;
 
 	if(DEBUG_MODE && gm->type != GT_LOBBY)
 		printf("user %d is leaving his game!\n", usr->id);
@@ -266,7 +277,7 @@ void leavegame(struct user *usr) {
 	usr->gm = 0;
 
 	// send message to group: this player left
-	cJSON *json = jsoncreate("playerLeft");
+	json = jsoncreate("playerLeft");
 	jsonaddnum(json, "playerId", usr->id);
 	jsonaddnum(json, "tick", gm->tick);
 	sendjsontogame(json, gm, 0);
@@ -353,7 +364,8 @@ void joingame(struct game *gm, struct user *newusr) {
 
 struct game *creategame(int gametype, int nmin, int nmax) {
 	struct game *gm = scalloc(1, sizeof(struct game));
-
+	float seglen;
+	
 	if(DEBUG_MODE)
 		printf("creating game %p\n", (void*)gm);
 
@@ -380,7 +392,7 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	gm->hfreq = HOLE_FREQ;
 
 	// how big we should choose our tiles depends only on segment length
-	float seglen = gm->v * TICK_LENGTH / 1000.0;
+	seglen = gm->v * TICK_LENGTH / 1000.0;
 	gm->tilew = gm->tileh = ceil(TILE_SIZE_MULTIPLIER * seglen);
 	gm->htiles = ceil(1.0 * gm->w / gm->tilew);
 	gm->vtiles = ceil(1.0 * gm->h / gm->tileh);
@@ -391,24 +403,26 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 
 // returns -1 if collision, between 0 and 1 other wise
 float segcollision(struct seg *seg1, struct seg *seg2) {
+	float denom, numer_a, numer_b, a, b;
+	
 	if(seg1->x2 == seg2->x1 && seg1->y2 == seg2->y1)
 		return -1;
 
-	float denom = (seg1->x1 - seg1->x2) * (seg2->y1 - seg2->y2) -
+	denom = (seg1->x1 - seg1->x2) * (seg2->y1 - seg2->y2) -
 	 (seg1->y1 - seg1->y2) * (seg2->x1 - seg2->x2);
 
-	float numer_a = (seg2->x2 - seg2->x1) * (seg1->y1 - seg2->y1) -
+	numer_a = (seg2->x2 - seg2->x1) * (seg1->y1 - seg2->y1) -
 	 (seg2->y2 - seg2->y1) * (seg1->x1 - seg2->x1);
 
-	float numer_b = (seg1->x2 - seg1->x1) * (seg1->y1 - seg2->y1) -
+	numer_b = (seg1->x2 - seg1->x1) * (seg1->y1 - seg2->y1) -
 	 (seg1->y2 - seg1->y1) * (seg1->x1 - seg2->x1);
 	
 	/* segments are parallel */
 	if(fabs(denom) < EPS)
 		return -1;
 
-	float a = numer_a/ denom;
-	float b = numer_b/ denom;
+	a = numer_a/ denom;
+	b = numer_b/ denom;
 
 	if(a >= 0 && a <= 1 && b >= 0 && b <= 1) {
 		//printf("collision! a = %.2f, b = %.2f, denom = %.2f\n", a, b, denom);
@@ -420,6 +434,8 @@ float segcollision(struct seg *seg1, struct seg *seg2) {
 
 // returns 1 in case the segment intersects the box
 int lineboxcollision(struct seg *seg, int top, int right, int bottom, int left) {
+	struct seg edge;
+
 	/* if the segment intersects box, either both points are in box, 
 	 * or there is intersection with the edges. note: this is naive way.
 	 * there is probably a more efficient way to do it */
@@ -429,8 +445,6 @@ int lineboxcollision(struct seg *seg, int top, int right, int bottom, int left) 
 
 	if(seg->x2 >= left && seg->x2 <= right && seg->y2 <= bottom && seg->y2 >= top)
 		return 1;
-
-	struct seg edge;
 
 	/* check intersect left border */
 	edge.x1 = edge.x2 = left;
@@ -517,14 +531,14 @@ void tiles(struct game *gm, struct seg *seg, int *tileindices) {
 
 // returns -1 in case of no collision, between 0 and 1 else
 float checkcollision(struct game *gm, struct seg *seg) {
-	int tileindices[4];
+	int i, j, tileindices[4];
 	float cut, mincut = -1;
 	struct seg *current;
 
 	tiles(gm, seg, tileindices);
 	
-	for(int i = tileindices[3]; i <= tileindices[1]; i++) {
-		for(int j = tileindices[0]; j <= tileindices[2]; j++) {
+	for(i = tileindices[3]; i <= tileindices[1]; i++) {
+		for(j = tileindices[0]; j <= tileindices[2]; j++) {
 			if(!lineboxcollision(seg, j * gm->tileh, (i + 1) * gm->tilew,
 			 (j + 1) * gm->tileh, i * gm->tilew))
 				continue;
@@ -542,13 +556,13 @@ float checkcollision(struct game *gm, struct seg *seg) {
 // simply adds segment to the game -- collision detection and cutoffs happen
 // in different functions now
 void addsegment(struct game *gm, struct seg *seg) {
-	int tileindices[4];
+	int i, j, tileindices[4];
 	struct seg *copy;
 
 	tiles(gm, seg, tileindices);
 
-	for(int i = tileindices[3]; i <= tileindices[1]; i++) {
-		for(int j = tileindices[0]; j <= tileindices[2]; j++) {
+	for(i = tileindices[3]; i <= tileindices[1]; i++) {
+		for(j = tileindices[0]; j <= tileindices[2]; j++) {
 			if(!lineboxcollision(seg, j * gm->tileh, (i + 1) * gm->tilew,
 			 (j + 1) * gm->tileh, i * gm->tilew))
 				continue;
@@ -570,6 +584,10 @@ void queueseg(struct game *gm, struct seg *seg) {
 // simulate user tick. returns 1 if player dies during this tick, 0 otherwise
 // warning: this function can be called multiple times with same tick value
 int simuser(struct user *usr, int tick) {
+	int inhole, inside;
+	float cut, oldx = usr->x, oldy = usr->y, oldangle = usr->angle;
+	struct seg newseg;
+	
 	if(usr->inputhead && usr->inputhead->tick == tick) {
 		struct userinput *input = usr->inputhead;
 		usr->turn = input->turn;
@@ -584,26 +602,24 @@ int simuser(struct user *usr, int tick) {
 
 	usr->inputs *= !!(tick % INPUT_CONTROL_INTERVAL);
 
-	float oldx = usr->x, oldy = usr->y, oldangle = usr->angle;
 	usr->angle += usr->turn * usr->ts * TICK_LENGTH / 1000.0;
 	usr->x += cos(usr->angle) * usr->v * TICK_LENGTH / 1000.0;
 	usr->y += sin(usr->angle) * usr->v * TICK_LENGTH / 1000.0;
 	
-	int inhole = (tick > usr->hstart
+	inhole = (tick > usr->hstart
 	 && ((tick + usr->hstart) % (usr->hsize + usr->hfreq)) < usr->hsize);
-	int inside = usr->x >= 0 && usr->x <= usr->gm->w && usr->y >= 0 && usr->y <= usr->gm->h;
+	inside = usr->x >= 0 && usr->x <= usr->gm->w && usr->y >= 0 && usr->y <= usr->gm->h;
 
 	// we still collide with map border while in hole
 	if(inhole && inside)
 		return 0;
 
-	struct seg newseg;
 	newseg.x1 = oldx;
 	newseg.y1 = oldy;
 	newseg.x2 = usr->x;
 	newseg.y2 = usr->y;
 
-	float cut = checkcollision(usr->gm, &newseg);
+	cut = checkcollision(usr->gm, &newseg);
 
 	if(cut != -1.0) {
 		usr->x = newseg.x2 = (1 - cut) * newseg.x1 + cut * newseg.x2;
@@ -667,6 +683,8 @@ void sendsegments(struct game *gm) {
 }
 
 void endgame(struct game *gm, struct user *winner) {
+	struct user *usr;
+	
 	cJSON *json = jsoncreate("endGame");
 	jsonaddnum(json, "winnerId", winner->id);
 	sendjsontogame(json, gm, 0);
@@ -675,7 +693,6 @@ void endgame(struct game *gm, struct user *winner) {
 	printf("game %p ended. winner = %d\n", (void*) gm, winner->id);
 	
 	gm->state = (gm->type == GT_AUTO) ? GS_ENDED : GS_LOBBY;
-	struct user *usr;
 	for(usr = gm->usr; usr; usr = usr->nxt)
 		usr->points = 0;
 }
@@ -684,6 +701,8 @@ void endround(struct game *gm) {
 	struct user *usr, *roundwinner, *winner = gm->usr; // winner until proven otherwise
 	int maxpoints = 0, secondpoints = 0;
 	struct userinput *inp, *nxt;
+	cJSON *json;
+	int i, num_tiles = gm->htiles * gm->vtiles;
 
 	if(DEBUG_MODE)
 		printf("ending round of game %p\n", (void *) gm);
@@ -696,7 +715,7 @@ void endround(struct game *gm) {
 	if(SEND_SEGMENTS)
 		sendsegments(gm);
 
-	cJSON *json = jsoncreate("endRound");
+	json = jsoncreate("endRound");
 	jsonaddnum(json, "winnerId", usr ? usr->id : -1);
 	jsonaddnum(json, "finalTick", gm->tick);
 	if(usr)
@@ -716,7 +735,6 @@ void endround(struct game *gm) {
 	}
 	 
 	/* freeing up segments */
-	int i, num_tiles = gm->htiles * gm->vtiles;
 	for(i =0; i < num_tiles; i++) {
 		freesegments(gm->seg[i]);
 		gm->seg[i] = 0;
@@ -810,6 +828,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 	int time = tick * TICK_LENGTH + TICK_LENGTH/ 2;
 	int modified = 0;
 	int minimumTick = usr->gm->tick;
+	cJSON *j;
 	
 	// some checks
 	if(turn < -1 || turn > 1) {
@@ -879,7 +898,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 	}
 	
 	// send to other players
-	cJSON *j = jsoncreate("input");
+	j = jsoncreate("input");
 	jsonaddnum(j, "tick", tick);
 	jsonaddnum(j, "playerId", usr->id);
 	jsonaddnum(j, "turn", turn);
@@ -908,6 +927,8 @@ void iniuser(struct user *usr, struct libwebsocket *wsi) {
 }
 
 void deleteuser(struct user *usr) {
+	int i;
+	
 	if(usr->gm)
 		leavegame(usr);
 
@@ -917,7 +938,7 @@ void deleteuser(struct user *usr) {
 	if(usr->name)
 		free(usr->name);
 	
-	for(int i = 0; i < usr->sbat; i++)
+	for(i = 0; i < usr->sbat; i++)
 		free(usr->sb[i]);
 
 	if(usr->msgbuf)
@@ -1014,10 +1035,10 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 }
 
 void simpencil(struct pencil *p) {
-	if(!p->psegtail || p->psegtail->tick != p->usr->gm->tick)
-		return;
-
 	struct pencilseg *tail = p->psegtail;
+	
+	if(!tail || tail->tick != p->usr->gm->tick)
+		return;
 
 	addsegment(p->usr->gm, &tail->seg);
 

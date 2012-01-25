@@ -29,45 +29,47 @@ static int callback_http(struct libwebsocket_context * context,
 
 	switch (reason) {
 	case LWS_CALLBACK_HTTP:
-		if(ULTRA_VERBOSE)
-			printf("serving HTTP URI %s\n", (char *) in);
-		char *ext, mime[32];
-		char path[MAX_FILE_REQ_LEN + LOCAL_PATH_LENGTH + 1];
+		{
+			char *ext, mime[32];
+			char path[MAX_FILE_REQ_LEN + LOCAL_PATH_LENGTH + 1];
+		
+			if(ULTRA_VERBOSE)
+				printf("serving HTTP URI %s\n", (char *) in);
 
-		ext = getFileExt(in);
+			ext = getFileExt(in);
 
-		/* making sure request is reasonable */
-		if(strlen(in) > MAX_FILE_REQ_LEN || strstr(in, ".."))
-			break;
+			/* making sure request is reasonable */
+			if(strlen(in) > MAX_FILE_REQ_LEN || strstr(in, ".."))
+				break;
 
-		strcpy(path, LOCAL_RESOURCE_PATH);
-		strcat(path, in);
-		if(!strcmp(in, "/"))
-			strcat(path, "index.html");
+			strcpy(path, LOCAL_RESOURCE_PATH);
+			strcat(path, in);
+			if(!strcmp(in, "/"))
+				strcat(path, "index.html");
 
-		if(!strcmp(ext, "ico"))
-			strcpy(mime, "image/x-icon");
-		else if(!strcmp(ext, "js"))
-			strcpy(mime, "text/javascript");
-		else if(!strcmp(ext, "css"))
-			strcpy(mime, "text/css");
-		else if(!strcmp(ext, "ogg"))
-			strcpy(mime, "audio/ogg");
-		else if(!strcmp(ext, "mp3"))
-			strcpy(mime, "audio/mpeg");
-		else if(!strcmp(ext, "wav"))
-			strcpy(mime, "audio/wav");
-		else
-			strcpy(mime, "text/html");
+			if(!strcmp(ext, "ico"))
+				strcpy(mime, "image/x-icon");
+			else if(!strcmp(ext, "js"))
+				strcpy(mime, "text/javascript");
+			else if(!strcmp(ext, "css"))
+				strcpy(mime, "text/css");
+			else if(!strcmp(ext, "ogg"))
+				strcpy(mime, "audio/ogg");
+			else if(!strcmp(ext, "mp3"))
+				strcpy(mime, "audio/mpeg");
+			else if(!strcmp(ext, "wav"))
+				strcpy(mime, "audio/wav");
+			else
+				strcpy(mime, "text/html");
 			
-		if(ULTRA_VERBOSE)
-			printf("serving %s, %s\n", path, mime);
+			if(ULTRA_VERBOSE)
+				printf("serving %s, %s\n", path, mime);
 			
-		if(libwebsockets_serve_http_file(wsi, path, mime))
-			fprintf(stderr, "Failed to send file\n");
+			if(libwebsockets_serve_http_file(wsi, path, mime))
+				fprintf(stderr, "Failed to send file\n");
 
-		free(ext);
-
+			free(ext);
+		}
 		break;
 
 	case LWS_CALLBACK_FILTER_NETWORK_CONNECTION:
@@ -96,8 +98,9 @@ callback_game(struct libwebsocket_context * context,
 {
 	struct user *u = user;
 	char *inchar= in;
-	cJSON *json;
+	cJSON *json, *j;
 	char *mode;
+	int i, msgsize, bufsize;
 
 	switch (reason) {
 
@@ -122,7 +125,7 @@ callback_game(struct libwebsocket_context * context,
 	case LWS_CALLBACK_SERVER_WRITEABLE:
 		if(ULTRA_VERBOSE) printf("LWS_CALLBACK_SERVER_WRITEABLE. %d queued messages\n", u->sbat);
 
-		for(int i = 0; i < u->sbat; i++) {
+		for(i = 0; i < u->sbat; i++) {
 			char *s= u->sb[i];
 			if(ULTRA_VERBOSE) printf("send msg %s to user %d\n", s + PRE_PADDING, u->id);
 			libwebsocket_write(wsi, (unsigned char*) s + PRE_PADDING, strlen(s + PRE_PADDING), LWS_WRITE_TEXT);
@@ -136,10 +139,10 @@ callback_game(struct libwebsocket_context * context,
 		break;
 
 	case LWS_CALLBACK_RECEIVE:
+		msgsize = strlen(inchar);
+		bufsize = u->msgbuf ? strlen(u->msgbuf) : 0;
+		
 		if(ULTRA_VERBOSE) printf("received: %s\n", inchar);
-
-		int msgsize = strlen(inchar);
-		int bufsize = u->msgbuf ? strlen(u->msgbuf) : 0;
 
 		/* buffer msg */
 		if(libwebsockets_remaining_packet_payload(wsi) > 0) {
@@ -188,7 +191,7 @@ callback_game(struct libwebsocket_context * context,
 			if(gm && gm->state == GS_LOBBY && gm->nmax > gm->n)
 				joingame(gm, u);
 			else {
-				cJSON *j = jsoncreate("joinFailed");
+				j = jsoncreate("joinFailed");
 				jsonaddnum(j, "id", gameid); // remind client what client he tried to join
 
 				if(!gm) // this should very rarely occur
@@ -202,7 +205,6 @@ callback_game(struct libwebsocket_context * context,
 			}
 		}
 		else if(!strcmp(mode, "chat")) {
-			cJSON *j;
 			char *msg = jsongetstr(json, "message");
 
 			if(!u->gm) {
@@ -230,7 +232,7 @@ callback_game(struct libwebsocket_context * context,
 			jsondel(j);
 		}
 		else if(!strcmp(mode, "getTime")) {
-			cJSON *j= jsoncreate("time");
+			j= jsoncreate("time");
 			jsonaddnum(j, "time", (int)servermsecs());
 			sendjson(j, u);
 			jsondel(j);
@@ -252,6 +254,9 @@ callback_game(struct libwebsocket_context * context,
 			joingame(lobby, u);
 		}
 		else if(!strcmp(mode, "requestGame")) {
+			int nmin= jsongetint(json, "minPlayers");
+			int nmax= jsongetint(json, "maxPlayers");
+			
 			if(DEBUG_MODE) printf("user %d requested game\n", u->id);
 
 			if(u->gm != lobby) {
@@ -260,8 +265,6 @@ callback_game(struct libwebsocket_context * context,
 				break;
 			}
 
-			int nmin= jsongetint(json, "minPlayers");
-			int nmax= jsongetint(json, "maxPlayers");
 			if(0 < nmin && nmin <= nmax && nmax < 17) {
 				struct game *gm = findgame(nmin, nmax);
 				if(!gm)
@@ -285,14 +288,14 @@ callback_game(struct libwebsocket_context * context,
 				joingame(lobby, u);
 		}
 		else if(!strcmp(mode, "setParams")) {
+			int now = servermsecs();
+			
 			if(!u->gm || u->gm->type != GT_CUSTOM || u->gm->state != GS_LOBBY || 
 			 u->gm->host != u) {
 				printf("user %d tried to set params but not host of custom game"
 				 " in lobby state\n", u->id);
 				break;
 			}
-
-			int now = servermsecs();
 
 			if(now - u->gm->paramupd < PARAM_UPDATE_INTERVAL) {
 				printf("user %d is trying to update game params too quickly\n", u->id);
@@ -317,7 +320,7 @@ callback_game(struct libwebsocket_context * context,
 			u->gm->inkdelay = min(20000, max(0, jsongetint(json, "inkdelay")));
 			u->gm->torus = (0 != jsongetint(json, "torus"));
 
-			cJSON *j = getjsongamepars(u->gm);
+			j = getjsongamepars(u->gm);
 			sendjsontogame(j, u->gm, 0);
 			jsondel(j);
 		}
@@ -334,12 +337,11 @@ callback_game(struct libwebsocket_context * context,
 				break;
 			}
 
-			cJSON *j = jsoncheckjson(json, "segments");
+			j = jsoncheckjson(json, "segments");
 			if(j && j->child) {
-				u->gm->map = createmap(j->child);
 				cJSON *root = jsoncreate("setMap");
-				cJSON *ar = encodesegments(u->gm->map->seg);
-				jsonaddjson(root, "segments", ar);
+				u->gm->map = createmap(j->child);
+				jsonaddjson(root, "segments", encodesegments(u->gm->map->seg));
 				sendjsontogame(root, u->gm, 0);
 				jsondel(root);
 			}
