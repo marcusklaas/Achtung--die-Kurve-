@@ -9,6 +9,9 @@ else if(location.href.indexOf('82.161') != -1)
 	serverURL = "ws://82.161.20.2:7681";
 else if(location.href.indexOf('192.168.1.101') != -1)
 	serverURL = "ws://192.168.1.101:7681";
+else if(location.href.indexOf('C:/Dropbox') != -1)
+	serverURL = "ws://localhost:7681";
+
 
 /* visual stuff */
 var gapAlpha = 0.2;

@@ -18,6 +18,7 @@ static unsigned long serverticks = 0;
 #include "helper.c"
 #include "game.c"
 
+
 /* this protocol server (always the first one) just knows how to do HTTP */
 static int callback_http(struct libwebsocket_context * context,
 		struct libwebsocket *wsi,
@@ -35,18 +36,17 @@ static int callback_http(struct libwebsocket_context * context,
 		
 			if(ULTRA_VERBOSE)
 				printf("serving HTTP URI %s\n", (char *) in);
-
-			ext = getFileExt(in);
-
+			
 			/* making sure request is reasonable */
 			if(strlen(in) > MAX_FILE_REQ_LEN || strstr(in, ".."))
 				break;
+
+			ext = getFileExt(in);
 
 			strcpy(path, LOCAL_RESOURCE_PATH);
 			strcat(path, in);
 			if(!strcmp(in, "/"))
 				strcat(path, "index.html");
-
 			if(!strcmp(ext, "ico"))
 				strcpy(mime, "image/x-icon");
 			else if(!strcmp(ext, "js"))
@@ -70,17 +70,6 @@ static int callback_http(struct libwebsocket_context * context,
 
 			free(ext);
 		}
-		break;
-
-	case LWS_CALLBACK_FILTER_NETWORK_CONNECTION:
-
-		libwebsockets_get_peer_addresses((int)(long)user, client_name,
-			     sizeof(client_name), client_ip, sizeof(client_ip));
-
-		printf("Received network connect from %s (%s)\n",
-							client_name, client_ip);
-
-		/* if we returned non-zero from here, we kill the connection */
 		break;
 
 	default:

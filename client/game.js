@@ -297,7 +297,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			player.points = obj.points;
 			player.finalSteer(obj);
 
-			if(index == 0 && this.pencilMode == 'ondeath') {
+			if(player == this.localPlayer && this.pencilMode == 'ondeath') {
 				this.pencil.drawingAllowed = true;
 				document.getElementById('inkIndicator').style.display = 'block';
 			}
@@ -380,7 +380,6 @@ GameEngine.prototype.removePlayer = function(index) {
 	this.players[index].deleteCanvas();
 				
 	for(var i = index + 1; i < this.players.length; i++) {
-		document.getElementById('player' + i).id = 'player' + (i - 1);
 		this.players[i].index--;
 		this.players[i].color = playerColors[i - 1];
 		this.setIndex(this.players[i].playerId, i - 1);
@@ -898,11 +897,7 @@ GameEngine.prototype.appendPlayerList = function(index) {
 	var statusNode = document.createElement('td');
 	var pointsNode = document.createElement('td');
 
-	if(this.gameState != 'lobby')
-		nameNode.style.color = 'rgb(' + player.color[0] + ', ' + player.color[1] + ', '
-		 + player.color[2] + ')';
-
-	row.id = 'player' + index;
+	row.id = 'player' + player.playerId;
 	nameNode.innerHTML = player.playerName;
 
 	this.playerList.appendChild(row);
@@ -913,17 +908,21 @@ GameEngine.prototype.appendPlayerList = function(index) {
 }
 
 GameEngine.prototype.updatePlayerList = function(player) {
-	var row = document.getElementById('player' + player.index);
+	var row = document.getElementById('player' + player.playerId);
 
 	if(player.status == 'left')
 		row.className = 'left';
+		
+	if(this.gameState != 'lobby')
+		row.childNodes[0].style.color = 'rgb(' + player.color[0] + ', ' + player.color[1] + ', '
+		 + player.color[2] + ')';
 
 	row.childNodes[1].innerHTML = player.status;
 	row.childNodes[2].innerHTML = player.points;
 }
 
 GameEngine.prototype.splicePlayerList = function(index) {
-	var row = document.getElementById('player' + index);
+	var row = document.getElementById('player' + this.players[index].playerId);
 	this.playerList.removeChild(row);
 }
 
@@ -1727,8 +1726,8 @@ Editor = function(game) {
 
 	this.resetButton = document.getElementById('editorReset');
 	this.resetButton.addEventListener('click', function() { 
-		this.segments = [];
-		this.resize();	
+		self.segments = [];
+		self.resize();	
 	}, false);
 
 	var copy = document.getElementById('editorCopy');
@@ -1959,6 +1958,12 @@ window.onload = function() {
 		document.getElementById('maxplayers').value = maxPlayers;
 	var playerName = getCookie('playerName');
 
+	// temporary ! cookies do not work without website
+	if(location.href.indexOf('C:/Dropbox') != -1) {
+		playerName = 'rik';
+		document.getElementById('minplayers').value = '1';
+	}
+	
 	/* auto join lobby if name is known */
 	if(playerName != null && playerName != "") {
 		document.getElementById('playername').value = playerName;
