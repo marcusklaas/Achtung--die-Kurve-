@@ -55,3 +55,5 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 - account systeem
 
 - game settings wat aanpassen qua opzet. voor niet hosts bijv alleen non-default waardes tonen en voor hosts dingen opdelen in categorieen die dan gehide kunnen worden. wordt anders zo'n lange lijst. er zouden eig nog wat opties bij moeten (inkmousedown, inkstart)
+
+- yo het is opzich geen biggy maar dat stuk dat je weghebt gegooid uit callback_http hebben we wel weer nodig als we ooit het aantal connecties per ip aan banden willen leggen
