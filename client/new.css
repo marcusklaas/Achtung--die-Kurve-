@@ -72,9 +72,20 @@ body {
 	margin: 5px;
 }
 
+#playerListContainer {
+	max-height: 30%;
+	overflow: auto;
+	margin-bottom: 10px;
+}
+
+#playerList {
+	margin: 0;
+}
+
 ul {
 	padding-left: 20px;
 	word-wrap: break-word;
+	margin: 0;
 }
 
 #content {
@@ -159,6 +170,11 @@ input[type=number] {
 	content: ': ';
 }
 
+#chatContainer {
+	margin-top: 10px;
+	overflow: auto;
+}
+
 #chat {
 	width: 280px;
 }
@@ -200,7 +216,7 @@ input[type=number] {
 	margin-top: 12px;
 }
 
-/* of alle tds */
+/* of alle tds? */
 tr.left td:first-child {
 	text-decoration: line-through;
 }
@@ -267,6 +283,43 @@ textarea:disabled {
 	background-color: #f5f5f5;
 	border-color: #ddd;
 	cursor: not-allowed;
+}
+
+/* prepended text voor inputs van bootstrap */
+.input-prepend, .input-append {
+	margin-bottom: 5px;
+	display: inline-block;
+	white-space: nowrap;
+}
+
+.input-prepend input,
+.input-append input,
+.input-prepend .uneditable-input,
+.input-append .uneditable-input {
+	display: inline-block;
+	-webkit-border-radius: 0 3px 3px 0;
+	-moz-border-radius: 0 3px 3px 0;
+	border-radius: 0 3px 3px 0;
+}
+
+.input-prepend .add-on, .input-append .add-on {
+	display: inline-block;
+	width: auto;
+	min-width: 16px;
+	height: 18px;
+	margin-right: -1px;
+	padding: 4px 4px 4px 5px;
+	font-weight: normal;
+	line-height: 18px;
+	color: #999999;
+	vertical-align: middle;
+	text-align: center;
+	text-shadow: 0 1px 0 #ffffff;
+	background-color: #f5f5f5;
+	border: 1px solid #ccc;
+	-webkit-border-radius: 3px 0 0 3px;
+	-moz-border-radius: 3px 0 0 3px;
+	border-radius: 3px 0 0 3px;
 }
 
 /* bootstrap warning alert */

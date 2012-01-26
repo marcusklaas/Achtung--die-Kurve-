@@ -881,6 +881,7 @@ GameEngine.prototype.appendPlayerList = function(index) {
 	row.appendChild(statusNode);
 	row.appendChild(pointsNode);
 	player.updateList();
+	resizeChat();
 }
 
 GameEngine.prototype.updatePlayerList = function(player) {
@@ -900,11 +901,13 @@ GameEngine.prototype.updatePlayerList = function(player) {
 GameEngine.prototype.splicePlayerList = function(index) {
 	var row = document.getElementById('player' + this.players[index].playerId);
 	this.playerList.removeChild(row);
+	resizeChat();
 }
 
 GameEngine.prototype.clearPlayerList = function() {
 	while(this.playerList.hasChildNodes())
 		this.playerList.removeChild(this.playerList.firstChild);
+	resizeChat();
 }
 
 GameEngine.prototype.sendChat = function() {
@@ -1945,6 +1948,8 @@ window.onload = function() {
 			 game.gameState == 'ended')
 				game.resize();
 		}, resizeDelay);
+
+		resizeChat();
 	}
 
 	/* moving sidebar for horizontal scroll */
@@ -2039,6 +2044,20 @@ function setContentVisibility(target) {
 		var elt = document.getElementById(sections[i]);
 		elt.style.display = (target == sections[i]) ? 'block' : 'none';
 	}
+}
+
+function resizeChat() {
+	var chat = document.getElementById('chatContainer');
+	var options = document.getElementById('options');
+	var playerList = document.getElementById('playerListContainer');
+	var chatForm = document.getElementById('chatForm');
+	var gameTitle = document.getElementById('gameTitle');
+	var margins = 30;
+
+	var maxHeight = document.body.clientHeight - options.offsetHeight
+	 - chatForm.offsetHeight - playerList.offsetHeight - gameTitle.offsetHeight - margins;
+
+	chat.style.maxHeight = maxHeight + 'px'; 
 }
 
 function getPencilMode() {

@@ -12,8 +12,8 @@
 	</head>
 	<body>
 		<div id="sidebar">
+			<h2 id="gameTitle">Lobby</h2>
 			<div id="playerListContainer">
-				<h2 id="gameTitle">Lobby</h2>
 				<table id="playerList">
 					<thead><tr><th>Player</th><th>Status</th><th>Points</th></tr>
 				</thead><tbody></tbody></table>
@@ -72,8 +72,15 @@
 					</thead><tbody></tbody></table>
 				</table>
 				<div id="noGames">No games active!</div>
-				<label>Minimum players: <input type="number" min="1" max="8" steps="1" value="2" id="minplayers" /></label>
-				<label>Maximum players: <input type="number" min="1" max="8" steps="1" value="8" id="maxplayers" /></label>
+
+				<div class="input-prepend">
+					<span class="add-on">Minimum players</span><input type="number" min="1" max="8" steps="1" value="2" id="minplayers" />
+				</div>
+
+				<div class="input-prepend">
+					<span class="add-on">Maximum players</span><input type="number" min="1" max="8" steps="1" value="2" id="maxplayers" />
+				</div>
+
 				<button id="start" class="primary">Automatch</button>
 				<button id="createGame" class="primary">Create Game</button>
 			</div>
