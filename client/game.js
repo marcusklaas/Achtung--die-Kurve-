@@ -1361,9 +1361,7 @@ function InputController(player, left, right) {
 				self.pressRight();
 			}
 
-			game.gameMessage('touch start');
-
-			if(!left && !right && self.pencilTouch == null &&
+			else if(!left && !right && self.pencilTouch == null &&
 			 !pencil.down && pencil.ink > pencil.mousedownInk && pencil.drawingAllowed) {
 				self.pencilTouch = new touchEvent(pos[0], pos[1], touch.identifier);
 				pencil.startDraw(pos);
