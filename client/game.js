@@ -2021,7 +2021,7 @@ window.onload = function() {
 	/* add event handlers to schedule paramupdate message when game options are changed */
 	var inputElts = document.getElementById('details').getElementsByTagName('input');
 	for(var i = 0; i < inputElts.length; i++) {
-		if(inputElts[i].type == 'text') {
+		if(inputElts[i].type == 'number') {
 			inputElts[i].addEventListener('input', sendParams(paramInputInterval, false), false);
 			inputElts[i].addEventListener('change', sendParams(paramUpdateInterval, true), false);
 		} else 

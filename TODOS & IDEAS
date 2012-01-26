@@ -10,6 +10,8 @@
 
 - linkje werkt nog niet als je al geconnect bent (door de # laadt ie de pagina niet opnieuw, iig in firefox)
 
+- onDeath werkt niet meer
+
 - server compilen op win32 (cJSON werkt gwon met andere compiler, dus enkel onze code nog)
 
 - touch sturen werkt af en toe niet meer? RE: zou opgelost moeten zijn, ff testen op een ipet
@@ -50,4 +52,4 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 
 - account systeem
 
-- game settings wat aanpassen qua opzet. voor niet hosts bijv alleen non-default waardes tonen en voor hosts dingen opdelen in categorieen die dan gehide kunnen worden. wordt anders zo'n lange lijst. er zouden eig nog wat opties bij moeten (inkmousedown, inkstart)
+- game settings wat aanpassen qua opzet. voor niet hosts bijv alleen non-default waardes tonen en voor hosts dingen opdelen in categorieen die dan gehide kunnen worden. wordt anders zo'n lange lijst. er zouden eig nog wat opties bij moeten (inkmousedown, inkstart). die collapses en andere gave dingen kunnen misschien gedaan worden met BOOTSTRAP v2 http://markdotto.com/bs2/docs/javascript.html
