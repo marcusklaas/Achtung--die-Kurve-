@@ -1,6 +1,10 @@
-var enableSound = true; // this is not constant! may change during execution of game.js
-var keyCodeLeft = 37; // left arrow button
-var keyCodeRight = 39; // right arrow button
+/* global vars */
+var enableSound = true;
+var joinedLink = false;
+
+/* controls */
+var keyCodeLeft = 37;
+var keyCodeRight = 39;
 
 var serverURL = "ws://marcusklaas.nl:7681"; // websocket game server
 if(location.href.indexOf('localhost') != -1)
@@ -11,7 +15,6 @@ else if(location.href.indexOf('192.168.1.101') != -1)
 	serverURL = "ws://192.168.1.101:7681";
 else if(location.href.indexOf('C:/Dropbox') != -1)
 	serverURL = "ws://localhost:7681";
-
 
 /* visual stuff */
 var gapAlpha = 0.2;

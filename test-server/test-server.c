@@ -18,16 +18,12 @@ static unsigned long serverticks = 0;
 #include "helper.c"
 #include "game.c"
 
-
 /* this protocol server (always the first one) just knows how to do HTTP */
 static int callback_http(struct libwebsocket_context * context,
 		struct libwebsocket *wsi,
 		enum libwebsocket_callback_reasons reason, void *user,
 							   void *in, size_t len)
 {
-	char client_name[128];
-	char client_ip[128];
-
 	switch (reason) {
 	case LWS_CALLBACK_HTTP:
 		{
@@ -45,8 +41,8 @@ static int callback_http(struct libwebsocket_context * context,
 
 			strcpy(path, LOCAL_RESOURCE_PATH);
 			strcat(path, in);
-			if(!strcmp(in, "/"))
-				strcat(path, "index.html");
+			if(!strcmp(in, "/") || strrchr(in, '?') == in + 1) // ignore get variables (for now)
+				strcpy(path + LOCAL_PATH_LENGTH, "/index.html");
 			if(!strcmp(ext, "ico"))
 				strcpy(mime, "image/x-icon");
 			else if(!strcmp(ext, "js"))
@@ -83,7 +79,7 @@ static int
 callback_game(struct libwebsocket_context * context,
 			struct libwebsocket *wsi,
 			enum libwebsocket_callback_reasons reason,
-					       void *user, void *in, size_t len)
+			void *user, void *in, size_t len)
 {
 	struct user *u = user;
 	char *inchar= in;

@@ -197,9 +197,11 @@ GameEngine.prototype.interpretMsg = function(msg) {
 
 			if(obj.type == 'lobby') {
 				this.updateTitle('Lobby');
-				if(window.location.hash.indexOf('#game=', 0) == 0) {
-					this.joinGame(parseInt(window.location.hash.substr(6)));
-					window.location.hash = '';
+				var index = window.location.href.indexOf('?game=', 0)
+
+				if(!joinedLink && index != -1) {
+					this.joinGame(parseInt(window.location.href.substr(index + 6)));
+					joinedLink = true;
 				}
 			}
 			else
@@ -563,11 +565,11 @@ GameEngine.prototype.setParams = function(obj) {
 		this.updateTitle('Game ' + obj.id);
 
 		var url = new String(window.location);
-		var hashPos = url.indexOf('#', 0);
+		var hashPos = url.indexOf('?', 0);
 
 		if(hashPos != -1)
 			url = url.substr(0, hashPos);
-		url += '#game=' + obj.id;
+		url += '?game=' + obj.id;
 
 		document.getElementById('friendInviter').innerHTML = 'Invite your friends by' +
 		 ' sending them this link: ' + url;
@@ -1340,8 +1342,6 @@ function InputController(player, left, right) {
 				self.pencilTouch = new touchEvent(pos[0], pos[1], touch.identifier);
 				pencil.startDraw(pos);
 			}
-
-			game.gameMessage(self.player.status);
 		}
 
 		if(e.cancelable)
@@ -1927,7 +1927,7 @@ window.onload = function() {
 	var playerName = getCookie('playerName');
 
 	// temporary ! cookies do not work without website
-	if(location.href.indexOf('C:/Dropbox') != -1) {
+	if(window.location.href.indexOf('C:/Dropbox') != -1) {
 		playerName = 'rik';
 		document.getElementById('minplayers').value = '1';
 		enableSound = false;
