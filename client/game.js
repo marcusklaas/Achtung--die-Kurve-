@@ -114,6 +114,7 @@ GameEngine.prototype.setGameState = function(newState) {
 	if(newState == 'new' || this.gameState == 'new') {
 		var display = newState == 'new' ? 'none' : 'block';
 		document.getElementById('playerListContainer').style.display = display;
+		document.getElementById('gameTitle').style.display = display;
 		document.getElementById('chat').style.display = display;
 	}
 
