@@ -1312,7 +1312,7 @@ function InputController(player, left, right) {
 	};
 
 	function touchStart(e) {
-		if(player.status != 'alive' || game.tick == -1)
+		if(game.tick == -1)
 			return;
 
 		for(var i = 0; i < e.changedTouches.length; i++) {
@@ -1322,21 +1322,23 @@ function InputController(player, left, right) {
 			var right = (pos[0] <= totalWidth * steerBoxSize);  // TODO: dit is precies andersom als hoe t zou moeten -- hoe kan dit?
 			var left = (pos[0] >= (1 - steerBoxSize) * totalWidth);
 
-			if(left && self.leftTouch === null) {
+			if(self.player.status == 'alive' && left && self.leftTouch === null) {
 				self.leftTouch = new touchEvent(pos[0], pos[1], touch.identifier);
 				self.pressLeft();
 			}
 
-			else if(right && self.rightTouch === null) {
+			else if(self.player.status == 'alive' && right && self.rightTouch === null) {
 				self.rightTouch = new touchEvent(pos[0], pos[1], touch.identifier);
 				self.pressRight();
 			}
 
-			else if(!left && !right && self.pencilTouch == null &&
-			 !pencil.down && pencil.ink > pencil.mousedownInk && pencil.drawingAllowed) {
+			else if(self.pencilTouch == null && !pencil.down &&
+			 pencil.ink > pencil.mousedownInk && pencil.drawingAllowed) {
 				self.pencilTouch = new touchEvent(pos[0], pos[1], touch.identifier);
 				pencil.startDraw(pos);
 			}
+
+			game.gameMessage(self.player.status);
 		}
 
 		if(e.cancelable)
@@ -1344,19 +1346,19 @@ function InputController(player, left, right) {
 	}
 
 	function touchEnd(e) {
-		if(player.status != 'alive' || player.game.tick == -1)
+		if(player.game.tick == -1)
 			return;
 
 		for(var i = 0; i < e.changedTouches.length; i++) {
 			var touch = e.changedTouches[i];
 
-			if(self.leftTouch != null &&
+			if(self.player.status == 'alive' && self.leftTouch != null &&
 			 touch.identifier == self.leftTouch.identifier) {
 				self.releaseLeft();
 				self.leftTouch = null;
 			}
 
-			else if(self.rightTouch != null &&
+			else if(self.player.status == 'alive' && self.rightTouch != null &&
 			 touch.identifier == self.rightTouch.identifier) {
 				self.releaseRight();
 				self.rightTouch = null;
@@ -1374,15 +1376,14 @@ function InputController(player, left, right) {
 	}
 
 	function touchMove(e) {
-		// FIXME: door deze alive checks doet tekenen ondeath t niet meer
-		if(player.status != 'alive' || player.game.tick == -1)
+		if(player.game.tick == -1)
 			return;
 
 		for(var i = 0; i < e.changedTouches.length; i++) {
 			var touch = e.changedTouches[i];
 			var pos = pencil.getRelativePos(touch);
 			var totalWidth = game.width;
-			var right = (pos[0] <= totalWidth * steerBoxSize);  // TODO: zie de todo in touchstart
+			var right = (pos[0] <= totalWidth * steerBoxSize);
 			var left = (pos[0] >= (1 - steerBoxSize) * totalWidth);
 
 			if(self.leftTouch != null && touch.identifier == self.leftTouch.identifier) {
