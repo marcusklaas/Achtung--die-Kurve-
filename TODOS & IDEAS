@@ -8,8 +8,6 @@
 
 - ondeath lijkt niet meer te werken
 
-- aanpassen van spelernaam kleur lijkt nog niet te werken
-
 = niet cruciaal =
 
 - linkje werkt nog niet als je al geconnect bent (door de # laadt ie de pagina niet opnieuw, iig in firefox)
@@ -40,6 +38,8 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 
 - scrollbar voor playerlist en chat
 
+- BOOTSTRAP css jatten voor checkboxes/ radiobuttons en prepended input text voor min/ max players. misschien kunnen we ook checkboxes/ inputs doen zoals http://markdotto.com/bs2/docs/javascript.html#buttons .. moeten we wel ff onze eigen javascript schrijven (zij gebruiken jquery) maar is volgens mij heel eenvoudig
+
 = ideeen =
 
 - misschien elke client dezelfde kleuren laten zien? want stel iemand gaat schelden op blauw in de chat. [dan beter wel 'you' ofzo naast jouw start indicator.]
@@ -55,3 +55,5 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=676881
 - account systeem
 
 - game settings wat aanpassen qua opzet. voor niet hosts bijv alleen non-default waardes tonen en voor hosts dingen opdelen in categorieen die dan gehide kunnen worden. wordt anders zo'n lange lijst. er zouden eig nog wat opties bij moeten (inkmousedown, inkstart)
+
+- yo het is opzich geen biggy maar dat stuk dat je weghebt gegooid uit callback_http hebben we wel weer nodig als we ooit het aantal connecties per ip aan banden willen leggen
