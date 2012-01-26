@@ -1348,7 +1348,7 @@ function InputController(player, left, right) {
 			var touch = e.changedTouches[i];
 			var pos = pencil.getRelativePos(touch);
 			var totalWidth = game.width;
-			var right = (pos[0] <= totalWidth * steerBoxSize);  // TODO: dit is precies andersom als hoe t zou moeten -- ergens verderop moet fout zitten
+			var right = (pos[0] <= totalWidth * steerBoxSize);  // TODO: dit is precies andersom als hoe t zou moeten -- hoe kan dit?
 			var left = (pos[0] >= (1 - steerBoxSize) * totalWidth);
 
 			if(left && self.leftTouch === null) {
@@ -1361,10 +1361,12 @@ function InputController(player, left, right) {
 				self.pressRight();
 			}
 
-			else if(!left && !right && self.pencilTouch === null &&
-			 !pencil.down && pencil.ink > pencil.mousedownInk) {
+			game.gameMessage('touch start');
+
+			if(!left && !right && self.pencilTouch == null &&
+			 !pencil.down && pencil.ink > pencil.mousedownInk && pencil.drawingAllowed) {
 				self.pencilTouch = new touchEvent(pos[0], pos[1], touch.identifier);
-				pencil.startDraw(pencil.getRelativePos(touch));
+				pencil.startDraw(pos);
 			}
 		}
 
@@ -1403,6 +1405,7 @@ function InputController(player, left, right) {
 	}
 
 	function touchMove(e) {
+		// FIXME: door deze alive checks doet tekenen ondeath t niet meer
 		if(player.status != 'alive' || player.game.tick == -1)
 			return;
 
@@ -1410,7 +1413,7 @@ function InputController(player, left, right) {
 			var touch = e.changedTouches[i];
 			var pos = pencil.getRelativePos(touch);
 			var totalWidth = game.width;
-			var right = (pos[0] <= totalWidth * steerBoxSize);  // TODO: zie TODO boven
+			var right = (pos[0] <= totalWidth * steerBoxSize);  // TODO: zie de todo in touchstart
 			var left = (pos[0] >= (1 - steerBoxSize) * totalWidth);
 
 			if(self.leftTouch != null && touch.identifier == self.leftTouch.identifier) {
