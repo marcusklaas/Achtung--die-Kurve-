@@ -3,33 +3,14 @@ function GameEngine(localPlayer, audioController) {
 	// game variables
 	this.players = [];
 	this.dict = []; // maps playerId.toString() to index of this.players
-	this.gameStartTimestamp = null;
-	this.tick = 0;
-	this.tock = 0; // seperate tick for the other clients
-	this.behind = behind;
+	this.tickTockDifference = tickTockDifference;
 	this.gameState = 'new'; // new, lobby, editing, waiting, countdown, playing, watching, ended
 	this.gameType = null;
-	this.tickLength = null;
-
-	// game properties
-	this.torus = false;
-	this.width = -1;
-	this.height = -1;
-	this.pencilMode = null; // on, off or ondeath
-	this.velocity = null;
-	this.turnSpeed = null;
-	this.holeSize = null; // default game values, may be overwritten during game
-	this.holeFreq = null; // for certain players by powerups or whatever
-	this.countdown = null; // countdown time in msecs
 
 	// connection state
-	this.websocket = null;
 	this.connected = false;
-	this.syncTries = 0;
 
 	// canvas related
-	this.resizeNeeded = false;
-	this.scale = null; // canvas size/ game size
 	this.canvasContainer = document.getElementById('canvasContainer');
 	this.baseCanvas = document.getElementById('baseCanvas');
 	this.baseContext = this.baseCanvas.getContext('2d');
@@ -39,17 +20,12 @@ function GameEngine(localPlayer, audioController) {
 	this.setDefaultValues(this.foregroundContext);
 
 	// children
-	this.localPlayerId = null;
 	this.localPlayer = localPlayer;
 	this.pencil = new Pencil(this);
 	this.audioController = audioController;
 	this.playerList = document.getElementById('playerList').lastChild;
 	this.chatBar = document.getElementById('chat');
 	this.editor = new Editor(this);
-
-	// game param timers
-	this.paramTimeout = null;
-	this.unlockTimeout = null;
 }
 
 /* this only resets things like canvas, but keeps the player info */
@@ -82,6 +58,10 @@ GameEngine.prototype.getIndex = function(playerId) {
 	return this.dict[playerId.toString()];
 }
 
+GameEngine.prototype.getPlayer = function(playerId) {
+	return this.players[this.getIndex(playerId)];
+}
+
 GameEngine.prototype.setIndex = function(playerId, index) {
 	return this.dict[playerId.toString()] = index;
 }
@@ -93,7 +73,6 @@ GameEngine.prototype.disconnect = function() {
 	this.connected = false;
 	this.websocket = null;
 	this.resetPlayers();
-	this.reset();
 }		
 
 GameEngine.prototype.connect = function(url, name, callback) {
@@ -201,11 +180,10 @@ GameEngine.prototype.interpretMsg = function(msg) {
 	switch(obj.mode) {
 		case 'acceptUser':
 			/* cool, we are accepted. lets adopt the server constants */
-			this.localPlayerId = obj.playerId;
+			this.localPlayer.playerId = obj.playerId;
 			this.tickLength = obj.tickLength;
 			this.pencil.inkMinimumDistance = obj.inkMinimumDistance;
 			this.maxNameLen = obj.maxNameLength;
-			this.setIndex(obj.playerId, 0);
 			break;
 		case 'joinedGame':
 			this.localPlayer.status = 'ready';
@@ -246,7 +224,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;
 		case 'startGame':
 			/* keep displaying old game for a while so ppl can see what happened */
-			var nextRoundDelay = obj.startTime + this.serverTimeDifference - this.ping
+			var nextRoundDelay = obj.startTime - this.serverTimeDifference - this.ping
 			 + extraGameStartTimeDifference - Date.now();
 			 
 			// first back to game lobby for some reset work
@@ -325,9 +303,10 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'endGame':
 			this.setGameState('ended');
 			window.clearTimeout(this.gameloopTimeout);
-			this.gameMessage('Game over: ' + this.players[this.getIndex(obj.winnerId)].playerName + ' won!');
+			var winner = this.getPlayer(obj.winnerId);
+			this.gameMessage('Game over: ' + winner.playerName + ' won!');
 
-			if(obj.winnerId == this.localPlayerId)
+			if(winner.isLocal)
 				this.audioController.playSound('localWin');
 			if(jsProfiling)
 				console.profileEnd();
@@ -336,7 +315,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.handleSyncResponse(obj.time);
 			break;
 		case 'chat':
-			this.printChat(obj.playerId, obj.message);
+			this.printChat(this.getPlayer(obj.playerId), obj.message);
 			break;
 		case 'gameList':
 			this.buildGameList(obj.games);
@@ -474,12 +453,12 @@ GameEngine.prototype.buildGameList = function(list) {
 	}
 }
 
-GameEngine.prototype.printChat = function(playerId, message) {
+GameEngine.prototype.printChat = function(player, message) {
 	var escaped = escapeString(message);
 	var container = document.getElementById('messages');
 	var elt = document.createElement('li');
 	var nameContainer = document.createElement('span');
-	var displayName = playerId == this.localPlayerId ? 'me' : this.players[this.getIndex(playerId)].playerName;
+	var displayName = player.isLocal ? 'me' : player.playerName;
 
 	nameContainer.innerHTML = displayName;
 	nameContainer.className = 'player';
@@ -513,34 +492,33 @@ GameEngine.prototype.handleSegmentsMessage = function(segments) {
 }
 
 GameEngine.prototype.handleSyncResponse = function(serverTime) {
-	if(this.syncTries == 0) {
+	if(this.syncTry == undefined) {
 		this.ping = 0;
 		this.bestSyncPing = 9999;
 		this.worstSyncPing = 0;
+		this.syncTry = 0;
 	}
 
-	var ping = Math.round((Date.now() - this.syncSendTime) / 2);
+	var ping = (Date.now() - this.syncSendTime) / 2;
 	if(ping < this.bestSyncPing) {
 		this.bestSyncPing = ping;
-		this.serverTimeDifference = Date.now() - (serverTime + ping);
+		this.serverTimeDifference = (serverTime + ping) - Date.now();
 	}
 
 	if(ping > this.worstSyncPing) {
-		this.ping += Math.round(this.worstSyncPing / (syncTries - 1));
-		this.worstSyncPing = ping;
+		this.ping += this.worstSyncPing;
+		this.worstSyncPing = ping / (syncTries - 1);
 	} else
-		this.ping += Math.round(ping / (syncTries - 1));
+		this.ping += ping / (syncTries - 1);
 
-	if(++this.syncTries < syncTries) {
+	if(++this.syncTry < syncTries) {
 		var self = this;
-		window.setTimeout(function() {self.syncWithServer();},
-		 this.syncTries * syncDelays);
-	} 
-	else {
+		window.setTimeout(function() {self.syncWithServer();}, this.syncTry * syncDelays);
+	} else {
 		this.gameMessage('Your current ping is ' + this.ping + ' msec');
 		if(ultraVerbose)
 			this.gameMessage('Synced with maximum error of ' + this.bestSyncPing + ' msec');
-		this.syncTries = 0;
+		this.syncTry = undefined;
 	}
 }
 
@@ -663,20 +641,15 @@ GameEngine.prototype.doTock = function() {
 GameEngine.prototype.addPlayer = function(player) {
 	player.game = this;
 	var index = this.players.length;
-	player.canvas = document.createElement('canvas');
-	player.context = player.canvas.getContext('2d');
-
-	if(player.playerId != null)
-		this.setIndex(player.playerId, index);
-	else
-		player.playerId = this.localPlayerId;
-
-	player.canvas.id = 'playerCanvas' + player.playerId;
-	this.canvasContainer.appendChild(player.canvas);
-
+	this.setIndex(player.playerId, index);
 	this.players.push(player);
 	this.appendPlayerList(index);
+	
+	player.canvas = document.createElement('canvas');
+	player.context = player.canvas.getContext('2d');
 	this.setDefaultValues(player.context);
+	player.canvas.id = 'playerCanvas' + player.playerId;
+	this.canvasContainer.appendChild(player.canvas);
 }
 
 GameEngine.prototype.calcScale = function(extraVerticalSpace) {
@@ -733,7 +706,7 @@ GameEngine.prototype.sendStartGame = function() {
 }
 
 GameEngine.prototype.start = function(startPositions, startTime) {
-	this.gameStartTimestamp = startTime + this.serverTimeDifference - this.ping
+	this.gameStartTimestamp = startTime - this.serverTimeDifference - this.ping
 	 + extraGameStartTimeDifference;
 	this.setGameState('countdown');
 	var delay = this.gameStartTimestamp - Date.now();
@@ -798,7 +771,7 @@ GameEngine.prototype.realStart = function() {
 		 		return;
 		 	}
 
-			while(self.tick - self.tock >= self.behind)
+			while(self.tick - self.tock >= self.tickTockDifference)
 				self.doTock();
 			self.doTick();
 		} while((timeOut = (self.tick + 1) * self.tickLength - (Date.now() - self.gameStartTimestamp)
@@ -940,7 +913,7 @@ GameEngine.prototype.sendChat = function() {
 
 	this.sendMsg('chat', {'message': msg});
 	this.chatBar.value = '';
-	this.printChat(this.localPlayerId, msg);
+	this.printChat(this.localPlayer, msg);
 }
 
 GameEngine.prototype.focusChat = function() {
@@ -991,8 +964,6 @@ function Player(color, local, index) {
 	this.nextInput = 0;
 	this.inputsReceived = 0; // only for local player
 	this.holeStart = 0;
-	this.holeSize = 0;
-	this.holeFreq = 0;
 	this.tick = 0;
 	this.index = index;
 	this.points = 0;
@@ -1584,8 +1555,7 @@ Pencil.prototype.reset = function() {
 		this.inbufferIndex[i] = 0;
 	}
 
-	this.inbuffer.length = this.players;
-	this.inbufferIndex.length = this.players;
+	this.inbuffer.length = this.inbufferIndex.length = this.players;
 	var pos = findPos(this.game.canvasContainer);
 	this.canvasLeft = pos[0];
 	this.canvasTop = pos[1];
@@ -1953,6 +1923,7 @@ window.onload = function() {
 	if(location.href.indexOf('C:/Dropbox') != -1) {
 		playerName = 'rik';
 		document.getElementById('minplayers').value = '1';
+		enableSound = false;
 	}
 	
 	/* auto join lobby if name is known */
@@ -1986,14 +1957,14 @@ window.onload = function() {
 			 * needed. ie, when we already sent the params after an onInput event.
 			 * onChange would then still fire, which is annoying if you just pressed
 			 * start game */
-			if(onlyAllowReplacement && game.paramTimeout === null)
+			if(onlyAllowReplacement && game.paramTimeout == undefined)
 				return;
 				
 			window.clearTimeout(game.paramTimeout);
 		
 			game.paramTimeout = window.setTimeout(function() {
 				game.sendParams();
-				game.paramTimeout = null;
+				game.paramTimeout = undefined;
 			}, timeout);
 
 			document.getElementById('startGame').disabled = true;
