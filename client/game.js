@@ -383,6 +383,7 @@ GameEngine.prototype.removePlayer = function(index) {
 		this.players[i].index--;
 		this.players[i].color = playerColors[i - 1];
 		this.setIndex(this.players[i].playerId, i - 1);
+		this.players[i].updateList();
 	}
 
 	this.players.splice(index, 1);
@@ -698,7 +699,9 @@ GameEngine.prototype.calcScale = function(extraVerticalSpace) {
 }
 
 GameEngine.prototype.unlockStart = function() {
-	document.getElementById('startGame').disabled = false;
+	var startButton = document.getElementById('startGame');
+	startButton.disabled = false;
+	startButton.innerHTML = 'Start Game';
 	this.unlockTimeout = null;
 }
 
@@ -913,7 +916,7 @@ GameEngine.prototype.updatePlayerList = function(player) {
 	if(player.status == 'left')
 		row.className = 'left';
 		
-	if(this.gameState != 'lobby')
+	if(this.gameType != 'lobby')
 		row.childNodes[0].style.color = 'rgb(' + player.color[0] + ', ' + player.color[1] + ', '
 		 + player.color[2] + ')';
 
@@ -1129,7 +1132,7 @@ Player.prototype.simulate = function(endTick, ctx) {
 					this.simulateDead();
 				} else
 					ctx.stroke();
-				this.tick++; // so that this.tick > this.finalTick
+				this.tick++;
 				return;
 			} else {
 				this.turn = input.turn;
@@ -1560,33 +1563,31 @@ Pencil.prototype.startDraw = function(pos) {
 	this.ink -= this.mousedownInk;
 	this.curX = this.x = pos[0];
 	this.curY = this.y = pos[1];
-	this.buffer.push(1);
-	this.buffer.push(this.x);
-	this.buffer.push(this.y);
-	this.buffer.push(this.game.tick);
+	this.outbuffer.push(1);
+	this.outbuffer.push(this.x);
+	this.outbuffer.push(this.y);
+	this.outbuffer.push(this.game.tick);
 	this.down = true;
 }
 
 Pencil.prototype.reset = function() {
 	this.drawingAllowed = (this.game.pencilMode == 'on');
 	document.getElementById('inkIndicator').style.display = this.drawingAllowed ? 'block' : 'none';
-	this.buffer = [];
+	this.outbuffer = [];
 	this.down = false;
 	this.upped = false;
 	this.inbuffer = [];
-	this.inbufferSolid = [];
-	this.inbufferSolidIndex = [];
+	this.inbufferIndex = [];
 	this.setInk(this.startInk);
 	this.players = this.game.players.length;
 
 	for(var i = 0; i < this.players; i++) {
 		this.inbuffer[i] = [];
-		this.inbufferSolid[i] = [];
-		this.inbufferSolidIndex[i] = 0;
+		this.inbufferIndex[i] = 0;
 	}
 
-	this.inbufferSolid.length = this.inbuffer.length = this.players;
-	this.inbufferSolidIndex.length = this.players;
+	this.inbuffer.length = this.players;
+	this.inbufferIndex.length = this.players;
 	var pos = findPos(this.game.canvasContainer);
 	this.canvasLeft = pos[0];
 	this.canvasTop = pos[1];
@@ -1622,10 +1623,10 @@ Pencil.prototype.doTick = function() {
 				this.game.focusChat();
 			}
 			this.setInk(this.ink - d);
-			this.buffer.push(this.upped ? -1 : 0);
-			this.buffer.push(x);
-			this.buffer.push(y);
-			this.buffer.push(this.game.tick);
+			this.outbuffer.push(this.upped ? -1 : 0);
+			this.outbuffer.push(x);
+			this.outbuffer.push(y);
+			this.outbuffer.push(this.game.tick);
 			this.drawSegment(this.x, this.y, x, y, 0, pencilAlpha);
 			this.x = x;
 			this.y = y;
@@ -1633,9 +1634,9 @@ Pencil.prototype.doTick = function() {
 		}
 	}
 
-	if(this.game.tick % inkBufferTicks == 0 && this.buffer.length > 0) {
-		this.game.sendMsg('pencil', {'data' : this.buffer});
-		this.buffer = [];
+	if(this.game.tick % inkBufferTicks == 0 && this.outbuffer.length > 0) {
+		this.game.sendMsg('pencil', {'data' : this.outbuffer});
+		this.outbuffer = [];
 	}
 
 	this.drawPlayerSegs(false);
@@ -1643,27 +1644,20 @@ Pencil.prototype.doTick = function() {
 
 Pencil.prototype.drawPlayerSegs = function(redraw) {
 	for(var i = 0; i < this.players; i++) {
-		var index, seg, buffer = this.inbuffer[i];
-
-		if(redraw) {
-			for(index = 0; index < buffer.length; index++) {
-				seg = buffer[index];
-				this.drawSegment(seg.x1, seg.y1, seg.x2, seg.y2, i, pencilAlpha);
-			}
-		}
-
-		buffer = this.inbufferSolid[i];
-		index = (redraw) ? 0 : this.inbufferSolidIndex[i];
+		var buffer = this.inbuffer[i];
+		var index = redraw ? 0 : this.inbufferIndex[i];
 		
-		while(index < buffer.length && buffer[index].tickSolid <= this.game.tick) {
-			var seg = buffer[index++];
-			this.drawSegment(seg.x1, seg.y1, seg.x2, seg.y2, i, 1);
-			
-			if(!redraw)
-				this.inbuffer[i].shift();
+		while(index < buffer.length) {
+			var seg = buffer[index];
+			var solid = seg.tickSolid <= this.game.tick;
+			if(!solid && !redraw)
+				break;
+			this.drawSegment(seg.x1, seg.y1, seg.x2, seg.y2, i, solid ? 1 : pencilAlpha);
+			index++;
 		}
+		
 		if(!redraw)
-			this.inbufferSolidIndex[i] = index;
+			this.inbufferIndex[i] = index;
 	}
 }
 
@@ -1685,7 +1679,6 @@ Pencil.prototype.handleMessage = function(ar) {
 		var index = this.game.getIndex(a.playerId);
 		this.drawSegment(a.x1, a.y1, a.x2, a.y2, index, pencilAlpha);
 		this.inbuffer[index].push(a);
-		this.inbufferSolid[index].push(a);
 	}
 }
 
@@ -2005,7 +1998,9 @@ window.onload = function() {
 				game.paramTimeout = null;
 			}, timeout);
 
-			document.getElementById('startGame').disabled = true;
+			var startButton = document.getElementById('startGame');
+			startButton.disabled = true;
+			startButton.innerHTML = 'Please wait';
 
 			if(game.unlockTimeout !== null)
 				window.clearTimeout(game.unlockTimeout);
@@ -2021,7 +2016,7 @@ window.onload = function() {
 	/* add event handlers to schedule paramupdate message when game options are changed */
 	var inputElts = document.getElementById('details').getElementsByTagName('input');
 	for(var i = 0; i < inputElts.length; i++) {
-		if(inputElts[i].type == 'number') {
+		if(inputElts[i].type == 'text' || inputElts[i].type == 'number') {
 			inputElts[i].addEventListener('input', sendParams(paramInputInterval, false), false);
 			inputElts[i].addEventListener('change', sendParams(paramUpdateInterval, true), false);
 		} else 
