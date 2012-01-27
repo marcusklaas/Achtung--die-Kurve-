@@ -115,7 +115,7 @@ GameEngine.prototype.setGameState = function(newState) {
 		var display = newState == 'new' ? 'none' : 'block';
 		document.getElementById('playerListContainer').style.display = display;
 		document.getElementById('gameTitle').style.display = display;
-		document.getElementById('chat').style.display = display;
+		document.getElementById('chatForm').style.display = display;
 	}
 
 	switch(newState) {
