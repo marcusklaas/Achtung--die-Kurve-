@@ -292,7 +292,8 @@ GameEngine.prototype.interpretMsg = function(msg) {
 				this.doTick();
 			while(this.tock <= obj.finalTick)
 				this.doTock();
-			
+				
+			this.running = false;
 			var index = (obj.winnerId != -1) ? this.getIndex(obj.winnerId) : null;
 			var winner = (index != null) ? (this.players[index].playerName + ' won') : 'draw!';
 			this.setGameState('countdown');
@@ -723,9 +724,6 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 
 	this.audioController.playSound('countdown');
 
-	/* Scroll to right for touch devices */
-	window.scroll(document.body.offsetWidth, 0);
-
 	/* init players */
 	for(var i = 0; i < startPositions.length; i++) {
 		var index = this.getIndex(startPositions[i].playerId);
@@ -738,6 +736,9 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 
 	this.resize();
 
+	/* Scroll to right for touch devices */
+	window.scroll(document.body.offsetWidth, 0);
+
 	/* draw angle indicators */
 	for(var i = 0; i < startPositions.length; i++) {
 		var index = this.getIndex(startPositions[i].playerId);
@@ -748,6 +749,7 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 
 	var self = this;
 	this.gameloopTimeout = window.setTimeout(function() { self.realStart(); }, delay + this.tickLength);
+	this.running = false;
 	this.focusChat();
 }
 
@@ -759,6 +761,7 @@ GameEngine.prototype.realStart = function() {
 	this.setGameState('playing');
 	this.sendMsg('enableInput', {});
 	this.tick = 0;
+	this.running = true;
 
 	var self = this;
 	var gameloop = function() {
@@ -1252,7 +1255,7 @@ function InputController(player, left, right) {
 
 	/* listen for keyboard events */
 	window.addEventListener('keydown', function(e) {
-		if(self.player.status != 'alive' || game.tick == -1)
+		if(self.player.status != 'alive' || !game.running)
 			return;
 
 		if(e.keyCode == self.leftKeyCode) {
@@ -1266,7 +1269,7 @@ function InputController(player, left, right) {
 	}, false);
 
 	window.addEventListener('keyup', function(e) {
-		if(self.player.status != 'alive' || game.tick == -1)
+		if(self.player.status != 'alive' || !game.running)
 			return;
 
 		if(e.keyCode == self.leftKeyCode) {
@@ -1318,7 +1321,7 @@ function InputController(player, left, right) {
 	};
 
 	function touchStart(e) {
-		if(game.tick == -1)
+		if(!game.running)
 			return;
 
 		for(var i = 0; i < e.changedTouches.length; i++) {
@@ -1350,7 +1353,7 @@ function InputController(player, left, right) {
 	}
 
 	function touchEnd(e) {
-		if(player.game.tick == -1)
+		if(!game.running)
 			return;
 
 		for(var i = 0; i < e.changedTouches.length; i++) {
@@ -1380,7 +1383,7 @@ function InputController(player, left, right) {
 	}
 
 	function touchMove(e) {
-		if(player.game.tick == -1)
+		if(!game.running)
 			return;
 
 		for(var i = 0; i < e.changedTouches.length; i++) {

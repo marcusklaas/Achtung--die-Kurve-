@@ -23,6 +23,7 @@
 
 /* debugging */
 #define DEBUG_MODE 1
+#define PENCIL_DEBUG 0
 #define ULTRA_VERBOSE 0
 #define SHOW_WARNING 1
 #define GOD_MODE 0
@@ -49,7 +50,6 @@
 #define MAX_INK 200
 #define START_INK MAX_INK
 #define MOUSEDOWN_INK 30
-//#define INK_BUFFER_TICKS 5 -- we can remove since we will have spam protection anyway
 #define INK_MIN_DISTANCE 5
 #define INK_SOLID 5000
 

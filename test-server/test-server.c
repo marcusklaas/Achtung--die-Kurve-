@@ -41,7 +41,7 @@ static int callback_http(struct libwebsocket_context * context,
 
 			strcpy(path, LOCAL_RESOURCE_PATH);
 			strcat(path, in);
-			if(!strcmp(in, "/") || strrchr(in, '?') == in + 1) // ignore get variables (for now)
+			if(!strcmp(in, "/") || strrchr(in, "?") == (char *) in + 1) // ignore get variables (for now)
 				strcpy(path + LOCAL_PATH_LENGTH, "/index.html");
 			if(!strcmp(ext, "ico"))
 				strcpy(mime, "image/x-icon");

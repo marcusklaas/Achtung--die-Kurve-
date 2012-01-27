@@ -953,6 +953,9 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 		int tick;
 		char type;
 
+		if(PENCIL_DEBUG)
+			printf("start reading next block .. ");
+		
 		/* read next block */
 		type = json->valueint;
 		if(!(json = json->next)) break;
@@ -962,9 +965,15 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 		if(!(json = json->next)) break;
 		tick = json->valueint;
 		json = json->next;
+
+		if(PENCIL_DEBUG)
+			printf("done\n");
 		
-		if(tick < p->tick || x < 0 || y < 0 || x > u->gm->w || y > u->gm->h)
+		if(tick < p->tick || x < 0 || y < 0 || x > u->gm->w || y > u->gm->h) {
+			if(PENCIL_DEBUG)
+				printf("error: wrong pencil location or tick\n");
 			break;
+		}
 		gototick(p, tick);
 
 		if(type == 1) {
@@ -973,12 +982,18 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 				p->y = y;
 				p->ink -= MOUSEDOWN_INK;
 				p->down = 1;
-			}else
+			} else {
+				if(PENCIL_DEBUG)
+					printf("error: not enough ink for pencil down\n");
 				break;
-		}else{
+			}
+		} else {
 			float d = getlength(p->x - x, p->y - y);
-			if(p->ink < d - EPS || !p->down)
+			if(p->ink < d - EPS || !p->down) {
+				if(PENCIL_DEBUG)
+					printf("error: pencil move: not enough ink or pencil not down\n");
 				break;
+			}
 			p->ink -= d;
 			if(type == -1 || d >= INK_MIN_DISTANCE) {
 				int tickSolid = max(tick, u->gm->tick) + u->gm->inkdelay / TICK_LENGTH;
@@ -1015,8 +1030,11 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 				p->y = y;
 				if(type == -1)
 					p->down = 0;
-			}else
+			} else {
+				if(PENCIL_DEBUG)
+					printf("error: too short distance for pencil move\n");
 				break;
+			}
 		}
 	}
 	if(j) {
