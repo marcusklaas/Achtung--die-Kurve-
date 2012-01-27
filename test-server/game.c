@@ -307,7 +307,6 @@ void joingame(struct game *gm, struct user *newusr) {
 		broadcastgamelist();
 
 	newusr->gm = gm;
-	newusr->inputs = 0;
 	newusr->points = 0;
 
 	/* tell user s/he joined a game */
@@ -597,8 +596,6 @@ int simuser(struct user *usr, int tick) {
 	if(usr->gm->pencilmode != PM_OFF)
 		simpencil(&usr->pencil);
 
-	usr->inputs *= !!(tick % INPUT_CONTROL_INTERVAL);
-
 	usr->angle += usr->turn * usr->ts * TICK_LENGTH / 1000.0;
 	usr->x += cos(usr->angle) * usr->v * TICK_LENGTH / 1000.0;
 	usr->y += sin(usr->angle) * usr->v * TICK_LENGTH / 1000.0;
@@ -776,32 +773,21 @@ void simgame(struct game *gm) {
 		gm->tick++;
 }
 
-static void resetGameChatCounters(struct game *gm) {
-	struct user *usr;
-
-	for(usr = gm->usr; usr; usr = usr->nxt)
-		usr->chats = 0;
-}
-
 /* tries to simgame every game every TICK_LENGTH milliseconds */
 void mainloop() {
-	int sleepuntil, resetChat;
+	int sleepuntil;
 	struct game *gm;
 	static int lastheavyloadmsg;
 
 	while(1) {
-		resetChat = !(serverticks % SPAM_CHECK_INTERVAL);
-
 		for(gm = headgame; gm; gm = gm->nxt) {
 			if(gm->state == GS_STARTED)
 				simgame(gm);
 
-			if(resetChat)
-				resetGameChatCounters(gm);
+			resetspamcounters(gm, serverticks);
 		}
 		
-		if(resetChat)
-			resetGameChatCounters(lobby);
+		resetspamcounters(lobby, serverticks);
 
 		sleepuntil = ++serverticks * TICK_LENGTH;
 		if(sleepuntil < servermsecs() - 5 * TICK_LENGTH && servermsecs() - lastheavyloadmsg > 1000) {

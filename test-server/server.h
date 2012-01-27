@@ -34,12 +34,26 @@
 #define MAX_NAME_LENGTH 20
 #define SHAME_NAME "newplayer500"
 #define MAX_CHAT_LENGTH 140
-#define INPUT_CONTROL_INTERVAL 60 // in ticks
-#define SPAM_CHECK_INTERVAL 200 // in ticks
-#define MAX_INPUTS 60 // per control interval
-#define MAX_CHATS 5 // per check interval
-#define PARAM_UPDATE_INTERVAL 100 // min time between 2 game param updates in msecs
-#define UNLOCK_INTERVAL 0 // min time between param update & game start in msecs
+#define UNLOCK_INTERVAL 0 // in msecs
+
+/* spam control. name from 0 to SPAM_CAT_COUNT - 1 to prevent horrible segfaults */
+#define SPAM_CAT_COUNT			5
+#define SPAM_CAT_JOINLEAVE		0
+#define SPAM_CAT_CHAT			1
+#define SPAM_CAT_SETTINGS		2
+#define SPAM_CAT_STEERING		3
+#define SPAM_CAT_FILES			4
+
+#define SPAM_JOINLEAVE_MAX		4
+#define SPAM_JOINLEAVE_INTERVAL 200
+#define SPAM_CHAT_MAX			5
+#define SPAM_CHAT_INTERVAL		200
+#define SPAM_SETTINGS_MAX		1
+#define SPAM_SETTINGS_INTERVAL	4
+#define SPAM_STEERING_MAX		60
+#define SPAM_STEERING_INTERVAL	60
+#define SPAM_FILES_MAX			50
+#define SPAM_FILES_INTERVAL		2500
 
 /* pencil */
 #define PM_ON 0
@@ -87,6 +101,7 @@ struct map {
 	struct seg *seg;
 };
 
+/* FIXME: yo is start echt in msecs sinds epoch of inmiddels anders? */
 struct game {
 	int id, type,			// game_id, game_type
 		n, w, h, v,			// number of players, width, height, velocity
@@ -155,7 +170,7 @@ struct user {
 					 *inputtail; // insert at tail, remove at head
 
 	struct libwebsocket *wsi;
-	int inputs, chats;			// number of inputs and chat messages received
+	int msgcounter[SPAM_CAT_COUNT];			// number of inputs and chat messages received
 	int delta[DELTA_COUNT];
 	int deltaat;
 	char deltaon;
