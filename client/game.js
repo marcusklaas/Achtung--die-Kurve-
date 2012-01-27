@@ -625,8 +625,7 @@ GameEngine.prototype.doTick = function() {
 	if(this.pencilMode != 'off')
 		this.pencil.doTick();
 
-	if(player.status == 'alive')
-		player.simulate(this.tick, player.context);
+	player.simulate(this.tick, player.context);
 		
 	this.tick++;
 }
@@ -634,9 +633,6 @@ GameEngine.prototype.doTick = function() {
 GameEngine.prototype.doTock = function() {
 	for(var i = 1; i < this.players.length; i++) {
 		var player = this.players[i];
-		if(player.status != 'alive')
-			continue;
-			
 		player.simulate(this.tock, player.context);
 	}
 	this.tock++;
@@ -952,33 +948,10 @@ GameEngine.prototype.backToGameLobby = function() {
 function Player(color, local, index) {
 	this.isLocal = local;
 	this.isHost = false;
-	this.playerId = null;
-	this.playerName = null;
-	this.velocity = null; //pixels per sec
-	this.turnSpeed = null;
-	this.angle = 0; // radians
-	this.x = 0;
-	this.y = 0;
-	this.lcx = 0; // last confirmed x
-	this.lcy = 0;
-	this.lca = 0; // last confirmed angle
-	this.lctick = 0; // game tick of last confirmed location
-	this.lcturn = 0;
-	this.lcvelocity = 0;
-	this.lcnextInput = 0;
 	this.color = color;
-	this.turn = 0; // -1 is turn right, 0 is straight, 1 is turn left
-	this.game = null; // to which game does this player belong
-	this.context = null; // this is the canvas context in which we draw simulation
 	this.status = 'ready'; // ready, alive, dead or left
-	this.inputs = [];
-	this.nextInput = 0;
-	this.inputsReceived = 0; // only for local player
-	this.holeStart = 0;
-	this.tick = 0;
 	this.index = index;
 	this.points = 0;
-	this.inputController = null; // null for all but localPlayer
 }
 
 Player.prototype.deleteCanvas = function() {
@@ -1199,7 +1172,7 @@ Player.prototype.initialise = function(x, y, angle, holeStart) {
 	this.context.clearRect(0, 0, this.game.width, this.game.height);	
 	this.saveLocation();
 
-	if(this.inputController != null)
+	if(this.inputController != undefined)
 		this.inputController.reset();
 }
 
@@ -1529,11 +1502,6 @@ AudioController.prototype.playSound = function(name) {
 
 /* Pencil */
 function Pencil(game) {
-	this.maxInk = 0;
-	this.inkPerSec = 0;
-	this.startInk = 0;
-	this.mousedownInk = 0;
-	this.inkMinimumDistance = 0;
 	this.game = game;
 	this.indicator = document.getElementById('ink');
 }
@@ -1641,6 +1609,8 @@ Pencil.prototype.drawPlayerSegs = function(redraw) {
 }
 
 Pencil.prototype.drawSegment = function(x1, y1, x2, y2, playerIndex, alpha) {
+	if(x1 == x2 && y1 == y2)
+		return;
 	var ctx = this.game.baseContext;
 	ctx.beginPath();
 	setLineColor(ctx, this.game.players[playerIndex].color, alpha);

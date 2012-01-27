@@ -1032,21 +1032,21 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 }
 
 void simpencil(struct pencil *p) {
-	struct pencilseg *tail = p->psegtail;
+	struct pencilseg *tail;
 	
-	if(!tail || tail->tick != p->usr->gm->tick)
-		return;
+	while((tail = p->psegtail) && tail->tick == p->usr->gm->tick) {
+		addsegment(p->usr->gm, &tail->seg);
+		queueseg(p->usr->gm, &tail->seg);
 
-	addsegment(p->usr->gm, &tail->seg);
+		if(tail->prev) {
+			tail->prev->nxt = 0;
+			p->psegtail = tail->prev;
+		}
+		else
+			p->psegtail = p->pseghead = 0;
 
-	if(tail->prev) {
-		tail->prev->nxt = 0;
-		p->psegtail = tail->prev;
+		free(tail);
 	}
-	else
-		p->psegtail = p->pseghead = 0;
-
-	free(tail);
 }
 
 /* to be called at startgame */
