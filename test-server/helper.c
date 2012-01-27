@@ -204,24 +204,6 @@ void *srealloc(void *ptr, size_t size) {
 	return a;
 }
 
-/* checks that 0 < name size <= MAX_NAME_LENGTH and does not exclusively consist of 
- * chars like space */
-char *checkname(char *name) {
-	char nameok = 0, notonly[1] = {' '}, *checkedName;
-	int i, j;
-
-	for(i = 0; name[i]; i++)
-		for(j = 0; j < 1; j++)
-			nameok |= name[i] != notonly[j];
-
-	checkedName = smalloc(MAX_NAME_LENGTH + 1);
-	
-	strncpy(checkedName, nameok ? name : SHAME_NAME, MAX_NAME_LENGTH);
-	checkedName[MAX_NAME_LENGTH] = 0;
-
-	return checkedName;
-}
-
 struct seg *copyseg(const struct seg *a) {
 	struct seg *b = smalloc(sizeof(struct seg));
 	memcpy(b, a, sizeof(struct seg));
@@ -306,6 +288,14 @@ static long servermsecs() {
 	return 1000 * tv.tv_sec + tv.tv_usec/ 1000 - serverstart;
 }
 
+float getlength(float x, float y) {
+	return sqrt(x * x + y * y);
+}
+
+/******************************************************************
+ * DEBUGGING HELPERS
+ */
+
 void printuser(struct user *u) {
 	printf("user %d: name = %s, in game = %p\n", u->id, u->name ? u->name : "(null)", (void *)u->gm);
 }
@@ -336,6 +326,43 @@ void printjson(cJSON *json) {
 	free(buf);
 }
 
-float getlength(float x, float y) {
-	return sqrt(x * x + y * y);
+/******************************************************************
+ * INPUT_CONTROL
+ */
+
+/* returns 1 in case of spam, 0 if OK */
+int checkspam(struct user *usr, int category) {
+	return ++usr->msgcounter[category] > spam_maxs[category];
+}
+
+/* resets due spam counters for users in game */
+void resetspamcounters(struct game *gm, int tick) {
+	struct user *usr;
+	int i, reset;
+
+	for(i = 0; i < SPAM_CAT_COUNT; i++) {
+		reset = (tick % spam_intervals[i]) == 0;
+
+		for(usr = gm->usr; usr; usr = usr->nxt)
+			if(reset)
+				usr->msgcounter[i] = 0;
+	}
+}
+
+/* checks that 0 < name size <= MAX_NAME_LENGTH and does not exclusively consist of 
+ * chars like space */
+char *checkname(char *name) {
+	char nameok = 0, notonly[1] = {' '}, *checkedName;
+	int i, j;
+
+	for(i = 0; name[i]; i++)
+		for(j = 0; j < 1; j++)
+			nameok |= name[i] != notonly[j];
+
+	checkedName = smalloc(MAX_NAME_LENGTH + 1);
+	
+	strncpy(checkedName, nameok ? name : SHAME_NAME, MAX_NAME_LENGTH);
+	checkedName[MAX_NAME_LENGTH] = 0;
+
+	return checkedName;
 }

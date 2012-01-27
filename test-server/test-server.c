@@ -14,6 +14,11 @@ static struct game *lobby, *headgame = 0;
 static int usrc = 0; // user count
 static int gmc = 1; // game count
 static unsigned long serverticks = 0;
+/* FIXME: dit moet anders, onafhankelijk van definities van SPAM_CAT_* */
+static int spam_maxs[SPAM_CAT_COUNT] = {SPAM_JOINLEAVE_MAX, SPAM_CHAT_MAX,
+ SPAM_SETTINGS_MAX, SPAM_STEERING_MAX, SPAM_FILES_MAX};
+static int spam_intervals[SPAM_CAT_COUNT] = {SPAM_JOINLEAVE_INTERVAL, SPAM_CHAT_INTERVAL,
+ SPAM_SETTINGS_INTERVAL, SPAM_STEERING_INTERVAL, SPAM_FILES_INTERVAL};
 
 #include "helper.c"
 #include "game.c"
@@ -22,54 +27,51 @@ static unsigned long serverticks = 0;
 static int callback_http(struct libwebsocket_context * context,
 		struct libwebsocket *wsi,
 		enum libwebsocket_callback_reasons reason, void *user,
-							   void *in, size_t len)
+		void *in, size_t len)
 {
-	switch (reason) {
-	case LWS_CALLBACK_HTTP:
-		{
-			char *ext, mime[32];
-			char path[MAX_FILE_REQ_LEN + LOCAL_PATH_LENGTH + 1];
+	if(reason == LWS_CALLBACK_HTTP) {
+		char *ext, mime[32];
+		char path[MAX_FILE_REQ_LEN + LOCAL_PATH_LENGTH + 1];
+
+		// FIXME: omg user = null hiero.. hoe voorkomen we httpspam of we laten toe?
+		if(!user || checkspam(user, SPAM_CAT_FILES))
+			printf("user be spamming our http!\n");
+	
+		if(ULTRA_VERBOSE)
+			printf("serving HTTP URI %s\n", (char *) in);
 		
-			if(ULTRA_VERBOSE)
-				printf("serving HTTP URI %s\n", (char *) in);
-			
-			/* making sure request is reasonable */
-			if(strlen(in) > MAX_FILE_REQ_LEN || strstr(in, ".."))
-				break;
+		/* making sure request is reasonable */
+		if(strlen(in) > MAX_FILE_REQ_LEN || strstr(in, ".."))
+			return 0;
 
-			ext = getFileExt(in);
+		ext = getFileExt(in);
 
-			strcpy(path, LOCAL_RESOURCE_PATH);
-			strcat(path, in);
-			if(!strcmp(in, "/") || strrchr(in, '?') == in + 1) // ignore get variables (for now)
-				strcpy(path + LOCAL_PATH_LENGTH, "/index.html");
-			if(!strcmp(ext, "ico"))
-				strcpy(mime, "image/x-icon");
-			else if(!strcmp(ext, "js"))
-				strcpy(mime, "text/javascript");
-			else if(!strcmp(ext, "css"))
-				strcpy(mime, "text/css");
-			else if(!strcmp(ext, "ogg"))
-				strcpy(mime, "audio/ogg");
-			else if(!strcmp(ext, "mp3"))
-				strcpy(mime, "audio/mpeg");
-			else if(!strcmp(ext, "wav"))
-				strcpy(mime, "audio/wav");
-			else
-				strcpy(mime, "text/html");
-			
-			if(ULTRA_VERBOSE)
-				printf("serving %s, %s\n", path, mime);
-			
-			if(libwebsockets_serve_http_file(wsi, path, mime))
-				fprintf(stderr, "Failed to send file\n");
+		strcpy(path, LOCAL_RESOURCE_PATH);
+		strcat(path, in);
+		if(!strcmp(in, "/") || strrchr(in, '?') == in + 1) // ignore get variables (for now)
+			strcpy(path + LOCAL_PATH_LENGTH, "/index.html");
+		if(!strcmp(ext, "ico"))
+			strcpy(mime, "image/x-icon");
+		else if(!strcmp(ext, "js"))
+			strcpy(mime, "text/javascript");
+		else if(!strcmp(ext, "css"))
+			strcpy(mime, "text/css");
+		else if(!strcmp(ext, "ogg"))
+			strcpy(mime, "audio/ogg");
+		else if(!strcmp(ext, "mp3"))
+			strcpy(mime, "audio/mpeg");
+		else if(!strcmp(ext, "wav"))
+			strcpy(mime, "audio/wav");
+		else
+			strcpy(mime, "text/html");
+		
+		if(ULTRA_VERBOSE)
+			printf("serving %s, %s\n", path, mime);
+		
+		if(libwebsockets_serve_http_file(wsi, path, mime))
+			fprintf(stderr, "Failed to send file\n");
 
-			free(ext);
-		}
-		break;
-
-	default:
-		break;
+		free(ext);
 	}
 
 	return 0;
@@ -174,7 +176,7 @@ callback_game(struct libwebsocket_context * context,
 				printf("Received join package! Game-id: %d, user-id: %d, gm: %p\n",
 				 gameid, u->id, (void *) gm);
 
-			if(gm && gm->state == GS_LOBBY && gm->nmax > gm->n)
+			if(gm && gm->state == GS_LOBBY && gm->nmax > gm->n && !checkspam(u, SPAM_CAT_JOINLEAVE))
 				joingame(gm, u);
 			else {
 				j = jsoncreate("joinFailed");
@@ -198,7 +200,7 @@ callback_game(struct libwebsocket_context * context,
 				break;
 			}
 
-			if(++(u->chats) > MAX_CHATS) {
+			if(checkspam(u, SPAM_CAT_CHAT)) {
 				printf("user %d is spamming in chat\n", u->id);
 				j = jsoncreate("stopSpamming");
 				sendjson(j, u);
@@ -219,7 +221,7 @@ callback_game(struct libwebsocket_context * context,
 		}
 		else if(!strcmp(mode, "getTime")) {
 			j = jsoncreate("time");
-			jsonaddnum(j, "time", (int)servermsecs());
+			jsonaddnum(j, "time", (int) servermsecs());
 			sendjson(j, u);
 			jsondel(j);
 		}
@@ -236,16 +238,13 @@ callback_game(struct libwebsocket_context * context,
 			joingame(lobby, u);
 		}
 		else if(!strcmp(mode, "requestGame")) {
-			int nmin= jsongetint(json, "minPlayers");
-			int nmax= jsongetint(json, "maxPlayers");
+			int nmin = jsongetint(json, "minPlayers");
+			int nmax = jsongetint(json, "maxPlayers");
 			
 			if(DEBUG_MODE) printf("user %d requested game\n", u->id);
 
-			if(u->gm != lobby) {
-				printf("user tried to join game. but he is not in lobby."
-				 " he might not have a name etc.\n");
+			if(u->gm != lobby || checkspam(u, SPAM_CAT_JOINLEAVE))
 				break;
-			}
 
 			if(0 < nmin && nmin <= nmax && nmax < 17) {
 				struct game *gm = findgame(nmin, nmax);
@@ -266,12 +265,10 @@ callback_game(struct libwebsocket_context * context,
 			joingame(creategame(GT_CUSTOM, 2, 4), u);
 		}
 		else if(!strcmp(mode, "leaveGame")) {
-			if(u->gm && u->gm - lobby)
+			if(!checkspam(u, SPAM_CAT_JOINLEAVE) && u->gm && u->gm - lobby)
 				joingame(lobby, u);
 		}
 		else if(!strcmp(mode, "setParams")) {
-			int now = servermsecs();
-			
 			if(!u->gm || u->gm->type != GT_CUSTOM || u->gm->state != GS_LOBBY || 
 			 u->gm->host != u) {
 				printf("user %d tried to set params but not host of custom game"
@@ -279,7 +276,7 @@ callback_game(struct libwebsocket_context * context,
 				break;
 			}
 
-			if(now - u->gm->paramupd < PARAM_UPDATE_INTERVAL) {
+			if(checkspam(u, SPAM_CAT_SETTINGS)) {
 				printf("user %d is trying to update game params too quickly\n", u->id);
 				break;
 			}
@@ -287,7 +284,7 @@ callback_game(struct libwebsocket_context * context,
 			if(DEBUG_MODE)
 				printf("Setting params for game %p.\n", (void *) u->gm);
 
-			u->gm->paramupd = now;
+			u->gm->paramupd = servermsecs();
 			u->gm->w = min(2000, max(100, jsongetint(json, "w")));
 			u->gm->h = min(2000, max(100, jsongetint(json, "h")));
 			u->gm->v = min(1000, max(0, jsongetint(json, "v")));
@@ -331,7 +328,7 @@ callback_game(struct libwebsocket_context * context,
 			startgame(u->gm);
 		}
 		else if(strcmp(mode, "input") == 0) {
-			if(++(u->inputs) <= MAX_INPUTS && u->gm
+			if(!checkspam(u, SPAM_CAT_STEERING) && u->gm
 			 && u->gm->state == GS_STARTED && !u->ignoreinput)
 				interpretinput(json, u);
 		}
