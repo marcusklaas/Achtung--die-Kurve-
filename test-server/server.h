@@ -196,3 +196,4 @@ void endround(struct game *gm);
 void tiles(struct game *gm, struct seg *seg, int *tileindices);
 void clearinputs(struct user *usr);
 char *checkname(char *name);
+void killplayer(struct user *usr, int reward);

@@ -259,6 +259,10 @@ void leavegame(struct user *usr) {
 	if(DEBUG_MODE && gm->type != GT_LOBBY)
 		printf("user %d is leaving his game!\n", usr->id);
 
+	if(gm->state == GS_STARTED)
+		killplayer(usr, 0);
+
+	/* remove user from linked list and swap host if necessary */
 	if(gm->usr == usr) {
 		gm->usr = usr->nxt;
 	} else {
@@ -270,7 +274,6 @@ void leavegame(struct user *usr) {
 		}
 	}
 
-	gm->alive -= usr->alive;
 	gm->n--;
 	usr->nxt = 0;
 	usr->gm = 0;
@@ -278,7 +281,6 @@ void leavegame(struct user *usr) {
 	/* send message to group: this player left */
 	json = jsoncreate("playerLeft");
 	jsonaddnum(json, "playerId", usr->id);
-	jsonaddnum(json, "tick", gm->tick);
 	sendjsontogame(json, gm, 0);
 	jsondel(json);
 

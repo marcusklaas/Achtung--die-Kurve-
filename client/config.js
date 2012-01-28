@@ -57,7 +57,7 @@ var debugBaseContext = false; // sets different color for segments in basecontex
 var displayDebugStatus = false;
 
 /* editor */
-var editorStepTime = 150;
+var editorStepTime = 100;
 var mapSegmentColor = [96, 96, 96];
 
 /* these are the segment RGBs for the players. in client order, so the 

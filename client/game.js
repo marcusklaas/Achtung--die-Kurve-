@@ -260,14 +260,13 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'playerLeft':
 			var index = this.getIndex(obj.playerId);
 			var player = this.players[index];
-			obj.playerLeft = true;
-			player.finalSteer(obj);
+			
 			if(this.gameState != 'lobby')
 				this.gameMessage(player.playerName + " left the game");
 
-			if(this.gameState == 'waiting' || this.gameState == 'lobby')
+			if(this.gameState == 'waiting' || this.gameState == 'lobby' || this.gameState == 'editing')
 				this.removePlayer(index);
-			else{
+			else {
 				player.status = 'left';
 				player.updateList();
 			}
@@ -293,7 +292,6 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			while(this.tock <= obj.finalTick)
 				this.doTock();
 				
-			this.running = false;
 			var index = (obj.winnerId != -1) ? this.getIndex(obj.winnerId) : null;
 			var winner = (index != null) ? (this.players[index].playerName + ' won') : 'draw!';
 			this.setGameState('countdown');
@@ -745,7 +743,6 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 
 	var self = this;
 	this.gameloopTimeout = window.setTimeout(function() { self.realStart(); }, delay + this.tickLength);
-	this.running = false;
 	this.focusChat();
 }
 
@@ -757,7 +754,6 @@ GameEngine.prototype.realStart = function() {
 	this.setGameState('playing');
 	this.sendMsg('enableInput', {});
 	this.tick = 0;
-	this.running = true;
 
 	var self = this;
 	var gameloop = function() {
@@ -1024,15 +1020,7 @@ Player.prototype.finalSteer = function(obj) {
 	
 	for(var i = this.inputs.length - 1; i >= 0 && this.inputs[i].tick >= tick; i--);
 	this.inputs.length = i + 2;
-	
-	var input = {'tick': tick, 'finalTurn': true};
-	if(obj.playerLeft)
-		input.playerLeft = true;
-	else {
-		input.x = obj.x;
-		input.y = obj.y;
-	}
-	this.inputs[i + 1] = input;
+	this.inputs[i + 1] = {'tick': tick, 'finalTurn': true, 'x': obj.x, 'y': obj.y};
 	
 	this.finalTick = tick;
 
@@ -1077,14 +1065,11 @@ Player.prototype.simulate = function(endTick, ctx) {
 
 		if(input != null && input.tick == this.tick) {
 			if(input.finalTurn) {
-				if(!input.playerLeft) {
-					this.x = input.x;
-					this.y = input.y;
-					ctx.lineTo(this.x, this.y);
-					ctx.stroke();
-					this.simulateDead();
-				} else
-					ctx.stroke();
+				this.x = input.x;
+				this.y = input.y;
+				ctx.lineTo(this.x, this.y);
+				ctx.stroke();
+				this.simulateDead();
 				this.tick++;
 				return;
 			} else {
@@ -1228,7 +1213,7 @@ function InputController(player, left, right) {
 
 	/* listen for keyboard events */
 	window.addEventListener('keydown', function(e) {
-		if(self.player.status != 'alive' || !game.running)
+		if(self.player.status != 'alive' || game.gameState != 'playing')
 			return;
 
 		if(e.keyCode == self.leftKeyCode) {
@@ -1242,7 +1227,7 @@ function InputController(player, left, right) {
 	}, false);
 
 	window.addEventListener('keyup', function(e) {
-		if(self.player.status != 'alive' || !game.running)
+		if(self.player.status != 'alive' || game.gameState != 'playing')
 			return;
 
 		if(e.keyCode == self.leftKeyCode) {
@@ -1294,8 +1279,11 @@ function InputController(player, left, right) {
 	};
 
 	function touchStart(e) {
-		if(!game.running)
+		if(game.gameState != 'playing') {
+			if(game.gameState == 'countdown' && e.cancelable)
+				e.preventDefault();
 			return;
+		}
 
 		for(var i = 0; i < e.changedTouches.length; i++) {
 			var touch = e.changedTouches[i];
@@ -1326,8 +1314,11 @@ function InputController(player, left, right) {
 	}
 
 	function touchEnd(e) {
-		if(!game.running)
+		if(game.gameState != 'playing') {
+			if(game.gameState == 'countdown' && e.cancelable)
+				e.preventDefault();
 			return;
+		}
 
 		for(var i = 0; i < e.changedTouches.length; i++) {
 			var touch = e.changedTouches[i];
@@ -1356,8 +1347,11 @@ function InputController(player, left, right) {
 	}
 
 	function touchMove(e) {
-		if(!game.running)
+		if(game.gameState != 'playing') {
+			if(game.gameState == 'countdown' && e.cancelable)
+				e.preventDefault();
 			return;
+		}
 
 		for(var i = 0; i < e.changedTouches.length; i++) {
 			var touch = e.changedTouches[i];
@@ -1683,19 +1677,25 @@ Editor = function(game) {
 		self.game.setGameState('editing');
 		self.pos = findPos(self.canvas);
 		self.resize();
+		self.interval = window.setInterval(function() { self.onmouse('move'); }, editorStepTime);
 	}, false);
 
 	var stop = document.getElementById('editorStop');
 	stop.addEventListener('click', function() { 
 		self.game.setGameState('waiting'); 
-		
+		window.clearInterval(self.interval);
 		// freeing memory - is this the right way?
 		self.canvas.height = self.canvas.width = 0;
 	}, false);
 }
 
 Editor.prototype.onmouse = function(type, ev) {
-	var pos = this.getPos(ev);
+	var pos;
+	
+	if(ev == undefined)
+		pos = this.curPos;
+	else	
+		pos = this.curPos = this.getPos(ev);
 
 	if(type == 'down' || (this.out && type == 'over' && this.down)) {
 		this.lastPos = pos;
@@ -1703,7 +1703,7 @@ Editor.prototype.onmouse = function(type, ev) {
 		this.out = false;
 		this.down = true;
 	}
-
+	
 	else if(this.down && (type == 'out' || type == 'up' || 
 	 (type == 'move' && Date.now() - this.lastTime > editorStepTime))) {
 	 	if(!this.out) {
