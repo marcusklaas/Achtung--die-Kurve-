@@ -1926,7 +1926,7 @@ window.onload = function() {
 
 	var disconnectButton = document.getElementById('disconnect');
 	disconnectButton.addEventListener('click', function() {
-		game.websocket.close();
+		game.websocket.close(1000);
 	}, false);
 	
 	var backButton = document.getElementById('back');

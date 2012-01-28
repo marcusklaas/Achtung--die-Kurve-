@@ -34,8 +34,10 @@ static int callback_http(struct libwebsocket_context * context,
 		char path[MAX_FILE_REQ_LEN + LOCAL_PATH_LENGTH + 1];
 
 		// FIXME: omg user = null hiero.. hoe voorkomen we httpspam of we laten toe?
-		if(!user || checkspam(user, SPAM_CAT_FILES))
-			printf("user be spamming our http!\n");
+		// => voor dit andere protocol hebben we de user struct niet ingesteld
+		// als we dat doen, moet de spam counter ook ergens worden gereset
+		//if(!user || checkspam(user, SPAM_CAT_FILES))
+		//	printf("user be spamming our http!\n");
 	
 		if(ULTRA_VERBOSE)
 			printf("serving HTTP URI %s\n", (char *) in);
