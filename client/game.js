@@ -1770,6 +1770,8 @@ Editor.prototype.getPos = function(ev) {
 	pos[1] -= this.pos[1];
 	pos[0] /= this.game.scale;
 	pos[1] /= this.game.scale;
+	pos[0] = Math.round(pos[0]);
+	pos[1] = Math.round(pos[1]);
 	return pos;
 }
 
