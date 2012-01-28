@@ -125,7 +125,7 @@ void startgame(struct game *gm) {
 	gm->rsn = gm->n;
 	randomizeplayerstarts(gm);
 
-	laterround = gm->usr->points || (gm->usr->nxt && gm->usr->nxt->points);
+	laterround = gm->round++ != 0;
 	gm->start = serverticks * TICK_LENGTH + laterround * COOLDOWN + COUNTDOWN;
 	gm->tick = -(COUNTDOWN + SERVER_DELAY + laterround * COOLDOWN)/ TICK_LENGTH;
 	gm->state = GS_STARTED;
@@ -223,7 +223,7 @@ struct game *findgame(int nmin, int nmax) {
 		gm = bestgame;
 		gm->nmin = max(gm->nmin, nmin);
 		gm->nmax = min(gm->nmax, nmax);
-		gm->goal = (gm->n - 1) * TWO_PLAYER_POINTS; /* constant * avg pts pp pr */
+		gm->goal = ceil(roundavgpts(gm->n, gm->pointsys) * AUTO_ROUNDS);
 		json = getjsongamepars(gm);
 		sendjsontogame(json, gm, 0);
 		jsondel(json);
@@ -260,7 +260,7 @@ void leavegame(struct user *usr) {
 		printf("user %d is leaving his game!\n", usr->id);
 
 	if(gm->state == GS_STARTED)
-		killplayer(usr, 0);
+		killplayer(usr);
 
 	/* remove user from linked list and swap host if necessary */
 	if(gm->usr == usr) {
@@ -378,18 +378,19 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	gm->v = VELOCITY;
 	gm->ts = TURN_SPEED;
 	gm->pencilmode = PM_DEFAULT;
+	gm->pointsys = pointsystem_rik;
 	gm->nxt = headgame;
-	gm->goal = TWO_PLAYER_POINTS;
+	gm->goal = ceil(AUTO_ROUNDS * roundavgpts(2, gm->pointsys));
 	gm->torus = TORUS_MODE;
 	gm->inkcap = MAX_INK;
 	gm->inkregen = INK_PER_SEC;
 	gm->inkdelay = INK_SOLID;
 	gm->inkstart = START_INK;
 	gm->inkmousedown = MOUSEDOWN_INK;
-	headgame = gm;
-
+	gm->round = 0;
 	gm->hsize = HOLE_SIZE;
 	gm->hfreq = HOLE_FREQ;
+	headgame = gm;
 
 	/* how big we should choose our tiles depends only on segment length */
 	seglen = gm->v * TICK_LENGTH / 1000.0;
@@ -424,10 +425,8 @@ float segcollision(struct seg *seg1, struct seg *seg2) {
 	a = numer_a/ denom;
 	b = numer_b/ denom;
 
-	if(a >= 0 && a <= 1 && b >= 0 && b <= 1) {
-		//printf("collision! a = %.2f, b = %.2f, denom = %.2f\n", a, b, denom);
+	if(a >= 0 && a <= 1 && b >= 0 && b <= 1)
 		return b;
-	}
 
 	return -1;
 }
@@ -653,10 +652,10 @@ int simuser(struct user *usr, int tick) {
 }
 
 /* send message to group: this player died */
-void deadplayermsg(struct user *usr, int tick) {
+void deadplayermsg(struct user *usr, int tick, int reward) {
 	cJSON *json = jsoncreate("playerDied");
 	jsonaddnum(json, "playerId", usr->id);
-	jsonaddnum(json, "points", usr->points);
+	jsonaddnum(json, "reward", reward);
 	jsonaddnum(json, "tick", tick);
 	jsonaddnum(json, "x", usr->x);
 	jsonaddnum(json, "y", usr->y);
@@ -700,19 +699,15 @@ void endround(struct game *gm) {
 	if(DEBUG_MODE)
 		printf("ending round of game %p\n", (void *) gm);
 
-	/* give survivor his points */
-	for(usr = gm->usr; usr && !usr->alive; usr = usr->nxt);
-	if((roundwinner = usr))
-		usr->points += gm->rsn - 1;
-
 	if(SEND_SEGMENTS)
 		sendsegments(gm);
 
+	for(roundwinner = gm->usr; roundwinner && !roundwinner->alive;
+	 roundwinner = roundwinner->nxt);
+
 	json = jsoncreate("endRound");
-	jsonaddnum(json, "winnerId", usr ? usr->id : -1);
+	jsonaddnum(json, "winnerId", roundwinner ? roundwinner->id : -1);
 	jsonaddnum(json, "finalTick", gm->tick);
-	if(usr)
-		jsonaddnum(json, "points", usr->points);
 	sendjsontogame(json, gm, 0);
 	jsondel(json);
 
@@ -728,7 +723,7 @@ void endround(struct game *gm) {
 	}
 	 
 	/* freeing up segments */
-	for(i =0; i < num_tiles; i++) {
+	for(i = 0; i < num_tiles; i++) {
 		freesegments(gm->seg[i]);
 		gm->seg[i] = 0;
 	}
@@ -743,19 +738,24 @@ void endround(struct game *gm) {
 	}
 }
 
-void killplayer(struct user *usr, int reward) {
-	usr->gm->alive -= usr->alive--;
-	usr->points += reward;
-	deadplayermsg(usr, usr->gm->tick);
+void killplayer(struct user *victim) {
+	struct game *gm = victim->gm;
+	struct user *usr;
+	int reward = gm->pointsys(gm->rsn, gm->alive -= victim->alive--);
+
+	for(usr = gm->usr; usr; usr = usr->nxt)
+		if(usr->alive)
+			usr->points += reward;
+	
+	deadplayermsg(victim, gm->tick, reward);
 
 	if(DEBUG_MODE)
-		printf("player %d died\n", usr->id);
+		printf("player %d died\n", victim->id);
 }
 
 /* simulate game tick */
 void simgame(struct game *gm) {
 	struct user *usr;
-	int reward = gm->rsn - gm->alive;
 
 	if(gm->tick < 0) {
 		gm->tick++;
@@ -764,7 +764,7 @@ void simgame(struct game *gm) {
 
 	for(usr = gm->usr; usr; usr = usr->nxt)
 		if(usr->alive && simuser(usr, gm->tick))
-			killplayer(usr, reward);
+			killplayer(usr);
 
 	if(SEND_SEGMENTS && gm->tick % SEND_SEGMENTS == 0)
 		sendsegments(gm);
@@ -1076,4 +1076,36 @@ void gototick(struct pencil *p, int tick) {
 	float inc = ticks * TICK_LENGTH / 1000.0 * p->usr->gm->inkregen;
 
 	p->ink = min(p->ink + inc, p->usr->gm->inkcap);
+}
+
+/* point systems specify how many points the remaining players get when
+ * someone dies */
+int pointsystem_trivial(int players, int alive) {
+	return 1;
+}
+
+int pointsystem_wta(int players, int alive) {
+	return alive == 1;
+}
+
+int pointsystem_rik(int players, int alive) {
+	if(alive > 4 || (4 <= players && players <= 6 && alive > 3) || 
+	 (players < 4 && alive > 2))
+		return 0;
+
+	if((4 <= players && players <= 6 && alive == 3) ||
+	 (6 <= players && alive <= 4 && alive >= 3))
+		return 1;
+
+	if((3 <= players && players <= 6 && alive == 2) ||
+	 (players >= 7 && alive <= 2))
+		return 2;
+
+	if(3 <= players && players <= 6 && alive == 1)
+		return 3;
+
+	if(3 == players && alive == 1)
+		return 4;
+
+	return 6;
 }

@@ -17,7 +17,7 @@
 #define POST_PADDING LWS_SEND_BUFFER_POST_PADDING
 #define SHOW_DELAY 0
 #define MIN_WIN_DIFF 1 // minimum point lead required to win a game
-#define TWO_PLAYER_POINTS 3 // points required to win two player game
+#define AUTO_ROUNDS 5 // number of expected rounds in automatch
 #define MAX_PLAYERSTART_TRIES 500
 #define TORUS_MODE 1
 
@@ -115,8 +115,10 @@ struct game {
 		inkcap, inkregen,	// ink capacity, ink regen/ sec
 		inkdelay,			// ink harden time in msec
 		inkmousedown,		// ink cost to start new line
-		inkstart;			// amount of ink you start with when you are allowed to draw
+		inkstart,			// amount of ink you start with when you are allowed to draw
+		round;				// 0 at gamecreats, increments at start of round
 
+	int (*pointsys)(int, int); // function that determines points on death
 	float ts;				// turning speed in radians per sec
 	struct seg **seg;		// two dimensional array of linked lists, one for each tile
 	struct user *usr, *host;// user list, game host
@@ -195,4 +197,7 @@ void endround(struct game *gm);
 void tiles(struct game *gm, struct seg *seg, int *tileindices);
 void clearinputs(struct user *usr);
 char *checkname(char *name);
-void killplayer(struct user *usr, int reward);
+void killplayer(struct user *usr);
+int pointsystem_trivial(int players, int alive);
+int pointsystem_wta(int players, int alive);
+int pointsystem_rik(int players, int alive);
