@@ -276,11 +276,6 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			var player = this.players[index];
 			player.points = obj.points;
 			player.finalSteer(obj);
-
-			if(player == this.localPlayer && this.pencilMode == 'ondeath') {
-				this.pencil.drawingAllowed = true;
-				document.getElementById('inkIndicator').style.display = 'block';
-			}
 			break;
 		case 'endRound':
 			window.clearTimeout(this.gameloopTimeout);
@@ -1113,7 +1108,12 @@ Player.prototype.simulateDead = function() {
 		this.updateList();
 		
 		if(this.index == 0) {
-			this.game.setGameState('watching');
+			if(this.game.pencilMode == 'ondeath') {
+				this.game.pencil.drawingAllowed = true;
+				document.getElementById('inkIndicator').style.display = 'block';
+			}
+			else
+				this.game.setGameState('watching');
 			this.game.audioController.playSound('localDeath');
 		}
 	}
@@ -1678,6 +1678,7 @@ Editor = function(game) {
 		self.pos = findPos(self.canvas);
 		self.resize();
 		self.interval = window.setInterval(function() { self.onmouse('move'); }, editorStepTime);
+		window.scroll(document.body.offsetWidth, 0);
 	}, false);
 
 	var stop = document.getElementById('editorStop');
@@ -1687,6 +1688,49 @@ Editor = function(game) {
 		// freeing memory - is this the right way?
 		self.canvas.height = self.canvas.width = 0;
 	}, false);
+	
+	function touchStart(e) {
+		for(var i = 0; i < e.changedTouches.length; i++) {
+			var t = e.changedTouches[i];
+			t.time = Date.now();
+			t.pos = self.getPos(t);
+		}
+		if(e.cancelable)
+			e.preventDefault();
+	}
+	
+	function touchMove(e) {
+		for(var i = 0; i < e.changedTouches.length; i++) {
+			var t = e.changedTouches[i];
+			if(Date.now() - t.time > editorStepTime) {
+				var pos = self.getPos(t);
+				var seg = new BasicSegment(t.pos[0], t.pos[1], pos[0], pos[1]);
+				self.segments.push(seg);
+				self.drawSegment(seg);
+				t.pos = pos;
+				t.time = Date.now();
+			}
+		}
+		if(e.cancelable)
+			e.preventDefault();
+	}
+	
+	function touchEnd(e) {
+		for(var i = 0; i < e.changedTouches.length; i++) {
+			var t = e.changedTouches[i];
+			var pos = self.getPos(t);
+			var seg = new BasicSegment(t.pos[0], t.pos[1], pos[0], pos[1]);
+			self.segments.push(seg);
+			self.drawSegment(seg);
+		}
+		if(e.cancelable)
+			e.preventDefault();
+	}
+	
+	this.canvas.addEventListener('touchstart', touchStart, false);
+	this.canvas.addEventListener('touchmove', touchMove, false);
+	this.canvas.addEventListener('touchend', touchEnd, false);
+	this.canvas.addEventListener('touchcancel', touchEnd, false);
 }
 
 Editor.prototype.onmouse = function(type, ev) {
@@ -1726,10 +1770,14 @@ Editor.prototype.getPos = function(ev) {
 	pos[1] -= this.pos[1];
 	pos[0] /= this.game.scale;
 	pos[1] /= this.game.scale;
+	pos[0] = Math.round(pos[0]);
+	pos[1] = Math.round(pos[1]);
 	return pos;
 }
 
 Editor.prototype.drawSegment = function(seg) {
+	if(seg.x1 == seg.x2 && seg.y1 == seg.y2)
+		return;
 	this.context.beginPath();
 	this.context.moveTo(seg.x1, seg.y1);
 	this.context.lineTo(seg.x2, seg.y2);
