@@ -274,12 +274,32 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'playerDied':
 			var index = this.getIndex(obj.playerId);
 			var player = this.players[index];
-			player.points = obj.points;
 			player.finalSteer(obj);
+
+			player.status = 'dead';
+			player.updateList();
+	
+			if(player == this.localPlayer) {
+				if(this.pencilMode == 'ondeath') {
+					this.pencil.drawingAllowed = true;
+					document.getElementById('inkIndicator').style.display = 'block';
+				}
+				else
+					this.setGameState('watching');
+				this.audioController.playSound('localDeath');
+			}
+
+			for(var i = 0; i < this.players.length; i++)
+				if(this.players[i].status == 'alive') {
+					this.players[i].points += obj.reward;
+					this.players[i].updateList();
+				}
+
+			sortPlayerList();		
 			break;
 		case 'endRound':
 			window.clearTimeout(this.gameloopTimeout);
-			document.getElementById('inkIndicator').style.display = 'none'; // of liever niet?
+			document.getElementById('inkIndicator').style.display = 'none';
 			
 			// simulate to finalTick
 			while(this.tick <= obj.finalTick)
@@ -290,11 +310,6 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			var index = (obj.winnerId != -1) ? this.getIndex(obj.winnerId) : null;
 			var winner = (index != null) ? (this.players[index].playerName + ' won') : 'draw!';
 			this.setGameState('countdown');
-			if(index != null) {
-				var player = this.players[index];
-				player.points = obj.points;
-				player.updateList();
-			}
 			this.gameMessage('Round ended: ' + winner);
 			break;			
 		case 'endGame':
@@ -1102,22 +1117,7 @@ Player.prototype.simulate = function(endTick, ctx) {
 	ctx.stroke();
 }
 
-Player.prototype.simulateDead = function() {
-	if(this.status == 'alive') {
-		this.status = 'dead';
-		this.updateList();
-		
-		if(this.index == 0) {
-			if(this.game.pencilMode == 'ondeath') {
-				this.game.pencil.drawingAllowed = true;
-				document.getElementById('inkIndicator').style.display = 'block';
-			}
-			else
-				this.game.setGameState('watching');
-			this.game.audioController.playSound('localDeath');
-		}
-	}
-	
+Player.prototype.simulateDead = function() {	
 	// draw cross
 	var ctx = this.game.foregroundContext;
 	setLineColor(ctx, crossColor, 1);
@@ -1926,7 +1926,7 @@ window.onload = function() {
 
 	var disconnectButton = document.getElementById('disconnect');
 	disconnectButton.addEventListener('click', function() {
-		game.websocket.close();
+		game.websocket.close(1000);
 	}, false);
 	
 	var backButton = document.getElementById('back');
@@ -2106,6 +2106,29 @@ function setPencilMode(mode) {
 
 	for(var i = 0; i < sections.length; i++)
 		document.getElementById(sections[i]).lastChild.checked = (i == selected);
+}
+
+/* sorts the player list by points in decreasing order */
+function sortPlayerList() {
+	var table = document.getElementById('playerList');
+	var	body = table.lastChild;
+	var newBody = document.createElement('tbody');
+	var rows = body.getElementsByTagName('tr'); // this is nodelist, we want array
+	var arr = [];
+
+	for (var i = 0, ref = arr.length = rows.length; i < ref; i++)
+		arr[i] = rows[i];
+
+	arr.sort(function(row1, row2) {
+		var score1 = parseInt(row1.lastChild.innerHTML);
+		var score2 = parseInt(row2.lastChild.innerHTML);
+		return score1 == score2 ? 0 : (score1 > score2 ? -1 : 1);
+	});
+
+	for(var i = 0; i < arr.length; i++)
+		newBody.appendChild(arr[i]);
+
+	table.replaceChild(newBody, body);  
 }
 
 function getLength(x, y) {

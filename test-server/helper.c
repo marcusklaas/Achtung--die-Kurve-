@@ -173,7 +173,7 @@ char *duplicatestring(char *orig) {
 
 
 /******************************************************************
- * REST
+ * MEMORY-RELATED
  */
 
 // safe malloc, exit(500) on error
@@ -209,6 +209,10 @@ struct seg *copyseg(const struct seg *a) {
 	memcpy(b, a, sizeof(struct seg));
 	return b;
 }
+
+/******************************************************************
+ * THIS-TO-THAT CONVERTERS
+ */
 
 char *gametypetostr(int gametype) {
 	char *str = smalloc(7);
@@ -255,6 +259,18 @@ int strtopencilmode(char *pencilstr) {
 	if(!strcmp(pencilstr, "ondeath"))
 		return PM_ONDEATH;
 	return PM_OFF;
+}
+
+/******************************************************************
+ * REST
+ */
+
+float roundavgpts(int players, int (*pointsys)(int, int)) {
+	int i, total = 0;
+
+	for(i = players; --i; total += i * pointsys(players, i));
+
+	return total/ (float) players;
 }
 
 /* is there no extension, return "" */
