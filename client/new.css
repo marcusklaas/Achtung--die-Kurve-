@@ -72,16 +72,6 @@ body {
 	margin: 5px;
 }
 
-#playerListContainer {
-	max-height: 30%;
-	overflow: auto;
-	margin-bottom: 10px;
-}
-
-#playerList {
-	margin: 0;
-}
-
 ul {
 	padding-left: 20px;
 	word-wrap: break-word;
@@ -100,16 +90,17 @@ h2 {
 }
 
 #gameListContainer {
-	padding: 20px 5px 0 5px;;
+	padding: 20px 5px 0 5px;
 	width: 600px;
 	margin: auto;
 	text-align: right;
+	height: 100%;
 }
 
 #noGames {
 	text-align: center;
-	width: 100%;
-	margin-bottom: 15px;
+	padding: 8px;
+	background-color: #f9f9f9;
 }
 
 #waitContainer {
@@ -220,9 +211,78 @@ input[type=number] {
 	margin-top: 12px;
 }
 
-/* of alle tds? */
 tr.left td:first-child {
 	text-decoration: line-through;
+}
+
+/* playerlist */
+#playerListContainer {
+	max-height: 30%;
+	overflow: auto;
+	margin-bottom: 10px;
+}
+
+#playerList {
+	margin: 0;
+}
+
+#playerList td:first-child {
+	text-align: left;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* FIXME: hij luistert niet en geeft in plaats daarvan rare borders 2x zo dik?? :SSS */
+col.pl1 { 
+	width: 44%;
+}
+
+col.pl2, col.pl3 {
+	width: 28%;
+}
+
+/* scrollable gamelist */
+#gameListHeader {
+	-webkit-border-radius: 4px 4px 0 0;
+	-moz-border-radius: 4px 4px 0 0;
+	border-radius: 4px 4px 0 0;
+	margin: 0;
+}
+
+col.col1 {
+	width: 40px;
+}
+
+col.col2, col.col3 {
+	width: 80px;
+}
+
+col.col4, col.col5 {
+	width: 110px;
+}
+
+col.col6 {
+	width: 80px;
+}
+
+#listWrapper {
+	-webkit-border-radius: 0 0 4px 4px;
+	-moz-border-radius: 0 0 4px 4px;
+	border-radius: 0 0 4px 4px;
+	border: 1px solid #ddd;
+	border-top: 0;
+	/* FIXME: max-height: 80% werkt niet :S ik snap niet waarom -- heb t nu maar met JS opgelost */
+	overflow: auto;
+	margin-bottom: 12px;
+}
+
+#gameList {
+	margin: 0;
+	border: 0;
+}
+
+#gameList tr:first-child td {
+	border-top: 0;
 }
 
 /* fancy input css van bootstrap */
@@ -289,41 +349,53 @@ textarea:disabled {
 	cursor: not-allowed;
 }
 
-/* prepended text voor inputs van bootstrap */
-.input-prepend, .input-append {
-	margin-bottom: 5px;
-	display: inline-block;
+/* automatch met hulp van bootstrap */
+
+/* TODO: klopt nog niet op de pixel en text staat een beetje raar, iets met lineheight enzo */
+
+#automatchContainer {
+	display: inline;
 	white-space: nowrap;
+	word-spacing: 0;
 }
 
-.input-prepend input,
-.input-append input,
-.input-prepend .uneditable-input,
-.input-append .uneditable-input {
+#automatchContainer input {
 	display: inline-block;
-	-webkit-border-radius: 0 3px 3px 0;
-	-moz-border-radius: 0 3px 3px 0;
-	border-radius: 0 3px 3px 0;
+	border-right: 0;
+	height: 18px;
+	line-height: normal;
+	padding: 5px 4px 6px 5px;
+	-webkit-border-radius: 0;
+	-moz-border-radius: 0;
+	border-radius: 0;
 }
 
-.input-prepend .add-on, .input-append .add-on {
+#automatchContainer button {
+	-webkit-border-radius: 0 4px 4px 0;
+	-moz-border-radius: 0 4px 4px 0;
+	border-radius: 0 4px 4px 0;
+}
+
+#automatchContainer span:first-child {
+	-webkit-border-radius: 4px 0 0 4px;
+	-moz-border-radius: 4px 0 0 4px;
+	border-radius: 4px 0 0 4px;
+}
+
+.add-on {
 	display: inline-block;
 	width: auto;
 	min-width: 16px;
 	height: 18px;
 	margin-right: -1px;
-	padding: 4px 4px 4px 5px;
+	padding: 5px 4px 6px 5px;
 	font-weight: normal;
-	line-height: 18px;
 	color: #999999;
 	vertical-align: middle;
 	text-align: center;
 	text-shadow: 0 1px 0 #ffffff;
 	background-color: #f5f5f5;
 	border: 1px solid #ccc;
-	-webkit-border-radius: 3px 0 0 3px;
-	-moz-border-radius: 3px 0 0 3px;
-	border-radius: 3px 0 0 3px;
 }
 
 /* bootstrap warning alert */
@@ -489,24 +561,6 @@ button[disabled] {
 	box-shadow: none;
 }
 
-button.large {
-	font-size: 15px;
-	line-height: normal;
-	padding: 9px 14px 9px;
-	-webkit-border-radius: 6px;
-	-moz-border-radius: 6px;
-	border-radius: 6px;
-}
-
-button.small {
-	padding: 7px 9px 7px;
-	font-size: 11px;
-}
-
-:root .alert-message, :root button {
-	border-radius: 0 \0;
-}
-
 buttonbutton::-moz-focus-inner, input[type=submit]button::-moz-focus-inner {
 	padding: 0;
 	border: 0;
@@ -525,6 +579,10 @@ table {
 table th, table td {
 	padding: 10px 10px 9px;
 	/* line-height: 18px; */
+	text-align: center;
+}
+
+table th.textLeft {
 	text-align: left;
 }
 
@@ -597,18 +655,4 @@ table tbody th {
 
 table .header {
 	cursor: pointer;
-}
-
-table .header:after {
-	content: "";
-	float: right;
-	margin-top: 7px;
-	border-width: 0 4px 4px;
-	border-style: solid;
-	border-color: #000 transparent;
-	visibility: hidden;
-}
-
-table .header:hover:after {
-	visibility: visible;
 }

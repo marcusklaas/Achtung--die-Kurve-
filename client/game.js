@@ -189,6 +189,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'joinedGame':
 			this.localPlayer.status = 'ready';
 			this.localPlayer.isHost = false;
+			this.localPlayer.points = 0;
 			this.gameType = obj.type;
 			this.setGameState((obj.type == 'lobby') ? 'lobby' : 'waiting');
 			this.mapSegments = undefined;
@@ -295,7 +296,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 					this.players[i].updateList();
 				}
 
-			sortPlayerList();		
+			this.sortPlayerList();		
 			break;
 		case 'endRound':
 			window.clearTimeout(this.gameloopTimeout);
@@ -916,6 +917,26 @@ GameEngine.prototype.clearPlayerList = function() {
 	while(this.playerList.hasChildNodes())
 		this.playerList.removeChild(this.playerList.firstChild);
 	resizeChat();
+}
+
+/* sorts the player list by points in decreasing order */
+GameEngine.prototype.sortPlayerList = function() {
+	var rows = this.playerList.getElementsByTagName('tr'); // this is nodelist, we want array
+	var arr = [];
+
+	for (var i = 0, ref = arr.length = rows.length; i < ref; i++)
+		arr[i] = rows[i];
+
+	arr.sort(function(row1, row2) {
+		var score1 = parseInt(row1.lastChild.innerHTML);
+		var score2 = parseInt(row2.lastChild.innerHTML);
+		return score1 == score2 ? 0 : (score1 > score2 ? -1 : 1);
+	});
+
+	for(var i = 0; i < arr.length; i++) {
+		this.playerList.removeChild(arr[i]);
+		this.playerList.appendChild(arr[i]);
+	}
 }
 
 GameEngine.prototype.sendChat = function() {
@@ -2079,7 +2100,10 @@ function resizeChat() {
 	var maxHeight = document.body.clientHeight - options.offsetHeight
 	 - chatForm.offsetHeight - playerList.offsetHeight - gameTitle.offsetHeight - margins;
 
-	chat.style.maxHeight = maxHeight + 'px'; 
+	chat.style.maxHeight = maxHeight + 'px';
+
+	// noodoplossing dit -- fix pls
+	document.getElementById('listWrapper').style.maxHeight = document.body.clientHeight - 150 + 'px';
 }
 
 function getPencilMode() {
@@ -2106,29 +2130,6 @@ function setPencilMode(mode) {
 
 	for(var i = 0; i < sections.length; i++)
 		document.getElementById(sections[i]).lastChild.checked = (i == selected);
-}
-
-/* sorts the player list by points in decreasing order */
-function sortPlayerList() {
-	var table = document.getElementById('playerList');
-	var	body = table.lastChild;
-	var newBody = document.createElement('tbody');
-	var rows = body.getElementsByTagName('tr'); // this is nodelist, we want array
-	var arr = [];
-
-	for (var i = 0, ref = arr.length = rows.length; i < ref; i++)
-		arr[i] = rows[i];
-
-	arr.sort(function(row1, row2) {
-		var score1 = parseInt(row1.lastChild.innerHTML);
-		var score2 = parseInt(row2.lastChild.innerHTML);
-		return score1 == score2 ? 0 : (score1 > score2 ? -1 : 1);
-	});
-
-	for(var i = 0; i < arr.length; i++)
-		newBody.appendChild(arr[i]);
-
-	table.replaceChild(newBody, body);  
 }
 
 function getLength(x, y) {
