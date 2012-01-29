@@ -50,8 +50,16 @@ canvas {
 
 body {
 	margin: 0;
-	font: 12px sans-serif;
-	background: #F0F0F0;
+	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-size: 13px;
+	line-height: 18px;
+	color: #222;
+	background-color: #f0f0f0;
+}
+
+a {
+	color: #0088cc;
+	text-decoration: none;
 }
 
 #sidebar {
@@ -80,6 +88,7 @@ ul {
 
 #content {
 	padding-left: 301px;
+	height: 100%;
 }
 
 h2 {
@@ -124,6 +133,10 @@ h2 {
 	text-align: right;
 }
 
+#details td:first-child {
+	text-align: left;
+}
+
 #details td:last-child {
 	text-align: right;
 }
@@ -147,6 +160,10 @@ h2 {
 	position: absolute;
 	right: 5px;
 	bottom: 10px;
+}
+
+#sound {
+	display: inline;
 }
 
 input[type=number] {
@@ -265,9 +282,10 @@ col.col6 {
 	border-radius: 0 0 4px 4px;
 	border: 1px solid #ddd;
 	border-top: 0;
-	/* FIXME: max-height: 80% werkt niet :S ik snap niet waarom -- heb t nu maar met JS opgelost */
+	max-height: 70%;
 	overflow: auto;
 	margin-bottom: 12px;
+	display: block;
 }
 
 #gameList {
@@ -279,25 +297,21 @@ col.col6 {
 	border-top: 0;
 }
 
-/* fancy input css van bootstrap */
-button,
-input,
-select,
-textarea {
+/* fancy input css van bootstrap v2 */
+button, input, select, textarea {
 	font-size: 100%;
 	margin: 0;
 	vertical-align: middle;
 }
 
-input,
-textarea,
-select {
-	display: inline-block;
+input, textarea, select {
+	display: inline-block;#
+	width: 210px;
 	height: 18px;
 	padding: 4px;
 	font-size: 13px;
-	/* line-height: 18px; */
-	color: #808080;
+	line-height: 18px;
+	color: #555555;
 	border: 1px solid #ccc;
 	-webkit-border-radius: 3px;
 	-moz-border-radius: 3px;
@@ -305,34 +319,30 @@ select {
 }
 
 input, textarea {
+	-webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
+	-moz-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
+	box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
 	-webkit-transition: border linear 0.2s, box-shadow linear 0.2s;
 	-moz-transition: border linear 0.2s, box-shadow linear 0.2s;
 	-ms-transition: border linear 0.2s, box-shadow linear 0.2s;
 	-o-transition: border linear 0.2s, box-shadow linear 0.2s;
 	transition: border linear 0.2s, box-shadow linear 0.2s;
-	-webkit-box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
-	-moz-box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
-	box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 input:focus, textarea:focus {
-	color: #404040;
-	outline: 0;
 	border-color: rgba(82, 168, 236, 0.8);
-	-webkit-box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1), 0 0 8px rgba(82, 168, 236, 0.6);
-	-moz-box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1), 0 0 8px rgba(82, 168, 236, 0.6);
-	box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1), 0 0 8px rgba(82, 168, 236, 0.6);
+	-webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(82, 168, 236, 0.6);
+	-moz-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(82, 168, 236, 0.6);
+	box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(82, 168, 236, 0.6);
+	/* outline: 0;
+	outline: thin dotted \9; */ /* weggehaald voor redenen der fakking lelijkheid */
 }
 
-label,
-input,
-select,
-textarea {
+label, input, button, select, textarea {
 	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 	font-size: 13px;
 	font-weight: normal;
-	line-height: normal;
-	vertical-align: middle;
+	line-height: 18px;
 }
 
 input:disabled,
@@ -344,24 +354,24 @@ textarea:disabled {
 }
 
 /* automatch met hulp van bootstrap */
-
 /* TODO: klopt nog niet op de pixel en text staat een beetje raar, iets met lineheight enzo */
-
 #automatchContainer {
 	display: inline;
 	white-space: nowrap;
 	word-spacing: 0;
+	line-height: 18px;
 }
 
 #automatchContainer input {
-	display: inline-block;
-	border-right: 0;
-	height: 18px;
-	line-height: normal;
+	display: inline-block;	
 	padding: 5px 4px 6px 5px;
 	-webkit-border-radius: 0;
 	-moz-border-radius: 0;
 	border-radius: 0;
+	font-size: 13px;
+	line-height: 18px;
+	border-right: 0;
+	margin: 0;
 }
 
 #automatchContainer button {
@@ -380,7 +390,7 @@ textarea:disabled {
 	display: inline-block;
 	width: auto;
 	min-width: 16px;
-	height: 18px;
+	line-height: 18px;
 	margin-right: -1px;
 	padding: 5px 4px 6px 5px;
 	font-weight: normal;
@@ -493,7 +503,7 @@ button {
 	text-shadow: 0 1px 1px rgba(255, 255, 255, 0.75);
 	color: #333;
 	font-size: 13px;
-	line-height: normal;
+	line-height: 18px;
 	border: 1px solid #ccc;
 	border-bottom-color: #bbb;
 	-webkit-border-radius: 4px;
@@ -555,11 +565,6 @@ button[disabled] {
 	box-shadow: none;
 }
 
-buttonbutton::-moz-focus-inner, input[type=submit]button::-moz-focus-inner {
-	padding: 0;
-	border: 0;
-}
-
 /* tables css geleend van bootstrap */
 table {
 	width: 100%;
@@ -572,7 +577,7 @@ table {
 
 table th, table td {
 	padding: 10px 10px 9px;
-	/* line-height: 18px; */
+	line-height: 18px;
 	text-align: center;
 }
 
