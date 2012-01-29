@@ -26,6 +26,10 @@ var canvasMinimumWidth = 200;
 var crossSize = 12;
 var crossLineWidth = 2;
 var crossColor = [0, 0, 0];
+var rewardShowLength = 1000;
+var rewardMaxTransitionLength = 1000;
+var rewardOffsetX = -15;
+var rewardOffsetY = -25;
 
 var safeTickDifference = 60; // TODO: should depend on 2*ping & SERVER_DELAY
 var resizeDelay = 200; // the duration the window should have a constant size before calling resize
@@ -55,6 +59,7 @@ var jsProfiling = false;
 var simulateCPUlag = false;
 var debugBaseContext = false; // sets different color for segments in basecontext
 var displayDebugStatus = false;
+var debugRewards = false;
 
 /* editor */
 var editorStepTime = 100;

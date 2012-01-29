@@ -48,6 +48,17 @@ canvas {
 	z-index: 2;
 }
 
+.reward {
+	position: absolute;
+	color: white;
+	transition: opacity 1s;
+	-webkit-transition: opacity 1s;
+	-o-transition: opacity 1s;
+	-moz-transition: opacity 1s;
+	z-index: 3;
+	font-size: large;
+}
+
 body {
 	margin: 0;
 	font: 12px sans-serif;
