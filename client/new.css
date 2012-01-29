@@ -237,19 +237,13 @@ tr.left td:first-child {
 	margin: 0;
 }
 
-#playerList td:first-child {
+span.noverflow {
+	display: block;
 	text-align: left;
 	overflow: hidden;
 	text-overflow: ellipsis;
-}
-
-/* FIXME: hij luistert niet en geeft in plaats daarvan rare borders 2x zo dik?? :SSS */
-col.pl1 { 
-	width: 44%;
-}
-
-col.pl2, col.pl3 {
-	width: 28%;
+	white-space: nowrap;
+	max-width: 120px;
 }
 
 /* scrollable gamelist */

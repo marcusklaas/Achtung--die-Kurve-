@@ -946,13 +946,16 @@ GameEngine.prototype.appendPlayerList = function(index) {
 	var player = this.players[index];
 	var row = document.createElement('tr');
 	var nameNode = document.createElement('td');
+	var nameSpan = document.createElement('span');
 	var statusNode = document.createElement('td');
 	var pointsNode = document.createElement('td');
 
 	row.id = 'player' + player.playerId;
-	nameNode.innerHTML = player.playerName;
+	nameSpan.innerHTML = player.playerName;
+	nameSpan.className = 'noverflow';
 
 	this.playerList.appendChild(row);
+	nameNode.appendChild(nameSpan);
 	row.appendChild(nameNode);
 	row.appendChild(statusNode);
 	row.appendChild(pointsNode);
@@ -2146,7 +2149,7 @@ function resizeChat() {
 
 	chat.style.maxHeight = maxHeight + 'px';
 
-	// noodoplossing dit -- fix pls
+	// FIXME: noodoplossing dit -- moet eig met css
 	document.getElementById('listWrapper').style.maxHeight = document.body.clientHeight - 150 + 'px';
 }
 
