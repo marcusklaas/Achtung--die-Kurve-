@@ -15,14 +15,21 @@
 			<h2 id="gameTitle">Lobby</h2>
 			<div id="playerListContainer">
 				<table id="playerList">
-					<thead><tr><th>Player</th><th>Status</th><th>Points</th></tr>
-				</thead><tbody></tbody></table>
+					<colgroup>
+							<col class="pl1" />
+							<col class="pl2" />
+							<col class="pl3" />
+					</colgroup>
+					<thead>
+						<tr><th>Player</th><th>Status</th><th>Points</th></tr>
+					</thead>
+				<tbody></tbody></table>
 			</div>
 
 			<div id="messagingContainer">
 				<form id="chatForm">
 					<input type="text" id="chat" placeholder="insults go here" />
-					<!-- testje, misschien helpt dit bij 't submitten op android -->
+					<!-- for submitting on android -->
 					<input type="submit" id="formSubmit" value="ushouldntcme" />
 				</form>
 				<div id="chatContainer">
@@ -68,22 +75,38 @@
 
 			<div id="gameListContainer">
 				<h2>Game List</h2>
-				<table id="gameList" class="zebra-striped bordered-table">
-					<thead><tr><th>#</th><th>Type</th><th>State</th><th>Minplayers</th>
-					<th>Maxplayers</th><th>Players</th></tr>
-					</thead><tbody></tbody></table>
+				<table id="gameListHeader" class="bordered-table">
+					<colgroup>
+							<col class="col1" />
+							<col class="col2" />
+							<col class="col3" />
+							<col class="col4" />
+							<col class="col5" />
+					</colgroup>
+					<thead>
+						<tr><th>#</th><th>Type</th><th>State</th><th>Minplayers</th>
+						<th>Maxplayers</th><th class="textLeft">Players</th></tr>
+					</thead>
 				</table>
-				<div id="noGames">No games active!</div>
 
-				<div class="input-prepend">
-					<span class="add-on">Minimum players</span><input type="number" min="1" max="8" steps="1" value="2" id="minplayers" />
+				<div id="listWrapper">
+					<table id="gameList" class="zebra-striped bordered-table">
+						<colgroup>
+							<col class="col1" />
+							<col class="col2" />
+							<col class="col3" />
+							<col class="col4" />
+							<col class="col5" />
+							<col class="col6" />
+						</colgroup>
+					<tbody></tbody></table>
+					<div id="noGames">No games active!</div>
 				</div>
 
-				<div class="input-prepend">
-					<span class="add-on">Maximum players</span><input type="number" min="1" max="8" steps="1" value="2" id="maxplayers" />
+				<div id="automatchContainer">
+					<span class="add-on">Minimum players</span><input type="number" min="1" max="8" steps="1" value="2" id="minplayers" /><span class="add-on">Maximum players</span><input type="number" min="1" max="8" steps="1" value="2" id="maxplayers" /><button id="start" class="primary">Automatch</button>
 				</div>
 
-				<button id="start" class="primary">Automatch</button>
 				<button id="createGame" class="primary">Create Game</button>
 			</div>
 

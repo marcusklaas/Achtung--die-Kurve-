@@ -2100,7 +2100,10 @@ function resizeChat() {
 	var maxHeight = document.body.clientHeight - options.offsetHeight
 	 - chatForm.offsetHeight - playerList.offsetHeight - gameTitle.offsetHeight - margins;
 
-	chat.style.maxHeight = maxHeight + 'px'; 
+	chat.style.maxHeight = maxHeight + 'px';
+
+	// noodoplossing dit -- fix pls
+	document.getElementById('listWrapper').style.maxHeight = document.body.clientHeight - 150 + 'px';
 }
 
 function getPencilMode() {
