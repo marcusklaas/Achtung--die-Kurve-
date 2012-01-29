@@ -101,7 +101,6 @@ struct map {
 	struct seg *seg;
 };
 
-/* FIXME: yo is start echt in msecs sinds epoch of inmiddels anders? */
 struct game {
 	int id, type,			// game_id, game_type
 		n, w, h, v,			// number of players, width, height, velocity
@@ -111,7 +110,7 @@ struct game {
 		goal, state,		// required points to win, game state, see GS_* definitions
 		tick, alive,		// #ticks that have passed, #alive players
 		hsize, hfreq,		// hole size and frequency in ticks
-		start, rsn,			// start in msecs after epoch, #players at round start
+		start, rsn,			// start in msecs after server start, #players at round start
 		paramupd,			// servermsecs at time of last paramupdate
 		inkcap, inkregen,	// ink capacity, ink regen/ sec
 		inkdelay,			// ink harden time in msec

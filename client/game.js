@@ -1,5 +1,5 @@
 /* game engine */
-function GameEngine(localPlayer, audioController) {
+function GameEngine(audioController) {
 	// game variables
 	this.players = [];
 	this.dict = []; // maps playerId.toString() to index of this.players
@@ -20,12 +20,17 @@ function GameEngine(localPlayer, audioController) {
 	this.setDefaultValues(this.foregroundContext);
 
 	// children
-	this.localPlayer = localPlayer;
 	this.pencil = new Pencil(this);
-	this.audioController = audioController;
+	this.localPlayer = new Player(this, true);
+	this.audioController = new AudioController();;
 	this.playerList = document.getElementById('playerList').lastChild;
 	this.chatBar = document.getElementById('chat');
 	this.editor = new Editor(this);
+	this.sidebar = document.getElementById('sidebar');
+	this.rewardNodes = [];
+	
+	this.canvasTop = 0;
+	this.canvasLeft = this.sidebar.offsetWidth;
 }
 
 /* this only resets things like canvas, but keeps the player info */
@@ -187,14 +192,11 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.maxNameLen = obj.maxNameLength;
 			break;
 		case 'joinedGame':
-			this.localPlayer.status = 'ready';
-			this.localPlayer.isHost = false;
-			this.localPlayer.points = 0;
+			this.resetPlayers();
 			this.gameType = obj.type;
 			this.setGameState((obj.type == 'lobby') ? 'lobby' : 'waiting');
 			this.mapSegments = undefined;
 			this.editor.segments = [];
-			this.resetPlayers();
 			this.addPlayer(this.localPlayer);
 
 			if(obj.type == 'lobby') {
@@ -217,7 +219,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.setParams(obj);
 			break;				
 		case 'newPlayer':
-			var newPlayer = new Player(playerColors[this.players.length], false, this.players.length);
+			var newPlayer = new Player(this, false);
 			newPlayer.playerId = obj.playerId;
 			newPlayer.playerName = escapeString(obj.playerName);
 			this.addPlayer(newPlayer);
@@ -290,11 +292,13 @@ GameEngine.prototype.interpretMsg = function(msg) {
 				this.audioController.playSound('localDeath');
 			}
 
-			for(var i = 0; i < this.players.length; i++)
+			this.displayRewards(obj.reward);
+			for(var i = 0; i < this.players.length; i++) {
 				if(this.players[i].status == 'alive') {
 					this.players[i].points += obj.reward;
 					this.players[i].updateList();
 				}
+			}
 
 			this.sortPlayerList();		
 			break;
@@ -648,22 +652,26 @@ GameEngine.prototype.doTock = function() {
 }
 
 GameEngine.prototype.addPlayer = function(player) {
-	player.game = this;
-	var index = this.players.length;
-	this.setIndex(player.playerId, index);
+	player.index = this.players.length;
+	player.color = playerColors[player.index];
+	player.status = 'ready';
+	player.points = 0;
+	player.isHost = false;
+	this.setIndex(player.playerId, player.index);
 	this.players.push(player);
-	this.appendPlayerList(index);
+	this.appendPlayerList(player.index);
 	
-	player.canvas = document.createElement('canvas');
-	player.context = player.canvas.getContext('2d');
-	this.setDefaultValues(player.context);
-	player.canvas.id = 'playerCanvas' + player.playerId;
-	this.canvasContainer.appendChild(player.canvas);
+	if(this.gameType != 'lobby') {
+		player.canvas = document.createElement('canvas');
+		player.context = player.canvas.getContext('2d');
+		this.setDefaultValues(player.context);
+		//player.canvas.id = 'playerCanvas' + player.playerId;
+		this.canvasContainer.appendChild(player.canvas);
+	}
 }
 
 GameEngine.prototype.calcScale = function(extraVerticalSpace) {
-	var sidebar = document.getElementById('sidebar');
-	var targetWidth = Math.max(document.body.clientWidth - sidebar.offsetWidth - 1,
+	var targetWidth = Math.max(document.body.clientWidth - this.sidebar.offsetWidth - 1,
 	 canvasMinimumWidth);
 	var targetHeight = document.body.clientHeight - 1;
 	if(extraVerticalSpace != undefined)
@@ -774,6 +782,9 @@ GameEngine.prototype.realStart = function() {
 		do {
 			if(self.gameState != 'playing' && self.gameState != 'watching')
 				return;
+				
+			if(debugRewards && self.tick % 60 == 0)
+				self.displayRewards(1);
 
 			if(tellert++ > 100) {
 		 		this.gameMessage("ERROR. stopping gameloop. debug information: next tick time = " +
@@ -806,6 +817,62 @@ GameEngine.prototype.drawMapSegments = function() {
 		ctx.lineTo(seg.x2, seg.y2);
 	}
 	ctx.stroke();
+}
+
+GameEngine.prototype.createRewardNode = function(player, reward) {
+	var node;
+	var recycle = this.rewardNodes.length > 0;
+
+	if(recycle) {
+		node = this.rewardNodes.pop();
+	} else {
+		node = document.createElement('div');
+		node.className = 'reward';
+	}
+	
+	node.style.left = (player.x * this.scale + rewardOffsetX) + 'px';
+	node.style.top = (player.y * this.scale + rewardOffsetY) + 'px';
+	node.innerHTML = '+' + reward;
+	
+	if(recycle) {
+		node.style.display = 'block';
+	} else {
+		this.canvasContainer.appendChild(node);
+	}
+	
+	return node;
+}
+
+GameEngine.prototype.displayRewards = function(reward) {
+	if(!reward)
+		return;
+	
+	var self = this;
+	var nodes = [];
+	
+	for(var i = 0; i < this.players.length; i++) {
+		var player = this.players[i];
+		if(player.status == 'alive') {
+			nodes.push(this.createRewardNode(player, reward));
+		}
+	}
+	
+	function recycleRewards() {
+		for(var i = 0; i < nodes.length; i++) {
+			nodes[i].style.opacity = 1;
+			nodes[i].style.display = 'none';
+		}
+		self.rewardNodes = self.rewardNodes.concat(nodes);
+	}
+	
+	function startHidingRewards() { 
+		for(var i = 0; i < nodes.length; i++) {
+			nodes[i].style.opacity = 0;
+		}
+		window.setTimeout(recycleRewards, rewardMaxTransitionLength);
+	}
+	
+	window.setTimeout(startHidingRewards, rewardShowLength);
 }
 
 GameEngine.prototype.resize = function() {
@@ -974,18 +1041,27 @@ GameEngine.prototype.backToGameLobby = function() {
 	}
 }
 
+GameEngine.prototype.getGamePos = function(e) {
+	var vec = getPos(e);
+	vec[0] = (vec[0] - this.canvasLeft) / this.scale;
+	vec[1] = (vec[1] - this.canvasTop) / this.scale;
+	vec[0] = Math.round(Math.max(Math.min(this.width, vec[0]), 0));
+	vec[1] = Math.round(Math.max(Math.min(this.height, vec[1]), 0));
+	return vec;
+}
+
+
 /* players */
-function Player(color, local, index) {
-	this.isLocal = local;
-	this.isHost = false;
-	this.color = color;
-	this.status = 'ready'; // ready, alive, dead or left
-	this.index = index;
-	this.points = 0;
+function Player(game, isLocal) {
+	this.game = game;
+	this.isLocal = isLocal;
+	if(isLocal)
+		this.inputController = new InputController(this, keyCodeLeft, keyCodeRight);
 }
 
 Player.prototype.deleteCanvas = function() {
-	this.context.canvas.parentNode.removeChild(this.context.canvas);
+	if(this.game.gameType != 'lobby')
+		this.canvas.parentNode.removeChild(this.canvas);
 }
 
 Player.prototype.saveLocation = function() {
@@ -1271,7 +1347,7 @@ function InputController(player, left, right) {
 
 	function mouseMove(e) {
 		if(pencil.drawingAllowed && pencil.down) {
-			var pos = pencil.getRelativePos(e);
+			var pos = game.getGamePos(e);
 			pencil.curX = pos[0];
 			pencil.curY = pos[1];
 		}
@@ -1279,7 +1355,7 @@ function InputController(player, left, right) {
 
 	function mouseDown(e) {
 		if(pencil.drawingAllowed && !pencil.down && pencil.ink > pencil.mousedownInk)
-			pencil.startDraw(pencil.getRelativePos(e));
+			pencil.startDraw(game.getGamePos(e));
 	}
 
 	function mouseEnd(e) {
@@ -1291,7 +1367,7 @@ function InputController(player, left, right) {
 	
 	function stopDraw(e) {
 		if(pencil.drawingAllowed && pencil.down) {
-			var pos = pencil.getRelativePos(e);
+			var pos = game.getGamePos(e);
 			pencil.curX = pos[0];
 			pencil.curY = pos[1];
 
@@ -1311,7 +1387,7 @@ function InputController(player, left, right) {
 
 		for(var i = 0; i < e.changedTouches.length; i++) {
 			var touch = e.changedTouches[i];
-			var pos = pencil.getRelativePos(touch);
+			var pos = game.getGamePos(touch);
 			var totalWidth = game.width;
 			var right = (pos[0] <= totalWidth * steerBoxSize);  // TODO: dit is precies andersom als hoe t zou moeten -- hoe kan dit?
 			var left = (pos[0] >= (1 - steerBoxSize) * totalWidth);
@@ -1379,7 +1455,7 @@ function InputController(player, left, right) {
 
 		for(var i = 0; i < e.changedTouches.length; i++) {
 			var touch = e.changedTouches[i];
-			var pos = pencil.getRelativePos(touch);
+			var pos = game.getGamePos(touch);
 			var totalWidth = game.width;
 			var right = (pos[0] <= totalWidth * steerBoxSize);
 			var left = (pos[0] >= (1 - steerBoxSize) * totalWidth);
@@ -1417,7 +1493,7 @@ function InputController(player, left, right) {
 
 			else if(self.pencilTouch != null && touch.identifier == self.pencilTouch.identifier)
 				if(pencil.drawingAllowed && pencil.down) {
-					var pos = pencil.getRelativePos(touch);
+					var pos = game.getGamePos(touch);
 					pencil.curX = pos[0];
 					pencil.curY = pos[1];
 				}
@@ -1553,9 +1629,6 @@ Pencil.prototype.reset = function() {
 	}
 
 	this.inbuffer.length = this.inbufferIndex.length = this.players;
-	var pos = findPos(this.game.canvasContainer);
-	this.canvasLeft = pos[0];
-	this.canvasTop = pos[1];
 }
 
 Pencil.prototype.setInk = function(ink) {
@@ -1649,22 +1722,6 @@ Pencil.prototype.handleMessage = function(ar) {
 	}
 }
 
-Pencil.prototype.relativatePos = function(pos) {
-	vec = pos.slice(0); // make copy since pos is passed by reference!
-
-	vec[0] -= this.canvasLeft;
-	vec[1] -= this.canvasTop;
-	vec[0] /= this.game.scale;
-	vec[1] /= this.game.scale;
-	vec[0] = Math.round(Math.max(Math.min(this.game.width, vec[0]), 0));
-	vec[1] = Math.round(Math.max(Math.min(this.game.height, vec[1]), 0));
-	return vec;
-}
-
-Pencil.prototype.getRelativePos = function(e) {
-	return this.relativatePos(getPos(e));
-}
-
 /* Map editor */
 Editor = function(game) {
 	this.game = game;
@@ -1717,7 +1774,7 @@ Editor = function(game) {
 		for(var i = 0; i < e.changedTouches.length; i++) {
 			var t = e.changedTouches[i];
 			t.time = Date.now();
-			t.pos = self.getPos(t);
+			t.pos = game.getGamePos(t);
 		}
 		if(e.cancelable)
 			e.preventDefault();
@@ -1727,7 +1784,7 @@ Editor = function(game) {
 		for(var i = 0; i < e.changedTouches.length; i++) {
 			var t = e.changedTouches[i];
 			if(Date.now() - t.time > editorStepTime) {
-				var pos = self.getPos(t);
+				var pos = game.getGamePos(t);
 				var seg = new BasicSegment(t.pos[0], t.pos[1], pos[0], pos[1]);
 				self.segments.push(seg);
 				self.drawSegment(seg);
@@ -1742,7 +1799,7 @@ Editor = function(game) {
 	function touchEnd(e) {
 		for(var i = 0; i < e.changedTouches.length; i++) {
 			var t = e.changedTouches[i];
-			var pos = self.getPos(t);
+			var pos = game.getGamePos(t);
 			var seg = new BasicSegment(t.pos[0], t.pos[1], pos[0], pos[1]);
 			self.segments.push(seg);
 			self.drawSegment(seg);
@@ -1763,7 +1820,7 @@ Editor.prototype.onmouse = function(type, ev) {
 	if(ev == undefined)
 		pos = this.curPos;
 	else	
-		pos = this.curPos = this.getPos(ev);
+		pos = this.curPos = this.game.getGamePos(ev);
 
 	if(type == 'down' || (this.out && type == 'over' && this.down)) {
 		this.lastPos = pos;
@@ -1786,17 +1843,6 @@ Editor.prototype.onmouse = function(type, ev) {
 		else if(type == 'up')
 			this.down = false;
 	}
-}
-
-Editor.prototype.getPos = function(ev) {
-	var pos = getPos(ev);
-	pos[0] -= this.pos[0];
-	pos[1] -= this.pos[1];
-	pos[0] /= this.game.scale;
-	pos[1] /= this.game.scale;
-	pos[0] = Math.round(pos[0]);
-	pos[1] = Math.round(pos[1]);
-	return pos;
 }
 
 Editor.prototype.drawSegment = function(seg) {
@@ -1855,11 +1901,9 @@ BasicSegment = function(x1, y1, x2, y2) {
 
 /* create game */
 window.onload = function() {
-	var audioController = new AudioController();
-	var localPlayer = new Player(playerColors[0], true, 0);
-	var game = new GameEngine(localPlayer, audioController);
-	localPlayer.game = game;
-	localPlayer.inputController = new InputController(localPlayer, keyCodeLeft, keyCodeRight);
+	var game = new GameEngine();
+	var localPlayer = game.localPlayer;
+	var audioController = game.audioController;
 
 	/* add sounds to controller */
 	audioController.addSound('localDeath', 'sounds/wilhelm', ['ogg']);
@@ -2000,7 +2044,7 @@ window.onload = function() {
 
 	/* moving sidebar for horizontal scroll */
 	window.onscroll = function() {
-		document.getElementById('sidebar').style.left = -window.scrollX + 'px';
+		game.sidebar.style.left = -window.scrollX + 'px';
 	}
 
 	function sendParams(timeout, onlyAllowReplacement) {
