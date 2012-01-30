@@ -106,11 +106,17 @@ ul {
 	height: 100%;
 }
 
+h1 {
+	text-align: center;
+	padding-top: 20px;
+	padding-bottom: 5px;
+	margin: 0;
+}
+
 h2 {
 	text-align: center;
-	margin-top: 5px;
-	margin-bottom: 3px;
-	padding-top: 0;
+	padding-top: 5px;
+	padding-bottom: 0;
 }
 
 h2.contentHeader {
@@ -138,7 +144,7 @@ h2.contentHeader {
 }
 
 #waitContainer, #connectionContainer {
-	padding: 20px 5px 0 5px;
+	padding: 0 5px 0 5px;
 	width: 400px;
 	margin: auto;
 }
