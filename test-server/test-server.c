@@ -318,13 +318,16 @@ callback_game(struct libwebsocket_context * context,
 			}
 
 			j = jsoncheckjson(json, "segments");
-			if(j && j->child) {
+			if(j) {
 				cJSON *root = jsoncreate("setMap");
+				if(u->gm->map)
+					freemap(u->gm->map);
 				u->gm->map = createmap(j->child);
 				jsonaddjson(root, "segments", encodesegments(u->gm->map->seg));
 				sendjsontogame(root, u->gm, 0);
 				jsondel(root);
 			}
+
 
 			startgame(u->gm);
 		}

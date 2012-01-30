@@ -678,6 +678,7 @@ GameEngine.prototype.addPlayer = function(player) {
 	}
 }
 
+/* sets this.scale, which is canvas size / game size */
 GameEngine.prototype.calcScale = function(extraVerticalSpace) {
 	var targetWidth = Math.max(document.body.clientWidth - this.sidebar.offsetWidth - 1,
 	 canvasMinimumWidth);
@@ -725,8 +726,9 @@ GameEngine.prototype.sendParams = function() {
 GameEngine.prototype.sendStartGame = function() {
 	var obj = {};
 
-	if(this.editor.segments.length > 0) {
+	if(this.editor.mapChanged) {
 		obj.segments = this.editor.segments;
+		this.editor.mapChanged = false;
 	}
 
 	this.sendMsg('startGame', obj);
@@ -1068,7 +1070,10 @@ GameEngine.prototype.getGamePos = function(e) {
 }
 
 
-/* players */
+/* Player
+ * properties:
+ * - status: ready, alive, dead or left
+ */
 function Player(game, isLocal) {
 	this.game = game;
 	this.isLocal = isLocal;
@@ -1611,7 +1616,10 @@ AudioController.prototype.playSound = function(name) {
 	this.sounds[name][Math.floor(Math.random() * this.sounds[name].length)].play();
 }
 
-/* Pencil */
+/* Pencil
+ * properties:
+ * - pencilMode: on, off or ondeath
+ */
 function Pencil(game) {
 	this.game = game;
 	this.indicator = document.getElementById('ink');
@@ -1761,6 +1769,7 @@ Editor = function(game) {
 	this.resetButton = document.getElementById('editorReset');
 	this.resetButton.addEventListener('click', function() { 
 		self.segments = [];
+		self.mapChanged = true;
 		self.resize();	
 	}, false);
 
@@ -1804,6 +1813,7 @@ Editor = function(game) {
 				var pos = game.getGamePos(t);
 				var seg = new BasicSegment(t.pos[0], t.pos[1], pos[0], pos[1]);
 				self.segments.push(seg);
+				self.mapChanged = true;
 				self.drawSegment(seg);
 				t.pos = pos;
 				t.time = Date.now();
@@ -1819,6 +1829,7 @@ Editor = function(game) {
 			var pos = game.getGamePos(t);
 			var seg = new BasicSegment(t.pos[0], t.pos[1], pos[0], pos[1]);
 			self.segments.push(seg);
+			self.mapChanged = true;
 			self.drawSegment(seg);
 		}
 		if(e.cancelable)
@@ -1851,6 +1862,7 @@ Editor.prototype.onmouse = function(type, ev) {
 	 	if(!this.out) {
 			var seg = new BasicSegment(this.lastPos[0], this.lastPos[1], pos[0], pos[1]);
 			this.segments.push(seg);
+			this.mapChanged = true;
 			this.drawSegment(seg);
 			this.lastPos = pos;
 			this.lastTime = Date.now();
@@ -1887,6 +1899,7 @@ Editor.prototype.load = function() {
 		this.drawSegment(segs[i]);
 
 	this.segments = this.segments.concat(segs);
+	this.mapChanged = true;
 }
 
 Editor.prototype.resize = function() {

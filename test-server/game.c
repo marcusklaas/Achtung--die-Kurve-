@@ -181,12 +181,7 @@ void startgame(struct game *gm) {
 }
 
 struct map *createmap(cJSON *j) {
-	struct map *map;
-
-	if(!j)
-		return 0;
-
-	map = scalloc(1, sizeof(struct map));
+	struct map *map = scalloc(1, sizeof(struct map));
 
 	while(j) {
 		struct seg *seg = smalloc(sizeof(struct seg));
