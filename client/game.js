@@ -306,7 +306,9 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'endRound':
 			window.clearTimeout(this.gameloopTimeout);
 			document.getElementById('inkIndicator').style.display = 'none';
-			
+			for(var i = this.maxHiddenRewards; i < this.rewardNodes.length; i++)
+				this.canvasContainer.removeChild(this.rewardNodes.pop());
+				
 			// simulate to finalTick
 			while(this.tick <= obj.finalTick)
 				this.doTick();
@@ -828,6 +830,8 @@ GameEngine.prototype.drawMapSegments = function() {
 GameEngine.prototype.createRewardNode = function(player, reward) {
 	var node;
 	var recycle = this.rewardNodes.length > 0;
+	var w = rewardWidth;
+	var h = rewardHeight;
 
 	if(recycle) {
 		node = this.rewardNodes.pop();
@@ -836,9 +840,14 @@ GameEngine.prototype.createRewardNode = function(player, reward) {
 		node.className = 'reward';
 	}
 	
-	node.style.left = (player.x * this.scale + rewardOffsetX) + 'px';
-	node.style.top = (player.y * this.scale + rewardOffsetY) + 'px';
 	node.innerHTML = '+' + reward;
+	var left = player.x * this.scale - w / 2;
+	left = Math.min(this.width * this.scale - w, Math.max(0, left));
+	var top = player.y * this.scale - h - rewardOffsetY;
+	if(top < 0)
+		top += rewardOffsetY * 2 + h;
+	node.style.left = left + 'px';
+	node.style.top = top + 'px';
 	
 	if(recycle) {
 		node.style.display = 'block';
@@ -865,7 +874,7 @@ GameEngine.prototype.displayRewards = function(reward) {
 	
 	function recycleRewards() {
 		for(var i = 0; i < nodes.length; i++) {
-			nodes[i].style.opacity = 1;
+			nodes[i].className = 'reward';
 			nodes[i].style.display = 'none';
 		}
 		self.rewardNodes = self.rewardNodes.concat(nodes);
@@ -873,12 +882,12 @@ GameEngine.prototype.displayRewards = function(reward) {
 	
 	function startHidingRewards() { 
 		for(var i = 0; i < nodes.length; i++) {
-			nodes[i].style.opacity = 0;
+			nodes[i].className += ' reward-hidden';
 		}
-		window.setTimeout(recycleRewards, rewardMaxTransitionLength);
 	}
 	
 	window.setTimeout(startHidingRewards, rewardShowLength);
+	window.setTimeout(recycleRewards, rewardShowLength + rewardMaxTransitionLength);
 }
 
 GameEngine.prototype.resize = function() {

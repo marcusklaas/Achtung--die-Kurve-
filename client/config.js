@@ -28,9 +28,10 @@ var crossLineWidth = 2;
 var crossColor = [0, 0, 0];
 var rewardShowLength = 1000;
 var rewardMaxTransitionLength = 1000;
-var rewardOffsetX = -15;
-var rewardOffsetY = -25;
-var startedGamesDisplay = 'below'; // show, below or hide
+var rewardOffsetY = 8;
+var rewardWidth = 23; // TODO: should be read from document
+var rewardHeight = 18;
+var maxHiddenRewards = 20;
 
 var safeTickDifference = 60; // TODO: should depend on 2*ping & SERVER_DELAY
 var resizeDelay = 200; // the duration the window should have a constant size before calling resize
