@@ -152,6 +152,28 @@ GameEngine.prototype.setGameState = function(newState) {
 			break;
 	}
 
+	/* FULLSCREEN
+	if(autoFullscreen && newState == 'countdown') {
+		var docElm = document.documentElement;
+		if (docElm.requestFullscreen) {
+			docElm.requestFullscreen();
+		}
+		else if (docElm.mozRequestFullScreen) {
+			docElm.mozRequestFullScreen();
+		}
+		else if (docElm.webkitRequestFullScreen) {
+			docElm.webkitRequestFullScreen();
+		}
+	}
+	if(leaving game) {
+		if (document.exitFullscreen)
+			document.exitFullscreen();
+		else if (document.mozCancelFullScreen)
+			document.mozCancelFullScreen();
+		else if (document.webkitCancelFullScreen)
+			document.webkitCancelFullScreen();
+	} */
+
 	this.gameState = newState;
 }
 
@@ -1042,9 +1064,7 @@ GameEngine.prototype.focusChat = function() {
 		this.chatBar.focus();
 }
 
-GameEngine.prototype.backToGameLobby = function() {
-	this.setGameState('waiting');
-	
+GameEngine.prototype.backToGameLobby = function() {	
 	// remove players who left game & set status for other players
 	var copy = this.players.slice(0);
 	for(var i = 0; i < copy.length; i++) {
@@ -1406,7 +1426,7 @@ function InputController(player, left, right) {
 			var touch = e.changedTouches[i];
 			var pos = game.getGamePos(touch);
 			var totalWidth = game.width;
-			var right = (pos[0] <= totalWidth * steerBoxSize);  // TODO: dit is precies andersom als hoe t zou moeten -- hoe kan dit?
+			var right = (pos[0] <= totalWidth * steerBoxSize);  // FIXME: dit is precies andersom als hoe t zou moeten -- hoe kan dit?
 			var left = (pos[0] >= (1 - steerBoxSize) * totalWidth);
 
 			if(self.player.status == 'alive' && left && self.leftTouch === null) {
@@ -2016,6 +2036,7 @@ window.onload = function() {
 	
 	var backButton = document.getElementById('back');
 	backButton.addEventListener('click', function() {
+		game.setGameState('waiting');
 		game.backToGameLobby();
 	}, false);
 	

@@ -1,5 +1,6 @@
 /* global vars */
 var enableSound = true;
+var autoFullscreen = true;
 var joinedLink = false;
 
 /* controls */
@@ -32,6 +33,7 @@ var rewardOffsetY = 8;
 var rewardWidth = 23; // TODO: should be read from document
 var rewardHeight = 18;
 var maxHiddenRewards = 20;
+var startedGamesDisplay = 'below'; // show, below or hide
 
 var safeTickDifference = 60; // TODO: should depend on 2*ping & SERVER_DELAY
 var resizeDelay = 200; // the duration the window should have a constant size before calling resize
