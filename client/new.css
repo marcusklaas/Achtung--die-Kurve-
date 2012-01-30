@@ -51,12 +51,16 @@ canvas {
 .reward {
 	position: absolute;
 	color: white;
+	z-index: 3;
+	font-size: large;
+}
+
+.reward-hidden {
+	opacity: 0;
 	transition: opacity 1s;
 	-webkit-transition: opacity 1s;
 	-o-transition: opacity 1s;
 	-moz-transition: opacity 1s;
-	z-index: 3;
-	font-size: large;
 }
 
 body {
