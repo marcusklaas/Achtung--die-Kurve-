@@ -14,11 +14,16 @@ static struct game *lobby, *headgame = 0;
 static int usrc = 0; // user count
 static int gmc = 1; // game count
 static unsigned long serverticks = 0;
-/* FIXME: dit moet anders, onafhankelijk van definities van SPAM_CAT_* */
+static char *gamelist = 0; // JSON string
+static int gamelistage = 0; // servermsecs() on which encodedgamelist was last updated
+static char gamelistcurrent = 1; // 0 if gamelist is not up to date
+
+/* FIXME: dit moet eigenlijk anders, onafhankelijk van
+ * definities van SPAM_CAT_*, maar ik weet niet hoe */
 static int spam_maxs[SPAM_CAT_COUNT] = {SPAM_JOINLEAVE_MAX, SPAM_CHAT_MAX,
- SPAM_SETTINGS_MAX, SPAM_STEERING_MAX, SPAM_FILES_MAX};
+ SPAM_SETTINGS_MAX, SPAM_STEERING_MAX};
 static int spam_intervals[SPAM_CAT_COUNT] = {SPAM_JOINLEAVE_INTERVAL, SPAM_CHAT_INTERVAL,
- SPAM_SETTINGS_INTERVAL, SPAM_STEERING_INTERVAL, SPAM_FILES_INTERVAL};
+ SPAM_SETTINGS_INTERVAL, SPAM_STEERING_INTERVAL};
 
 #include "helper.c"
 #include "game.c"
@@ -32,12 +37,6 @@ static int callback_http(struct libwebsocket_context * context,
 	if(reason == LWS_CALLBACK_HTTP) {
 		char *ext, mime[32];
 		char path[MAX_FILE_REQ_LEN + LOCAL_PATH_LENGTH + 1];
-
-		// FIXME: omg user = null hiero.. hoe voorkomen we httpspam of we laten toe?
-		// => voor dit andere protocol hebben we de user struct niet ingesteld
-		// als we dat doen, moet de spam counter ook ergens worden gereset
-		//if(!user || checkspam(user, SPAM_CAT_FILES))
-		//	printf("user be spamming our http!\n");
 	
 		if(ULTRA_VERBOSE)
 			printf("serving HTTP URI %s\n", (char *) in);

@@ -20,6 +20,7 @@
 #define AUTO_ROUNDS 5 // number of expected rounds in automatch
 #define MAX_PLAYERSTART_TRIES 500
 #define TORUS_MODE 1
+#define GAMELIST_UPDATE_INTERVAL 10000
 
 /* debugging */
 #define DEBUG_MODE 1
@@ -37,12 +38,11 @@
 #define UNLOCK_INTERVAL 0 // in msecs
 
 /* spam control. name from 0 to SPAM_CAT_COUNT - 1 to prevent horrible segfaults */
-#define SPAM_CAT_COUNT			5
+#define SPAM_CAT_COUNT			4
 #define SPAM_CAT_JOINLEAVE		0
 #define SPAM_CAT_CHAT			1
 #define SPAM_CAT_SETTINGS		2
 #define SPAM_CAT_STEERING		3
-#define SPAM_CAT_FILES			4
 
 #define SPAM_JOINLEAVE_MAX		4
 #define SPAM_JOINLEAVE_INTERVAL 200
@@ -52,8 +52,6 @@
 #define SPAM_SETTINGS_INTERVAL	4
 #define SPAM_STEERING_MAX		60
 #define SPAM_STEERING_INTERVAL	60
-#define SPAM_FILES_MAX			50
-#define SPAM_FILES_INTERVAL		2500
 
 /* pencil */
 #define PM_ON 0
@@ -159,11 +157,8 @@ struct user {
 	int sbat;			// sendbuffer at
 
 	float x, y, angle, v, ts;	// used in simulation (these are thus SERVER_DELAY behind)
-	int turn;			// -1, 0 or 1
-	char alive;			// 1 for alive, 0 else
-	int points;
-	int lastinputtick;
-	char ignoreinput;
+	int turn, points, lastinputtick, gamelistage;
+	char alive, ignoreinput;
 	
 	int hstart, hsize, hfreq;	// hole start, hole size, hole frequency
 
@@ -171,7 +166,7 @@ struct user {
 					 *inputtail; // insert at tail, remove at head
 
 	struct libwebsocket *wsi;
-	int msgcounter[SPAM_CAT_COUNT];			// number of inputs and chat messages received
+	int msgcounter[SPAM_CAT_COUNT];		// number of inputs and chat messages received
 	int delta[DELTA_COUNT];
 	int deltaat;
 	char deltaon;

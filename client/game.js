@@ -24,6 +24,7 @@ function GameEngine(audioController) {
 	this.localPlayer = new Player(this, true);
 	this.audioController = new AudioController();;
 	this.playerList = document.getElementById('playerList').lastChild;
+	this.gameList = document.getElementById('gameList').lastChild;
 	this.chatBar = document.getElementById('chat');
 	this.editor = new Editor(this);
 	this.sidebar = document.getElementById('sidebar');
@@ -334,6 +335,9 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'chat':
 			this.printChat(this.getPlayer(obj.playerId), obj.message);
 			break;
+		case 'newGame':
+			this.appendGameList(obj);
+			break;
 		case 'gameList':
 			this.buildGameList(obj.games);
 			break;
@@ -416,58 +420,56 @@ GameEngine.prototype.setHost = function(id) {
 }
 
 GameEngine.prototype.buildGameList = function(list) {
-	var tbody = document.getElementById('gameList').lastChild;
-	var row, node, button, self = this;
+	while(this.gameList.hasChildNodes())
+		this.gameList.removeChild(this.gameList.firstChild);
 
-	while(tbody.hasChildNodes())
-		tbody.removeChild(tbody.firstChild);
+	document.getElementById('noGames').style.display = 'block';
 
-	document.getElementById('noGames').style.display = list.length == 0 ? 'block' : 'none';
+	for(var i = 0; i < list.length; i++)
+		this.appendGameList(list[i]);
+}
 
-	/* beetje getructe oplossing, maar volgens mij moet 't zo */
-	var clickHandler = function(id) {
-		return function() { self.joinGame(id); };
-	};
+GameEngine.prototype.appendGameList = function(obj) {
+	var self = this;
+	document.getElementById('noGames').style.display = 'none';
 
-	for(var i = 0; i < list.length; i++) {
-		row = document.createElement('tr');
-		row.id = 'game' + list[i].id;
+	var row = document.createElement('tr');
+	row.id = 'game' + obj.id;
 
-		node = document.createElement('td');
-		node.innerHTML = list[i].id;
-		row.appendChild(node);
+	var node = document.createElement('td');
+	node.innerHTML = obj.id;
+	row.appendChild(node);
 
-		node = document.createElement('td');
-		node.innerHTML = list[i].type;
-		row.appendChild(node);
+	node = document.createElement('td');
+	node.innerHTML = obj.type;
+	row.appendChild(node);
 
-		node = document.createElement('td');
-		node.innerHTML = list[i].state;
-		row.appendChild(node);
+	node = document.createElement('td');
+	node.innerHTML = obj.state;
+	row.appendChild(node);
 
-		node = document.createElement('td');
-		node.innerHTML = list[i].nmin;
-		row.appendChild(node);
+	node = document.createElement('td');
+	node.innerHTML = obj.nmin;
+	row.appendChild(node);
 
-		node = document.createElement('td');
-		node.innerHTML = list[i].nmax;
-		row.appendChild(node);
+	node = document.createElement('td');
+	node.innerHTML = obj.nmax;
+	row.appendChild(node);
 
-		node = document.createElement('td');
-		node.innerHTML = list[i].n;
-		row.appendChild(node);
+	node = document.createElement('td');
+	node.innerHTML = obj.n;
+	row.appendChild(node);
 
-		button = document.createElement('button');
-		button.innerHTML = 'Join';
-		button.disabled = (list[i].state != 'lobby');
-		button.addEventListener('click', clickHandler(list[i].id));
+	var button = document.createElement('button');
+	button.innerHTML = 'Join';
+	button.disabled = (obj.state != 'lobby');
+	button.addEventListener('click', function() { self.joinGame(obj.id); });
 
-		node = document.createElement('td');
-		node.appendChild(button);
-		row.appendChild(node);
+	node = document.createElement('td');
+	node.appendChild(button);
+	row.appendChild(node);
 
-		tbody.appendChild(row);
-	}
+	this.gameList.appendChild(row);
 }
 
 GameEngine.prototype.printChat = function(player, message) {
@@ -1003,10 +1005,12 @@ GameEngine.prototype.sortPlayerList = function() {
 		return score1 == score2 ? 0 : (score1 > score2 ? -1 : 1);
 	});
 
-	for(var i = 0; i < arr.length; i++) {
-		this.playerList.removeChild(arr[i]);
-		this.playerList.appendChild(arr[i]);
-	}
+	/* phat optimization! */
+	for(var i = 0; i < arr.length; i++)
+		if(arr[i] != this.playerList.lastChild) {
+			this.playerList.removeChild(arr[i]);
+			this.playerList.appendChild(arr[i]);
+		}
 }
 
 GameEngine.prototype.sendChat = function() {

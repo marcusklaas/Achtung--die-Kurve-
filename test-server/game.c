@@ -69,10 +69,36 @@ cJSON *encodegamelist() {
 	return json;
 }
 
+void updategamelist() {
+	if(!gamelistcurrent) {
+		printf("updating gamelist \n");
+		gamelist = jsongetpacket(encodegamelist());
+		gamelistage = servermsecs();
+		gamelistcurrent = 1;
+	}
+}
+
+void sendgamelist(struct user *usr) {
+	updategamelist();
+
+	if(gamelistage >= usr->gamelistage) {
+		usr->gamelistage = gamelistage;
+		sendstr(gamelist, usr);
+	}
+}
+
+/* TODO: do not send all updates on same tick */
 void broadcastgamelist() {
-	cJSON *json = encodegamelist();
-	sendjsontogame(json, lobby, 0);
-	jsondel(json);
+	struct user *usr;
+	int now = servermsecs();
+
+	updategamelist();
+
+	for(usr = lobby->usr; usr; usr = usr->nxt)
+		if(now - GAMELIST_UPDATE_INTERVAL > usr->gamelistage) {
+			usr->gamelistage = gamelistage;
+			sendstr(gamelist, usr);
+		}
 }
 
 void startgame(struct game *gm) {
@@ -130,6 +156,9 @@ void startgame(struct game *gm) {
 	gm->tick = -(COUNTDOWN + SERVER_DELAY + laterround * COOLDOWN)/ TICK_LENGTH;
 	gm->state = GS_STARTED;
 	gm->alive = gm->n;
+	
+	if(!laterround)
+		gamelistcurrent = 0;
 
 	root = jsoncreate("startGame");
 	start_locations = cJSON_CreateArray();
@@ -204,7 +233,8 @@ void remgame(struct game *gm) {
 		freemap(gm->map);
 	free(gm->seg);
 	free(gm);
-	broadcastgamelist();
+
+	gamelistcurrent = 0;
 }
 
 struct game *findgame(int nmin, int nmax) {
@@ -305,8 +335,17 @@ void joingame(struct game *gm, struct user *newusr) {
 	if(DEBUG_MODE)
 		printf("user %d is joining game %p\n", newusr->id, (void*)gm);
 
-	if(!gm->n++)
-		broadcastgamelist();
+	/* send message to guys in lobby with info about this game */
+	if(!gm->n++) {
+		json = encodegame(gm);
+		cJSON_AddStringToObject(json, "mode", "newGame");
+		sendjsontogame(json, lobby, newusr);
+
+		// update gamelist but not gamelistcurrent or its age!
+		gamelist = jsongetpacket(encodegamelist());
+	}
+	else
+		gamelistcurrent = 0;
 
 	newusr->gm = gm;
 	newusr->points = 0;
@@ -346,12 +385,12 @@ void joingame(struct game *gm, struct user *newusr) {
 
 	/* send either game details or game list */
 	if(gm->type == GT_LOBBY)
-		json = encodegamelist();
-	else 
+		sendstr(gamelist, newusr);
+	else {
 		json = getjsongamepars(gm);
-
-	sendjson(json, newusr);
-	jsondel(json);
+		sendjson(json, newusr);
+		jsondel(json);
+	}
 
 	if(gm->type == GT_AUTO && gm->n >= gm->nmin)
 		startgame(gm);
@@ -683,9 +722,12 @@ void endgame(struct game *gm, struct user *winner) {
 	sendjsontogame(json, gm, 0);
 	jsondel(json);
 
-	printf("game %p ended. winner = %d\n", (void*) gm, winner->id);
-	
+	if(DEBUG_MODE)
+		printf("game %p ended. winner = %d\n", (void*) gm, winner->id);
+
+	gamelistcurrent = 0;
 	gm->state = (gm->type == GT_AUTO) ? GS_ENDED : GS_LOBBY;
+
 	for(usr = gm->usr; usr; usr = usr->nxt)
 		usr->points = 0;
 }
@@ -789,16 +831,17 @@ void mainloop() {
 			resetspamcounters(gm, serverticks);
 		}
 		
+		broadcastgamelist();
 		resetspamcounters(lobby, serverticks);
-
 		sleepuntil = ++serverticks * TICK_LENGTH;
+
 		if(sleepuntil < servermsecs() - 5 * TICK_LENGTH && servermsecs() - lastheavyloadmsg > 1000) {
 			printf("server is under heavy load! %d msec behind on schedule!\n", -sleepuntil);
 			lastheavyloadmsg = servermsecs();
 		}
-		do {
-			libwebsocket_service(ctx, max(0, sleepuntil - servermsecs()));
-		}while(sleepuntil - servermsecs() > 0);
+
+		do { libwebsocket_service(ctx, max(0, sleepuntil - servermsecs())); }
+		while(sleepuntil - servermsecs() > 0);
 	}
 }
 

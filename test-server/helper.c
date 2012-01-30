@@ -153,16 +153,19 @@ void sendjson(cJSON *json, struct user *u) {
 	free(buf);
 }
 
-/* sends a message to all in game, except for given user. to send message to
- * all, set u = 0 */
-void sendjsontogame(cJSON *json, struct game *gm, struct user *outsider) {
+void sendstrtogame(char *msg, struct game *gm, struct user *outsider) {
 	struct user *usr;
-	char *buf = jsongetpacket(json);
 
 	for(usr = gm->usr; usr; usr = usr->nxt)
 		if(usr != outsider)
-			sendstr(buf, usr);
+			sendstr(msg, usr);
+}
 
+/* sends a message to all in game, except for given user. to send message to
+ * all, set u = 0 */
+void sendjsontogame(cJSON *json, struct game *gm, struct user *outsider) {
+	char *buf = jsongetpacket(json);
+	sendstrtogame(buf, gm, outsider);
 	free(buf);
 }
 

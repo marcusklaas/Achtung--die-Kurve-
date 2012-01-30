@@ -104,13 +104,19 @@ ul {
 
 h2 {
 	text-align: center;
-	margin-top: 2px;
+	margin-top: 5px;
 	margin-bottom: 3px;
-	padding: 0;
+	padding-top: 0;
+}
+
+h2.contentHeader {
+	margin-top: 0;
+	padding-top: 12px;
+	margin-bottom: 5px;
 }
 
 #gameListContainer {
-	padding: 20px 5px 0 5px;
+	padding: 0 5px 0 5px;
 	width: 600px;
 	margin: auto;
 	text-align: right;
