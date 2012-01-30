@@ -354,21 +354,16 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.setHost(this.getIndex(obj.playerId));
 			break;
 		case 'joinFailed':
-			var msg;
-			switch(obj.reason) {
-				case 'notFound':
-					msg = 'game not found';
-					break;
-				case 'started':
-					msg = 'game already started';
-					break;
-				case 'full':
-					msg = 'too many players';
-					break;
-			}
+			var msg = obj.reason == 'notFound' ? 'game not found' :
+			 (obj.reason == 'full' ? 'too many players' : 'game already started');
 			this.gameMessage('Could not join game: ' + msg);
+
 			if(obj.reason == 'started')
 				document.getElementById('game' + obj.id).getElementsByTagName('button')[0].disabled = true;
+			else if(obj.reason == 'notFound') {
+				var row = document.getElementById('game' + obj.id);
+				row.parentNode.removeChild(row);
+			}
 			break;
 		default:
 			this.gameMessage('Unknown mode ' + obj.mode + '!');
@@ -420,13 +415,22 @@ GameEngine.prototype.setHost = function(id) {
 }
 
 GameEngine.prototype.buildGameList = function(list) {
+	var startedGames = [];
+
 	while(this.gameList.hasChildNodes())
 		this.gameList.removeChild(this.gameList.firstChild);
 
 	document.getElementById('noGames').style.display = 'block';
 
 	for(var i = 0; i < list.length; i++)
-		this.appendGameList(list[i]);
+		if(startedGamesDisplay != 'below' && list[i].state == 'started')
+			startedGames.push(list[i]);
+		else
+			this.appendGameList(list[i]);
+
+	if(startedGamesDisplay == 'below')
+		for(var i = 0; i < startedGames.length; i++)
+			this.appendGameList(startedGames[i]);
 }
 
 GameEngine.prototype.appendGameList = function(obj) {
@@ -1005,8 +1009,8 @@ GameEngine.prototype.sortPlayerList = function() {
 		return score1 == score2 ? 0 : (score1 > score2 ? -1 : 1);
 	});
 
-	/* phat optimization! */
-	for(var i = 0; i < arr.length; i++)
+	/* even moar phat optimization! */
+	for(var i = 1; i < arr.length; i++)
 		if(arr[i] != this.playerList.lastChild) {
 			this.playerList.removeChild(arr[i]);
 			this.playerList.appendChild(arr[i]);

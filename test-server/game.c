@@ -81,24 +81,23 @@ void updategamelist() {
 void sendgamelist(struct user *usr) {
 	updategamelist();
 
-	if(gamelistage >= usr->gamelistage) {
+	if(gamelistage > usr->gamelistage) {
 		usr->gamelistage = gamelistage;
 		sendstr(gamelist, usr);
 	}
 }
 
-/* TODO: do not send all updates on same tick */
 void broadcastgamelist() {
 	struct user *usr;
-	int now = servermsecs();
+	static int updateticks = GAMELIST_UPDATE_INTERVAL/ TICK_LENGTH;
+	int i = 0, maxsends = ceil(lobby->n * (float) (serverticks % updateticks) / updateticks);
 
-	updategamelist();
+	// should be faster?
+	// maxsends = lobby->n * (serverticks % updateticks) / updateticks + 1;
 
-	for(usr = lobby->usr; usr; usr = usr->nxt)
-		if(now - GAMELIST_UPDATE_INTERVAL > usr->gamelistage) {
-			usr->gamelistage = gamelistage;
-			sendstr(gamelist, usr);
-		}
+	for(usr = lobby->usr; usr && i++ < maxsends; usr = usr->nxt)
+		if(servermsecs() - GAMELIST_UPDATE_INTERVAL > usr->gamelistage)
+			sendgamelist(usr);
 }
 
 void startgame(struct game *gm) {
