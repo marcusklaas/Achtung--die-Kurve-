@@ -291,7 +291,7 @@ void leavegame(struct user *usr) {
 	if(DEBUG_MODE && gm->type != GT_LOBBY)
 		printf("user %d is leaving his game!\n", usr->id);
 
-	if(gm->state == GS_STARTED)
+	if(gm->state == GS_STARTED && usr->alive)
 		killplayer(usr);
 
 	/* remove user from linked list and swap host if necessary */
