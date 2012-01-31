@@ -7,6 +7,7 @@
 #define jsonaddfalse cJSON_AddFalseToObject
 #define jsonaddtrue cJSON_AddTrueToObject
 #define jsonaddjson cJSON_AddItemToObject
+#define jsonprint cJSON_PrintUnformatted
 #define jsonaddbool(json, name, value) cJSON_AddItemToObject(json, name, cJSON_CreateBool(value))
 #define jsondel	cJSON_Delete
 #define max(a,b) ((b) > (a) ? (b) : (a))
@@ -92,16 +93,6 @@ cJSON *jsoncreate(char *mode) {
 	return json;
 }
 
-// returns string with on position PRE_PADDING the message
-char *jsongetpacket(cJSON *json) {
-	char *tmp, *buf;
-	tmp = cJSON_PrintUnformatted(json);
-	buf = smalloc(PRE_PADDING + strlen(tmp) + 1 + POST_PADDING);
-	memcpy(buf + PRE_PADDING, tmp, strlen(tmp) + 1);
-	free(tmp);
-	return buf;
-}
-
 cJSON *getjsongamepars(struct game *gm) {
 	cJSON *json = jsoncreate("gameParameters");
 
@@ -132,48 +123,65 @@ cJSON *getjsongamepars(struct game *gm) {
  * LIBWEBSOCKETS HELP FUNCTIONS
  */
 
-// will not free buf
-void sendstr(char *buf, struct user *u) {
-	char *tmp;
-	if(u->sbat ==SB_MAX) {
+/* pads str and puts it in send buffer for user */
+void sendstr(char *str, int len, struct user *u) {
+	char *buf;
+
+	if(u->sbat == SB_MAX) {
 		if(SHOW_WARNING) printf("send-buffer full.\n");
 		return;
 	}
+
 	// tmp is being freed inside the callback
-	tmp = smalloc(PRE_PADDING + strlen(buf + PRE_PADDING) + 1 + POST_PADDING);
-	memcpy(tmp, buf, PRE_PADDING + strlen(buf + PRE_PADDING) + 1 + POST_PADDING);
-	u->sb[u->sbat++] = tmp;
-	if(ULTRA_VERBOSE) printf("queued msg %s, will be sent to user %d\n", tmp + PRE_PADDING, u->id);
+	buf = smalloc(PRE_PADDING + len + POST_PADDING);
+	memcpy(buf + PRE_PADDING, str, len);
+
+	u->sbmsglen[u->sbat] = len;
+	u->sb[u->sbat++] = buf;
+
+	if(ULTRA_VERBOSE) {
+		// zero terminate for print
+		char *tmp = smalloc(len + 1);
+		memcpy(tmp, buf + PRE_PADDING, len);
+		tmp[len] = 0;
+		printf("queued msg %s for user %d\n", tmp, u->id);
+	}
+
 	libwebsocket_callback_on_writable(ctx, u->wsi);
 }
 
 void sendjson(cJSON *json, struct user *u) {
-	char *buf = jsongetpacket(json);
-	sendstr(buf, u);
-	free(buf);
+	char *buf = jsonprint(json);
+	sendstr(buf, strlen(buf), u);
 }
 
-void sendstrtogame(char *msg, struct game *gm, struct user *outsider) {
+void sendstrtogame(char *msg, int len, struct game *gm, struct user *outsider) {
 	struct user *usr;
 
 	for(usr = gm->usr; usr; usr = usr->nxt)
 		if(usr != outsider)
-			sendstr(msg, usr);
+			sendstr(msg, len, usr);
 }
 
-/* sends a message to all in game, except for given user. to send message to
- * all, set u = 0 */
+/* sends a json object to all in game, except for outsider */
 void sendjsontogame(cJSON *json, struct game *gm, struct user *outsider) {
-	char *buf = jsongetpacket(json);
-	sendstrtogame(buf, gm, outsider);
-	free(buf);
+	char *buf = jsonprint(json);
+	sendstrtogame(buf, strlen(buf), gm, outsider);
 }
 
 char *duplicatestring(char *orig) {
-	char *duplicate = smalloc(strlen(orig) + 1);
-	return strcpy(duplicate, orig);
+	return strcpy(smalloc(strlen(orig) + 1), orig);
 }
 
+/* encodes index (i), tickdelta (d) and turn (t) in 2 bytes
+ * layout: iiiidddd dddddddt */
+unsigned short encodesteer(unsigned short index, unsigned short tickdelta, unsigned char turn) {
+	unsigned short tmp = 0;
+	tmp &= 1 & turn;
+	tmp &= (((1 << 11) - 1) << 1) & (tickdelta << 1);
+	tmp &= (((1 << 4) - 1) << 12) & (index << 12);
+	return tmp;
+}
 
 /******************************************************************
  * MEMORY-RELATED

@@ -146,15 +146,13 @@ GameEngine.prototype.setGameState = function(newState) {
 	/* FULLSCREEN
 	if(autoFullscreen && newState == 'countdown') {
 		var docElm = document.documentElement;
-		if (docElm.requestFullscreen) {
+
+		if (docElm.requestFullscreen)
 			docElm.requestFullscreen();
-		}
-		else if (docElm.mozRequestFullScreen) {
+		else if (docElm.mozRequestFullScreen)
 			docElm.mozRequestFullScreen();
-		}
-		else if (docElm.webkitRequestFullScreen) {
+		else if (docElm.webkitRequestFullScreen)
 			docElm.webkitRequestFullScreen();
-		}
 	}
 	if(leaving game) {
 		if (document.exitFullscreen)

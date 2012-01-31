@@ -153,7 +153,8 @@ struct user {
 	struct user *nxt;
 	char *name;
 	
-	char *msgbuf;		// receivebuffer
+	char *recvbuf;		// receivebuffer
+	int sbmsglen[SB_MAX]; // length of messages in sendbuffer
 	char *sb[SB_MAX];	// sendbuffer
 	int sbat;			// sendbuffer at
 
