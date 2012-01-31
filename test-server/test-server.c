@@ -247,7 +247,7 @@ callback_game(struct libwebsocket_context * context,
 			if(u->gm != lobby || checkspam(u, SPAM_CAT_JOINLEAVE))
 				break;
 
-			if(0 < nmin && nmin <= nmax && nmax < 17) {
+			if(0 < nmin && nmin <= nmax && nmax <= 8) {
 				struct game *gm = findgame(nmin, nmax);
 				if(!gm)
 					gm = creategame(GT_AUTO, nmin, nmax);
@@ -293,7 +293,7 @@ callback_game(struct libwebsocket_context * context,
 			u->gm->hsize = min(1000, max(0, jsongetint(json, "hsize")));
 			u->gm->hfreq = min(10000, max(0, jsongetint(json, "hfreq")));
 			u->gm->goal = min(1000, max(1, jsongetint(json, "goal")));
-			u->gm->nmax = min(32, max(u->gm->n, jsongetint(json, "nmax")));
+			u->gm->nmax = min(MAX_USERS_IN_GAME, max(u->gm->n, jsongetint(json, "nmax")));
 			u->gm->pencilmode = strtopencilmode(jsongetstr(json, "pencilMode"));
 			u->gm->inkcap = min(1000, max(0, jsongetint(json, "inkcap")));
 			u->gm->inkregen = min(1000, max(0, jsongetint(json, "inkregen")));

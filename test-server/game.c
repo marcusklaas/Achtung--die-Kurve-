@@ -344,15 +344,28 @@ void joingame(struct game *gm, struct user *newusr) {
 	newusr->gm = gm;
 	newusr->points = 0;
 
+	/* set newusr->index */
+	if(gm->type != GT_LOBBY) {
+		int i;
+		for(i = 0; i < MAX_USERS_IN_GAME; i++) {
+			for(usr = gm->usr; usr && usr->index != i; usr = usr->nxt);
+			if(!usr)
+				break;
+		}
+		newusr->index = i;
+	}
+
 	/* tell user s/he joined a game */
 	json = jsoncreate("joinedGame");
 	jsonaddstr(json, "type", gametypetostr(gm->type));
+	jsonaddnum(json, "index", newusr->index);
 	sendjson(json, newusr);
 	jsondel(json);
 
 	/* tell players of game someone new joined */
 	json = jsoncreate("newPlayer");
 	jsonaddnum(json, "playerId", newusr->id);
+	jsonaddnum(json, "index", newusr->index);
 	jsonaddstr(json, "playerName", lastusedname = newusr->name);
 	sendjsontogame(json, gm, 0);
 
@@ -362,6 +375,7 @@ void joingame(struct game *gm, struct user *newusr) {
 	/* send a message to the new player for every other player that is already in the game */
 	for(usr = gm->usr; usr; usr = usr->nxt) {
 		jsonsetnum(json, "playerId", usr->id);
+		jsonsetnum(json, "index", usr->index);
 		jsonsetstr(json, "playerName", lastusedname = usr->name);
 		sendjson(json, newusr);
 	}

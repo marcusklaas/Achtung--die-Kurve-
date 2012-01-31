@@ -2,7 +2,6 @@
 function GameEngine(audioController) {
 	// game variables
 	this.players = [];
-	this.dict = []; // maps playerId.toString() to index of this.players
 	this.tickTockDifference = tickTockDifference;
 	this.gameState = 'new'; // new, lobby, editing, waiting, countdown, playing, watching, ended
 	this.gameType = null;
@@ -52,7 +51,7 @@ GameEngine.prototype.reset = function() {
 }
 
 GameEngine.prototype.resetPlayers = function() {
-	for(var i = 0; i < this.players.length; i++)
+	for(var i in this.players)
 		this.players[i].deleteCanvas();
 
 	this.players = [];
@@ -60,16 +59,8 @@ GameEngine.prototype.resetPlayers = function() {
 	this.host = null;
 }
 
-GameEngine.prototype.getIndex = function(playerId) {
-	return this.dict[playerId.toString()];
-}
-
 GameEngine.prototype.getPlayer = function(playerId) {
-	return this.players[this.getIndex(playerId)];
-}
-
-GameEngine.prototype.setIndex = function(playerId, index) {
-	return this.dict[playerId.toString()] = index;
+	return this.players[playerId.toString()];
 }
 
 GameEngine.prototype.disconnect = function() {
@@ -220,6 +211,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.setGameState((obj.type == 'lobby') ? 'lobby' : 'waiting');
 			this.mapSegments = undefined;
 			this.editor.segments = [];
+			this.localPlayer.index = obj.index;
 			this.addPlayer(this.localPlayer);
 
 			if(obj.type == 'lobby') {
@@ -244,6 +236,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'newPlayer':
 			var newPlayer = new Player(this, false);
 			newPlayer.playerId = obj.playerId;
+			newPlayer.index = obj.index;
 			newPlayer.playerName = escapeString(obj.playerName);
 			this.addPlayer(newPlayer);
 			this.audioController.playSound('newPlayer');
@@ -271,7 +264,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 				this.start(obj.startPositions, obj.startTime);
 			break;
 		case 'input':
-			this.players[this.getIndex(obj.playerId)].steer(obj);
+			this.getPlayer(obj.playerId).steer(obj);
 			break;
 		case 'adjustGameTime':
 			if(acceptGameTimeAdjustments) {
@@ -284,22 +277,20 @@ GameEngine.prototype.interpretMsg = function(msg) {
 				this.gameMessage('Game time adjustment of ' + obj.forward + ' msec rejected');
 			break;
 		case 'playerLeft':
-			var index = this.getIndex(obj.playerId);
-			var player = this.players[index];
+			var player = this.getPlayer(obj.playerId);
 			
 			if(this.gameState != 'lobby')
 				this.gameMessage(player.playerName + " left the game");
 
 			if(this.gameState == 'waiting' || this.gameState == 'lobby' || this.gameState == 'editing')
-				this.removePlayer(index);
+				this.removePlayer(player);
 			else {
 				player.status = 'left';
 				player.updateList();
 			}
 			break;
 		case 'playerDied':
-			var index = this.getIndex(obj.playerId);
-			var player = this.players[index];
+			var player = this.getPlayer(obj.playerId);
 			player.finalSteer(obj);
 
 			player.status = 'dead';
@@ -316,7 +307,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			}
 
 			this.displayRewards(obj.reward);
-			for(var i = 0; i < this.players.length; i++) {
+			for(var i in this.players) {
 				if(this.players[i].status == 'alive') {
 					this.players[i].points += obj.reward;
 					this.players[i].updateList();
@@ -337,8 +328,8 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			while(this.tock <= obj.finalTick)
 				this.doTock();
 				
-			var index = (obj.winnerId != -1) ? this.getIndex(obj.winnerId) : null;
-			var winner = (index != null) ? (this.players[index].playerName + ' won') : 'draw!';
+			var player = (obj.winnerId != -1) ? this.getPlayer(obj.winnerId) : null;
+			var winner = (player != null) ? (player.playerName + ' won') : 'draw!';
 			this.setGameState('countdown');
 			this.gameMessage('Round ended: ' + winner);
 			break;			
@@ -375,7 +366,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.gameMessage('You are flooding the chat. Your latest message has been blocked');
 			break;
 		case 'setHost':
-			this.setHost(this.getIndex(obj.playerId));
+			this.setHost(this.getPlayer(obj.playerId));
 			break;
 		case 'joinFailed':
 			var msg = obj.reason == 'notFound' ? 'game not found' :
@@ -394,21 +385,17 @@ GameEngine.prototype.interpretMsg = function(msg) {
 	}
 }
 
-GameEngine.prototype.removePlayer = function(index) {
-	this.splicePlayerList(index);
-	this.players[index].deleteCanvas();
-				
-	for(var i = index + 1; i < this.players.length; i++) {
-		this.players[i].index--;
-		this.players[i].color = playerColors[i - 1];
-		this.setIndex(this.players[i].playerId, i - 1);
-		this.players[i].updateList();
-	}
-
-	this.players.splice(index, 1);
+GameEngine.prototype.removePlayer = function(player) {
+	delete this.players[player.playerId.toString()];
+	player.deleteCanvas();
+	
+	// remove from playerlist
+	var row = document.getElementById('player' + player.playerId);
+	this.playerList.removeChild(row);
+	resizeChat();
 }
 
-GameEngine.prototype.setHost = function(id) {
+GameEngine.prototype.setHost = function(player) {
 	if(this.host != null) {
 		this.host.isHost = false;
 		if(this.gameState == 'waiting' || this.gameState == 'editing') {
@@ -416,8 +403,8 @@ GameEngine.prototype.setHost = function(id) {
 			this.host.updateList();
 		}
 	}
-	if(id != null) {
-		this.host = this.players[id];
+	if(player != null) {
+		this.host = player;
 		this.host.isHost = true;
 		if(this.gameState == 'waiting' || this.gameState == 'editing') {
 			this.host.status = 'host';
@@ -674,7 +661,7 @@ GameEngine.prototype.doTick = function() {
 }
 
 GameEngine.prototype.doTock = function() {
-	for(var i = 1; i < this.players.length; i++) {
+	for(var i in this.players) {
 		var player = this.players[i];
 		player.simulate(this.tock, player.context);
 	}
@@ -682,14 +669,12 @@ GameEngine.prototype.doTock = function() {
 }
 
 GameEngine.prototype.addPlayer = function(player) {
-	player.index = this.players.length;
 	player.color = playerColors[player.index];
 	player.status = 'ready';
 	player.points = 0;
 	player.isHost = false;
-	this.setIndex(player.playerId, player.index);
-	this.players.push(player);
-	this.appendPlayerList(player.index);
+	this.players[player.playerId.toString()] = player;
+	this.appendPlayerList(player);
 	
 	if(this.gameType != 'lobby') {
 		player.canvas = document.createElement('canvas');
@@ -771,13 +756,15 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 
 	/* init players */
 	for(var i = 0; i < startPositions.length; i++) {
-		var index = this.getIndex(startPositions[i].playerId);
-
-		if(this.players[index].status != 'left')
-			this.players[index].initialise(startPositions[i].startX,
-			 startPositions[i].startY, startPositions[i].startAngle,
-			 startPositions[i].holeStart);
+		var player = this.getPlayer(startPositions[i].playerId);
+		
+		player.initialise(startPositions[i].startX,
+		 startPositions[i].startY, startPositions[i].startAngle,
+		 startPositions[i].holeStart);
 	}
+	for(var i in this.players)
+		if(this.players[i].status == 'left')
+			this.players[i].finalTick = -1;
 
 	this.resize();
 
@@ -786,10 +773,9 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 
 	/* draw angle indicators */
 	for(var i = 0; i < startPositions.length; i++) {
-		var index = this.getIndex(startPositions[i].playerId);
+		var player = this.getPlayer(startPositions[i].playerId);
 
-		if(this.players[index].status != 'left')
-			this.players[index].drawIndicator();
+		player.drawIndicator();
 	}
 
 	var self = this;
@@ -889,7 +875,7 @@ GameEngine.prototype.displayRewards = function(reward) {
 	var self = this;
 	var nodes = [];
 	
-	for(var i = 0; i < this.players.length; i++) {
+	for(var i in this.players) {
 		var player = this.players[i];
 		if(player.status == 'alive') {
 			nodes.push(this.createRewardNode(player, reward));
@@ -935,7 +921,7 @@ GameEngine.prototype.resize = function() {
 	canvas.height = scaledHeight;
 	this.setDefaultValues(ctx);
 	
-	for(var i = 0; i < this.players.length; i++) {
+	for(var i in this.players) {
 		var player = this.players[i];
 		player.canvas.width = scaledWidth;
 		player.canvas.height = scaledHeight;
@@ -981,8 +967,7 @@ GameEngine.prototype.displayDebugStatus = function() {
 		 ', game time adjustments: ' + this.adjustGameTimeMessagesReceived;
 }
 
-GameEngine.prototype.appendPlayerList = function(index) {
-	var player = this.players[index];
+GameEngine.prototype.appendPlayerList = function(player) {
 	var row = document.createElement('tr');
 	var nameNode = document.createElement('td');
 	var nameSpan = document.createElement('span');
@@ -1014,12 +999,6 @@ GameEngine.prototype.updatePlayerList = function(player) {
 
 	row.childNodes[1].innerHTML = player.status;
 	row.childNodes[2].innerHTML = player.points;
-}
-
-GameEngine.prototype.splicePlayerList = function(index) {
-	var row = document.getElementById('player' + this.players[index].playerId);
-	this.playerList.removeChild(row);
-	resizeChat();
 }
 
 GameEngine.prototype.clearPlayerList = function() {
@@ -1068,14 +1047,14 @@ GameEngine.prototype.focusChat = function() {
 
 GameEngine.prototype.backToGameLobby = function() {	
 	// remove players who left game & set status for other players
-	var copy = this.players.slice(0);
-	for(var i = 0; i < copy.length; i++) {
-		if(copy[i].status == 'left')
-			this.removePlayer(copy[i].index);
+	for(var i in this.players) {
+		var player = this.players[i];
+		if(player.status == 'left')
+			this.removePlayer(player);
 		else {
-			copy[i].status = copy[i].isHost ? 'host' : 'ready';
-			copy[i].points = 0;
-			copy[i].updateList();
+			player.status = player.isHost ? 'host' : 'ready';
+			player.points = 0;
+			player.updateList();
 		}
 	}
 }
@@ -1102,8 +1081,10 @@ function Player(game, isLocal) {
 }
 
 Player.prototype.deleteCanvas = function() {
-	if(this.game.gameType != 'lobby')
+	if(this.canvas != undefined) {
 		this.canvas.parentNode.removeChild(this.canvas);
+		this.canvas = undefined;
+	}
 }
 
 Player.prototype.saveLocation = function() {
@@ -1663,17 +1644,13 @@ Pencil.prototype.reset = function() {
 	this.outbuffer = [];
 	this.down = false;
 	this.upped = false;
-	this.inbuffer = [];
-	this.inbufferIndex = [];
 	this.setInk(this.startInk);
-	this.players = this.game.players.length;
 
-	for(var i = 0; i < this.players; i++) {
-		this.inbuffer[i] = [];
-		this.inbufferIndex[i] = 0;
+	for(var i in this.game.players) {
+		var player = this.game.players[i];
+		player.inbuffer = [];
+		player.inbufferIndex = 0;
 	}
-
-	this.inbuffer.length = this.inbufferIndex.length = this.players;
 }
 
 Pencil.prototype.setInk = function(ink) {
@@ -1710,7 +1687,7 @@ Pencil.prototype.doTick = function() {
 			this.outbuffer.push(x);
 			this.outbuffer.push(y);
 			this.outbuffer.push(this.game.tick);
-			this.drawSegment(this.x, this.y, x, y, 0, pencilAlpha);
+			this.drawSegment(this.x, this.y, x, y, this.game.localPlayer, pencilAlpha);
 			this.x = x;
 			this.y = y;
 			this.upped = false;
@@ -1726,30 +1703,31 @@ Pencil.prototype.doTick = function() {
 }
 
 Pencil.prototype.drawPlayerSegs = function(redraw) {
-	for(var i = 0; i < this.players; i++) {
-		var buffer = this.inbuffer[i];
-		var index = redraw ? 0 : this.inbufferIndex[i];
+	for(var i in this.game.players) {
+		var player = this.game.players[i];
+		var buffer = player.inbuffer;
+		var index = redraw ? 0 : player.inbufferIndex;
 		
 		while(index < buffer.length) {
 			var seg = buffer[index];
 			var solid = seg.tickSolid <= this.game.tick;
 			if(!solid && !redraw)
 				break;
-			this.drawSegment(seg.x1, seg.y1, seg.x2, seg.y2, i, solid ? 1 : pencilAlpha);
+			this.drawSegment(seg.x1, seg.y1, seg.x2, seg.y2, player, solid ? 1 : pencilAlpha);
 			index++;
 		}
 		
 		if(!redraw)
-			this.inbufferIndex[i] = index;
+			player.inbufferIndex = index;
 	}
 }
 
-Pencil.prototype.drawSegment = function(x1, y1, x2, y2, playerIndex, alpha) {
+Pencil.prototype.drawSegment = function(x1, y1, x2, y2, player, alpha) {
 	if(x1 == x2 && y1 == y2)
 		return;
 	var ctx = this.game.baseContext;
 	ctx.beginPath();
-	setLineColor(ctx, this.game.players[playerIndex].color, alpha);
+	setLineColor(ctx, player.color, alpha);
 	var tmp = ctx.lineCap;
 	ctx.lineCap = alpha == 1 ? lineCapStyle : 'butt';
 	ctx.moveTo(x1, y1);
@@ -1761,9 +1739,9 @@ Pencil.prototype.drawSegment = function(x1, y1, x2, y2, playerIndex, alpha) {
 Pencil.prototype.handleMessage = function(ar) {
 	for(var i = 0; i < ar.length; i++) {
 		var a = ar[i];
-		var index = this.game.getIndex(a.playerId);
-		this.drawSegment(a.x1, a.y1, a.x2, a.y2, index, pencilAlpha);
-		this.inbuffer[index].push(a);
+		var player = this.game.getPlayer(a.playerId);
+		this.drawSegment(a.x1, a.y1, a.x2, a.y2, player, pencilAlpha);
+		player.inbuffer.push(a);
 	}
 }
 

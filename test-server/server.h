@@ -21,6 +21,7 @@
 #define MAX_PLAYERSTART_TRIES 500
 #define TORUS_MODE 1
 #define GAMELIST_UPDATE_INTERVAL 10000
+#define MAX_USERS_IN_GAME 8
 
 /* debugging */
 #define DEBUG_MODE 1
@@ -147,7 +148,7 @@ struct userinput {
 };
 
 struct user {
-	int id;
+	int id, index;
 	struct game *gm;
 	struct user *nxt;
 	char *name;
