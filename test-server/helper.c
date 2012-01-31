@@ -93,12 +93,6 @@ cJSON *jsoncreate(char *mode) {
 	return json;
 }
 
-// returns string with on position PRE_PADDING the message
-char *jsongetpacket(cJSON *json) {
-	char *buf = jsonprint(json);
-	return buf;
-}
-
 cJSON *getjsongamepars(struct game *gm) {
 	cJSON *json = jsoncreate("gameParameters");
 

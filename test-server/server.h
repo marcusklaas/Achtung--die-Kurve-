@@ -25,7 +25,7 @@
 /* debugging */
 #define DEBUG_MODE 1
 #define PENCIL_DEBUG 0
-#define ULTRA_VERBOSE 1
+#define ULTRA_VERBOSE 0
 #define SHOW_WARNING 1
 #define GOD_MODE 0
 #define SEND_SEGMENTS 20 // om de hoeveel ticks het moet gebeuren (0=nooit)
