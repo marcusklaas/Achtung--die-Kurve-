@@ -15,6 +15,7 @@ static int usrc = 0; // user count
 static int gmc = 1; // game count
 static unsigned long serverticks = 0;
 static char *gamelist = 0; // JSON string
+static int gamelistlen = 0; // strlen of gamelist
 static int gamelistage = 0; // servermsecs() on which encodedgamelist was last updated
 static char gamelistcurrent = 1; // 0 if gamelist is not up to date
 
@@ -115,10 +116,18 @@ callback_game(struct libwebsocket_context * context,
 		if(ULTRA_VERBOSE) printf("LWS_CALLBACK_SERVER_WRITEABLE. %d queued messages\n", u->sbat);
 
 		for(i = 0; i < u->sbat; i++) {
-			char *s= u->sb[i];
-			if(ULTRA_VERBOSE) printf("send msg %s to user %d\n", s + PRE_PADDING, u->id);
-			libwebsocket_write(wsi, (unsigned char*) s + PRE_PADDING, strlen(s + PRE_PADDING), LWS_WRITE_TEXT);
-			free(s);
+			char *str = u->sb[i];
+
+			if(ULTRA_VERBOSE) {
+				// zero terminate for print
+				char *tmp = smalloc(u->sbmsglen[i] + 1);
+				memcpy(tmp, str + PRE_PADDING, u->sbmsglen[i]);
+				tmp[u->sbmsglen[i]] = 0;
+				printf("send msg %s to user %d\n", tmp, u->id);
+			}
+
+			libwebsocket_write(wsi, (unsigned char*) str + PRE_PADDING, u->sbmsglen[i], LWS_WRITE_TEXT);
+			free(str);
 		}
 		u->sbat = 0;
 
@@ -129,24 +138,24 @@ callback_game(struct libwebsocket_context * context,
 
 	case LWS_CALLBACK_RECEIVE:
 		msgsize = strlen(inchar);
-		bufsize = u->msgbuf ? strlen(u->msgbuf) : 0;
+		bufsize = u->recvbuf ? strlen(u->recvbuf) : 0;
 		
 		if(ULTRA_VERBOSE) printf("received: %s\n", inchar);
 
 		/* buffer msg */
 		if(libwebsockets_remaining_packet_payload(wsi) > 0) {
-			u->msgbuf = srealloc(u->msgbuf, (bufsize + msgsize + 1) * sizeof(char));
-			strcpy(u->msgbuf + bufsize, inchar);
+			u->recvbuf = srealloc(u->recvbuf, (bufsize + msgsize + 1) * sizeof(char));
+			strcpy(u->recvbuf + bufsize, inchar);
 			break; 
 		}
 
 		/* unbuffer msg */
-		if(u->msgbuf) {
-			u->msgbuf = srealloc(u->msgbuf, (bufsize + msgsize + 1) * sizeof(char));
-			strcpy(u->msgbuf + bufsize, inchar);
-			json = cJSON_Parse(u->msgbuf);
-			free(u->msgbuf);
-			u->msgbuf = 0;
+		if(u->recvbuf) {
+			u->recvbuf = srealloc(u->recvbuf, (bufsize + msgsize + 1) * sizeof(char));
+			strcpy(u->recvbuf + bufsize, inchar);
+			json = cJSON_Parse(u->recvbuf);
+			free(u->recvbuf);
+			u->recvbuf = 0;
 		}
 		else
 			json = cJSON_Parse(inchar);
@@ -158,7 +167,9 @@ callback_game(struct libwebsocket_context * context,
 			}
 			break;
 		}
+
 		mode= jsongetstr(json, "mode");
+
 		if(!mode) {
 			printf("no mode specified!\n");
 			break;

@@ -25,7 +25,7 @@
 /* debugging */
 #define DEBUG_MODE 1
 #define PENCIL_DEBUG 0
-#define ULTRA_VERBOSE 0
+#define ULTRA_VERBOSE 1
 #define SHOW_WARNING 1
 #define GOD_MODE 0
 #define SEND_SEGMENTS 20 // om de hoeveel ticks het moet gebeuren (0=nooit)
@@ -152,7 +152,8 @@ struct user {
 	struct user *nxt;
 	char *name;
 	
-	char *msgbuf;		// receivebuffer
+	char *recvbuf;		// receivebuffer
+	int sbmsglen[SB_MAX]; // length of messages in sendbuffer
 	char *sb[SB_MAX];	// sendbuffer
 	int sbat;			// sendbuffer at
 

@@ -69,10 +69,18 @@ cJSON *encodegamelist() {
 	return json;
 }
 
+void newgamelist() {
+	if(gamelist)
+		free(gamelist);
+
+	gamelist = jsonprint(encodegamelist());
+	gamelistlen = strlen(gamelist);
+}
+
 void updategamelist() {
 	if(!gamelistcurrent) {
 		printf("updating gamelist \n");
-		gamelist = jsongetpacket(encodegamelist());
+		newgamelist();
 		gamelistage = servermsecs();
 		gamelistcurrent = 1;
 	}
@@ -83,7 +91,7 @@ void sendgamelist(struct user *usr) {
 
 	if(gamelistage > usr->gamelistage) {
 		usr->gamelistage = gamelistage;
-		sendstr(gamelist, usr);
+		sendstr(gamelist, gamelistlen, usr);
 	}
 }
 
@@ -334,14 +342,11 @@ void joingame(struct game *gm, struct user *newusr) {
 	if(DEBUG_MODE)
 		printf("user %d is joining game %p\n", newusr->id, (void*)gm);
 
-	/* send message to guys in lobby with info about this game */
 	if(!gm->n++) {
 		json = encodegame(gm);
 		cJSON_AddStringToObject(json, "mode", "newGame");
 		sendjsontogame(json, lobby, newusr);
-
-		// update gamelist but not gamelistcurrent or its age!
-		gamelist = jsongetpacket(encodegamelist());
+		newgamelist();
 	}
 	else
 		gamelistcurrent = 0;
@@ -384,7 +389,7 @@ void joingame(struct game *gm, struct user *newusr) {
 
 	/* send either game details or game list */
 	if(gm->type == GT_LOBBY)
-		sendstr(gamelist, newusr);
+		sendgamelist(newusr);
 	else {
 		json = getjsongamepars(gm);
 		sendjson(json, newusr);
@@ -964,8 +969,8 @@ void deleteuser(struct user *usr) {
 	for(i = 0; i < usr->sbat; i++)
 		free(usr->sb[i]);
 
-	if(usr->msgbuf)
-		free(usr->msgbuf);
+	if(usr->recvbuf)
+		free(usr->recvbuf);
 }
 
 /* pencil game */
