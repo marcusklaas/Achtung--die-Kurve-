@@ -866,6 +866,10 @@ void interpretinput(cJSON *json, struct user *usr) {
 	int modified = 0;
 	int minimumTick = usr->gm->tick;
 	cJSON *j;
+
+	/* WE NEED THIS when we switch to 2byte input messages
+	struct userinput *lastinput = usr->inputtail;
+	*/
 	
 	/* some checks */
 	if(turn < -1 || turn > 1) {
@@ -901,7 +905,6 @@ void interpretinput(cJSON *json, struct user *usr) {
 	else
 		usr->inputtail = usr->inputtail->nxt = input;
 	
-	
 	if(SHOW_DELAY) {
 		int x = (servermsecs() - usr->gm->start) - time;
 		printf("delay: %d\n", x);
@@ -933,8 +936,33 @@ void interpretinput(cJSON *json, struct user *usr) {
 				printf("asked user %d to adjust gametime by %d\n", usr->id, tot);
 		}
 	}
-	
-	/* send to other players */
+
+	/* TODO: this requires riks new player index
+	{
+		char response[2];
+		int playerindex, tickdelta, oldturn, turnchange;
+
+		oldturn = lastinput ? lastinput->turn : 0;
+
+		turnchange = turnchange(turn, oldturn);
+		tickdelta = lastinput ? tick - lastininput->tick : tick;
+
+		// TODO in a TODO:
+		if(tickdelta >= 2^10) {
+			stuurtickupdatemsg();
+		}
+
+		encodesteermsg(response, playerindex, tickdelta, turnchange);
+
+		sendstrtogame(response, 2, usr->game);
+
+		// ANOTHER TODO IN A TODO:
+		if(modified) 
+			stuur_uitsluitend_naar_de_sturende_speler_modified_message();
+	}
+	*/
+
+	/* DEPRECATED -- this block can be removed as soon as block above worx */
 	j = jsoncreate("input");
 	jsonaddnum(j, "tick", tick);
 	jsonaddnum(j, "playerId", usr->id);
