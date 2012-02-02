@@ -147,6 +147,7 @@ void startgame(struct game *gm) {
 		usr->ts = gm->ts;
 		usr->hsize = gm->hsize;
 		usr->hfreq = gm->hfreq;
+		usr->lastinputturn = 0;
 		usr->lastinputtick = -1;
 		usr->ignoreinput = 1;
 		clearinputs(usr);
@@ -255,7 +256,7 @@ struct game *findgame(int nmin, int nmax) {
 		gm = bestgame;
 		gm->nmin = max(gm->nmin, nmin);
 		gm->nmax = min(gm->nmax, nmax);
-		gm->goal = ceil(roundavgpts(gm->n, gm->pointsys) * AUTO_ROUNDS);
+		gm->goal = ceil(roundavgpts(gm->n + 1, gm->pointsys) * AUTO_ROUNDS);
 		json = getjsongamepars(gm);
 		sendjsontogame(json, gm, 0);
 		jsondel(json);
@@ -866,10 +867,6 @@ void interpretinput(cJSON *json, struct user *usr) {
 	int modified = 0;
 	int minimumTick = usr->gm->tick;
 	cJSON *j;
-
-	/* WE NEED THIS when we switch to 2byte input messages
-	struct userinput *lastinput = usr->inputtail;
-	*/
 	
 	/* some checks */
 	if(turn < -1 || turn > 1) {
@@ -895,7 +892,6 @@ void interpretinput(cJSON *json, struct user *usr) {
 	}
 	
 	/* put it in user queue */
-	usr->lastinputtick = tick;
 	input = smalloc(sizeof(struct userinput));
 	input->tick = tick;
 	input->turn = turn;
@@ -919,16 +915,20 @@ void interpretinput(cJSON *json, struct user *usr) {
 	if(usr->deltaon) {
 		int max = 0, i, tot = 0;
 		usr->deltaon = 0;
+
 		for(i = 0;i < DELTA_COUNT; i++) {
 			if(usr->delta[i] > max) {
 				tot += max;
 				max = usr->delta[i];
-			}else
+			}
+			else
 				tot += usr->delta[i];
 		}
+
 		tot /= (DELTA_COUNT - 1);
+
 		if(abs(tot) > DELTA_MAX) {
-			cJSON *j = jsoncreate("adjustGameTime");
+			j = jsoncreate("adjustGameTime");
 			jsonaddnum(j, "forward", tot);
 			sendjson(j, usr);
 			jsondel(j);
@@ -937,40 +937,34 @@ void interpretinput(cJSON *json, struct user *usr) {
 		}
 	}
 
-	/* TODO: this requires riks new player index
 	{
-		char response[2];
-		int playerindex, tickdelta, oldturn, turnchange;
+		char response[3];
+		int tickdelta, turndelta;
 
-		oldturn = lastinput ? lastinput->turn : 0;
+		turndelta = turnchange(turn, usr->lastinputturn);
+		tickdelta = tick - max(0, usr->lastinputtick);
 
-		turnchange = turnchange(turn, oldturn);
-		tickdelta = lastinput ? tick - lastininput->tick : tick;
-
-		// TODO in a TODO:
-		if(tickdelta >= 2^10) {
-			stuurtickupdatemsg();
+		/* not enough bits to encode tickdelta, work around this */
+		if(tickdelta >= (2 << 10)) {
+			j = jsoncreate("updateTick");
+			jsonaddnum(j, "playerId", usr->id);
+			jsonaddnum(j, "tick", tick - 1);
+			sendjsontogame(j, usr->gm, 0);
+			tickdelta = 1;
 		}
 
-		encodesteermsg(response, playerindex, tickdelta, turnchange);
+		encodesteer(response, usr->index, tickdelta, turndelta);
+		// TODO: we don't want to send this to usr, but it depends on it for
+		// input counter. we can fix by sending input# in 3rd byte
+		sendstrtogame(response, 2, usr->gm, modified ? 0 : usr);
 
-		sendstrtogame(response, 2, usr->game);
-
-		// ANOTHER TODO IN A TODO:
-		if(modified) 
-			stuur_uitsluitend_naar_de_sturende_speler_modified_message();
+		/* if it is modified, send 3 bytes */
+		if(modified)
+			sendstr(response, 3, usr);
 	}
-	*/
 
-	/* DEPRECATED -- this block can be removed as soon as block above worx */
-	j = jsoncreate("input");
-	jsonaddnum(j, "tick", tick);
-	jsonaddnum(j, "playerId", usr->id);
-	jsonaddnum(j, "turn", turn);
-	if(modified)
-		jsonaddnum(j, "modified", 1);
-	sendjsontogame(j, usr->gm, 0);
-	jsondel(j);
+	usr->lastinputtick = tick;
+	usr->lastinputturn = turn;
 }
 
 void clearinputs(struct user *usr) {
