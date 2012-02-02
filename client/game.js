@@ -59,6 +59,13 @@ GameEngine.prototype.resetPlayers = function() {
 	this.host = null;
 }
 
+/* FIXME: this sux -- no better way?? */
+GameEngine.prototype.getPlayerByIndex = function(index) {
+	for(var i in this.players)
+		if(this.players[i].index == index)
+			return this.players[i];
+}
+
 GameEngine.prototype.getPlayer = function(playerId) {
 	return this.players[playerId.toString()];
 }
@@ -186,42 +193,42 @@ GameEngine.prototype.updateTitle = function(title) {
 GameEngine.prototype.parseSteerMsg = function(str) {
 	var chars = [];
 
-	for(var i = 0; i < str.length; i++) {
-		chars[i] = str.charCodeAt(i)  & 0xFF;
-		this.gameMessage('byte ' + i + ' = ' + chars[i]);
+	for(var i = 0; i < 2; i++) {
+		chars[i] = str.charCodeAt(i) & 0xFF;
+		//this.gameMessage('byte ' + i + ' = ' + chars[i]);
 	}
 
 	var index = chars[0] & 7;
 	var turnChange = (chars[0] & 8) >> 3;
 	var tickDelta = ((chars[0] & (16 + 32 + 64)) >> 4) | (chars[1] << 3);
 
-	this.gameMessage('index = ' + index + ', turnChange = ' + turnChange + ', tickDelta = ' + tickDelta);
+	//this.gameMessage('index = ' + index + ', turnChange = ' + turnChange + ', tickDelta = ' + tickDelta);
 
-	/* oke TURNCHANGE werkt zo: er zijn altijd 2 opties: 0 is de meest linker optie, 1 is de meest rechter optie */
+	/* TURNCHANGE werkt zo: er zijn altijd 2 opties: 0 is de meest linker optie, 1 is de meest rechter optie -- moet in PROTOCOL */
 
-	/* TODO: dit gaat pas werken met riks nieuwe player indices
-	var player = this.players[index];
-	var inputCount = this.players[index].inputs.length;
+	var player = this.getPlayerByIndex(index);
+	var inputCount = player.inputs.length;
 	var lastInput = inputCount == 0 ? null : player.inputs[inputCount - 1];
 	var oldTick = lastInput == null ? 0 : lastInput.tick;
 	var oldTurn = lastInput == null ? 0 : lastInput.turn;
-	var newTurn;
+	var newTurn = 0;
 
-	if((oldTurn == 0 || oldTurn == -1) && turnChange == 0)
+	if((oldTurn == 0 || oldTurn == 1) && turnChange == 0)
+		newTurn = -1;
+	else if((oldTurn == 0 || oldTurn == -1) && turnChange == 1)
 		newTurn = 1;
-	else 
-		newTurn = ((oldTurn == 0 || oldTurn == 1) && turnChange == 1) ? -1 : 0;
 
-	var steerObj = {tick: (oldTick + tickDelta), turn: newTurn};
+	this.gameMessage('old: ' + oldTurn + ', change: ' + turnChange + ', new: ' + newTurn);
+
+	var steerObj = {tick: (oldTick + tickDelta), turn: newTurn, modified: (str.length == 3)};
 	player.steer(steerObj);
-	*/
 }
 
 GameEngine.prototype.interpretMsg = function(msg) {
 	var self = this;
 
 	/* XPERIMENTAL */
-	if(msg.data.length == 2) {
+	if(msg.data.length >= 2 && msg.data.length <= 3) {
 		return this.parseSteerMsg(msg.data);
 	}
 	

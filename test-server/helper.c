@@ -174,11 +174,10 @@ char *duplicatestring(char *orig) {
 }
 
 /* encodes index (i), tickdelta (d) and turn (t) in 2 bytes
- * layout: xddd dddd xddd tiii 
- * least significant -> right */
-void encodesteer(char *target, unsigned short index, unsigned short tickdelta, unsigned char turnChange) {
+ * layout: xddd dddd xddd tiii */
+void encodesteer(char *target, unsigned short index, unsigned short tickdelta, unsigned char turnchange) {
 	target[0] = 7 & index;
-	target[0] |= (1 & turnChange) << 3;
+	target[0] |= (1 & turnchange) << 3;
 	target[0] |= (16 + 32 + 64) & (tickdelta << 4); // first three bits of d
 	target[1] = 127 & (tickdelta >> 3); // last 7 bits of d
 }
@@ -274,15 +273,18 @@ int strtopencilmode(char *pencilstr) {
 
 char turnchange(char newturn, char oldturn) {
 	if(newturn == 1)
-		return 0;
-
-	if(newturn == -1)
 		return 1;
 
-	return oldturn == 1;
+	if(newturn == -1)
+		return 0;
 
-	// kan deze functie korter als
-	// return newturn == -1 || oldturn == 1; ???
+	if(oldturn == 1)
+		return 1;
+
+	return 0;
+
+	// kan deze niet functie korter als
+	// return newturn == 1 || oldturn == 1; ???
 }
 
 /******************************************************************

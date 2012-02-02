@@ -159,7 +159,7 @@ struct user {
 	int sbat;			// sendbuffer at
 
 	float x, y, angle, v, ts;	// used in simulation (these are thus SERVER_DELAY behind)
-	int turn, points, lastinputtick, gamelistage;
+	int turn, points, lastinputtick, lastinputturn, gamelistage;
 	char alive, ignoreinput;
 	
 	int hstart, hsize, hfreq;	// hole start, hole size, hole frequency
