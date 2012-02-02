@@ -92,7 +92,6 @@ callback_game(struct libwebsocket_context * context,
 	int i, msgsize, bufsize;
 
 	switch (reason) {
-
 	case LWS_CALLBACK_ESTABLISHED:
 		if(DEBUG_MODE) printf("LWS_CALLBACK_ESTABLISHED\n");
 		iniuser(u, wsi);
@@ -105,6 +104,13 @@ callback_game(struct libwebsocket_context * context,
 		jsonaddnum(json, "maxNameLength", MAX_NAME_LENGTH);
 		sendjson(json, u);
 		jsondel(json);
+
+		/* just to show to rik that the param transmission works */
+		{
+			char steermsg[2];
+			encodesteer(steermsg, 5, 577, 1);
+			sendstr(steermsg, 2, u);
+		}
 		break;
 
 	case LWS_CALLBACK_CLOSED:

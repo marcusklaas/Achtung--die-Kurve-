@@ -180,10 +180,50 @@ GameEngine.prototype.updateTitle = function(title) {
 		this.title = title;
 		document.getElementById('gameTitle').innerHTML = this.title;
 	}
-}	
+}
+
+/* XPERIMENTAL */
+GameEngine.prototype.parseSteerMsg = function(str) {
+	var chars = [];
+
+	for(var i = 0; i < str.length; i++) {
+		chars[i] = str.charCodeAt(i)  & 0xFF;
+		this.gameMessage('byte ' + i + ' = ' + chars[i]);
+	}
+
+	var index = chars[0] & 7;
+	var turnChange = (chars[0] & 8) >> 3;
+	var tickDelta = ((chars[0] & (16 + 32 + 64)) >> 4) | (chars[1] << 3);
+
+	this.gameMessage('index = ' + index + ', turnChange = ' + turnChange + ', tickDelta = ' + tickDelta);
+
+	/* oke TURNCHANGE werkt zo: er zijn altijd 2 opties: 0 is de meest linker optie, 1 is de meest rechter optie */
+
+	/* TODO: dit gaat pas werken met riks nieuwe player indices
+	var player = this.players[index];
+	var inputCount = this.players[index].inputs.length;
+	var lastInput = inputCount == 0 ? null : player.inputs[inputCount - 1];
+	var oldTick = lastInput == null ? 0 : lastInput.tick;
+	var oldTurn = lastInput == null ? 0 : lastInput.turn;
+	var newTurn;
+
+	if((oldTurn == 0 || oldTurn == -1) && turnChange == 0)
+		newTurn = 1;
+	else 
+		newTurn = ((oldTurn == 0 || oldTurn == 1) && turnChange == 1) ? -1 : 0;
+
+	var steerObj = {tick: (oldTick + tickDelta), turn: newTurn};
+	player.steer(steerObj);
+	*/
+}
 
 GameEngine.prototype.interpretMsg = function(msg) {
 	var self = this;
+
+	/* XPERIMENTAL */
+	if(msg.data.length == 2) {
+		return this.parseSteerMsg(msg.data);
+	}
 	
 	try {
 		var obj = JSON.parse(msg.data);
@@ -372,6 +412,9 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			else if(obj.reason == 'notFound') {
 				var row = document.getElementById('game' + obj.id);
 				row.parentNode.removeChild(row);
+
+				if(!this.gameList.hasChildNodes())
+					document.getElementById('noGames').style.display = 'block';
 			}
 			break;
 		default:
@@ -773,6 +816,10 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 
 	/* Scroll to right for touch devices */
 	window.scroll(document.body.offsetWidth, 0);
+	// ff kijken of ie t met deze wel doet?
+	window.scrollBy(document.getElementById('sidebar').offsetWidth, 0);
+	// of deze
+	window.scrollTo(document.body.scrollWidth, 0);
 
 	/* draw angle indicators */
 	for(var i = 0; i < startPositions.length; i++) {
@@ -2173,10 +2220,8 @@ function resizeChat() {
 	var chatForm = document.getElementById('chatForm');
 	var gameTitle = document.getElementById('gameTitle');
 	var margins = 30;
-
 	var maxHeight = document.body.clientHeight - options.offsetHeight
 	 - chatForm.offsetHeight - playerList.offsetHeight - gameTitle.offsetHeight - margins;
-
 	chat.style.maxHeight = maxHeight + 'px';
 }
 

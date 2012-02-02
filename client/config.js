@@ -46,7 +46,6 @@ var autoMatchWaitMessage = 'Waiting for more players..';
 
 /* touch */
 var touchDevice = 'createTouch' in document;
-var emulateTouch = true; // mouse = touch
 var steerBoxSize = 0.15;
 var pencilTreshold = 20; // minimum SCALED units you need to move to transform steertouch into penciltouch 
 
@@ -55,6 +54,7 @@ var inkBufferTicks = 5;
 var pencilAlpha = 0.2;
 
 /* debugging */
+var emulateTouch = false;
 var ultraVerbose = false;
 var simulatedPing = 0;
 var extraGameStartTimeDifference = 0;

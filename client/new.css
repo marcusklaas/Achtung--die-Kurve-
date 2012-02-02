@@ -102,12 +102,11 @@ ul {
 }
 
 #content {
-	padding-left: 301px;
+	padding: 0 0 0 301px;
 	height: 100%;
 }
 
 h1 {
-	text-align: center;
 	padding-top: 20px;
 	padding-bottom: 5px;
 	margin: 0;
@@ -115,14 +114,12 @@ h1 {
 
 h2 {
 	text-align: center;
-	padding-top: 5px;
-	padding-bottom: 0;
+	padding: 5px 0 0 0;
 }
 
 h2.contentHeader {
-	margin-top: 0;
-	padding-top: 12px;
-	margin-bottom: 5px;
+	margin: 0;
+	padding: 12px 0 5px 0;
 }
 
 #gameListContainer {
@@ -381,7 +378,6 @@ textarea:disabled {
 }
 
 /* automatch met hulp van bootstrap */
-/* TODO: klopt nog niet op de pixel en text staat een beetje raar, iets met lineheight enzo */
 #automatchContainer {
 	display: inline;
 	white-space: nowrap;
@@ -418,7 +414,7 @@ textarea:disabled {
 	width: auto;
 	min-width: 16px;
 	line-height: 18px;
-	margin-right: -1px;
+	margin: 0 -1px 0 0;
 	padding: 5px 4px 6px 5px;
 	font-weight: normal;
 	color: #999999;
