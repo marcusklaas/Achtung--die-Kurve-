@@ -6,9 +6,6 @@ function GameEngine(audioController) {
 	this.state = 'new'; // new, lobby, editing, waiting, countdown, playing, watching, ended
 	this.type = null;
 
-	// connection state
-	this.connected = false;
-
 	// canvas related
 	this.canvasContainer = document.getElementById('canvasContainer');
 	this.baseCanvas = document.getElementById('baseCanvas');
@@ -63,15 +60,6 @@ GameEngine.prototype.getPlayer = function(playerId) {
 	return this.players[playerId.toString()];
 }
 
-GameEngine.prototype.disconnect = function() {
-	this.gameMessage('Disconnecting..');
-
-	this.setGameState('new');
-	this.connected = false;
-	this.websocket = null;
-	this.resetPlayers();
-}		
-
 GameEngine.prototype.connect = function(url, name, callback) {
 	if('MozWebSocket' in window)
 		this.websocket = new MozWebSocket(url, name);
@@ -94,7 +82,13 @@ GameEngine.prototype.connect = function(url, name, callback) {
 				self.interpretMsg(msg);
 		}
 		this.websocket.onclose = function() {
-			self.disconnect();
+			if(self.connected) {
+				self.gameMessage('Disconnected from server');
+				self.connected = false;
+			} else {
+				self.gameMessage('Could not connect to server');
+			}
+			self.setGameState('new');
 		}
 	} catch(exception) {
 		self.gameMessage('Websocket exception! ' + exception.name + ': ' + exception.message);
@@ -104,6 +98,7 @@ GameEngine.prototype.connect = function(url, name, callback) {
 GameEngine.prototype.leaveGame = function() {
 	this.sendMsg('leaveGame', {});
 	window.clearTimeout(this.gameloopTimeout);
+	this.leaveButton.disabled = true;
 }
 
 /* this function handles user interface changes for state transitions */
@@ -119,6 +114,7 @@ GameEngine.prototype.setGameState = function(newState) {
 		case 'lobby':
 			setOptionVisibility('disconnect');
 			setContentVisibility('gameListContainer');
+			this.createButton.disabled = false;
 			break;
 		case 'editing':
 			setContentVisibility('editor');
@@ -129,6 +125,8 @@ GameEngine.prototype.setGameState = function(newState) {
 		case 'waiting':
 			setOptionVisibility('stop');
 			setContentVisibility('waitContainer');
+			this.startButton.disabled = false;
+			this.leaveButton.disabled = false;
 			break;
 		case 'playing':
 			setOptionVisibility('stop');
@@ -140,6 +138,8 @@ GameEngine.prototype.setGameState = function(newState) {
 		case 'new':
 			setContentVisibility('connectionContainer');
 			setOptionVisibility('nothing');
+			this.connectButton.disabled = false;
+			this.connectButton.innerHTML = 'Connect to Server';
 			break;
 	}
 
@@ -661,14 +661,10 @@ GameEngine.prototype.requestGame = function(player, minPlayers, maxPlayers) {
 
 GameEngine.prototype.createGame = function() {
 	this.sendMsg('createGame', {});
+	this.createButton.disabled = true;
 }
 
 GameEngine.prototype.sendMsg = function(mode, data) {
-	if(this.connected === false) {
-		this.gameMessage('Tried to send msg, but no websocket connection');
-		return;
-	}
-
 	data.mode = mode;
 	var str = JSON.stringify(data);
 	
@@ -748,9 +744,8 @@ GameEngine.prototype.calcScale = function(extraVerticalSpace) {
 }
 
 GameEngine.prototype.unlockStart = function() {
-	var startButton = document.getElementById('startGame');
-	startButton.disabled = false;
-	startButton.innerHTML = 'Start Game';
+	this.startButton.disabled = false;
+	this.startButton.innerHTML = 'Start Game';
 	this.unlockTimeout = null;
 }
 
@@ -782,6 +777,7 @@ GameEngine.prototype.sendStartGame = function() {
 	}
 
 	this.sendMsg('startGame', obj);
+	this.startButton.disabled = true;
 }
 
 GameEngine.prototype.start = function(startPositions, startTime) {
@@ -1753,6 +1749,10 @@ Pencil.prototype.doTick = function() {
 Pencil.prototype.drawPlayerSegs = function(redraw) {
 	for(var i in this.game.players) {
 		var player = this.game.players[i];
+		
+		if(player.status == 'ready')
+			continue;
+		
 		var buffer = player.inbuffer;
 		var index = redraw ? 0 : player.inbufferIndex;
 		
@@ -2015,7 +2015,7 @@ window.onload = function() {
 	if(soundCookie != null & soundCookie == 'false')
 		checkBox.checked = enableSound = false;
 
-	function joinLobby() {
+	function connect() {
 		var playerName = document.getElementById('playername').value;
 
 		if(typeof playerName != "string" || playerName.length < 1 || playerName.length > game.maxNameLen) {
@@ -2025,12 +2025,11 @@ window.onload = function() {
 
 		setCookie('playerName', localPlayer.playerName = playerName, 30);
 
-		if(game.connected === false)
-			game.connect(serverURL, "game-protocol", function() {
-				game.joinLobby(localPlayer);
-			});
-		else
+		game.connect(serverURL, "game-protocol", function() {
 			game.joinLobby(localPlayer);
+		});
+		game.connectButton.disabled = true;
+		game.connectButton.innerHTML = 'Connecting...';
 	}
 
 	function reqGame() {
@@ -2046,41 +2045,37 @@ window.onload = function() {
 		setCookie('maxPlayers', maxPlayers, 30);
 		setCookie('minPlayers', minPlayers, 30);
 		
-		if(game.connected === false)
-			game.connect(serverURL, "game-protocol", function() {
-				game.requestGame(localPlayer, minPlayers, maxPlayers);
-			});
-		else
-			game.requestGame(localPlayer, minPlayers, maxPlayers);
+		game.requestGame(localPlayer, minPlayers, maxPlayers);
 	}
 
-	var lobbyButton = document.getElementById('lobby');
-	lobbyButton.addEventListener('click', joinLobby, false);
+	game.connectButton = document.getElementById('connect');
+	game.connectButton.addEventListener('click', connect, false);
 
-	var startButton = document.getElementById('start');
-	startButton.addEventListener('click', reqGame, false);
+	game.automatchButton = document.getElementById('automatch');
+	game.automatchButton.addEventListener('click', reqGame, false);
 	
-	var createButton = document.getElementById('createGame');
-	createButton.addEventListener('click', function() { game.createGame(); }, false);
+	game.createButton = document.getElementById('createGame');
+	game.createButton.addEventListener('click', function() { game.createGame(); }, false);
 
-	var leaveButton = document.getElementById('stop');
-	leaveButton.addEventListener('click', function() {
+	game.leaveButton = document.getElementById('stop');
+	game.leaveButton.addEventListener('click', function() {
 		game.leaveGame();
 	}, false);
 
-	var disconnectButton = document.getElementById('disconnect');
-	disconnectButton.addEventListener('click', function() {
+	game.disconnectButton = document.getElementById('disconnect');
+	game.disconnectButton.addEventListener('click', function() {
 		game.websocket.close(1000);
+		this.setGameState('new');
 	}, false);
 	
-	var backButton = document.getElementById('back');
-	backButton.addEventListener('click', function() {
+	game.backButton = document.getElementById('back');
+	game.backButton.addEventListener('click', function() {
 		game.setGameState('waiting');
 		game.backToGameLobby();
 	}, false);
 	
-	var startGameButton = document.getElementById('startGame');
-	startGameButton.addEventListener('click', function() { game.sendStartGame(); }, false);
+	game.startButton = document.getElementById('startGame');
+	game.startButton.addEventListener('click', function() { game.sendStartGame(); }, false);
 	
 	game.hostContainer = document.getElementById('hostContainer');
 	game.nonhostContainer = document.getElementById('nonhostContainer');
@@ -2100,10 +2095,10 @@ window.onload = function() {
 		enableSound = false;
 	}
 	
-	/* auto join lobby if name is known */
+	/* auto connect if name is known */
 	if(playerName != null && playerName != "") {
 		document.getElementById('playername').value = playerName;
-		joinLobby();
+		connect();
 	}
 	
 	window.onresize = function() {
@@ -2143,9 +2138,8 @@ window.onload = function() {
 				game.paramTimeout = undefined;
 			}, timeout);
 
-			var startButton = document.getElementById('startGame');
-			startButton.disabled = true;
-			startButton.innerHTML = 'Please wait';
+			game.startButton.disabled = true;
+			game.startButton.innerHTML = 'Please wait';
 
 			if(game.unlockTimeout !== null)
 				window.clearTimeout(game.unlockTimeout);

@@ -1173,23 +1173,13 @@ int pointsystem_wta(int players, int alive) {
 }
 
 int pointsystem_rik(int players, int alive) {
-	if(alive > 4 || (4 <= players && players <= 6 && alive > 3) || 
-	 (players < 4 && alive > 2))
-		return 0;
-
-	if((4 <= players && players <= 6 && alive == 3) ||
-	 (6 <= players && alive <= 4 && alive >= 3))
-		return 1;
-
-	if((3 <= players && players <= 6 && alive == 2) ||
-	 (players >= 7 && alive <= 2))
-		return 2;
-
-	if(3 <= players && players <= 6 && alive == 1)
-		return 3;
-
-	if(3 == players && alive == 1)
-		return 4;
-
-	return 6;
+	int points[] = {
+		6,0,0,0,0,0,0,0,
+		6,2,0,0,0,0,0,0,
+		6,3,1,0,0,0,0,0,
+		6,4,2,1,0,0,0,0
+	};
+	int map[] = {-1, 0,0, 1, 2,2,2, 3,3};
+	
+	return points[map[players] * 8 + alive - 1] - points[map[players] * 8 + alive];
 }

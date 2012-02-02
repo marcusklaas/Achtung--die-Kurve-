@@ -62,7 +62,7 @@
 				<p id="welcome">This is a multiplayer game. The goal is to survive longer than the other players. Steer using arrow keys or touching the edges of the canvas. Have fun!</p>
 				<div id="noWebsocket" class="alert-message error">It seems like your browser does not support websockets! This is required to play the game.</div>
 				<input type="text" id="playername" placeholder="playername" />
-				<button id="lobby" class="primary">Connect to Server</button>
+				<button id="connect" class="primary">Connect to Server</button>
 				<p id="credits">Made by Marcus and Rik. Code is hosted at <a href="https://github.com/marcusklaas/Achtung--die-Kurve-">github</a>. Feel free to fork. If you have any suggestions or complaints, send us an email!</p>
 			</div>
 
@@ -97,7 +97,7 @@
 				</div>
 
 				<div id="automatchContainer">
-					<span class="add-on">Minimum players</span><input type="number" min="1" max="8" steps="1" value="2" id="minplayers" /><span class="add-on">Maximum players</span><input type="number" min="1" max="8" steps="1" value="2" id="maxplayers" /><button id="start" class="primary">Automatch</button>
+					<span class="add-on">Minimum players</span><input type="number" min="1" max="8" steps="1" value="2" id="minplayers" /><span class="add-on">Maximum players</span><input type="number" min="1" max="8" steps="1" value="2" id="maxplayers" /><button id="automatch" class="primary">Automatch</button>
 				</div>
 
 				<button id="createGame" class="primary">Create Game</button>
