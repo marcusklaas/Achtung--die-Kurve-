@@ -222,6 +222,8 @@ void modifiedmsg(struct user *usr, int tickdelta) {
 	char response[4];
 	int index = usr->inputcount;
 
+	printf("sending modifiedmsg, input = %d, delta = %d\n", index, tickdelta);
+
 	response[0] = 7 & MODE_MODIFIED;
 	response[0] |= (127 - 7) & (index << 3);
 	response[1] = 127 & (index >> 4);
@@ -236,6 +238,8 @@ void modifiedmsg(struct user *usr, int tickdelta) {
  * layout: xdiiimmm xddddddd xddddddd */
 void tickupdatemsg(struct user *usr, int tickdelta) {
 	char response[3];
+
+	printf("sending tickupdate, delta = %d\n", tickdelta);
 
 	response[0] = 7 & MODE_TICKUPDATE;
 	response[0] |= (8 + 16 + 32) & (usr->index << 3);
@@ -272,7 +276,7 @@ void steermsg(struct user *usr, int tick, int turn, int modified) {
 	int tickdelta = tick - usr->lastinputtick;
 
 	/* not enough bits to encode tickdelta, work around this */
-	if(tickdelta >= (2 << 10)) {
+	if(tickdelta >= (1 << 10)) {
 		tickupdatemsg(usr, tickdelta - 1);
 		tickdelta = 1;
 	}
@@ -308,7 +312,7 @@ void appendheader(struct buffer *buf, char type, char player) {
 
 void appendpos(struct buffer *buf, int x, int y) {
 	*buf->at++ = x & 127;
-	*buf->at++ = x >> 7 & 15 | y << 4 & (16 + 32 + 64);
+	*buf->at++ = x >> 7 & 15 | y << 4 & (16 + 32 + 64); // compilert vindt dit niet leuk en ik kan eerlijk gezegd ook niet zien wat eerst gaat :P
 	*buf->at++ = y >> 3 & 127;
 }
 

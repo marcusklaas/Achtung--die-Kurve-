@@ -201,6 +201,8 @@ GameEngine.prototype.parseByteMsg = function(str) {
 		var tickDelta = (c & (16 + 32 + 64)) >> 4;
 		tickDelta |= d << 3;
 
+		this.gameMessage('modified, input = ' + input + ', delta = ' + tickDelta);
+
 		this.localPlayer.inputs[input].tick += tickDelta;
 		this.localPlayer.steer(this.localPlayer.inputs[input].tick, this.game.tick);
 		
