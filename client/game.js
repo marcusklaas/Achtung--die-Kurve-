@@ -232,6 +232,17 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		return this.parseSteerMsg(msg.data);
 	}
 	
+	var type = msg.data.charCodeAt(0) & 7;
+	if(type != messageJson) {
+		var player = this.getPlayerByIndex((msg.data.charCodeAt(0) & (8 + 16 + 32)) >> 3);
+		var msg = new ByteMessage(msg.data, 1);
+		switch(type) {
+			case messagePencil:
+				this.pencil.handleMessage(msg, player);
+				return;
+		}
+	}
+	
 	try {
 		var obj = JSON.parse(msg.data);
 	}
@@ -1802,6 +1813,7 @@ Pencil.prototype.handleMessage = function(msg, player) {
 			var tick;
 			
 			if(lastTick == -1) {
+				msg.at--;
 				pen = msg.readPencilFull();
 				tick = pen.tick;
 			} else {
@@ -1810,7 +1822,8 @@ Pencil.prototype.handleMessage = function(msg, player) {
 			
 			var seg = {x1: player.pencilX, y1: player.pencilY, x2: pos[0], y2: pos[1], tickSolid: tick};
 			this.drawSegment(seg.x1, seg.y1, seg.x2, seg.y2, player, pencilAlpha);
-			player.inbuffer.push(seg);	
+			player.inbuffer.push(seg);
+			lastTick = tick;
 		}
 		
 		player.pencilX = pos[0];
@@ -1829,13 +1842,16 @@ ByteMessage.prototype.readPos = function() {
 	var a = this.data.charCodeAt(this.at++);
 	var b = this.data.charCodeAt(this.at++);
 	var c = this.data.charCodeAt(this.at++);
-	x = a + (b & 15) << 7;
-	y = b >> 4 + c << 3;
+	
+	x = a | (b & 15) << 7;
+	y = b >> 4 | c << 3;
+	
 	return [x, y];
 }
 
 ByteMessage.prototype.readPencil = function() {
 	var a = this.data.charCodeAt(this.at++);
+	
 	return {down: a & 1, tickDifference: a >> 1};
 }
 
@@ -1843,7 +1859,8 @@ ByteMessage.prototype.readPencilFull = function() {
 	var a = this.data.charCodeAt(this.at++);
 	var b = this.data.charCodeAt(this.at++);
 	var c = this.data.charCodeAt(this.at++);
-	return {down: a & 1, tick: a >> 1 + b << 6 + c << 13};
+	
+	return {down: a & 1, tick: a >> 1 | b << 6 | c << 13};
 }
 
 

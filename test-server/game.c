@@ -1008,13 +1008,15 @@ void deleteuser(struct user *usr) {
 void handlepencilmsg(cJSON *json, struct user *u) {
 	struct pencil *p = &u->pencil;
 	struct buffer buf;
-	char lasttick = -1, buffer_empty = 1;
+	int lasttick = -1;
+	char buffer_empty = 1;
 	
 	json = jsongetjson(json, "data");
 	if(!json)
 		return;
 	json = json->child;
 	
+	buf.start = 0;
 	allocroom(&buf, 200);
 	appendheader(&buf, MSG_PENCIL, u->index);
 	
@@ -1052,9 +1054,11 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 				p->y = y;
 				p->ink -= MOUSEDOWN_INK;
 				p->down = 1;
+				
 				allocroom(&buf, 4);
 				appendpos(&buf, x, y);
 				appendpencil(&buf, 1, 0);
+				
 				buffer_empty = 0;
 			} else {
 				if(PENCIL_DEBUG)

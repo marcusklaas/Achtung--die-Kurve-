@@ -228,7 +228,8 @@ void allocroom(struct buffer *buf, int size) {
 		int len = buf->at - buf->start;
 		int capacity = buf->end - buf->start;
 		
-		if(capacity *= 2 < size)
+		capacity *= 2;
+		if(capacity < size)
 			capacity = size;
 		
 		buf->start = srealloc(buf->start, capacity);
@@ -238,30 +239,23 @@ void allocroom(struct buffer *buf, int size) {
 }
 
 void appendheader(struct buffer *buf, char type, char player) {
-	buf->at = type | player << 3;
-	buf->at++;
+	*buf->at++ = type | player << 3;
 }
 
 void appendpos(struct buffer *buf, int x, int y) {
-	buf->at = x & 127;
-	buf->at++;
-	buf->at = x >> 7 & 15 | y << 4 & (16 + 32 + 64);
-	buf->at++;
-	buf->at = y >> 3 & 127;
-	buf->at++;
+	*buf->at++ = x & 127;
+	*buf->at++ = x >> 7 & 15 | y << 4 & (16 + 32 + 64);
+	*buf->at++ = y >> 3 & 127;
 }
 
 void appendpencil(struct buffer *buf, char down, int tick) {
-	buf->at = down | tick << 1 & 127;
-	buf->at++;
+	*buf->at++ = down | tick << 1 & 127;
 }
 
 void appendpencil_full(struct buffer *buf, char down, int tick) {
 	appendpencil(buf, down, tick);
-	buf->at = tick >> 6 & 127;
-	buf->at++;
-	buf->at = tick >> 13 & 127;
-	buf->at++;
+	*buf->at++ = tick >> 6 & 127;
+	*buf->at++ = tick >> 13 & 127;
 }
 
 /******************************************************************

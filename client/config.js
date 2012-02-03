@@ -65,7 +65,8 @@ var debugBaseContext = false; // sets different color for segments in basecontex
 var displayDebugStatus = false;
 var debugRewards = false;
 
-/* copied from server.h */
+var messageJson = 3;
+/* server.h copy */
 var messagePencil = 2;
 
 /* editor */

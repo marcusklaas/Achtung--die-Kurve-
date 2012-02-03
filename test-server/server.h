@@ -25,7 +25,7 @@
 
 /* debugging */
 #define DEBUG_MODE 1
-#define PENCIL_DEBUG 0
+#define PENCIL_DEBUG 1
 #define ULTRA_VERBOSE 0
 #define SHOW_WARNING 1
 #define GOD_MODE 0
@@ -61,7 +61,7 @@
 #define PM_ON 0
 #define PM_ONDEATH 1
 #define PM_OFF 2
-#define PM_DEFAULT PM_ONDEATH
+#define PM_DEFAULT PM_ON
 #define INK_PER_SEC 25
 #define MAX_INK 200
 #define START_INK MAX_INK
