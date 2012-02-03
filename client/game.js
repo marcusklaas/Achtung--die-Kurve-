@@ -349,9 +349,6 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			else
 				this.start(obj.startPositions, obj.startTime);
 			break;
-		case 'input':
-			this.getPlayer(obj.playerId).steer(obj);
-			break;
 		case 'adjustGameTime':
 			if(acceptGameTimeAdjustments) {
 				this.gameMessage('Adjusted game time by ' + obj.forward + ' msec');

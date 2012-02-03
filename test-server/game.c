@@ -887,7 +887,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 		tick += (modified = usr->gm->tick - tick);
 	}
 	if(tick <= usr->lastinputtick)
-		tick += (modified = usr->lastinputtick + 1 - tick);
+		tick += (modified += usr->lastinputtick + 1 - tick);
 	
 	/* put it in user queue */
 	input = smalloc(sizeof(struct userinput));
