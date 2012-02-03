@@ -1007,12 +1007,16 @@ void deleteuser(struct user *usr) {
 /* pencil game */
 void handlepencilmsg(cJSON *json, struct user *u) {
 	struct pencil *p = &u->pencil;
-	cJSON *j = 0;
+	struct buffer buf;
+	char lasttick = -1, buffer_empty = 1;
 	
 	json = jsongetjson(json, "data");
 	if(!json)
 		return;
 	json = json->child;
+	
+	allocroom(&buf, 200);
+	appendheader(&buf, MSG_PENCIL, u->index);
 	
 	while(json) {
 		int x, y;
@@ -1048,6 +1052,10 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 				p->y = y;
 				p->ink -= MOUSEDOWN_INK;
 				p->down = 1;
+				allocroom(&buf, 4);
+				appendpos(&buf, x, y);
+				appendpencil(&buf, 1, 0);
+				buffer_empty = 0;
 			} else {
 				if(PENCIL_DEBUG)
 					printf("error: not enough ink for pencil down\n");
@@ -1065,8 +1073,23 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 				int tickSolid = max(tick, u->gm->tick) + u->gm->inkdelay / TICK_LENGTH;
 				struct pencilseg *pseg = smalloc(sizeof(struct pencilseg));
 				struct seg *seg = &pseg->seg;
-				cJSON *k = cJSON_CreateObject();
 
+				
+				appendpos(&buf, x, y);
+				if(lasttick == -1) {
+					appendpencil_full(&buf, 0, tickSolid);
+				} else {
+					if(tickSolid - lasttick > 63) {
+						if(PENCIL_DEBUG)
+							printf("error: pencil move: too large tick gap\n");
+						buf.at -= 3;
+						break;
+					}
+					appendpencil(&buf, 0, tickSolid - lasttick);
+				}
+				lasttick = tickSolid;
+				buffer_empty = 0;
+				
 				/* queue pencil segment for simulation */
 				seg->x1 = p->x;
 				seg->y1 = p->y;
@@ -1081,17 +1104,6 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 				if(!p->psegtail)
 					p->psegtail = pseg;
 				
-				/* add it to the json which will be broadcasted */
-				jsonaddnum(k, "x1", p->x);
-				jsonaddnum(k, "y1", p->y);
-				jsonaddnum(k, "x2", x);
-				jsonaddnum(k, "y2", y);
-				jsonaddnum(k, "playerId", u->id);
-				jsonaddnum(k, "tickSolid", tickSolid);
-				if(!j)
-					j = cJSON_CreateArray();
-				cJSON_AddItemToArray(j, k);
-				
 				p->x = x;
 				p->y = y;
 				if(type == -1)
@@ -1103,12 +1115,11 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 			}
 		}
 	}
-	if(j) {
-		cJSON *k = jsoncreate("pencil");
-		jsonaddjson(k, "data", j);
-		sendjsontogame(k, u->gm, 0);
-		jsondel(k);
-	}
+	
+	if(!buffer_empty)
+		sendstrtogame(buf.start, buf.at - buf.start, u->gm, 0);
+	
+	free(buf.start);
 }
 
 void simpencil(struct pencil *p) {

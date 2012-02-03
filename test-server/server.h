@@ -54,6 +54,9 @@
 #define SPAM_STEERING_MAX		60
 #define SPAM_STEERING_INTERVAL	60
 
+/* byte messages */
+#define MSG_PENCIL 2
+
 /* pencil */
 #define PM_ON 0
 #define PM_ONDEATH 1
@@ -173,6 +176,10 @@ struct user {
 	int deltaat;
 	char deltaon;
 	struct pencil pencil;
+};
+
+struct buffer {
+	char *start, *at, *end;
 };
 
 void *smalloc(size_t size);

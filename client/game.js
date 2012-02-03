@@ -1791,14 +1791,61 @@ Pencil.prototype.drawSegment = function(x1, y1, x2, y2, player, alpha) {
 	ctx.lineCap = tmp;
 }
 
-Pencil.prototype.handleMessage = function(ar) {
-	for(var i = 0; i < ar.length; i++) {
-		var a = ar[i];
-		var player = this.game.getPlayer(a.playerId);
-		this.drawSegment(a.x1, a.y1, a.x2, a.y2, player, pencilAlpha);
-		player.inbuffer.push(a);
+Pencil.prototype.handleMessage = function(msg, player) {
+	var lastTick = -1;
+	
+	while(msg.at < msg.data.length) {
+		var pos = msg.readPos();
+		var pen = msg.readPencil();
+		
+		if(pen.down) {
+			player.pencilX = pos[0];
+			player.pencilY = pos[1];
+		} else {
+			var tick;
+			
+			if(lastTick == -1) {
+				pen = msg.readPencilFull();
+				tick = data.tick;
+			} else {
+				tick = lastTick + pen.tickDifference;
+			}
+			
+			var seg = {x1: player.pencilX, y1: player.pencilY, x2: pos[0], y2: pos[1], tickSolid: tick};
+			this.drawSegment(seg.x1, seg.y1, seg.x2, seg.y2, player, pencilAlpha);
+			player.inbuffer.push(seg);	
+		}
 	}
 }
+
+/* Byte Message */
+function ByteMessage(data, at) {
+	this.data = data;
+	this.at = at;
+}
+
+ByteMessage.prototype.readPos = function() {
+	var x, y;
+	var a = this.data.charCodeAt(this.at++);
+	var b = this.data.charCodeAt(this.at++);
+	var c = this.data.charCodeAt(this.at++);
+	x = a + (b & 15) << 7;
+	y = b >> 4 + c << 3;
+	return [x, y];
+}
+
+ByteMessage.prototype.readPencil = function() {
+	var a = this.data.charCodeAt(this.at++);
+	return {down: a & 1, tickDifference: a >> 1};
+}
+
+ByteMessage.prototype.readPencilFull = function() {
+	var a = this.data.charCodeAt(this.at++);
+	var b = this.data.charCodeAt(this.at++);
+	var c = this.data.charCodeAt(this.at++);
+	return {down: a & 1, tick: a >> 1 + b << 6 + c << 13};
+}
+
 
 /* Map editor */
 Editor = function(game) {

@@ -1,4 +1,42 @@
 /******************************************************************
+ * MEMORY-RELATED
+ */
+
+// safe malloc, exit(500) on error
+void *smalloc(size_t size) {
+	void *a = malloc(size);
+	if(!a) {
+		printf("malloc failed, exiting..\n");
+		exit(500);
+	}
+	return a;
+}
+
+void *scalloc(size_t num, size_t size) {
+	void *a = calloc(num, size);
+	if(!a) {
+		printf("calloc failed, exiting..\n");
+		exit(500);
+	}
+	return a;
+}
+
+void *srealloc(void *ptr, size_t size) {
+	void *a = realloc(ptr, size);
+	if(!a) {
+		printf("realloc failed, exiting..\n");
+		exit(500);
+	}
+	return a;
+}
+
+struct seg *copyseg(const struct seg *a) {
+	struct seg *b = smalloc(sizeof(struct seg));
+	memcpy(b, a, sizeof(struct seg));
+	return b;
+}
+
+/******************************************************************
  * JSON HELP FUNCTIONS
  */
 
@@ -182,42 +220,48 @@ void encodesteer(char *target, unsigned short index, unsigned short tickdelta, u
 	target[1] = 127 & (tickdelta >> 3); // last 7 bits of d
 }
 
-/******************************************************************
- * MEMORY-RELATED
- */
-
-// safe malloc, exit(500) on error
-void *smalloc(size_t size) {
-	void *a = malloc(size);
-	if(!a) {
-		printf("malloc failed, exiting..\n");
-		exit(500);
+void allocroom(struct buffer *buf, int size) {
+	if(!buf->start) {
+		buf->at = buf->start = smalloc(size);
+		buf->end = buf->start + size;
+	} else if(buf->end - buf->at < size){
+		int len = buf->at - buf->start;
+		int capacity = buf->end - buf->start;
+		
+		if(capacity *= 2 < size)
+			capacity = size;
+		
+		buf->start = srealloc(buf->start, capacity);
+		buf->at = buf->start + len;
+		buf->end = buf->start + capacity;
 	}
-	return a;
 }
 
-void *scalloc(size_t num, size_t size) {
-	void *a = calloc(num, size);
-	if(!a) {
-		printf("calloc failed, exiting..\n");
-		exit(500);
-	}
-	return a;
+void appendheader(struct buffer *buf, char type, char player) {
+	buf->at = type | player << 3;
+	buf->at++;
 }
 
-void *srealloc(void *ptr, size_t size) {
-	void *a = realloc(ptr, size);
-	if(!a) {
-		printf("realloc failed, exiting..\n");
-		exit(500);
-	}
-	return a;
+void appendpos(struct buffer *buf, int x, int y) {
+	buf->at = x & 127;
+	buf->at++;
+	buf->at = x >> 7 & 15 | y << 4 & (16 + 32 + 64);
+	buf->at++;
+	buf->at = y >> 3 & 127;
+	buf->at++;
 }
 
-struct seg *copyseg(const struct seg *a) {
-	struct seg *b = smalloc(sizeof(struct seg));
-	memcpy(b, a, sizeof(struct seg));
-	return b;
+void appendpencil(struct buffer *buf, char down, int tick) {
+	buf->at = down | tick << 1 & 127;
+	buf->at++;
+}
+
+void appendpencil_full(struct buffer *buf, char down, int tick) {
+	appendpencil(buf, down, tick);
+	buf->at = tick >> 6 & 127;
+	buf->at++;
+	buf->at = tick >> 13 & 127;
+	buf->at++;
 }
 
 /******************************************************************

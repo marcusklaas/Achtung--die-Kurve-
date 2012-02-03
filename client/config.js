@@ -65,6 +65,9 @@ var debugBaseContext = false; // sets different color for segments in basecontex
 var displayDebugStatus = false;
 var debugRewards = false;
 
+/* copied from server.h */
+var messagePencil = 2;
+
 /* editor */
 var editorStepTime = 100;
 var mapSegmentColor = [96, 96, 96];
