@@ -869,7 +869,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 	cJSON *j;
 	
 	/* some checks */
-	if(turn < -1 || turn > 1) {
+	if(turn < -1 || turn > 1 || turn == usr->lastinputturn) {
 		if(SHOW_WARNING)
 			printf("invalid user input received from user %d.\n", usr->id);
 		return;
@@ -887,7 +887,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 		tick += (modified = usr->gm->tick - tick);
 	}
 	if(tick <= usr->lastinputtick)
-		tick += (modified += usr->lastinputtick + 1 - tick);
+		tick += (modified = usr->lastinputtick + 1 - tick);
 	
 	/* put it in user queue */
 	input = smalloc(sizeof(struct userinput));
