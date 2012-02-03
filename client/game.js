@@ -39,9 +39,9 @@ GameEngine.prototype.reset = function() {
 	this.redrawsPrevented = 0;
 	this.adjustGameTimeMessagesReceived = 0;
 	this.modifiedInputs = 0;
-
-	if(this.pencilMode != 'off')
-		this.pencil.reset();
+	document.getElementById('winAnnouncer').style.display = 'none';
+	
+	this.pencil.reset();
 
 	/* clear canvasses */
 	this.foregroundContext.clearRect(0, 0, this.width, this.height);
@@ -204,7 +204,7 @@ GameEngine.prototype.parseByteMsg = function(str) {
 		this.gameMessage('modified, input = ' + input + ', delta = ' + tickDelta);
 
 		this.localPlayer.inputs[input].tick += tickDelta;
-		this.localPlayer.steer(this.localPlayer.inputs[input].tick, this.game.tick);
+		this.localPlayer.steer(this.localPlayer.inputs[input].tick, this.tick);
 		
 		return true;
 	}
@@ -251,8 +251,7 @@ GameEngine.prototype.parseSteerMsg = function(str) {
 	var turnChange = (a & 8) >> 3;
 	var tickDelta = ((a & (16 + 32 + 64)) >> 4) | (b << 3);
 	var player = this.indexToPlayer[index];
-	var oldTurn = player.turn;
-	var newTurn = this.decodeTurn(oldTurn, turnChange);
+	var newTurn = this.decodeTurn(player.turn, turnChange);
 	var tick = player.lastInputTick += tickDelta;
 
 	player.inputs.push({tick: tick, turn: newTurn});
@@ -415,8 +414,12 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'endGame':
 			this.setGameState('ended');
 			window.clearTimeout(this.gameloopTimeout);
-			var winner = this.getPlayer(obj.winnerId);
+			var winner = this.getPlayer(obj.winnerId);			
 			this.gameMessage('Game over: ' + winner.playerName + ' won!');
+
+			var announcement = document.getElementById('winAnnouncer');
+			announcement.innerHTML = winner.playerName + ' won!';
+			announcement.style.display = 'inline-block';
 
 			if(winner.isLocal)
 				this.audioController.playSound('localWin');
@@ -2178,6 +2181,15 @@ window.onload = function() {
 	/* moving sidebar for horizontal scroll */
 	window.onscroll = function() {
 		game.sidebar.style.left = -window.scrollX + 'px';
+	}
+
+	/* way to see sidebar for touch screens */
+	if(touchDevice) {
+		var button = document.getElementById('menuButton');
+		button.style.display = 'block';
+		button.addEventListener('click', function() {
+			window.scroll(0, 0);
+		});
 	}
 
 	function sendParams(timeout, onlyAllowReplacement) {

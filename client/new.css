@@ -21,10 +21,6 @@ table, tr, th, td {
 	font-family: inherit;
 }
 
-#canvasContainer {
-	position: relative;
-}
-
 canvas {
 	display: block;
 	background-color: rgba(0, 0, 0, 0);
@@ -150,6 +146,7 @@ h2.contentHeader {
 	position: relative;
 	border-bottom: 1px solid #808080;
 	border-right: 1px solid #808080;
+	text-align: center;
 }
 
 #editorControls {
@@ -256,6 +253,40 @@ tr.left td:first-child {
 	text-decoration: line-through;
 }
 
+#menuButton {
+	font-weight: bold;
+	display: none;
+	z-index: 100;
+	position: absolute;
+	left: 0;
+	top: 20px;
+	background-color: rgba(255, 255, 255, 0.5);
+	border: 1px solid #808080;
+	border-left: 0;
+	-webkit-border-radius: 0 4px 4px 0;
+	-moz-border-radius: 0 4px 4px 0;
+	border-radius: 0 4px 4px 0;
+	margin: 0;
+	padding: 2px 7px 5px 5px;
+}
+
+#winAnnouncer {
+	display: none;
+	z-index: 500;
+	background-color: rgba(255, 255, 255, 0.3);
+	-webkit-border-radius: 10px;
+	-moz-border-radius: 10px;
+	border-radius: 10px;
+	padding: 10px;
+	margin: auto;
+	vertical-align: middle;
+	font-weight: bold;
+	text-align: center;
+	font-size: 24px;
+	position: relative;
+	top: 40%;
+}	
+
 /* playerlist */
 #playerListContainer {
 	max-height: 30%;
@@ -322,7 +353,7 @@ col.col6 {
 }
 
 /* fancy input css van bootstrap v2 */
-button, input, select, textarea {
+.btn, button, input, select, textarea {
 	font-size: 100%;
 	margin: 0;
 	vertical-align: middle;
@@ -397,7 +428,7 @@ textarea:disabled {
 	margin: 0;
 }
 
-#automatchContainer button {
+#automatch {
 	-webkit-border-radius: 0 4px 4px 0;
 	-moz-border-radius: 0 4px 4px 0;
 	border-radius: 0 4px 4px 0;
@@ -510,7 +541,7 @@ button.error,
 	border-color: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.25);
 }
 
-button {
+.btn, button {
 	cursor: pointer;
 	display: inline-block;
 	background-color: #e6e6e6;
@@ -542,17 +573,17 @@ button {
 	transition: 0.1s linear all;
 }
 
-button:hover {
+.btn:hover, button:hover {
 	background-position: 0 -15px;
 	color: #333;
 	text-decoration: none;
 }
 
-button:focus {
+.btn:focus, button:focus {
 	outline: 1px dotted #666;
 }
 
-button.primary {
+.btn.primary, button.primary {
 	color: #ffffff;
 	background-color: #0064cd;
 	background-repeat: repeat-x;
@@ -569,13 +600,13 @@ button.primary {
 	border-color: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.25);
 }
 
-button.active, button:active {
+button.active, button:active, .btn:active {
 	-webkit-box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.05);
 	-moz-box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.05);
 	box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-button[disabled] {
+.btn[disabled], button[disabled] {
 	cursor: default;
 	background-image: none;
 	filter: progid:DXImageTransform.Microsoft.gradient(enabled = false);
