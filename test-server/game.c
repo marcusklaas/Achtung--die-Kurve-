@@ -147,6 +147,7 @@ void startgame(struct game *gm) {
 		usr->ts = gm->ts;
 		usr->hsize = gm->hsize;
 		usr->hfreq = gm->hfreq;
+		usr->inputcount = 0;
 		usr->lastinputturn = 0;
 		usr->lastinputtick = -1;
 		usr->ignoreinput = 1;
@@ -864,8 +865,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 	int turn = jsongetint(json, "turn");
 	int tick = jsongetint(json, "tick");
 	int time = tick * TICK_LENGTH + TICK_LENGTH/ 2;
-	int modified = 0;
-	int minimumTick = usr->gm->tick;
+	int modified = 0; // the number of ticks the input has been delayed
 	cJSON *j;
 	
 	/* some checks */
@@ -879,17 +879,15 @@ void interpretinput(cJSON *json, struct user *usr) {
 			printf("received input for dead user %d? ignoring..\n", usr->id);
 		return;
 	}
-	if(tick < minimumTick) {
+
+	if(tick < usr->gm->tick) {
 		if(SHOW_WARNING)
 			printf("received msg from user %d of %d msec old! tick incremented by %d\n",
 			 usr->id, (int) (servermsecs() - usr->gm->start - time), minimumTick - tick);
-		tick = minimumTick;
-		modified = 1;
+		tick += (modified = minimumTick - tick);
 	}
-	if(tick <= usr->lastinputtick) {
-		tick = usr->lastinputtick + 1;
-		modified = 1;
-	}
+	if(tick <= usr->lastinputtick)
+		tick += (modified = usr->lastinputtick + 1 - tick);
 	
 	/* put it in user queue */
 	input = smalloc(sizeof(struct userinput));
@@ -937,34 +935,10 @@ void interpretinput(cJSON *json, struct user *usr) {
 		}
 	}
 
-	{
-		char response[3];
-		int tickdelta, turndelta;
-
-		turndelta = turnchange(turn, usr->lastinputturn);
-		tickdelta = tick - max(0, usr->lastinputtick);
-
-		/* not enough bits to encode tickdelta, work around this */
-		if(tickdelta >= (2 << 10)) {
-			j = jsoncreate("updateTick");
-			jsonaddnum(j, "playerId", usr->id);
-			jsonaddnum(j, "tick", tick - 1);
-			sendjsontogame(j, usr->gm, 0);
-			tickdelta = 1;
-		}
-
-		encodesteer(response, usr->index, tickdelta, turndelta);
-		// TODO: we don't want to send this to usr, but it depends on it for
-		// input counter. we can fix by sending input# in 3rd byte
-		sendstrtogame(response, 2, usr->gm, modified ? 0 : usr);
-
-		/* if it is modified, send 3 bytes */
-		if(modified)
-			sendstr(response, 3, usr);
-	}
-
+	steermsg(usr, tick, turn, modified);
 	usr->lastinputtick = tick;
 	usr->lastinputturn = turn;
+	usr->inputcount++;
 }
 
 void clearinputs(struct user *usr) {

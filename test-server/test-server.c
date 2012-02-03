@@ -104,13 +104,6 @@ callback_game(struct libwebsocket_context * context,
 		jsonaddnum(json, "maxNameLength", MAX_NAME_LENGTH);
 		sendjson(json, u);
 		jsondel(json);
-
-		/* just to show to rik that the param transmission works */
-		{
-			char steermsg[2];
-			encodesteer(steermsg, 5, 577, 1);
-			sendstr(steermsg, 2, u);
-		}
 		break;
 
 	case LWS_CALLBACK_CLOSED:
@@ -174,7 +167,7 @@ callback_game(struct libwebsocket_context * context,
 			break;
 		}
 
-		mode= jsongetstr(json, "mode");
+		mode = jsongetstr(json, "mode");
 
 		if(!mode) {
 			printf("no mode specified!\n");
@@ -344,7 +337,6 @@ callback_game(struct libwebsocket_context * context,
 				sendjsontogame(root, u->gm, 0);
 				jsondel(root);
 			}
-
 
 			startgame(u->gm);
 		}

@@ -2,6 +2,7 @@
 function GameEngine(audioController) {
 	// game variables
 	this.players = [];
+	this.indexToPlayer = new Array(8);
 	this.tickTockDifference = tickTockDifference;
 	this.state = 'new'; // new, lobby, editing, waiting, countdown, playing, watching, ended
 	this.type = null;
@@ -54,13 +55,6 @@ GameEngine.prototype.resetPlayers = function() {
 	this.players = [];
 	this.clearPlayerList();
 	this.host = null;
-}
-
-/* FIXME: this sux -- no better way?? */
-GameEngine.prototype.getPlayerByIndex = function(index) {
-	for(var i in this.players)
-		if(this.players[i].index == index)
-			return this.players[i];
 }
 
 GameEngine.prototype.getPlayer = function(playerId) {
@@ -189,48 +183,70 @@ GameEngine.prototype.updateTitle = function(title) {
 	}
 }
 
-/* XPERIMENTAL */
-GameEngine.prototype.parseSteerMsg = function(str) {
-	var chars = [];
+GameEngine.prototype.parseByteMsg = function(str) {
+	var chars = strToBytes(str);
+	var mode = chars[0] & 7;
 
-	for(var i = 0; i < 2; i++) {
-		chars[i] = str.charCodeAt(i) & 0xFF;
-		//this.gameMessage('byte ' + i + ' = ' + chars[i]);
+	/* modified msg */
+	if(mode == 0) {
+		var input = (chars[0] & (127 - 7)) >> 3;
+		input |= chars[1] << 4;
+		input |= (chars[2] & 15) << 11;
+		var tickDelta = (chars[2] & (16 + 32 + 64)) >> 4;
+		tickDelta |= chars[3] << 3;
+
+		this.localPlayer.inputs[input].tick += tickDelta;
+		this.localPlayer.steer(this.localPlayer.inputs[input].tick, this.game.tick);
 	}
 
+	/* tick update msg */
+	else if(mode == 1) {
+		var index = (chars[0] & (8 + 16 + 32)) >> 3;
+		var tickDelta = (chars[0] & 64) >> 6;
+		tickDelta |= (127 & chars[1]) << 1;
+		tickDelta |= (127 & chars[2]) << 8;
+
+		this.gameMessage('tick update, delta = ' + tickDelta);
+
+		var player = this.indexToPlayer[index];
+		player.lastInputTick += tickDelta; 
+	}
+}
+
+GameEngine.prototype.decodeTurn = function(oldTurn, turnChange) {
+	if((oldTurn == 0 || oldTurn == 1) && turnChange == 0)
+		return -1;
+
+	if((oldTurn == 0 || oldTurn == -1) && turnChange == 1)
+		return 1;
+
+	return 0;
+}
+
+GameEngine.prototype.parseSteerMsg = function(str) {
+	var chars = strToBytes(str);
 	var index = chars[0] & 7;
 	var turnChange = (chars[0] & 8) >> 3;
 	var tickDelta = ((chars[0] & (16 + 32 + 64)) >> 4) | (chars[1] << 3);
+	var player = this.indexToPlayer[index];
+	var oldTurn = player.turn;
+	var newTurn = this.decodeTurn(oldTurn, turnChange);
+	var tick = player.lastInputTick += tickDelta;
 
-	//this.gameMessage('index = ' + index + ', turnChange = ' + turnChange + ', tickDelta = ' + tickDelta);
-
-	/* TURNCHANGE werkt zo: er zijn altijd 2 opties: 0 is de meest linker optie, 1 is de meest rechter optie -- moet in PROTOCOL */
-
-	var player = this.getPlayerByIndex(index);
-	var inputCount = player.inputs.length;
-	var lastInput = inputCount == 0 ? null : player.inputs[inputCount - 1];
-	var oldTick = lastInput == null ? 0 : lastInput.tick;
-	var oldTurn = lastInput == null ? 0 : lastInput.turn;
-	var newTurn = 0;
-
-	if((oldTurn == 0 || oldTurn == 1) && turnChange == 0)
-		newTurn = -1;
-	else if((oldTurn == 0 || oldTurn == -1) && turnChange == 1)
-		newTurn = 1;
-
-	this.gameMessage('old: ' + oldTurn + ', change: ' + turnChange + ', new: ' + newTurn);
-
-	var steerObj = {tick: (oldTick + tickDelta), turn: newTurn, modified: (str.length == 3)};
-	player.steer(steerObj);
+	player.inputs.push({tick: tick, turn: newTurn});
+	
+	// only if we have already simulated this tick
+	if(tick < this.tock)
+		player.steer(tick, this.tock);
 }
 
 GameEngine.prototype.interpretMsg = function(msg) {
 	var self = this;
 
-	/* XPERIMENTAL */
-	if(msg.data.length >= 2 && msg.data.length <= 3) {
+	if(msg.data.length == 2)
 		return this.parseSteerMsg(msg.data);
-	}
+	if(msg.data.length <= 4)
+		return this.parseByteMsg(msg.data);
 	
 	var type = msg.data.charCodeAt(0) & 7;
 	if(type != messageJson) {
@@ -267,6 +283,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.setGameState((obj.type == 'lobby') ? 'lobby' : 'waiting');
 			this.mapSegments = undefined;
 			this.editor.segments = [];
+			this.indexToPlayer[obj.index] = this.localPlayer;
 			this.localPlayer.index = obj.index;
 			this.addPlayer(this.localPlayer);
 
@@ -292,6 +309,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'newPlayer':
 			var newPlayer = new Player(this, false);
 			newPlayer.id = obj.playerId.toString();
+			this.indexToPlayer[obj.index] = newPlayer;
 			newPlayer.index = obj.index;
 			newPlayer.playerName = escapeString(obj.playerName);
 			this.addPlayer(newPlayer);
@@ -672,9 +690,6 @@ GameEngine.prototype.setParams = function(obj) {
 GameEngine.prototype.requestGame = function(player, minPlayers, maxPlayers) {
 	this.sendMsg('requestGame', {'playerName': player.playerName,
 	 'minPlayers': minPlayers, 'maxPlayers': maxPlayers});
-	// TODO: zet de knop disabled tot bericht van de server? dan ziet de user
-	// dat er echt op de knop is gedrukt bij veel lag
-	// ook bij andere knoppen als createGame, leaveGame, joinLobby, joinGame
 }
 
 GameEngine.prototype.createGame = function() {
@@ -737,7 +752,6 @@ GameEngine.prototype.addPlayer = function(player) {
 		player.canvas = document.createElement('canvas');
 		player.context = player.canvas.getContext('2d');
 		this.setDefaultValues(player.context);
-		//player.canvas.id = 'playerCanvas' + player.id;
 		this.canvasContainer.appendChild(player.canvas);
 	}
 }
@@ -750,11 +764,8 @@ GameEngine.prototype.calcScale = function(extraVerticalSpace) {
 	if(extraVerticalSpace != undefined)
 		targetHeight -= extraVerticalSpace;
 
-	if(touchDevice) {
+	if(touchDevice)
 		targetWidth = window.innerWidth;
-		//if(pencilGame != 'off')
-		//	targetHeight = window.innerHeight - 20;
-	}
 	
 	var scaleX = targetWidth/ this.width;
 	var scaleY = targetHeight/ this.height;
@@ -875,7 +886,7 @@ GameEngine.prototype.realStart = function() {
 		 		return;
 		 	}
 
-			while(self.tick - self.tock >= self.tickTockDifference)
+			while(self.tick - self.tock >= self.tickTockDifference) //self.tickTockDifference?? is dat niet global?
 				self.doTock();
 			self.doTick();
 		} while((timeOut = (self.tick + 1) * self.tickLength - (Date.now() - self.gameStartTimestamp)
@@ -1003,9 +1014,7 @@ GameEngine.prototype.resize = function() {
 		player.turn = 0;
 		player.nextInput = 0;
 		var knownTick;
-		if(player.isLocal)
-			knownTick = player.inputsReceived > 0 ? player.inputs[player.inputsReceived - 1].tick : -1;
-		else if(player.finalTick < this.tock)
+		if(!player.isLocal && player.finalTick < this.tock)
 			knownTick = player.finalTick;
 		else {
 			knownTick = this.tock - safeTickDifference;
@@ -1122,7 +1131,6 @@ GameEngine.prototype.getGamePos = function(e) {
 	return vec;
 }
 
-
 /* Player
  * properties:
  * - status: ready, host, alive, dead or left
@@ -1161,35 +1169,9 @@ Player.prototype.loadLocation = function() {
 	this.nextInput = this.lcnextInput;
 }
 
-Player.prototype.steer = function(obj) {
-	var localTick = this.isLocal ? this.game.tick : this.game.tock;
-	
-	if(!this.isLocal) {
-		// inputs of non-local user can just be added
-		this.inputs.push(obj);
-		
-		// if we have not yet simulated the tick of this message, return;
-		if(obj.tick >= localTick) {
-			if(obj.tick < this.game.tick) {
-				this.game.redrawsPrevented++;
-				this.game.displayDebugStatus();
-			}
-			return;
-		}
-	} else if(!obj.modified) {
-		// nothing to be done for unmodified local steer message
-		this.inputsReceived++;
-		return;	
-	} else {
-		// modify corresponding local input entry
-		this.inputs[this.inputsReceived++].tick = obj.tick;
-		
-		this.game.modifiedInputs++;
-		this.game.displayDebugStatus();
-	}
-	
+Player.prototype.steer = function(tick, localTick) {
 	this.loadLocation();
-	var endTick = Math.min(obj.tick, localTick - safeTickDifference);
+	var endTick = Math.min(tick, localTick - safeTickDifference);
 	this.simulate(endTick, this.game.baseContext);
 	this.saveLocation();
 
@@ -1334,8 +1316,7 @@ Player.prototype.initialise = function(x, y, angle, holeStart) {
 	this.turn = 0;
 	this.inputs = [];
 	this.tick = 0;
-	this.nextInput = 0;
-	this.inputsReceived = 0;
+	this.lastInputTick = 0;
 	this.lastSteerTick = -1;
 	this.finalTick = Infinity;
 	this.updateRow();
@@ -2318,6 +2299,12 @@ function setPencilMode(mode) {
 
 function getLength(x, y) {
 	return Math.sqrt(x * x + y * y);
+}
+
+function strToBytes(str) {
+	for(var chars = [], i = 0; i < 2; i++)
+		chars[i] = str.charCodeAt(i) & 0xFF;
+	return chars;
 }
 
 function findPos(obj) {

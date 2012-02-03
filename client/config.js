@@ -56,7 +56,7 @@ var pencilAlpha = 0.2;
 /* debugging */
 var emulateTouch = false;
 var ultraVerbose = false;
-var simulatedPing = 0;
+var simulatedPing = 1000;
 var extraGameStartTimeDifference = 0;
 var acceptGameTimeAdjustments = true;
 var jsProfiling = false;

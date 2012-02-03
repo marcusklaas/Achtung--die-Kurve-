@@ -23,6 +23,10 @@
 #define GAMELIST_UPDATE_INTERVAL 10000
 #define MAX_USERS_IN_GAME 8
 
+/* byte messages */
+#define MODE_MODIFIED 0
+#define MODE_TICKUPDATE 1
+
 /* debugging */
 #define DEBUG_MODE 1
 #define PENCIL_DEBUG 1
@@ -38,7 +42,7 @@
 #define MAX_CHAT_LENGTH 140
 #define UNLOCK_INTERVAL 0 // in msecs
 
-/* spam control. name from 0 to SPAM_CAT_COUNT - 1 to prevent horrible segfaults */
+/* spam control. name from 0 to SPAM_CAT_COUNT-1 */
 #define SPAM_CAT_COUNT			4
 #define SPAM_CAT_JOINLEAVE		0
 #define SPAM_CAT_CHAT			1
@@ -162,7 +166,7 @@ struct user {
 	int sbat;			// sendbuffer at
 
 	float x, y, angle, v, ts;	// used in simulation (these are thus SERVER_DELAY behind)
-	int turn, points, lastinputtick, lastinputturn, gamelistage;
+	int turn, points, lastinputtick, lastinputturn, inputcount, gamelistage;
 	char alive, ignoreinput;
 	
 	int hstart, hsize, hfreq;	// hole start, hole size, hole frequency
@@ -172,8 +176,7 @@ struct user {
 
 	struct libwebsocket *wsi;
 	int msgcounter[SPAM_CAT_COUNT];		// number of inputs and chat messages received
-	int delta[DELTA_COUNT];
-	int deltaat;
+	int deltaat, delta[DELTA_COUNT];
 	char deltaon;
 	struct pencil pencil;
 };
