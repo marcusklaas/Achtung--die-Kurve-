@@ -173,13 +173,77 @@ char *duplicatestring(char *orig) {
 	return strcpy(smalloc(strlen(orig) + 1), orig);
 }
 
+/******************************************************************
+ * BYTE MESSAGES
+ */
+
+/* sends updated tick for the last input of usr in 4 bytes
+ * m = mode, j = input index, d = tickdelta
+ * layout: xjjjjmmm xjjjjjjj xdddjjjj xddddddd */
+void modifiedmsg(struct user *usr, int tickdelta) {
+	char response[4];
+	int index = usr->inputcount;
+
+	response[0] = 7 & MODE_MODIFIED;
+	response[0] |= (127 - 7) & (index << 3);
+	response[1] = 127 & (index >> 4);
+	response[2] = 15 & (index >> 11);
+	response[2] |= (127 - 15) & (tickdelta << 4);
+	response[3] = 127 & (tickdelta >> 4);
+
+	sendstr(response, 4, usr);
+}
+
+/* sends tick update for user to his game in 3 bytes
+ * layout: xdiiimmm xddddddd xddddddd */
+void tickupdatemsg(struct user *usr, int tickdelta) {
+	char response[3];
+
+	response[0] = 7 & MODE_TICKUPDATE;
+	response[0] |= (8 + 16 + 32) & (usr->index << 3);
+	response[0] |= 64 & (tickdelta << 6);
+	response[1] = 127 & (tickdelta >> 1);
+	response[2] = 127 & (tickdelta >> 8);
+
+	sendstrtogame(response, 3, usr->gm, usr);
+}
+
 /* encodes index (i), tickdelta (d) and turn (t) in 2 bytes
- * layout: xddd dddd xddd tiii */
+ * layout: xdddtiii xddddddd */
 void encodesteer(char *target, unsigned short index, unsigned short tickdelta, unsigned char turnchange) {
 	target[0] = 7 & index;
 	target[0] |= (1 & turnchange) << 3;
-	target[0] |= (16 + 32 + 64) & (tickdelta << 4); // first three bits of d
-	target[1] = 127 & (tickdelta >> 3); // last 7 bits of d
+	target[0] |= (16 + 32 + 64) & (tickdelta << 4);
+	target[1] = 127 & (tickdelta >> 3);
+}
+
+char turnchange(char newturn, char oldturn) {
+	if(newturn == 1)
+		return 1;
+
+	if(newturn == -1)
+		return 0;
+
+	return oldturn == 1;
+}
+
+/* handles steer message, timeouts and modifications */
+void steermsg(struct user *usr, int tick, int turn, int modified) {
+	char response[2];
+	int turndelta = turnchange(turn, usr->lastinputturn);
+	int tickdelta = tick - max(0, usr->lastinputtick);
+
+	/* not enough bits to encode tickdelta, work around this */
+	if(tickdelta >= (2 << 10)) {
+		tickupdatemsg(usr, tickdelta - 1);
+		tickdelta = 1;
+	}
+
+	encodesteer(response, usr->index, tickdelta, turndelta);
+	sendstrtogame(response, 2, usr->gm, usr);
+
+	if(modified)
+		modifiedmsg(usr, modified);
 }
 
 /******************************************************************
@@ -269,22 +333,6 @@ int strtopencilmode(char *pencilstr) {
 	if(!strcmp(pencilstr, "ondeath"))
 		return PM_ONDEATH;
 	return PM_OFF;
-}
-
-char turnchange(char newturn, char oldturn) {
-	if(newturn == 1)
-		return 1;
-
-	if(newturn == -1)
-		return 0;
-
-	if(oldturn == 1)
-		return 1;
-
-	return 0;
-
-	// kan deze niet functie korter als
-	// return newturn == 1 || oldturn == 1; ???
 }
 
 /******************************************************************
