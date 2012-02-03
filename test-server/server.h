@@ -26,6 +26,8 @@
 /* byte messages */
 #define MODE_MODIFIED 0
 #define MODE_TICKUPDATE 1
+#define MODE_PENCIL 2
+#define MODE_JSON 3
 
 /* debugging */
 #define DEBUG_MODE 1
@@ -57,9 +59,6 @@
 #define SPAM_SETTINGS_INTERVAL	4
 #define SPAM_STEERING_MAX		60
 #define SPAM_STEERING_INTERVAL	60
-
-/* byte messages */
-#define MSG_PENCIL 2
 
 /* pencil */
 #define PM_ON 0

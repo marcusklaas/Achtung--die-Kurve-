@@ -269,7 +269,7 @@ char turnchange(char newturn, char oldturn) {
 void steermsg(struct user *usr, int tick, int turn, int modified) {
 	char response[2];
 	int turndelta = turnchange(turn, usr->lastinputturn);
-	int tickdelta = tick - max(0, usr->lastinputtick);
+	int tickdelta = tick - usr->lastinputtick;
 
 	/* not enough bits to encode tickdelta, work around this */
 	if(tickdelta >= (2 << 10)) {

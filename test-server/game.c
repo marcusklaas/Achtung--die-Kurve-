@@ -883,11 +883,11 @@ void interpretinput(cJSON *json, struct user *usr) {
 	if(tick < usr->gm->tick) {
 		if(SHOW_WARNING)
 			printf("received msg from user %d of %d msec old! tick incremented by %d\n",
-			 usr->id, (int) (servermsecs() - usr->gm->start - time), minimumTick - tick);
-		tick += (modified = minimumTick - tick);
+			 usr->id, (int) (servermsecs() - usr->gm->start - time), usr->gm->tick - tick);
+		tick += (modified = usr->gm->tick - tick);
 	}
 	if(tick <= usr->lastinputtick)
-		tick += (modified = usr->lastinputtick + 1 - tick);
+		tick += (modified += usr->lastinputtick + 1 - tick);
 	
 	/* put it in user queue */
 	input = smalloc(sizeof(struct userinput));
@@ -956,7 +956,6 @@ void iniuser(struct user *usr, struct libwebsocket *wsi) {
 	memset(usr, 0, sizeof(struct user));
 	usr->id = usrc++;
 	usr->wsi = wsi;
-	usr->lastinputtick = -1;
 }
 
 void deleteuser(struct user *usr) {
@@ -992,7 +991,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 	
 	buf.start = 0;
 	allocroom(&buf, 200);
-	appendheader(&buf, MSG_PENCIL, u->index);
+	appendheader(&buf, MODE_PENCIL, u->index);
 	
 	while(json) {
 		int x, y;

@@ -184,32 +184,50 @@ GameEngine.prototype.updateTitle = function(title) {
 }
 
 GameEngine.prototype.parseByteMsg = function(str) {
-	var chars = strToBytes(str);
-	var mode = chars[0] & 7;
-
-	/* modified msg */
-	if(mode == 0) {
-		var input = (chars[0] & (127 - 7)) >> 3;
-		input |= chars[1] << 4;
-		input |= (chars[2] & 15) << 11;
-		var tickDelta = (chars[2] & (16 + 32 + 64)) >> 4;
-		tickDelta |= chars[3] << 3;
+	var a = str.charCodeAt(0);
+	var mode = a & 7;
+	
+	if(mode == modeJson)
+		return false;
+	
+	if(mode == modeModified) {
+		var b = str.charCodeAt(1);
+		var c = str.charCodeAt(2);
+		var d = str.charCodeAt(3);
+		
+		var input = (a & (127 - 7)) >> 3;
+		input |= b << 4;
+		input |= (c & 15) << 11;
+		var tickDelta = (c & (16 + 32 + 64)) >> 4;
+		tickDelta |= d << 3;
 
 		this.localPlayer.inputs[input].tick += tickDelta;
 		this.localPlayer.steer(this.localPlayer.inputs[input].tick, this.game.tick);
+		
+		return true;
 	}
-
-	/* tick update msg */
-	else if(mode == 1) {
-		var index = (chars[0] & (8 + 16 + 32)) >> 3;
-		var tickDelta = (chars[0] & 64) >> 6;
-		tickDelta |= (127 & chars[1]) << 1;
-		tickDelta |= (127 & chars[2]) << 8;
+	
+	var player = this.indexToPlayer[(a & (8 + 16 + 32)) >> 3];
+	
+	if(mode == modeTickUpdate) {
+		var b = str.charCodeAt(1);
+		var c = str.charCodeAt(2);
+	
+		var tickDelta = (a & 64) >> 6;
+		tickDelta |= (127 & b) << 1;
+		tickDelta |= (127 & c) << 8;
 
 		this.gameMessage('tick update, delta = ' + tickDelta);
 
-		var player = this.indexToPlayer[index];
-		player.lastInputTick += tickDelta; 
+		player.lastInputTick += tickDelta;
+		return true;
+	}
+	
+	var msg = new ByteMessage(str, 1);
+	switch(mode) {
+		case modePencil:
+			this.pencil.handleMessage(msg, player);
+			return true;
 	}
 }
 
@@ -224,10 +242,12 @@ GameEngine.prototype.decodeTurn = function(oldTurn, turnChange) {
 }
 
 GameEngine.prototype.parseSteerMsg = function(str) {
-	var chars = strToBytes(str);
-	var index = chars[0] & 7;
-	var turnChange = (chars[0] & 8) >> 3;
-	var tickDelta = ((chars[0] & (16 + 32 + 64)) >> 4) | (chars[1] << 3);
+	var a = str.charCodeAt(0);
+	var b = str.charCodeAt(1);
+	
+	var index = a & 7;
+	var turnChange = (a & 8) >> 3;
+	var tickDelta = ((a & (16 + 32 + 64)) >> 4) | (b << 3);
 	var player = this.indexToPlayer[index];
 	var oldTurn = player.turn;
 	var newTurn = this.decodeTurn(oldTurn, turnChange);
@@ -245,19 +265,9 @@ GameEngine.prototype.interpretMsg = function(msg) {
 
 	if(msg.data.length == 2)
 		return this.parseSteerMsg(msg.data);
-	if(msg.data.length <= 4)
-		return this.parseByteMsg(msg.data);
 	
-	var type = msg.data.charCodeAt(0) & 7;
-	if(type != messageJson) {
-		var player = this.getPlayerByIndex((msg.data.charCodeAt(0) & (8 + 16 + 32)) >> 3);
-		var msg = new ByteMessage(msg.data, 1);
-		switch(type) {
-			case messagePencil:
-				this.pencil.handleMessage(msg, player);
-				return;
-		}
-	}
+	if(this.parseByteMsg(msg.data))
+		return;
 	
 	try {
 		var obj = JSON.parse(msg.data);
@@ -1316,7 +1326,7 @@ Player.prototype.initialise = function(x, y, angle, holeStart) {
 	this.turn = 0;
 	this.inputs = [];
 	this.tick = 0;
-	this.lastInputTick = 0;
+	this.lastInputTick = -1;
 	this.lastSteerTick = -1;
 	this.finalTick = Infinity;
 	this.updateRow();
@@ -2299,12 +2309,6 @@ function setPencilMode(mode) {
 
 function getLength(x, y) {
 	return Math.sqrt(x * x + y * y);
-}
-
-function strToBytes(str) {
-	for(var chars = [], i = 0; i < 2; i++)
-		chars[i] = str.charCodeAt(i) & 0xFF;
-	return chars;
 }
 
 function findPos(obj) {
