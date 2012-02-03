@@ -1074,7 +1074,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 				struct pencilseg *pseg = smalloc(sizeof(struct pencilseg));
 				struct seg *seg = &pseg->seg;
 
-				
+				allocroom(&buf, 6);
 				appendpos(&buf, x, y);
 				if(lasttick == -1) {
 					appendpencil_full(&buf, 0, tickSolid);

@@ -1798,15 +1798,12 @@ Pencil.prototype.handleMessage = function(msg, player) {
 		var pos = msg.readPos();
 		var pen = msg.readPencil();
 		
-		if(pen.down) {
-			player.pencilX = pos[0];
-			player.pencilY = pos[1];
-		} else {
+		if(!pen.down) {
 			var tick;
 			
 			if(lastTick == -1) {
 				pen = msg.readPencilFull();
-				tick = data.tick;
+				tick = pen.tick;
 			} else {
 				tick = lastTick + pen.tickDifference;
 			}
@@ -1815,6 +1812,9 @@ Pencil.prototype.handleMessage = function(msg, player) {
 			this.drawSegment(seg.x1, seg.y1, seg.x2, seg.y2, player, pencilAlpha);
 			player.inbuffer.push(seg);	
 		}
+		
+		player.pencilX = pos[0];
+		player.pencilY = pos[1];
 	}
 }
 
