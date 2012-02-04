@@ -229,7 +229,7 @@ void modifiedmsg(struct user *usr, int tickdelta) {
 	response[1] = 127 & (index >> 4);
 	response[2] = 15 & (index >> 11);
 	response[2] |= (127 - 15) & (tickdelta << 4);
-	response[3] = 127 & (tickdelta >> 4);
+	response[3] = 127 & (tickdelta >> 3);
 
 	sendstr(response, 4, usr);
 }

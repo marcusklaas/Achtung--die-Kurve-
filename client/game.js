@@ -201,10 +201,14 @@ GameEngine.prototype.parseByteMsg = function(str) {
 		var tickDelta = (c & (16 + 32 + 64)) >> 4;
 		tickDelta |= d << 3;
 
-		this.gameMessage('modified, input = ' + input + ', delta = ' + tickDelta);
+		var newTick = this.localPlayer.inputs[input].tick + tickDelta;
 
-		this.localPlayer.inputs[input].tick += tickDelta;
-		this.localPlayer.steer(this.localPlayer.inputs[input].tick, this.tick);
+		this.gameMessage('modified, input = ' + input + ', delta = ' + tickDelta);
+		this.gameMessage('input tick = ' + this.localPlayer.inputs[input].tick);
+		this.gameMessage('game.tick = ' + this.tick);
+
+		this.localPlayer.inputs[input].tick = newTick;
+		this.localPlayer.steer(newTick, this.tick);
 		
 		return true;
 	}
@@ -1329,7 +1333,6 @@ Player.prototype.initialise = function(x, y, angle, holeStart) {
 	this.inputs = [];
 	this.tick = 0;
 	this.lastInputTick = -1;
-	this.lastSteerTick = -1;
 	this.finalTick = Infinity;
 	this.updateRow();
 	this.context.clearRect(0, 0, this.game.width, this.game.height);	
@@ -1614,6 +1617,8 @@ InputController.prototype.reset = function() {
 	this.leftTouch = null;
 	this.rightTouch = null;
 	this.pencilTouch = null;
+	this.lastSteerTick = -1;
+	this.lastSteerTurn = 0;
 }
 
 InputController.prototype.pressLeft = function() {
@@ -1641,16 +1646,19 @@ InputController.prototype.releaseRight = function() {
 }
 
 InputController.prototype.steerLocal = function(turn) {
+	if(turn == this.lastSteerTurn)
+		return;
+
 	var game = this.player.game;
 	var obj = {'turn': turn, 'tick': game.tick};
 
-	if(this.player.lastSteerTick == obj.tick)
-		obj.tick = ++this.player.lastSteerTick;
+	if(this.lastSteerTick == obj.tick)
+		obj.tick = ++this.lastSteerTick;
 	else
-		this.player.lastSteerTick = obj.tick;
-	
-	this.player.inputs.push(obj);
+		this.lastSteerTick = obj.tick;
 
+	this.lastSteerTurn = turn;
+	this.player.inputs.push(obj);
 	game.sendMsg('input', obj);
 }
 

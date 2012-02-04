@@ -56,11 +56,11 @@ var pencilAlpha = 0.2;
 /* debugging */
 var emulateTouch = false;
 var ultraVerbose = false;
-var simulatedPing = 0;
+var simulatedPing = 200;
 var extraGameStartTimeDifference = 0;
 var acceptGameTimeAdjustments = true;
 var jsProfiling = false;
-var simulateCPUlag = false;
+var simulateCPUlag = true;
 var debugBaseContext = false; // sets different color for segments in basecontext
 var displayDebugStatus = false;
 var debugRewards = false;
