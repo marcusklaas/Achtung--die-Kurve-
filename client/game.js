@@ -203,10 +203,6 @@ GameEngine.prototype.parseByteMsg = function(str) {
 
 		var newTick = this.localPlayer.inputs[input].tick + tickDelta;
 
-		this.gameMessage('modified, input = ' + input + ', delta = ' + tickDelta);
-		this.gameMessage('input tick = ' + this.localPlayer.inputs[input].tick);
-		this.gameMessage('game.tick = ' + this.tick);
-
 		this.localPlayer.inputs[input].tick = newTick;
 		this.localPlayer.steer(newTick, this.tick);
 		
@@ -222,8 +218,6 @@ GameEngine.prototype.parseByteMsg = function(str) {
 		var tickDelta = (a & 64) >> 6;
 		tickDelta |= (127 & b) << 1;
 		tickDelta |= (127 & c) << 8;
-
-		this.gameMessage('tick update, delta = ' + tickDelta);
 
 		player.lastInputTick += tickDelta;
 		return true;
@@ -2249,7 +2243,9 @@ window.onload = function() {
 		}
 	}
 	
-	echo = function(msg) { game.gameMessage(msg); }; // for debug purposes (please do not remove)
+	// for debug purposes
+	echo = function(msg) { game.gameMessage(msg); };
+	engine = game;
 
 	/* add event handlers to schedule paramupdate message when game options are changed */
 	var inputElts = document.getElementById('details').getElementsByTagName('input');

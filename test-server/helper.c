@@ -239,8 +239,6 @@ void modifiedmsg(struct user *usr, int tickdelta) {
 void tickupdatemsg(struct user *usr, int tickdelta) {
 	char response[3];
 
-	printf("sending tickupdate, delta = %d\n", tickdelta);
-
 	response[0] = 7 & MODE_TICKUPDATE;
 	response[0] |= (8 + 16 + 32) & (usr->index << 3);
 	response[0] |= 64 & (tickdelta << 6);
@@ -270,7 +268,7 @@ char turnchange(char newturn, char oldturn) {
 }
 
 /* handles steer message, timeouts and modifications */
-void steermsg(struct user *usr, int tick, int turn, int modified) {
+void steermsg(struct user *usr, int tick, int turn, int delay) {
 	char response[2];
 	int turndelta = turnchange(turn, usr->lastinputturn);
 	int tickdelta = tick - usr->lastinputtick;
@@ -284,8 +282,8 @@ void steermsg(struct user *usr, int tick, int turn, int modified) {
 	encodesteer(response, usr->index, tickdelta, turndelta);
 	sendstrtogame(response, 2, usr->gm, usr);
 
-	if(modified)
-		modifiedmsg(usr, modified);
+	if(delay)
+		modifiedmsg(usr, delay);
 }
 
 void allocroom(struct buffer *buf, int size) {

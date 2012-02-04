@@ -868,8 +868,8 @@ void interpretinput(cJSON *json, struct user *usr) {
 	struct userinput *input;
 	int turn = jsongetint(json, "turn");
 	int tick = jsongetint(json, "tick");
+	int delay, msgtick = tick;
 	int time = tick * TICK_LENGTH + TICK_LENGTH/ 2;
-	int modified = 0; // the number of ticks the input has been delayed
 	cJSON *j;
 	
 	/* some checks */
@@ -888,16 +888,18 @@ void interpretinput(cJSON *json, struct user *usr) {
 		if(SHOW_WARNING)
 			printf("received msg from user %d of %d msec old! tick incremented by %d\n",
 			 usr->id, (int) (servermsecs() - usr->gm->start - time), usr->gm->tick - tick);
-		tick += (modified = usr->gm->tick - tick);
+		tick = usr->gm->tick;
 	}
 	if(tick <= usr->lastinputtick)
-		tick += (modified += usr->lastinputtick + 1 - tick);
+		tick = usr->lastinputtick + 1;
+	delay = tick - msgtick;
 	
 	/* put it in user queue */
 	input = smalloc(sizeof(struct userinput));
 	input->tick = tick;
 	input->turn = turn;
 	input->nxt = 0;
+	
 	if(!usr->inputtail)
 		usr->inputhead = usr->inputtail = input;
 	else
@@ -939,7 +941,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 		}
 	}
 
-	steermsg(usr, tick, turn, modified);
+	steermsg(usr, tick, turn, delay);
 	usr->lastinputtick = tick;
 	usr->lastinputturn = turn;
 	usr->inputcount++;
