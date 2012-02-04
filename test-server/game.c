@@ -199,6 +199,14 @@ struct map *createmap(cJSON *j) {
 		seg->y1 = jsongetint(j, "y1");
 		seg->x2 = jsongetint(j, "x2");
 		seg->y2 = jsongetint(j, "y2");
+		
+		if(!seginside(seg, MAX_GAME_WIDTH, MAX_GAME_HEIGHT)) {
+			if(SHOW_WARNING)
+				printf("some host made custom map with segments outside max boundaries\n");
+			free(seg);
+			break;
+		}
+		
 		seg->nxt = map->seg;
 		map->seg = seg;
 		j = j->next;
@@ -405,6 +413,9 @@ void joingame(struct game *gm, struct user *newusr) {
 		json = getjsongamepars(gm);
 		sendjson(json, newusr);
 		jsondel(json);
+		
+		if(gm->map)
+			sendmap(gm->map, newusr);
 	}
 
 	if(gm->type == GT_AUTO && gm->n >= gm->nmin)
@@ -434,7 +445,7 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	gm->pencilmode = PM_DEFAULT;
 	gm->pointsys = pointsystem_rik;
 	gm->nxt = headgame;
-	gm->goal = ceil(AUTO_ROUNDS * roundavgpts(2, gm->pointsys));
+	gm->goal = 12;//temporary //ceil(AUTO_ROUNDS * roundavgpts(2, gm->pointsys));
 	gm->torus = TORUS_MODE;
 	gm->inkcap = MAX_INK;
 	gm->inkregen = INK_PER_SEC;

@@ -296,8 +296,8 @@ callback_game(struct libwebsocket_context * context,
 				printf("Setting params for game %p.\n", (void *) u->gm);
 
 			u->gm->paramupd = servermsecs();
-			u->gm->w = min(2048, max(100, jsongetint(json, "w")));
-			u->gm->h = min(1024, max(100, jsongetint(json, "h")));
+			u->gm->w = min(MAX_GAME_WIDTH, max(100, jsongetint(json, "w")));
+			u->gm->h = min(MAX_GAME_HEIGHT, max(100, jsongetint(json, "h")));
 			u->gm->v = min(1000, max(0, jsongetint(json, "v")));
 			u->gm->ts = min(10, max(0, jsongetfloat(json, "ts"))); 
 			u->gm->hsize = min(1000, max(0, jsongetint(json, "hsize")));
@@ -329,13 +329,14 @@ callback_game(struct libwebsocket_context * context,
 
 			j = jsoncheckjson(json, "segments");
 			if(j) {
-				cJSON *root = jsoncreate("setMap");
+				struct buffer buf;
+				struct seg *seg;
+				
 				if(u->gm->map)
 					freemap(u->gm->map);
 				u->gm->map = createmap(j->child);
-				jsonaddjson(root, "segments", encodesegments(u->gm->map->seg));
-				sendjsontogame(root, u->gm, 0);
-				jsondel(root);
+				
+				sendmaptogame(u->gm->map, u->gm, u);
 			}
 
 			startgame(u->gm);

@@ -1,6 +1,8 @@
 #define EPS 0.0001
 #define GAME_WIDTH 1024
 #define GAME_HEIGHT 644
+#define MAX_GAME_WIDTH 2047
+#define MAX_GAME_HEIGHT 1023
 #define TILE_SIZE_MULTIPLIER 10 // tilesize/ segmentlength
 #define VELOCITY 70 // pixels per sec
 #define TURN_SPEED 2.5 // radians per sec
@@ -28,6 +30,8 @@
 #define MODE_TICKUPDATE 1
 #define MODE_PENCIL 2
 #define MODE_JSON 3
+#define MODE_OTHER 7
+#define MODE_SETMAP (8 + 7)
 
 /* debugging */
 #define DEBUG_MODE 1
@@ -207,3 +211,6 @@ void killplayer(struct user *usr);
 int pointsystem_trivial(int players, int alive);
 int pointsystem_wta(int players, int alive);
 int pointsystem_rik(int players, int alive);
+void allocroom(struct buffer *buf, int size);
+void appendheader(struct buffer *buf, char type, char player);
+void appendpos(struct buffer *buf, int x, int y);

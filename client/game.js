@@ -209,12 +209,12 @@ GameEngine.prototype.parseByteMsg = function(str) {
 		return true;
 	}
 	
-	var player = this.indexToPlayer[(a & (8 + 16 + 32)) >> 3];
 	
 	if(mode == modeTickUpdate) {
 		var b = str.charCodeAt(1);
 		var c = str.charCodeAt(2);
 	
+		var player = this.indexToPlayer[(a & (8 + 16 + 32)) >> 3];
 		var tickDelta = (a & 64) >> 6;
 		tickDelta |= (127 & b) << 1;
 		tickDelta |= (127 & c) << 8;
@@ -223,9 +223,25 @@ GameEngine.prototype.parseByteMsg = function(str) {
 		return true;
 	}
 	
-	var msg = new ByteMessage(str, 1);
+	if(mode == modeOther) {
+		mode = a;
+		switch(mode) {
+			case modeSetMap:
+				var msg = new ByteMessage(str, 1);
+				this.mapSegments = [];
+				while(msg.at < msg.data.length) {
+					var posA = msg.readPos();
+					var posB = msg.readPos();
+					this.mapSegments.push({x1: posA[0], y1: posA[1], x2: posB[0], y2: posB[1]});
+				}
+			return true;
+		}
+	}
+	
 	switch(mode) {
 		case modePencil:
+			var msg = new ByteMessage(str, 1);
+			var player = this.indexToPlayer[(a & (8 + 16 + 32)) >> 3];
 			this.pencil.handleMessage(msg, player);
 			return true;
 	}
@@ -324,9 +340,6 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			newPlayer.playerName = escapeString(obj.playerName);
 			this.addPlayer(newPlayer);
 			this.audioController.playSound('newPlayer');
-			break;
-		case 'setMap':
-			this.mapSegments = obj.segments;
 			break;
 		case 'startGame':
 			/* keep displaying old game for a while so ppl can see what happened */
@@ -812,6 +825,7 @@ GameEngine.prototype.sendStartGame = function() {
 	if(this.editor.mapChanged) {
 		obj.segments = this.editor.segments;
 		this.editor.mapChanged = false;
+		this.mapSegments = this.editor.segments;
 	}
 
 	this.sendMsg('startGame', obj);
@@ -1830,7 +1844,8 @@ Pencil.prototype.handleMessage = function(msg, player) {
 			}
 			
 			var seg = {x1: player.pencilX, y1: player.pencilY, x2: pos[0], y2: pos[1], tickSolid: tick};
-			this.drawSegment(seg.x1, seg.y1, seg.x2, seg.y2, player, pencilAlpha);
+			if(player != this.game.localPlayer)
+				this.drawSegment(seg.x1, seg.y1, seg.x2, seg.y2, player, pencilAlpha);
 			player.inbuffer.push(seg);
 			lastTick = tick;
 		}

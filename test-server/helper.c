@@ -183,6 +183,7 @@ void sendstr(char *str, int len, struct user *u) {
 		memcpy(tmp, buf + PRE_PADDING, len);
 		tmp[len] = 0;
 		printf("queued msg %s for user %d\n", tmp, u->id);
+		free(tmp);
 	}
 
 	libwebsocket_callback_on_writable(ctx, u->wsi);
@@ -191,6 +192,7 @@ void sendstr(char *str, int len, struct user *u) {
 void sendjson(cJSON *json, struct user *u) {
 	char *buf = jsonprint(json);
 	sendstr(buf, strlen(buf), u);
+	free(buf);
 }
 
 void sendstrtogame(char *msg, int len, struct game *gm, struct user *outsider) {
@@ -205,10 +207,39 @@ void sendstrtogame(char *msg, int len, struct game *gm, struct user *outsider) {
 void sendjsontogame(cJSON *json, struct game *gm, struct user *outsider) {
 	char *buf = jsonprint(json);
 	sendstrtogame(buf, strlen(buf), gm, outsider);
+	free(buf);
 }
 
 char *duplicatestring(char *orig) {
 	return strcpy(smalloc(strlen(orig) + 1), orig);
+}
+
+struct buffer encodemap(struct map *map) {
+	struct buffer buf;
+	struct seg *seg = map->seg;
+	
+	buf.start = 0;
+	allocroom(&buf, 200);
+	appendheader(&buf, MODE_SETMAP, 0);
+	while(seg) {
+		allocroom(&buf, 6);
+		appendpos(&buf, seg->x1, seg->y1);
+		appendpos(&buf, seg->x2, seg->y2);
+		seg = seg->nxt;
+	}
+	return buf;
+}
+
+void sendmaptogame(struct map *map, struct game *gm, struct user *outsider) {
+	struct buffer buf = encodemap(map);
+	sendstrtogame(buf.start, buf.at - buf.start, gm, outsider);
+	free(buf.start);
+}
+
+void sendmap(struct map *map, struct user *usr) {
+	struct buffer buf = encodemap(map);
+	sendstr(buf.start, buf.at - buf.start, usr);
+	free(buf.start);
 }
 
 /******************************************************************
@@ -420,6 +451,11 @@ static long servermsecs() {
 
 float getlength(float x, float y) {
 	return sqrt(x * x + y * y);
+}
+
+char seginside(struct seg *seg, int w, int h) {
+	return min(seg->x1, seg->x2) >= 0 && min(seg->y1, seg->y2) >= 0 &&
+	 max(seg->x1, seg->x2) <= w && max(seg->y1, seg->y2) <= h;
 }
 
 /******************************************************************
