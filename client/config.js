@@ -35,7 +35,7 @@ var rewardHeight = 18;
 var maxHiddenRewards = 20;
 var startedGamesDisplay = 'below'; // show, below or hide
 
-var safeTickDifference = 60; // TODO: should depend on 2*ping & SERVER_DELAY
+var safeTickDifference = 30;
 var resizeDelay = 200; // the duration the window should have a constant size before calling resize
 var paramUpdateInterval = 500; // don't send game intervals more often that one per this many msecs
 var paramInputInterval = 2000; // wait for this duration before sending params to server after text edit
@@ -56,7 +56,7 @@ var pencilAlpha = 0.2;
 /* debugging */
 var emulateTouch = false;
 var ultraVerbose = false;
-var simulatedPing = 200;
+var simulatedPing = 0;
 var extraGameStartTimeDifference = 0;
 var acceptGameTimeAdjustments = true;
 var jsProfiling = false;
@@ -72,7 +72,7 @@ var modePencil = 2;
 var modeJson = 3;
 
 /* editor */
-var editorStepTime = 100;
+var editorStepTime = 125;
 var mapSegmentColor = [96, 96, 96];
 
 /* these are the segment RGBs for the players */

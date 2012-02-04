@@ -31,6 +31,7 @@ i is for player index
 j is for input index
 t is for turn change. always 2 options for turn. 0 encodes the most left option, 1 the most right
 m is for mode
+. is for free bit
 
 input message
 NOTE: does not have mode member!
@@ -42,13 +43,19 @@ layout: xjjjjmmm xjjjjjjj xdddjjjj xddddddd
 tick update message
 layout: xdiiimmm xddddddd xddddddd
 
+pencil message
+variable length message. consists of header and one or more pencil actions. header contains message type and player index. every pencil action starts with 3 bytes for pencil position. then one byte with information about the pencil action. this byte contains the tick difference and action type (pencil down or pencil move). for a pencil down action the tick difference is not used. moreover, the first pencil move action in a message is 6 bytes long, where the two extra bytes are used for an absolute tick instead of a tick difference. the first tick difference is then with respect to this absolute tick.
+header: x.iiimmm
+pencil action information byte: xddddddp (p for pencil action type: 1 = pencil down, 0 = pencil move)
+extra 2 bytes: xddddddd xddddddd
+
+position on the map is encoded in 3 bytes
+layout: xxxxxxx yyyxxxx yyyyyyy (x for x position, y for y position, and only first 7 bits of each byte are shown)
+ 
+
 = more info =
 
 - pencil -
-you start with maxInk ink. RE: don't you start with startInk ink, which may or may not be maxInk, depending on what server dictates?
+you start with startInk ink
 every tick you get inkPerSec * tickLength ink, taking maxInk into account.
 you have three actions: pencilDown, pencilMove and pencilUp. all are sent through the pencil message. you will receive drawings from other players also through a pencil message.
-
-
-======= BYTE MESSAGES ======
-komt nog.. TURNCHANGE werkt zo: er zijn altijd 2 opties: 0 is de meest linker optie, 1 is de meest rechter optie -- moet in PROTOCOL

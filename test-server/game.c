@@ -799,6 +799,10 @@ void killplayer(struct user *victim) {
 	struct game *gm = victim->gm;
 	struct user *usr;
 	int reward = gm->pointsys(gm->rsn, gm->alive -= victim->alive--);
+	
+	if(gm->pencilmode == PM_ONDEATH) {
+		victim->pencil.tick = gm->tick;
+	}
 
 	for(usr = gm->usr; usr; usr = usr->nxt)
 		if(usr->alive)
@@ -998,8 +1002,8 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 		int tick;
 		char type;
 
-		if(PENCIL_DEBUG)
-			printf("start reading next block .. ");
+		if(ULTRA_VERBOSE)
+			printf("start reading next pencil block .. ");
 		
 		/* read next block */
 		type = json->valueint;
@@ -1011,7 +1015,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 		tick = json->valueint;
 		json = json->next;
 
-		if(PENCIL_DEBUG)
+		if(ULTRA_VERBOSE)
 			printf("done\n");
 		
 		if(tick < p->tick || x < 0 || y < 0 || x > u->gm->w || y > u->gm->h) {

@@ -296,8 +296,8 @@ callback_game(struct libwebsocket_context * context,
 				printf("Setting params for game %p.\n", (void *) u->gm);
 
 			u->gm->paramupd = servermsecs();
-			u->gm->w = min(2000, max(100, jsongetint(json, "w")));
-			u->gm->h = min(2000, max(100, jsongetint(json, "h")));
+			u->gm->w = min(2048, max(100, jsongetint(json, "w")));
+			u->gm->h = min(1024, max(100, jsongetint(json, "h")));
 			u->gm->v = min(1000, max(0, jsongetint(json, "v")));
 			u->gm->ts = min(10, max(0, jsongetfloat(json, "ts"))); 
 			u->gm->hsize = min(1000, max(0, jsongetint(json, "hsize")));

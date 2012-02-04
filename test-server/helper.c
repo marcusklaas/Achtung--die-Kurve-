@@ -312,12 +312,12 @@ void appendheader(struct buffer *buf, char type, char player) {
 
 void appendpos(struct buffer *buf, int x, int y) {
 	*buf->at++ = x & 127;
-	*buf->at++ = x >> 7 & 15 | y << 4 & (16 + 32 + 64); // compilert vindt dit niet leuk en ik kan eerlijk gezegd ook niet zien wat eerst gaat :P
+	*buf->at++ = (x >> 7 & 15) | (y << 4 & (16 + 32 + 64));
 	*buf->at++ = y >> 3 & 127;
 }
 
 void appendpencil(struct buffer *buf, char down, int tick) {
-	*buf->at++ = down | tick << 1 & 127;
+	*buf->at++ = down | (tick << 1 & 127);
 }
 
 void appendpencil_full(struct buffer *buf, char down, int tick) {

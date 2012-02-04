@@ -366,7 +366,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			var player = this.getPlayer(obj.playerId);
 			
 			if(this.state != 'lobby')
-				this.gameMessage(player.playerName + " left the game");
+				this.gameMessage(player.playerName + ' left the game');
 
 			this.removePlayer(player);
 			break;
@@ -378,10 +378,8 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			player.updateRow();
 	
 			if(player == this.localPlayer) {
-				if(this.pencilMode == 'ondeath') {
-					this.pencil.drawingAllowed = true;
-					document.getElementById('inkIndicator').style.display = 'block';
-				}
+				if(this.pencilMode == 'ondeath') 
+					this.pencil.enable(obj.tick);
 				else
 					this.setGameState('watching');
 				this.audioController.playSound('localDeath');
@@ -847,6 +845,9 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 		 startPositions[i].holeStart);
 	}
 	
+	if(this.pencilMode == 'on')
+		this.pencil.enable(0);
+	
 	for(var i in this.players) {
 		var player = this.players[i];
 		if(player.status == 'left')
@@ -896,8 +897,8 @@ GameEngine.prototype.realStart = function() {
 				self.displayRewards(1);
 
 			if(tellert++ > 100) {
-		 		this.gameMessage("ERROR. stopping gameloop. debug information: next tick time = " +
-		 		 ((self.tick + 1) * self.tickLength) + ", current game time = " + 
+		 		this.gameMessage('ERROR. stopping gameloop. debug information: next tick time = ' +
+		 		 ((self.tick + 1) * self.tickLength) + ', current game time = ' + 
 		 		 (Date.now() - self.gameStartTimestamp));
 		 		return;
 		 	}
@@ -1015,7 +1016,7 @@ GameEngine.prototype.resize = function() {
 	for(var i in this.players) {
 		var player = this.players[i];
 		
-		if(player.status == "ready")
+		if(player.status == 'ready')
 			continue;
 		
 		player.canvas.width = scaledWidth;
@@ -1213,8 +1214,12 @@ Player.prototype.finalSteer = function(obj) {
 		return;
 	
 	this.loadLocation();
-	this.simulate(tick, this.game.baseContext);
-	this.context.clearRect(0, 0, this.game.width, this.game.height);
+	if(this.tick > tick)
+		this.game.resize();
+	else {
+		this.simulate(tick, this.game.baseContext);
+		this.context.clearRect(0, 0, this.game.width, this.game.height);
+	}
 }
 
 Player.prototype.simulate = function(endTick, ctx) {
@@ -1686,7 +1691,8 @@ AudioController.prototype.playSound = function(name) {
  */
 function Pencil(game) {
 	this.game = game;
-	this.indicator = document.getElementById('ink');
+	this.inkDiv = document.getElementById('ink');
+	this.indicator = document.getElementById('inkIndicator');
 }
 
 /* pos is scaled location */
@@ -1701,13 +1707,18 @@ Pencil.prototype.startDraw = function(pos) {
 	this.down = true;
 }
 
+Pencil.prototype.enable = function(tick) {
+	this.indicator.style.display = 'block';
+	this.drawingAllowed = true;
+	this.setInk(this.startInk + this.inkPerSec / 1000 * this.game.tickLength * (this.game.tick - tick));
+}
+
 Pencil.prototype.reset = function() {
-	this.drawingAllowed = (this.game.pencilMode == 'on');
-	document.getElementById('inkIndicator').style.display = this.drawingAllowed ? 'block' : 'none';
 	this.outbuffer = [];
 	this.down = false;
 	this.upped = false;
-	this.setInk(this.startInk);
+	this.drawingAllowed = false;
+	this.indicator.style.display = 'none';
 
 	for(var i in this.game.players) {
 		var player = this.game.players[i];
@@ -1718,11 +1729,12 @@ Pencil.prototype.reset = function() {
 
 Pencil.prototype.setInk = function(ink) {
 	this.ink = Math.min(this.maxInk, ink);
-	this.indicator.style.height = ( 100 * this.ink/ this.maxInk ) + '%'; // kan ook width zijn
+	this.inkDiv.style.height = ( 100 * Math.max(0, this.ink) / this.maxInk ) + '%';
 }
 
 Pencil.prototype.doTick = function() {
-	this.setInk(this.ink + this.inkPerSec / 1000 * this.game.tickLength);
+	if(this.drawingAllowed)
+		this.setInk(this.ink + this.inkPerSec / 1000 * this.game.tickLength);
 
 	if(this.drawingAllowed && (this.down || this.upped)) {
 		var x = this.curX;
@@ -1962,14 +1974,17 @@ Editor = function(game) {
 
 Editor.prototype.onmouse = function(type, ev) {
 	var pos;
-	
 	if(ev == undefined)
 		pos = this.curPos;
 	else	
 		pos = this.curPos = this.game.getGamePos(ev);
+	
+	var x = pos[0];
+	var y = pos[1];
 
 	if(type == 'down' || (this.out && type == 'over' && this.down)) {
-		this.lastPos = pos;
+		this.x = x;
+		this.y = y;
 		this.lastTime = Date.now();
 		this.out = false;
 		this.down = true;
@@ -1977,12 +1992,13 @@ Editor.prototype.onmouse = function(type, ev) {
 	
 	else if(this.down && (type == 'out' || type == 'up' || 
 	 (type == 'move' && Date.now() - this.lastTime > editorStepTime))) {
-	 	if(!this.out) {
-			var seg = new BasicSegment(this.lastPos[0], this.lastPos[1], pos[0], pos[1]);
+	 	if(!this.out && (this.x != x || this.y != y)) {
+			var seg = new BasicSegment(this.x, this.y, x, y);
 			this.segments.push(seg);
 			this.mapChanged = true;
 			this.drawSegment(seg);
-			this.lastPos = pos;
+			this.x = x;
+			this.y = y;
 			this.lastTime = Date.now();
 		}
 		if(type == 'out')
@@ -2090,14 +2106,14 @@ window.onload = function() {
 	function connect() {
 		var playerName = document.getElementById('playername').value;
 
-		if(typeof playerName != "string" || playerName.length < 1 || playerName.length > game.maxNameLen) {
+		if(typeof playerName != 'string' || playerName.length < 1 || playerName.length > game.maxNameLen) {
 			game.gameMessage('Enter a cool nickname please (no longer than ' + game.maxNameLen + ' chars)');
 			return;
 		}
 
 		setCookie('playerName', localPlayer.playerName = playerName, 30);
 
-		game.connect(serverURL, "game-protocol", function() {
+		game.connect(serverURL, 'game-protocol', function() {
 			game.joinLobby(localPlayer);
 		});
 		game.connectButton.disabled = true;
@@ -2137,7 +2153,7 @@ window.onload = function() {
 	game.disconnectButton = document.getElementById('disconnect');
 	game.disconnectButton.addEventListener('click', function() {
 		game.websocket.close(1000);
-		this.setGameState('new');
+		game.setGameState('new');
 	}, false);
 	
 	game.backButton = document.getElementById('back');
@@ -2168,7 +2184,7 @@ window.onload = function() {
 	}
 	
 	/* auto connect if name is known */
-	if(playerName != null && playerName != "") {
+	if(playerName != null && playerName != '') {
 		document.getElementById('playername').value = playerName;
 		connect();
 	}
@@ -2246,24 +2262,24 @@ window.onload = function() {
 
 /* canvas context color setter */
 function setLineColor(ctx, color, alpha) {
-	ctx.strokeStyle = "rgba(" + color[0] + ", " + color[1] + ", "
-	 + color[2] + ", " + alpha + ")";
+	ctx.strokeStyle = 'rgba(' + color[0] + ', ' + color[1] + ', '
+	 + color[2] + ', ' + alpha + ')';
 }
 
 /* cookies */
 function setCookie(c_name, value, exdays) {
 	var exdate = new Date();
 	exdate.setDate(exdate.getDate() + exdays);
-	var c_value = escape(value) + ((exdays==null) ? "" : "; expires="+exdate.toUTCString());
-	document.cookie = c_name + "=" + c_value;
+	var c_value = escape(value) + ((exdays==null) ? '' : '; expires='+exdate.toUTCString());
+	document.cookie = c_name + '=' + c_value;
 }
 
 function getCookie(c_name) {
-	var i, x, y, ARRcookies=document.cookie.split(";");
+	var i, x, y, ARRcookies=document.cookie.split(';');
 	for (i = 0; i<ARRcookies.length; i++) {
-		x = ARRcookies[i].substr(0,ARRcookies[i].indexOf("="));
-		y = ARRcookies[i].substr(ARRcookies[i].indexOf("=")+1);
-		x = x.replace(/^\s+|\s+$/g,"");
+		x = ARRcookies[i].substr(0,ARRcookies[i].indexOf('='));
+		y = ARRcookies[i].substr(ARRcookies[i].indexOf('=')+1);
+		x = x.replace(/^\s+|\s+$/g,'');
 		if (x == c_name)
 			return unescape(y);
 	}

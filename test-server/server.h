@@ -67,7 +67,7 @@
 #define PM_DEFAULT PM_ON
 #define INK_PER_SEC 25
 #define MAX_INK 200
-#define START_INK MAX_INK
+#define START_INK 0//MAX_INK
 #define MOUSEDOWN_INK 30
 #define INK_MIN_DISTANCE 5
 #define INK_SOLID 5000
