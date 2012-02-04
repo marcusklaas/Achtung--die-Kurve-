@@ -255,8 +255,9 @@ GameEngine.prototype.parseSteerMsg = function(str) {
 	var turnChange = (a & 8) >> 3;
 	var tickDelta = ((a & (16 + 32 + 64)) >> 4) | (b << 3);
 	var player = this.indexToPlayer[index];
-	var newTurn = this.decodeTurn(player.turn, turnChange);
+	var newTurn = this.decodeTurn(player.lastInputTurn, turnChange);
 	var tick = player.lastInputTick += tickDelta;
+	player.lastInputTurn = newTurn;
 
 	player.inputs.push({tick: tick, turn: newTurn});
 	
@@ -1338,6 +1339,7 @@ Player.prototype.initialise = function(x, y, angle, holeStart) {
 	this.inputs = [];
 	this.tick = 0;
 	this.lastInputTick = -1;
+	this.lastInputTurn = 0;
 	this.finalTick = Infinity;
 	this.updateRow();
 	this.context.clearRect(0, 0, this.game.width, this.game.height);	
