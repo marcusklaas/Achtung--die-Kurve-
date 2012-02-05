@@ -311,7 +311,6 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.localPlayer.id = obj.playerId.toString();
 			this.tickLength = obj.tickLength;
 			this.pencil.inkMinimumDistance = obj.inkMinimumDistance;
-			this.maxNameLen = obj.maxNameLength;
 			break;
 		case 'joinedGame':
 			this.resetPlayers();
@@ -387,6 +386,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 				this.gameMessage(player.playerName + ' left the game');
 
 			this.removePlayer(player);
+			this.audioController.playSound('playerLeft');
 			break;
 		case 'playerDied':
 			var player = this.getPlayer(obj.playerId);
@@ -450,6 +450,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.handleSyncResponse(obj.time);
 			break;
 		case 'chat':
+			this.audioController.playSound('chat');
 			this.printChat(this.getPlayer(obj.playerId), obj.message);
 			break;
 		case 'newGame':
@@ -2084,11 +2085,14 @@ window.onload = function() {
 	var audioController = game.audioController;
 
 	/* add sounds to controller */
-	audioController.addSound('localDeath', 'sounds/wilhelm', ['ogg']);
-	audioController.addSound('countdown', 'sounds/countdown', ['wav']);
-	audioController.addSound('newPlayer', 'sounds/playerjoint', ['wav']);
-	audioController.addSound('gameStart', 'sounds/whip', ['wav']);
-	audioController.addSound('localWin', 'sounds/winning', ['mp3']);
+	audioController.addSound('localDeath', 'sounds/wilhelm', ['ogg', 'mp3']);
+	audioController.addSound('localDeath', 'sounds/loser', ['ogg', 'mp3']);
+	audioController.addSound('countdown', 'sounds/countdown', ['ogg', 'mp3']);
+	audioController.addSound('playerLeft', 'sounds/doorclose', ['ogg', 'mp3']);
+	audioController.addSound('newPlayer', 'sounds/enter', ['ogg', 'mp3']);
+	audioController.addSound('gameStart', 'sounds/whip', ['ogg', 'mp3']);
+	audioController.addSound('localWin', 'sounds/winner', ['ogg', 'mp3']);
+	audioController.addSound('chat', 'sounds/beep', ['ogg', 'mp3']);
 
 	/* add listener for chat submit */
 	document.getElementById('chatForm').addEventListener('submit', function(e) {
@@ -2120,8 +2124,8 @@ window.onload = function() {
 	function connect() {
 		var playerName = document.getElementById('playername').value;
 
-		if(typeof playerName != 'string' || playerName.length < 1 || playerName.length > game.maxNameLen) {
-			game.gameMessage('Enter a cool nickname please (no longer than ' + game.maxNameLen + ' chars)');
+		if(typeof playerName != 'string' || playerName.length < 1 || playerName.length > maxNameLength) {
+			game.gameMessage('Enter a cool nickname please (no longer than ' + maxNameLength + ' chars)');
 			return;
 		}
 

@@ -66,6 +66,7 @@ var debugRewards = false;
 var alwaysHideSidebar = false;
 
 /* server.h copy */
+var maxNameLength = 20;
 var modeModified = 0;
 var modeTickUpdate = 1;
 var modePencil = 2;
