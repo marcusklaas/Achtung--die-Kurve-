@@ -163,6 +163,7 @@ GameEngine.prototype.hideSidebar = function() {
 	if(this.sidebar.style.display == 'none')
 		return;
 
+	this.canvasLeft = 0;
 	this.sidebar.style.display = 'none';
 	document.getElementById('menuButton').innerHTML = '&gt;';
 	document.getElementById('content').style.paddingLeft = '0px';
@@ -175,6 +176,7 @@ GameEngine.prototype.showSidebar = function() {
 	this.sidebar.style.display = 'block';
 	document.getElementById('menuButton').innerHTML = '&lt;';
 	document.getElementById('content').style.paddingLeft = '301px';
+	this.canvasLeft = 301;
 }
 
 GameEngine.prototype.joinGame = function(gameId) {
@@ -1683,12 +1685,13 @@ InputController.prototype.steerLocal = function(turn) {
 
 /* Audio manager */
 function AudioController() {
-	this.sounds = new Array();
+	this.sounds = [];
 }
 
 AudioController.prototype.addSound = function(name, file, formats) {	
-	if(typeof this.sounds[name] != 'object')
+	if(this.sounds[name] == undefined)
 		this.sounds[name] = [];
+
 	this.sounds[name].push(new buzz.sound(file, {'formats': formats}));
 }
 
@@ -2089,7 +2092,7 @@ window.onload = function() {
 	audioController.addSound('localDeath', 'sounds/loser', ['ogg', 'mp3']);
 	audioController.addSound('countdown', 'sounds/countdown', ['ogg', 'mp3']);
 	audioController.addSound('playerLeft', 'sounds/doorclose', ['ogg', 'mp3']);
-	audioController.addSound('newPlayer', 'sounds/enter', ['ogg', 'mp3']);
+	audioController.addSound('newPlayer', 'sounds/playerjoint', ['ogg', 'wav']);
 	audioController.addSound('gameStart', 'sounds/whip', ['ogg', 'mp3']);
 	audioController.addSound('localWin', 'sounds/winner', ['ogg', 'mp3']);
 	audioController.addSound('chat', 'sounds/beep', ['ogg', 'mp3']);

@@ -19,7 +19,7 @@
 #define POST_PADDING LWS_SEND_BUFFER_POST_PADDING
 #define SHOW_DELAY 0
 #define MIN_WIN_DIFF 1 // minimum point lead required to win a game
-#define AUTO_ROUNDS 5 // number of expected rounds in automatch
+#define AUTO_ROUNDS 7 // number of expected rounds in automatch
 #define MAX_PLAYERSTART_TRIES 100
 #define TORUS_MODE 0
 #define GAMELIST_UPDATE_INTERVAL 10000
@@ -46,7 +46,7 @@
 #define MAX_NAME_LENGTH 20
 #define SHAME_NAME "newplayer500"
 #define MAX_CHAT_LENGTH 140
-#define UNLOCK_INTERVAL 3000 // in msecs
+#define UNLOCK_INTERVAL 0 // in msecs
 
 /* spam control. name from 0 to SPAM_CAT_COUNT-1 */
 #define SPAM_CAT_COUNT			4

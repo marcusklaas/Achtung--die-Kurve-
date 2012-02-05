@@ -44,10 +44,11 @@
 		<div id="content">
 			<div id="gameContainer">
 				<div id="canvasContainer">
+					<div id="menuButton">&lt;</div>
+					
 					<canvas id="baseCanvas"></canvas>
 					<canvas id="foregroundCanvas"></canvas>
 
-					<div id="menuButton">&lt;</div>
 					<div id="winAnnouncer">test</div>
 
 					<div id="inkIndicator">
@@ -153,7 +154,7 @@
 						<td><input id="holeSize" type="number" disabled /></td>
 					</tr>
 					<tr>
-						<td>Hole frequency</td>
+						<td>Hole spacing</td>
 						<td><input id="holeFreq" type="number" disabled /></td>
 					</tr>
 					<tr>
@@ -161,7 +162,7 @@
 						<td><input type="checkbox" id="torus" disabled /></td>
 					</tr>
 					<tr>
-						<td>Pencil mode</td>
+						<td>Draw mode</td>
 						<td>
 							<label id="pencilOn">On <input type="radio" name="pencilMode" disabled /></label>
 							<label id="pencilOff">Off <input type="radio" name="pencilMode" disabled /></label>
@@ -169,7 +170,7 @@
 						</td>
 					</tr>
 					<tr>
-						<td>Pencil capacity</td>
+						<td>Maximum ink</td>
 						<td><input id="inkCapacity" type="number" disabled /></td>
 					</tr>
 					<tr>
