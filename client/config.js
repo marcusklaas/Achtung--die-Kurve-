@@ -1,13 +1,12 @@
 /* global vars */
 var enableSound = true;
-var autoFullscreen = true;
 var joinedLink = false;
 
 /* controls */
 var keyCodeLeft = 37;
 var keyCodeRight = 39;
 
-var serverURL = "ws://marcusklaas.nl:7681"; // websocket game server
+var serverURL = "ws://diekurve.net:7681"; // websocket game server
 if(location.href.indexOf('7681') != -1)
 	serverURL = location.href.replace('http', 'ws');
 else if(location.href.indexOf('C:/Dropbox') != -1)
@@ -35,11 +34,11 @@ var rewardHeight = 18;
 var maxHiddenRewards = 20;
 var startedGamesDisplay = 'below'; // show, below or hide
 
-var safeTickDifference = 1;
+var safeTickDifference = 30;
 var resizeDelay = 200; // the duration the window should have a constant size before calling resize
 var paramUpdateInterval = 500; // don't send game intervals more often that one per this many msecs
 var paramInputInterval = 2000; // wait for this duration before sending params to server after text edit
-var unlockInterval = 0; // minimum time between last changing settings and gamestart in msecs
+var unlockInterval = 3000; // minimum time between last changing settings and gamestart in msecs
 
 var customGameWaitMessage = 'Waiting for host to start the game..';
 var autoMatchWaitMessage = 'Waiting for more players..';
@@ -64,7 +63,7 @@ var simulateCPUlag = false;
 var debugBaseContext = false; // sets different color for segments in basecontext
 var displayDebugStatus = false;
 var debugRewards = false;
-var alwaysHideSidebar = true;
+var alwaysHideSidebar = false;
 
 /* server.h copy */
 var modeModified = 0;

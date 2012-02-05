@@ -20,8 +20,8 @@
 #define SHOW_DELAY 0
 #define MIN_WIN_DIFF 1 // minimum point lead required to win a game
 #define AUTO_ROUNDS 5 // number of expected rounds in automatch
-#define MAX_PLAYERSTART_TRIES 500
-#define TORUS_MODE 1
+#define MAX_PLAYERSTART_TRIES 100
+#define TORUS_MODE 0
 #define GAMELIST_UPDATE_INTERVAL 10000
 #define MAX_USERS_IN_GAME 8
 
@@ -46,7 +46,7 @@
 #define MAX_NAME_LENGTH 20
 #define SHAME_NAME "newplayer500"
 #define MAX_CHAT_LENGTH 140
-#define UNLOCK_INTERVAL 0 // in msecs
+#define UNLOCK_INTERVAL 3000 // in msecs
 
 /* spam control. name from 0 to SPAM_CAT_COUNT-1 */
 #define SPAM_CAT_COUNT			4
@@ -68,11 +68,11 @@
 #define PM_ON 0
 #define PM_ONDEATH 1
 #define PM_OFF 2
-#define PM_DEFAULT PM_ON
-#define INK_PER_SEC 25
-#define MAX_INK 200
-#define START_INK 0//MAX_INK
-#define MOUSEDOWN_INK 30
+#define PM_DEFAULT PM_ONDEATH
+#define INK_PER_SEC 15
+#define MAX_INK 120
+#define START_INK 0
+#define MOUSEDOWN_INK 20
 #define INK_MIN_DISTANCE 5
 #define INK_SOLID 5000
 
