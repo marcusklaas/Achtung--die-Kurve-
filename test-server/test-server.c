@@ -71,7 +71,7 @@ static int callback_http(struct libwebsocket_context * context,
 			printf("serving %s, %s\n", path, mime);
 		
 		if(libwebsockets_serve_http_file(wsi, path, mime))
-			fprintf(stderr, "Failed to send file\n");
+			warning("Failed to send file %s\n", path);
 
 		free(ext);
 	}
@@ -95,7 +95,7 @@ callback_game(struct libwebsocket_context * context,
 	case LWS_CALLBACK_ESTABLISHED:
 		if(DEBUG_MODE) printf("LWS_CALLBACK_ESTABLISHED\n");
 		iniuser(u, wsi);
-		if(DEBUG_MODE) { printf("new user created:\n"); printuser(u); printf("\n"); }
+		
 		/* new user, tell him house rules */
 		json = jsoncreate("acceptUser");
 		jsonaddnum(json, "playerId", u->id);
@@ -107,7 +107,7 @@ callback_game(struct libwebsocket_context * context,
 		break;
 
 	case LWS_CALLBACK_CLOSED:
-		if(DEBUG_MODE) printf("LWS_CALLBACK_CLOSED\n");
+		logplayer(u, "disconnected\n");
 		deleteuser(u);		
 		break;
 
@@ -160,17 +160,14 @@ callback_game(struct libwebsocket_context * context,
 			json = cJSON_Parse(inchar);
 
 		if(!json) {
-			if(DEBUG_MODE){ 
-				printf("invalid json!\n");
-				printf("received: %s\n", inchar);
-			}
+			warning("invalid json! received: %s\n", inchar);
 			break;
 		}
 
 		mode = jsongetstr(json, "mode");
 
 		if(!mode) {
-			printf("no mode specified!\n");
+			warning("no mode specified!\n");
 			break;
 		}
 		else if(!strcmp(mode, "join")) {
@@ -207,12 +204,12 @@ callback_game(struct libwebsocket_context * context,
 			char *msg = jsongetstr(json, "message");
 
 			if(!u->gm) {
-				printf("user %d tried to chat, but no one's listening\n", u->id);
+				warning("user %d tried to chat, but no one's listening\n", u->id);
 				break;
 			}
 
 			if(checkspam(u, SPAM_CAT_CHAT)) {
-				printf("user %d is spamming in chat\n", u->id);
+				warning("user %d is spamming in chat\n", u->id);
 				j = jsoncreate("stopSpamming");
 				sendjson(j, u);
 				jsondel(j);
@@ -220,7 +217,7 @@ callback_game(struct libwebsocket_context * context,
 			}
 
 			if(strlen(msg) > MAX_CHAT_LENGTH) {
-				printf("Chat message by user %d too long. Truncating..\n", u->id);
+				warning("Chat message by user %d too long. Truncating..\n", u->id);
 				msg[MAX_CHAT_LENGTH] = 0;
 			}
 
@@ -243,8 +240,7 @@ callback_game(struct libwebsocket_context * context,
 
 			u->name = checkname(jsongetstr(json, "playerName"));
 
-			if(DEBUG_MODE)
-				printf("player %d with name %s joined lobby\n", u->id, u->name);
+			log("new player, id: %d, name: %s\n", u->id, u->name);
 
 			joingame(lobby, u);
 		}
@@ -268,7 +264,7 @@ callback_game(struct libwebsocket_context * context,
 			if(DEBUG_MODE) printf("user %d is creating a game\n", u->id);
 
 			if(u->gm != lobby) {
-				printf("user tried to create game. but he is not in lobby."
+				warning("user tried to create game. but he is not in lobby."
 				 " he might not have a name etc.\n");
 				break;
 			}
@@ -282,13 +278,13 @@ callback_game(struct libwebsocket_context * context,
 		else if(!strcmp(mode, "setParams")) {
 			if(!u->gm || u->gm->type != GT_CUSTOM || u->gm->state != GS_LOBBY || 
 			 u->gm->host != u) {
-				printf("user %d tried to set params but not host of custom game"
+				warning("user %d tried to set params but not host of custom game"
 				 " in lobby state\n", u->id);
 				break;
 			}
 
 			if(checkspam(u, SPAM_CAT_SETTINGS)) {
-				printf("user %d is trying to update game params too quickly\n", u->id);
+				warning("user %d is trying to update game params too quickly\n", u->id);
 				break;
 			}
 
@@ -317,13 +313,13 @@ callback_game(struct libwebsocket_context * context,
 		else if(!strcmp(mode, "startGame")) {
 			if(!u->gm || u->gm->type != GT_CUSTOM || u->gm->state != GS_LOBBY || 
 			 u->gm->host != u) {
-				printf("user %d tried to start game but not host of custom game"
+				warning("user %d tried to start game but not host of custom game"
 				 " in lobby state\n", u->id);
 				break;
 			}
 
 			if(servermsecs() - u->gm->paramupd < UNLOCK_INTERVAL) {
-				printf("user %d is trying to start game too soon after update\n", u->id);
+				warning("user %d is trying to start game too soon after update\n", u->id);
 				break;
 			}
 
@@ -352,8 +348,8 @@ callback_game(struct libwebsocket_context * context,
 		else if(!strcmp(mode, "enableInput")) {
 			u->ignoreinput = 0;		
 		}
-		else if(SHOW_WARNING)
-			printf("unkown mode!\n");
+		else
+			warning("unkown mode!\n");
 
 		jsondel(json);
 		break;
@@ -401,18 +397,6 @@ int main(int argc, char **argv) {
 	int opts = 0;
 	char interface_name[128] = "";
 	const char * interface = NULL;
-
-	/* temporary - inspect saved segments
-	FILE *f=fopen("1726779616","r"); // 1719191937
-	struct seg a, b;
-	fread(&a,sizeof(a),1,f);
-	fread(&b,sizeof(a),1,f);
-	fclose(f);
-	printseg(&a);
-	printseg(&b);
-	printf("\n");
-	segcollision(&a,&b);
-	return 0;*/
 
 	while (n >= 0) {
 		n = getopt_long(argc, argv, "ci:khsp:", options, NULL);

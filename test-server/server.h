@@ -35,11 +35,11 @@
 
 /* debugging */
 #define DEBUG_MODE 1
-#define PENCIL_DEBUG 1
 #define ULTRA_VERBOSE 0
 #define SHOW_WARNING 1
 #define GOD_MODE 0
 #define SEND_SEGMENTS 20 // om de hoeveel ticks het moet gebeuren (0=nooit)
+#define SAVE_COLLISION_TO_FILE 0
 
 /* input control */
 #define MAX_FILE_REQ_LEN 100

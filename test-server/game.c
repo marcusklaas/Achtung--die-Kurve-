@@ -79,7 +79,8 @@ void newgamelist() {
 
 void updategamelist() {
 	if(!gamelistcurrent) {
-		printf("updating gamelist \n");
+		if(DEBUG_MODE)
+			printf("updating gamelist \n");
 		newgamelist();
 		gamelistage = servermsecs();
 		gamelistcurrent = 1;
@@ -201,8 +202,7 @@ struct map *createmap(cJSON *j) {
 		seg->y2 = jsongetint(j, "y2");
 		
 		if(!seginside(seg, MAX_GAME_WIDTH, MAX_GAME_HEIGHT)) {
-			if(SHOW_WARNING)
-				printf("some host made custom map with segments outside max boundaries\n");
+			warning("some host made custom map with segments outside max boundaries\n");
 			free(seg);
 			break;
 		}
@@ -549,16 +549,18 @@ float checktilecollision(struct seg *tile, struct seg *seg) {
 
 			if(DEBUG_MODE) {
 				printseg(current);printf(" collided with ");printseg(seg);printf("\n");
-				
-				/* temporary - save colliding segments to file
-				srand(servermsecs());
+			}
+			if(SAVE_COLLISION_TO_FILE) {
 				char y[200];
+				FILE *f;
+				
+				srand(servermsecs());
 				sprintf(y,"%d",rand());
-				FILE *f=fopen(y,"w");
+				f=fopen(y,"w");
 				fwrite(current,sizeof(struct seg),1,f);
 				fwrite(seg,sizeof(struct seg),1,f);
 				fclose(f);
-				printf("collision written to %s\n",y);*/
+				printf("collision written to file %s\n",y);
 			}
 		}
 	}
@@ -866,7 +868,7 @@ void mainloop() {
 		sleepuntil = ++serverticks * TICK_LENGTH;
 
 		if(sleepuntil < servermsecs() - 5 * TICK_LENGTH && servermsecs() - lastheavyloadmsg > 1000) {
-			printf("server is under heavy load! %d msec behind on schedule!\n", -sleepuntil);
+			warning("server is under heavy load! %d msec behind on schedule!\n", -sleepuntil);
 			lastheavyloadmsg = servermsecs();
 		}
 
@@ -947,7 +949,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 			jsonaddnum(j, "forward", tot);
 			sendjson(j, usr);
 			jsondel(j);
-			if(SHOW_WARNING)
+			if(ULTRA_VERBOSE)
 				printf("asked user %d to adjust gametime by %d\n", usr->id, tot);
 		}
 	}
@@ -1032,8 +1034,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 			printf("done\n");
 		
 		if(tick < p->tick || x < 0 || y < 0 || x > u->gm->w || y > u->gm->h) {
-			if(PENCIL_DEBUG)
-				printf("error: wrong pencil location or tick\n");
+			warning("error: wrong pencil location or tick\n");
 			break;
 		}
 		gototick(p, tick);
@@ -1051,15 +1052,13 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 				
 				buffer_empty = 0;
 			} else {
-				if(PENCIL_DEBUG)
-					printf("error: not enough ink for pencil down\n");
+				warning("error: not enough ink for pencil down\n");
 				break;
 			}
 		} else {
 			float d = getlength(p->x - x, p->y - y);
 			if(p->ink < d - EPS || !p->down) {
-				if(PENCIL_DEBUG)
-					printf("error: pencil move: not enough ink or pencil not down\n");
+				warning("error: pencil move: not enough ink or pencil not down\n");
 				break;
 			}
 			p->ink -= d;
@@ -1074,8 +1073,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 					appendpencil_full(&buf, 0, tickSolid);
 				} else {
 					if(tickSolid - lasttick > 63) {
-						if(PENCIL_DEBUG)
-							printf("error: pencil move: too large tick gap\n");
+						warning("error: pencil move: too large tick gap\n");
 						buf.at -= 3;
 						break;
 					}
@@ -1103,8 +1101,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 				if(type == -1)
 					p->down = 0;
 			} else {
-				if(PENCIL_DEBUG)
-					printf("error: too short distance for pencil move\n");
+				warning("error: too short distance for pencil move\n");
 				break;
 			}
 		}

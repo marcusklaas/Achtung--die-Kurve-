@@ -458,6 +458,17 @@ char seginside(struct seg *seg, int w, int h) {
 	 max(seg->x1, seg->x2) <= w && max(seg->y1, seg->y2) <= h;
 }
 
+#define log(...) {LOGTICK;LOGMSG(__VA_ARGS__);}
+#define loggame(gm, ...) {LOGTICK;LOGGAME(gm);LOGMSG(__VA_ARGS__);}
+#define logplayer(usr, ...) {LOGTICK;LOGGAME(usr->gm);LOGPLAYER(usr);LOGMSG(__VA_ARGS__);}
+#define LOGTICK LOGMSG("%4d ", serverticks % 10000)
+#define LOGGAME(gm) LOGMSG("%4d ", gm->id)
+#define LOGPLAYER(usr) LOGMSG("%4d ", usr->id)
+//#define LOGMSG(...) fprintf(stderr, __VA_ARGS__)
+#define LOGMSG(...) printf(__VA_ARGS__)
+#define warning(...) fprintf(stderr, __VA_ARGS__);
+
+
 /******************************************************************
  * DEBUGGING HELPERS
  */

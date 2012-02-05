@@ -372,7 +372,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;
 		case 'adjustGameTime':
 			if(acceptGameTimeAdjustments) {
-				this.gameMessage('Adjusted game time by ' + obj.forward + ' msec');
+				//this.gameMessage('Adjusted game time by ' + obj.forward + ' msec');
 				this.gameStartTimestamp -= obj.forward;
 				this.ping += obj.forward;
 				this.adjustGameTimeMessagesReceived++;
