@@ -133,6 +133,9 @@ GameEngine.prototype.setGameState = function(newState) {
 			setOptionVisibility('stop');
 			break;
 		case 'ended':
+			this.showSidebar();
+			this.resize();
+
 			if(this.type == 'custom')
 				setOptionVisibility('back');
 			break;
@@ -144,27 +147,34 @@ GameEngine.prototype.setGameState = function(newState) {
 			break;
 	}
 
-	/* FULLSCREEN
-	if(autoFullscreen && newState == 'countdown') {
-		var docElm = document.documentElement;
-
-		if (docElm.requestFullscreen)
-			docElm.requestFullscreen();
-		else if (docElm.mozRequestFullScreen)
-			docElm.mozRequestFullScreen();
-		else if (docElm.webkitRequestFullScreen)
-			docElm.webkitRequestFullScreen();
-	}
-	if(leaving game) {
-		if (document.exitFullscreen)
-			document.exitFullscreen();
-		else if (document.mozCancelFullScreen)
-			document.mozCancelFullScreen();
-		else if (document.webkitCancelFullScreen)
-			document.webkitCancelFullScreen();
-	} */
-
 	this.state = newState;
+}
+
+GameEngine.prototype.toggleSidebar = function() {
+	if(this.sidebar.style.display == 'none')
+		this.showSidebar();
+	else
+		this.hideSidebar();
+
+	this.resize();
+}
+
+GameEngine.prototype.hideSidebar = function() {
+	if(this.sidebar.style.display == 'none')
+		return;
+
+	this.sidebar.style.display = 'none';
+	document.getElementById('menuButton').innerHTML = '&gt;';
+	document.getElementById('content').style.paddingLeft = '0px';
+}
+
+GameEngine.prototype.showSidebar = function() {
+	if(this.sidebar.style.display != 'none')
+		return;
+
+	this.sidebar.style.display = 'block';
+	document.getElementById('menuButton').innerHTML = '&lt;';
+	document.getElementById('content').style.paddingLeft = '301px';
 }
 
 GameEngine.prototype.joinGame = function(gameId) {
@@ -785,9 +795,6 @@ GameEngine.prototype.calcScale = function(extraVerticalSpace) {
 	var targetHeight = document.body.clientHeight - 1;
 	if(extraVerticalSpace != undefined)
 		targetHeight -= extraVerticalSpace;
-
-	if(touchDevice)
-		targetWidth = window.innerWidth;
 	
 	var scaleX = targetWidth/ this.width;
 	var scaleY = targetHeight/ this.height;
@@ -863,14 +870,10 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 			player.finalTick = -1;
 	}
 
-	this.resize();
+	if(alwaysHideSidebar || touchDevice)
+		this.hideSidebar();
 
-	/* Scroll to right for touch devices */
-	window.scroll(document.body.offsetWidth, 0);
-	// ff kijken of ie t met deze wel doet?
-	window.scrollBy(document.getElementById('sidebar').offsetWidth, 0);
-	// of deze
-	window.scrollTo(document.body.scrollWidth, 0);
+	this.resize();
 
 	/* draw angle indicators */
 	for(var i = 0; i < startPositions.length; i++) {
@@ -2186,13 +2189,6 @@ window.onload = function() {
 	if(maxPlayers != null)
 		document.getElementById('maxplayers').value = maxPlayers;
 	var playerName = getCookie('playerName');
-
-	// temporary ! cookies do not work without website
-	if(window.location.href.indexOf('C:/Dropbox') != -1) {
-		playerName = 'rik';
-		document.getElementById('minplayers').value = '1';
-		enableSound = false;
-	}
 	
 	/* auto connect if name is known */
 	if(playerName != null && playerName != '') {
@@ -2219,12 +2215,14 @@ window.onload = function() {
 	}
 
 	/* way to see sidebar for touch screens */
-	if(touchDevice) {
+	if(touchDevice || alwaysHideSidebar) {
 		var button = document.getElementById('menuButton');
 		button.style.display = 'block';
-		button.addEventListener('click', function() {
-			window.scroll(0, 0);
-		});
+		button.addEventListener('click', function(e) {
+			game.toggleSidebar();
+			e.preventDefault();
+			e.stopPropagation();
+		}, true);
 	}
 
 	function sendParams(timeout, onlyAllowReplacement) {

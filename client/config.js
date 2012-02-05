@@ -64,6 +64,7 @@ var simulateCPUlag = false;
 var debugBaseContext = false; // sets different color for segments in basecontext
 var displayDebugStatus = false;
 var debugRewards = false;
+var alwaysHideSidebar = true;
 
 /* server.h copy */
 var modeModified = 0;
