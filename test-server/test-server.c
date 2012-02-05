@@ -18,6 +18,8 @@ static char *gamelist = 0; // JSON string
 static int gamelistlen = 0; // strlen of gamelist
 static int gamelistage = 0; // servermsecs() on which encodedgamelist was last updated
 static char gamelistcurrent = 1; // 0 if gamelist is not up to date
+static int lastlogtime, lastwarninglogtime;
+
 
 /* FIXME: dit moet eigenlijk anders, onafhankelijk van
  * definities van SPAM_CAT_*, maar ik weet niet hoe */
@@ -219,6 +221,8 @@ callback_game(struct libwebsocket_context * context,
 				warning("Chat message by user %d too long. Truncating..\n", u->id);
 				msg[MAX_CHAT_LENGTH] = 0;
 			}
+
+			logplayer(u, "chat: %s\n", msg);
 
 			j = jsoncreate("chat");
 			jsonaddnum(j, "playerId", u->id);

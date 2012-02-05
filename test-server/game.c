@@ -109,6 +109,30 @@ void broadcastgamelist() {
 			sendgamelist(usr);
 }
 
+void logstartgame(struct game *gm) {
+	loggame(gm, "started! players: %d\n", gm->n);
+	if(gm->type == GT_CUSTOM) {
+		char *a;
+		cJSON *j;
+
+		j = getjsongamepars(gm);
+		a = cJSON_Print(j);
+		log("%s\n", a);
+
+		free(a);
+		jsondel(j);
+
+		if(gm->map) {
+			j = encodesegments(gm->map->seg);
+			a = cJSON_PrintUnformatted(j);
+			log("%s\n", a);
+
+			free(a);
+			jsondel(j);
+		}
+	}
+}
+
 void startgame(struct game *gm) {
 	struct user *usr;
 	cJSON *root, *start_locations;
@@ -166,9 +190,14 @@ void startgame(struct game *gm) {
 	gm->tick = -(COUNTDOWN + SERVER_DELAY + laterround * COOLDOWN)/ TICK_LENGTH;
 	gm->state = GS_STARTED;
 	gm->alive = gm->n;
+	gm->modifieds = 0;
+	gm->timeadjustments = 0;
 	
-	if(!laterround)
+	if(!laterround) {
 		gamelistcurrent = 0;
+
+		logstartgame(gm);
+	}
 
 	root = jsoncreate("startGame");
 	start_locations = cJSON_CreateArray();
@@ -303,6 +332,10 @@ void leavegame(struct user *usr) {
 
 	if(gm->state == GS_STARTED && usr->alive)
 		killplayer(usr);
+	
+	if(gm->state == GS_STARTED)
+		logplayer(usr, "left game before endgame\n");
+
 
 	/* remove user from linked list and swap host if necessary */
 	if(gm->usr == usr) {
@@ -756,8 +789,12 @@ void endgame(struct game *gm, struct user *winner) {
 	gamelistcurrent = 0;
 	gm->state = (gm->type == GT_AUTO) ? GS_ENDED : GS_LOBBY;
 
-	for(usr = gm->usr; usr; usr = usr->nxt)
-		usr->points = 0;
+	if(gm->state == GS_LOBBY) {
+		gm->round = 0;
+
+		for(usr = gm->usr; usr; usr = usr->nxt)
+			usr->points = 0;
+	}
 }
 
 void endround(struct game *gm) {
@@ -768,6 +805,9 @@ void endround(struct game *gm) {
 
 	if(DEBUG_MODE)
 		printf("ending round of game %p\n", (void *) gm);
+
+	loggame(gm, "ended. duration: %3d sec, modifieds: %3d, timeadjustments: %3d\n", 
+		gm->tick * TICK_LENGTH / 1000, gm->modifieds, gm->timeadjustments);
 
 	if(SEND_SEGMENTS)
 		sendsegments(gm);
@@ -867,8 +907,8 @@ void mainloop() {
 		resetspamcounters(lobby, serverticks);
 		sleepuntil = ++serverticks * TICK_LENGTH;
 
-		if(sleepuntil < servermsecs() - 5 * TICK_LENGTH && servermsecs() - lastheavyloadmsg > 1000) {
-			warning("server is under heavy load! %d msec behind on schedule!\n", -sleepuntil);
+		if(sleepuntil < servermsecs() - 3 * TICK_LENGTH && servermsecs() - lastheavyloadmsg > 1000) {
+			warning("%d msec behind on schedule!\n", servermsecs() - sleepuntil);
 			lastheavyloadmsg = servermsecs();
 		}
 
@@ -906,6 +946,9 @@ void interpretinput(cJSON *json, struct user *usr) {
 	if(tick <= usr->lastinputtick)
 		tick = usr->lastinputtick + 1;
 	delay = tick - msgtick;
+
+	if(delay)
+		usr->gm->modifieds++;
 	
 	/* put it in user queue */
 	input = smalloc(sizeof(struct userinput));
@@ -951,6 +994,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 			jsondel(j);
 			if(ULTRA_VERBOSE)
 				printf("asked user %d to adjust gametime by %d\n", usr->id, tot);
+			usr->gm->timeadjustments++;
 		}
 	}
 

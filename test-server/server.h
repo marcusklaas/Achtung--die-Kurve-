@@ -125,7 +125,9 @@ struct game {
 		inkdelay,			// ink harden time in msec
 		inkmousedown,		// ink cost to start new line
 		inkstart,			// amount of ink you start with when you are allowed to draw
-		round;				// 0 at gamecreats, increments at start of round
+		round,				// 0 at gamecreats, increments at start of round
+		modifieds,
+		timeadjustments;
 
 	int (*pointsys)(int, int); // function that determines points on death
 	float ts;				// turning speed in radians per sec
