@@ -1614,10 +1614,10 @@ function InputController(player, left, right) {
 
 	/* register touches for fancy phones n tablets */
 	if(touchDevice) {
-		canvas.addEventListener('touchstart', touchStart, true);
-		canvas.addEventListener('touchend', touchEnd, true);
-		canvas.addEventListener('touchcancel', touchEnd, true);
-		canvas.addEventListener('touchmove', touchMove, true);
+		canvas.addEventListener('touchstart', touchStart, false);
+		canvas.addEventListener('touchend', touchEnd, false);
+		canvas.addEventListener('touchcancel', touchEnd, false);
+		canvas.addEventListener('touchmove', touchMove, false);
 	}
 
 	/* catch mouse events (not editor!) */
