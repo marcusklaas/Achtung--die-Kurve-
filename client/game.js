@@ -373,7 +373,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;
 		case 'adjustGameTime':
 			if(acceptGameTimeAdjustments) {
-				this.gameMessage('Adjusted game time by ' + obj.forward + ' msec');
+				//this.gameMessage('Adjusted game time by ' + obj.forward + ' msec');
 				this.gameStartTimestamp -= obj.forward;
 				this.ping += obj.forward;
 				this.adjustGameTimeMessagesReceived++;
@@ -1415,8 +1415,15 @@ function InputController(player, left, right) {
 
 	/* listen for keyboard events */
 	window.addEventListener('keydown', function(e) {
-		if(self.player.status != 'alive' || game.state != 'playing')
+		if(self.player.status != 'alive' || game.state != 'playing') {
+			if(game.state == 'editing') {
+				if(e.keyCode == 90 && e.ctrlKey) {
+					game.editor.undo();
+					e.preventDefault();
+				}
+			}
 			return;
+		}
 
 		if(e.keyCode == self.leftKeyCode) {
 			self.pressLeft();
@@ -1927,6 +1934,9 @@ Editor = function(game) {
 	var load = document.getElementById('editorLoad');
 	load.addEventListener('click', function() { self.load(); }, false);
 
+	var undo = document.getElementById('editorUndo');
+	undo.addEventListener('click', function() { self.undo(); }, false);
+
 	var start = document.getElementById('editorStart');
 	start.addEventListener('click', function() {
 		self.game.setGameState('editing');
@@ -2052,6 +2062,13 @@ Editor.prototype.load = function() {
 
 	this.segments = this.segments.concat(segs);
 	this.mapChanged = true;
+}
+
+Editor.prototype.undo = function() {
+	if(this.segments.length > 0) {
+		this.segments.pop();
+		this.resize();
+	}
 }
 
 Editor.prototype.resize = function() {
@@ -2197,6 +2214,13 @@ window.onload = function() {
 		document.getElementById('maxplayers').value = maxPlayers;
 	var playerName = getCookie('playerName');
 	
+	// for debug purposes
+	if(window.location.href.indexOf('C:/Dropbox') != -1) {
+		playerName = 'piet';
+		document.getElementById('minplayers').value = '1';
+		enableSound = false;
+	}
+		
 	/* auto connect if name is known */
 	if(playerName != null && playerName != '') {
 		document.getElementById('playername').value = playerName;

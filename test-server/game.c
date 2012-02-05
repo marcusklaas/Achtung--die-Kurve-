@@ -79,7 +79,8 @@ void newgamelist() {
 
 void updategamelist() {
 	if(!gamelistcurrent) {
-		printf("updating gamelist \n");
+		if(DEBUG_MODE)
+			printf("updating gamelist \n");
 		newgamelist();
 		gamelistage = servermsecs();
 		gamelistcurrent = 1;
@@ -106,6 +107,30 @@ void broadcastgamelist() {
 	for(usr = lobby->usr; usr && i++ < maxsends; usr = usr->nxt)
 		if(servermsecs() - GAMELIST_UPDATE_INTERVAL > usr->gamelistage)
 			sendgamelist(usr);
+}
+
+void logstartgame(struct game *gm) {
+	loggame(gm, "started! players: %d\n", gm->n);
+	if(gm->type == GT_CUSTOM) {
+		char *a;
+		cJSON *j;
+
+		j = getjsongamepars(gm);
+		a = cJSON_Print(j);
+		log("%s\n", a);
+
+		free(a);
+		jsondel(j);
+
+		if(gm->map) {
+			j = encodesegments(gm->map->seg);
+			a = cJSON_PrintUnformatted(j);
+			log("%s\n", a);
+
+			free(a);
+			jsondel(j);
+		}
+	}
 }
 
 void startgame(struct game *gm) {
@@ -165,9 +190,14 @@ void startgame(struct game *gm) {
 	gm->tick = -(COUNTDOWN + SERVER_DELAY + laterround * COOLDOWN)/ TICK_LENGTH;
 	gm->state = GS_STARTED;
 	gm->alive = gm->n;
+	gm->modifieds = 0;
+	gm->timeadjustments = 0;
 	
-	if(!laterround)
+	if(!laterround) {
 		gamelistcurrent = 0;
+
+		logstartgame(gm);
+	}
 
 	root = jsoncreate("startGame");
 	start_locations = cJSON_CreateArray();
@@ -201,8 +231,7 @@ struct map *createmap(cJSON *j) {
 		seg->y2 = jsongetint(j, "y2");
 		
 		if(!seginside(seg, MAX_GAME_WIDTH, MAX_GAME_HEIGHT)) {
-			if(SHOW_WARNING)
-				printf("some host made custom map with segments outside max boundaries\n");
+			warning("some host made custom map with segments outside max boundaries\n");
 			free(seg);
 			break;
 		}
@@ -303,6 +332,10 @@ void leavegame(struct user *usr) {
 
 	if(gm->state == GS_STARTED && usr->alive)
 		killplayer(usr);
+	
+	if(gm->state == GS_STARTED)
+		logplayer(usr, "left game before endgame\n");
+
 
 	/* remove user from linked list and swap host if necessary */
 	if(gm->usr == usr) {
@@ -549,16 +582,18 @@ float checktilecollision(struct seg *tile, struct seg *seg) {
 
 			if(DEBUG_MODE) {
 				printseg(current);printf(" collided with ");printseg(seg);printf("\n");
-				
-				/* temporary - save colliding segments to file
-				srand(servermsecs());
+			}
+			if(SAVE_COLLISION_TO_FILE) {
 				char y[200];
+				FILE *f;
+				
+				srand(servermsecs());
 				sprintf(y,"%d",rand());
-				FILE *f=fopen(y,"w");
+				f=fopen(y,"w");
 				fwrite(current,sizeof(struct seg),1,f);
 				fwrite(seg,sizeof(struct seg),1,f);
 				fclose(f);
-				printf("collision written to %s\n",y);*/
+				printf("collision written to file %s\n",y);
 			}
 		}
 	}
@@ -754,8 +789,12 @@ void endgame(struct game *gm, struct user *winner) {
 	gamelistcurrent = 0;
 	gm->state = (gm->type == GT_AUTO) ? GS_ENDED : GS_LOBBY;
 
-	for(usr = gm->usr; usr; usr = usr->nxt)
-		usr->points = 0;
+	if(gm->state == GS_LOBBY) {
+		gm->round = 0;
+
+		for(usr = gm->usr; usr; usr = usr->nxt)
+			usr->points = 0;
+	}
 }
 
 void endround(struct game *gm) {
@@ -766,6 +805,9 @@ void endround(struct game *gm) {
 
 	if(DEBUG_MODE)
 		printf("ending round of game %p\n", (void *) gm);
+
+	loggame(gm, "ended. duration: %3d sec, modifieds: %3d, timeadjustments: %3d\n", 
+		gm->tick * TICK_LENGTH / 1000, gm->modifieds, gm->timeadjustments);
 
 	if(SEND_SEGMENTS)
 		sendsegments(gm);
@@ -865,8 +907,8 @@ void mainloop() {
 		resetspamcounters(lobby, serverticks);
 		sleepuntil = ++serverticks * TICK_LENGTH;
 
-		if(sleepuntil < servermsecs() - 5 * TICK_LENGTH && servermsecs() - lastheavyloadmsg > 1000) {
-			printf("server is under heavy load! %d msec behind on schedule!\n", -sleepuntil);
+		if(sleepuntil < servermsecs() - 3 * TICK_LENGTH && servermsecs() - lastheavyloadmsg > 1000) {
+			warning("%d msec behind on schedule!\n", servermsecs() - sleepuntil);
 			lastheavyloadmsg = servermsecs();
 		}
 
@@ -904,6 +946,9 @@ void interpretinput(cJSON *json, struct user *usr) {
 	if(tick <= usr->lastinputtick)
 		tick = usr->lastinputtick + 1;
 	delay = tick - msgtick;
+
+	if(delay)
+		usr->gm->modifieds++;
 	
 	/* put it in user queue */
 	input = smalloc(sizeof(struct userinput));
@@ -947,8 +992,9 @@ void interpretinput(cJSON *json, struct user *usr) {
 			jsonaddnum(j, "forward", tot);
 			sendjson(j, usr);
 			jsondel(j);
-			if(SHOW_WARNING)
+			if(ULTRA_VERBOSE)
 				printf("asked user %d to adjust gametime by %d\n", usr->id, tot);
+			usr->gm->timeadjustments++;
 		}
 	}
 
@@ -1032,8 +1078,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 			printf("done\n");
 		
 		if(tick < p->tick || x < 0 || y < 0 || x > u->gm->w || y > u->gm->h) {
-			if(PENCIL_DEBUG)
-				printf("error: wrong pencil location or tick\n");
+			warning("error: wrong pencil location or tick\n");
 			break;
 		}
 		gototick(p, tick);
@@ -1051,15 +1096,13 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 				
 				buffer_empty = 0;
 			} else {
-				if(PENCIL_DEBUG)
-					printf("error: not enough ink for pencil down\n");
+				warning("error: not enough ink for pencil down\n");
 				break;
 			}
 		} else {
 			float d = getlength(p->x - x, p->y - y);
 			if(p->ink < d - EPS || !p->down) {
-				if(PENCIL_DEBUG)
-					printf("error: pencil move: not enough ink or pencil not down\n");
+				warning("error: pencil move: not enough ink or pencil not down\n");
 				break;
 			}
 			p->ink -= d;
@@ -1074,8 +1117,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 					appendpencil_full(&buf, 0, tickSolid);
 				} else {
 					if(tickSolid - lasttick > 63) {
-						if(PENCIL_DEBUG)
-							printf("error: pencil move: too large tick gap\n");
+						warning("error: pencil move: too large tick gap\n");
 						buf.at -= 3;
 						break;
 					}
@@ -1103,8 +1145,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 				if(type == -1)
 					p->down = 0;
 			} else {
-				if(PENCIL_DEBUG)
-					printf("error: too short distance for pencil move\n");
+				warning("error: too short distance for pencil move\n");
 				break;
 			}
 		}

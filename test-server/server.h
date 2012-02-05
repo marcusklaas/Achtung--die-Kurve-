@@ -33,13 +33,13 @@
 #define MODE_OTHER 7
 #define MODE_SETMAP (8 + 7)
 
-/* debugging */
 #define DEBUG_MODE 0
 #define PENCIL_DEBUG 0
 #define ULTRA_VERBOSE 0
 #define SHOW_WARNING 1
 #define GOD_MODE 0
 #define SEND_SEGMENTS 0 // om de hoeveel ticks het moet gebeuren (0=nooit)
+#define SAVE_COLLISION_TO_FILE 0
 
 /* input control */
 #define MAX_FILE_REQ_LEN 100
@@ -125,7 +125,9 @@ struct game {
 		inkdelay,			// ink harden time in msec
 		inkmousedown,		// ink cost to start new line
 		inkstart,			// amount of ink you start with when you are allowed to draw
-		round;				// 0 at gamecreats, increments at start of round
+		round,				// 0 at gamecreats, increments at start of round
+		modifieds,
+		timeadjustments;
 
 	int (*pointsys)(int, int); // function that determines points on death
 	float ts;				// turning speed in radians per sec
