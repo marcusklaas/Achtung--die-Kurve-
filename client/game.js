@@ -1409,8 +1409,15 @@ function InputController(player, left, right) {
 
 	/* listen for keyboard events */
 	window.addEventListener('keydown', function(e) {
-		if(self.player.status != 'alive' || game.state != 'playing')
+		if(self.player.status != 'alive' || game.state != 'playing') {
+			if(game.state == 'editing') {
+				if(e.keyCode == 90 && e.ctrlKey) {
+					game.editor.undo();
+					e.preventDefault();
+				}
+			}
 			return;
+		}
 
 		if(e.keyCode == self.leftKeyCode) {
 			self.pressLeft();
@@ -1920,6 +1927,9 @@ Editor = function(game) {
 	var load = document.getElementById('editorLoad');
 	load.addEventListener('click', function() { self.load(); }, false);
 
+	var undo = document.getElementById('editorUndo');
+	undo.addEventListener('click', function() { self.undo(); }, false);
+
 	var start = document.getElementById('editorStart');
 	start.addEventListener('click', function() {
 		self.game.setGameState('editing');
@@ -2045,6 +2055,13 @@ Editor.prototype.load = function() {
 
 	this.segments = this.segments.concat(segs);
 	this.mapChanged = true;
+}
+
+Editor.prototype.undo = function() {
+	if(this.segments.length > 0) {
+		this.segments.pop();
+		this.resize();
+	}
 }
 
 Editor.prototype.resize = function() {
