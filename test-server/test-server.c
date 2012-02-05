@@ -101,7 +101,6 @@ callback_game(struct libwebsocket_context * context,
 		jsonaddnum(json, "playerId", u->id);
 		jsonaddnum(json, "tickLength", TICK_LENGTH);
 		jsonaddnum(json, "inkMinimumDistance", INK_MIN_DISTANCE);
-		jsonaddnum(json, "maxNameLength", MAX_NAME_LENGTH);
 		sendjson(json, u);
 		jsondel(json);
 		break;
