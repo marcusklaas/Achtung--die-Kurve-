@@ -445,7 +445,7 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	gm->pencilmode = PM_DEFAULT;
 	gm->pointsys = pointsystem_rik;
 	gm->nxt = headgame;
-	gm->goal = 12;//temporary //ceil(AUTO_ROUNDS * roundavgpts(2, gm->pointsys));
+	gm->goal = ceil(AUTO_ROUNDS * roundavgpts(2, gm->pointsys));
 	gm->torus = TORUS_MODE;
 	gm->inkcap = MAX_INK;
 	gm->inkregen = INK_PER_SEC;
