@@ -4,6 +4,7 @@
 #include <getopt.h>
 #include <string.h>
 #include <sys/time.h>
+#include <time.h>
 
 #include "../lib/libwebsockets.h"
 #include "../cjson/cJSON.c"

@@ -36,7 +36,7 @@
 #define DEBUG_MODE 0
 #define PENCIL_DEBUG 0
 #define ULTRA_VERBOSE 0
-#define SHOW_WARNING 1
+#define SHOW_WARNING 0
 #define GOD_MODE 0
 #define SEND_SEGMENTS 0 // om de hoeveel ticks het moet gebeuren (0=nooit)
 #define SAVE_COLLISION_TO_FILE 0
