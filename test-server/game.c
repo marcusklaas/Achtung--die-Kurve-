@@ -1107,7 +1107,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 			}
 			p->ink -= d;
 			if(type == -1 || d >= INK_MIN_DISTANCE) {
-				int tickSolid = max(tick, u->gm->tick) + u->gm->inkdelay / TICK_LENGTH;
+				int tickSolid = max(tick, u->gm->tick) + u->gm->inkdelay / TICK_LENGTH; // FIXME: should be non-decreasing
 				struct pencilseg *pseg = smalloc(sizeof(struct pencilseg));
 				struct seg *seg = &pseg->seg;
 
@@ -1160,9 +1160,10 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 void simpencil(struct pencil *p) {
 	struct pencilseg *tail;
 	
-	while((tail = p->psegtail) && tail->tick == p->usr->gm->tick) {
+	while((tail = p->psegtail) && tail->tick <= p->usr->gm->tick) { // <= should not be necessary
 		addsegment(p->usr->gm, &tail->seg);
-		queueseg(p->usr->gm, &tail->seg);
+		if(SEND_SEGMENTS)
+			queueseg(p->usr->gm, &tail->seg);
 
 		if(tail->prev) {
 			tail->prev->nxt = 0;
