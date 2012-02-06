@@ -1409,7 +1409,7 @@ function InputController(player, left, right) {
 	var self = this;
 	var game = player.game;
 	var pencil = player.game.pencil;
-	var canvas = player.game.canvasContainer;
+	var canvas = player.game.foregroundCanvas;
 
 	this.reset();
 

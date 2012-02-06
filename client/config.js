@@ -53,7 +53,7 @@ var inkBufferTicks = 5;
 var pencilAlpha = 0.2;
 
 /* debugging */
-var emulateTouch = true;
+var emulateTouch = false;
 var ultraVerbose = false;
 var simulatedPing = 0;
 var extraGameStartTimeDifference = 0;
@@ -63,7 +63,7 @@ var simulateCPUlag = false;
 var debugBaseContext = false; // sets different color for segments in basecontext
 var displayDebugStatus = false;
 var debugRewards = false;
-var alwaysHideSidebar = true;
+var alwaysHideSidebar = false;
 
 /* server.h copy */
 var maxNameLength = 20;

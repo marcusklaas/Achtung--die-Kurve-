@@ -294,7 +294,7 @@ struct game *findgame(int nmin, int nmax) {
 		gm = bestgame;
 		gm->nmin = max(gm->nmin, nmin);
 		gm->nmax = min(gm->nmax, nmax);
-		gm->goal = ceil(roundavgpts(gm->n + 1, gm->pointsys) * AUTO_ROUNDS);
+		gm->goal = 20; // TEMP REMOVAL // ceil(roundavgpts(gm->n + 1, gm->pointsys) * AUTO_ROUNDS);
 		json = getjsongamepars(gm);
 		sendjsontogame(json, gm, 0);
 		jsondel(json);
@@ -478,7 +478,7 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	gm->pencilmode = PM_DEFAULT;
 	gm->pointsys = pointsystem_rik;
 	gm->nxt = headgame;
-	gm->goal = ceil(AUTO_ROUNDS * roundavgpts(2, gm->pointsys));
+	gm->goal = 20; /* TEMP REMOVAL // ceil(AUTO_ROUNDS * roundavgpts(2, gm->pointsys)); */
 	gm->torus = TORUS_MODE;
 	gm->inkcap = MAX_INK;
 	gm->inkregen = INK_PER_SEC;
