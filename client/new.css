@@ -221,7 +221,7 @@ input[type=number] {
 	z-index: 100;
 	width: 20px;
 	height: 100px;
-	border: 2px solid rgba(0, 0, 0, 0.2);
+	border: 2px solid rgba(0, 0, 0, 0.3);
 	background-color: rgba(1, 1, 1, 0);
 	padding: 2px;
 	pointer-events: none;

@@ -782,6 +782,10 @@ GameEngine.prototype.addPlayer = function(player) {
 	player.isHost = false;
 	this.players[player.id] = player;
 	this.appendPlayerList(player);
+
+	if(player == this.localPlayer)
+		document.getElementById('ink').style.backgroundColor = 'rgba(' +
+		 player.color[0] + ', ' + player.color[1] + ', ' + player.color[2] + ', 0.3)';
 	
 	if(this.type != 'lobby') {
 		player.canvas = document.createElement('canvas');
