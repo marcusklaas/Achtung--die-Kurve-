@@ -309,8 +309,7 @@ tr.left td:first-child {
 }
 
 span.noverflow {
-	display: block;
-	text-align: left;
+	display: inline-block;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -329,16 +328,16 @@ col.col1 {
 	width: 40px;
 }
 
-col.col2, col.col3 {
+col.col2 {
 	width: 80px;
+}
+
+col.col3 {
+	width: 150px;
 }
 
 col.col4, col.col5 {
-	width: 110px;
-}
-
-col.col6 {
-	width: 80px;
+	width: 100px;
 }
 
 #listWrapper {
@@ -643,10 +642,6 @@ table th, table td {
 	padding: 10px 10px 9px;
 	line-height: 18px;
 	text-align: center;
-}
-
-table th.textLeft {
-	text-align: left;
 }
 
 table th {

@@ -574,7 +574,10 @@ GameEngine.prototype.appendGameList = function(obj) {
 	row.appendChild(node);
 
 	node = document.createElement('td');
-	node.innerHTML = obj.host != undefined ? obj.host : '-';
+	var nameSpan = document.createElement('span');
+	nameSpan.innerHTML = obj.host != undefined ? obj.host : '-';
+	nameSpan.className = 'noverflow';
+	node.appendChild(nameSpan);
 	row.appendChild(node);
 
 	node = document.createElement('td');
