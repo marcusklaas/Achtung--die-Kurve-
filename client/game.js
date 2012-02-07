@@ -1396,13 +1396,11 @@ Player.prototype.drawIndicator = function() {
 
 	x = Math.min(x, this.x);
 	y = Math.min(y, this.y);
-
-	ctx.fillStyle    = '#000';
-	ctx.font         = fontSize + 'px sans-serif';
+	ctx.fillStyle = '#000';
+	ctx.font = fontSize + 'pt Helvetica bold, sans-serif';
+	ctx.textAlign = 'right';
 	ctx.textBaseline = 'top';
-
-	var textWidth = ctx.measureText(text).width;
-	ctx.fillText(text, x - 2 - textWidth, y - 3 - fontSize);
+	ctx.fillText(text, x - 2, y - 3 - fontSize);
 }
 
 /* this is object for storing touch info */
