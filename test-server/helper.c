@@ -1,3 +1,19 @@
+#define log(...) {LOGTICK; LOGMSG(__VA_ARGS__);}
+#define loggame(gm, ...) {LOGTICK; LOGGAME(gm); LOGMSG(__VA_ARGS__);}
+#define logplayer(usr, ...) {LOGTICK; LOGGAME(usr->gm); LOGPLAYER(usr); LOGMSG(__VA_ARGS__);}
+#define LOGTICK {logtime(); LOGMSG("%4d ", serverticks % 10000);}
+#define LOGGAME(gm) LOGMSG("g:%-4d ", gm->id)
+#define LOGPLAYER(usr) LOGMSG("u:%-4d ", usr->id)
+#define LOGMSG(...) printf(__VA_ARGS__)
+
+#define warning(...) {WARNINGTICK; WARNINGMSG(__VA_ARGS__);}
+#define warninggame(gm, ...) {WARNINGTICK; WARNINGGAME(gm); WARNINGMSG(__VA_ARGS__);}
+#define warningplayer(usr, ...) {WARNINGTICK; WARNINGGAME(usr->gm); WARNINGPLAYER(usr); WARNINGMSG(__VA_ARGS__);}
+#define WARNINGTICK {logwarningtime(); WARNINGMSG("%4d ", serverticks % 10000);}
+#define WARNINGGAME(gm) WARNINGMSG("g:%-4d ", gm->id)
+#define WARNINGPLAYER(usr) WARNINGMSG("u:%-4d ", usr->id)
+#define WARNINGMSG(...) fprintf(stderr, __VA_ARGS__)
+
 /******************************************************************
  * MEMORY-RELATED
  */
@@ -170,7 +186,7 @@ void sendstr(char *str, int len, struct user *u) {
 		return;
 	}
 
-	// tmp is being freed inside the callback
+	// being freed inside callback
 	buf = smalloc(PRE_PADDING + len + POST_PADDING);
 	memcpy(buf + PRE_PADDING, str, len);
 
@@ -253,7 +269,7 @@ void modifiedmsg(struct user *usr, int tickdelta) {
 	char response[4];
 	int index = usr->inputcount;
 
-	printf("sending modifiedmsg, input = %d, delta = %d\n", index, tickdelta);
+	logplayer(usr, "sending modifiedmsg, input = %d, delta = %d\n", index, tickdelta);
 
 	response[0] = 7 & MODE_MODIFIED;
 	response[0] |= (127 - 7) & (index << 3);
@@ -457,18 +473,6 @@ char seginside(struct seg *seg, int w, int h) {
 	return min(seg->x1, seg->x2) >= 0 && min(seg->y1, seg->y2) >= 0 &&
 	 max(seg->x1, seg->x2) <= w && max(seg->y1, seg->y2) <= h;
 }
-
-#define log(...) {LOGTICK; LOGMSG(__VA_ARGS__);}
-#define loggame(gm, ...) {LOGTICK; LOGGAME(gm); LOGMSG(__VA_ARGS__);}
-#define logplayer(usr, ...) {LOGTICK; LOGGAME(usr->gm); LOGPLAYER(usr); LOGMSG(__VA_ARGS__);}
-#define LOGTICK {logtime(); LOGMSG("%4d ", serverticks % 10000);}
-#define LOGGAME(gm) LOGMSG("g:%-4d ", gm->id)
-#define LOGPLAYER(usr) LOGMSG("u:%-4d ", usr->id)
-#define LOGMSG(...) printf(__VA_ARGS__)
-
-#define warning(...) {WARNINGTICK; WARNINGMSG(__VA_ARGS__);}
-#define WARNINGTICK {logwarningtime(); WARNINGMSG("%4d ", serverticks % 10000);}
-#define WARNINGMSG(...) fprintf(stderr, __VA_ARGS__)
 
 void logtime() {
 	if(servermsecs() - lastlogtime > 1000 * 60 * 5) {

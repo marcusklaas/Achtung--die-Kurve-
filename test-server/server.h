@@ -33,7 +33,7 @@
 #define MODE_OTHER 7
 #define MODE_SETMAP (8 + 7)
 
-#define DEBUG_MODE 0
+#define DEBUG_MODE 1
 #define PENCIL_DEBUG 0
 #define ULTRA_VERBOSE 0
 #define SHOW_WARNING 1
@@ -216,3 +216,5 @@ int pointsystem_rik(int players, int alive);
 void allocroom(struct buffer *buf, int size);
 void appendheader(struct buffer *buf, char type, char player);
 void appendpos(struct buffer *buf, int x, int y);
+void logtime();
+void logwarningtime();

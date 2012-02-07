@@ -49,6 +49,8 @@ cJSON *encodegame(struct game *gm) {
 	jsonaddnum(json, "n", gm->n);
 	jsonaddnum(json, "nmin", gm->nmin);
 	jsonaddnum(json, "nmax", gm->nmax);
+	if(gm->host)
+		jsonaddstr(json, "host", gm->host->name);
 	jsonaddstr(json, "type", gametypetostr(gm->type));
 	jsonaddstr(json, "state", statetostr(gm->state));
 	return json;
@@ -372,22 +374,12 @@ void leavegame(struct user *usr) {
 void joingame(struct game *gm, struct user *newusr) {
 	struct user *usr;
 	cJSON *json;
-	char *lastusedname;
 
 	if(newusr->gm)
 		leavegame(newusr);
 
 	if(DEBUG_MODE)
 		printf("user %d is joining game %p\n", newusr->id, (void*)gm);
-
-	if(!gm->n++) {
-		json = encodegame(gm);
-		cJSON_AddStringToObject(json, "mode", "newGame");
-		sendjsontogame(json, lobby, newusr);
-		newgamelist();
-	}
-	else
-		gamelistcurrent = 0;
 
 	newusr->gm = gm;
 	newusr->points = 0;
@@ -403,6 +395,16 @@ void joingame(struct game *gm, struct user *newusr) {
 		newusr->index = i;
 	}
 
+	/* add user to game */
+	newusr->nxt = gm->usr;
+	gm->usr = newusr;
+	gm->n++;
+	if(gm->type == GT_CUSTOM) {
+		if(!gm->host)
+			gm->host = newusr;
+		tellhost(gm, newusr);
+	}
+
 	/* tell user s/he joined a game */
 	json = jsoncreate("joinedGame");
 	jsonaddstr(json, "type", gametypetostr(gm->type));
@@ -410,33 +412,17 @@ void joingame(struct game *gm, struct user *newusr) {
 	sendjson(json, newusr);
 	jsondel(json);
 
-	/* tell players of game someone new joined */
-	json = jsoncreate("newPlayer");
-	jsonaddnum(json, "playerId", newusr->id);
-	jsonaddnum(json, "index", newusr->index);
-	jsonaddstr(json, "playerName", lastusedname = newusr->name);
-	sendjsontogame(json, gm, 0);
-
-	if(DEBUG_MODE)
-		printf("user %d has name %s\n", newusr->id, newusr->name);
-
-	/* send a message to the new player for every other player that is already in the game */
+	/* tell players of game someone new joined and send a message to the new player for every other player that is already in the game */
 	for(usr = gm->usr; usr; usr = usr->nxt) {
-		jsonsetnum(json, "playerId", usr->id);
-		jsonsetnum(json, "index", usr->index);
-		jsonsetstr(json, "playerName", lastusedname = usr->name);
-		sendjson(json, newusr);
-	}
-
-	jsonsetstr(json, "playerName", duplicatestring(lastusedname));
-	jsondel(json);
-	
-	newusr->nxt = gm->usr;
-	gm->usr = newusr;
-	if(gm->type == GT_CUSTOM) {
-		if(!gm->host)
-			gm->host = newusr;
-		tellhost(gm, newusr);
+		json = jsoncreate("newPlayer");
+		jsonaddnum(json, "playerId", newusr->id);
+		jsonaddnum(json, "index", newusr->index);
+		jsonaddstr(json, "playerName", newusr->name);
+		if(usr == newusr)
+			sendjsontogame(json, gm, newusr);
+		else
+			sendjson(json, newusr);
+		jsondel(json);
 	}
 
 	/* send either game details or game list */
@@ -453,6 +439,16 @@ void joingame(struct game *gm, struct user *newusr) {
 
 	if(gm->type == GT_AUTO && gm->n >= gm->nmin)
 		startgame(gm);
+
+	/* tell everyone in lobby of new game */
+	if(gm->n == 1) {
+		json = encodegame(gm);
+		cJSON_AddStringToObject(json, "mode", "newGame");
+		sendjsontogame(json, lobby, newusr);
+		newgamelist();
+	}
+	else
+		gamelistcurrent = 0;
 
 	if(DEBUG_MODE) {
 		printf("user %d joined game %p\n", newusr->id, (void *)gm);
@@ -1078,7 +1074,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 			printf("done\n");
 		
 		if(tick < p->tick || x < 0 || y < 0 || x > u->gm->w || y > u->gm->h) {
-			warning("error: wrong pencil location or tick\n");
+			warningplayer(u, "error: wrong pencil location or tick\n");
 			break;
 		}
 		gototick(p, tick);
@@ -1102,7 +1098,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 		} else {
 			float d = getlength(p->x - x, p->y - y);
 			if(p->ink < d - EPS || !p->down) {
-				warning("error: pencil move: not enough ink or pencil not down\n");
+				warningplayer(u, "error: pencil move: not enough ink or pencil not down, down: %d, ink difference: %f\n", p->down, d - p->ink);
 				break;
 			}
 			p->ink -= d;
@@ -1117,7 +1113,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 					appendpencil_full(&buf, 0, tickSolid);
 				} else {
 					if(tickSolid - lasttick > 63) {
-						warning("error: pencil move: too large tick gap\n");
+						warningplayer(u, "error: pencil move: too large tick gap of %d\n", tickSolid - lasttick);
 						buf.at -= 3;
 						break;
 					}
@@ -1145,7 +1141,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 				if(type == -1)
 					p->down = 0;
 			} else {
-				warning("error: too short distance for pencil move\n");
+				warningplayer(u, "error: too short distance for pencil move: %f\n", d);
 				break;
 			}
 		}
