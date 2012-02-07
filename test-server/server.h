@@ -10,8 +10,8 @@
 #define HOLE_FREQ 150 // number of ticks between holes
 #define TICK_LENGTH 24 // in msecs
 #define SERVER_DELAY 200 // in msecs
-#define COUNTDOWN 1000 // in msecs
-#define COOLDOWN 2000 // time between end of round and countdown of next in msecs
+#define COUNTDOWN 1500 // in msecs
+#define COOLDOWN 2500 // time between end of round and countdown of next in msecs
 #define SB_MAX 50 // sendbuffer max size
 #define DELTA_COUNT 11
 #define DELTA_MAX 25

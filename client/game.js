@@ -1387,15 +1387,22 @@ Player.prototype.drawIndicator = function() {
 	}
 	ctx.fill();
 
-	/* draw a YOU next to yourself */
-	if(this.isLocal) {
-		var textDimensions = ctx.measureText("you");
+	/* draws name next to indicator */
+	var text = this.isLocal ? 'you' : this.playerName; 
+	var fontSize = this.isLocal ? indicatorFontLocal : indicatorFont;
 
-		x = Math.min(x, this.x);
-		y = Math.min(y, this.y);
- 
-		ctx.fillText("you", x - 3 - textDimensions.width, y - 3 - textDimensions.height);
-	}
+	if(fontSize == 0)
+		return;
+
+	x = Math.min(x, this.x);
+	y = Math.min(y, this.y);
+
+	ctx.fillStyle    = '#000';
+	ctx.font         = fontSize + 'px sans-serif';
+	ctx.textBaseline = 'top';
+
+	var textWidth = ctx.measureText(text).width;
+	ctx.fillText(text, x - 2 - textWidth, y - 3 - fontSize);
 }
 
 /* this is object for storing touch info */
