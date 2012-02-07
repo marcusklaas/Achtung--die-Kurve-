@@ -447,8 +447,8 @@ void joingame(struct game *gm, struct user *newusr) {
 		sendjsontogame(json, lobby, newusr);
 		newgamelist();
 	}
-	else
-		gamelistcurrent = 0;
+	
+	gamelistcurrent = 0;
 
 	if(DEBUG_MODE) {
 		printf("user %d joined game %p\n", newusr->id, (void *)gm);
