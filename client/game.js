@@ -115,7 +115,7 @@ GameEngine.prototype.setGameState = function(newState) {
 		case 'lobby':
 			setOptionVisibility('disconnect');
 			setContentVisibility('gameListContainer');
-			this.createButton.disabled = false;
+			this.createButton.disabled = this.automatchButton.disabled = false;
 			break;
 		case 'editing':
 			setContentVisibility('editor');
@@ -724,6 +724,7 @@ GameEngine.prototype.setParams = function(obj) {
 GameEngine.prototype.requestGame = function(player, minPlayers, maxPlayers) {
 	this.sendMsg('requestGame', {'playerName': player.playerName,
 	 'minPlayers': minPlayers, 'maxPlayers': maxPlayers});
+	this.automatchButton.disabled = true;
 }
 
 GameEngine.prototype.createGame = function() {
@@ -783,6 +784,10 @@ GameEngine.prototype.addPlayer = function(player) {
 	player.isHost = false;
 	this.players[player.id] = player;
 	this.appendPlayerList(player);
+
+	if(player == this.localPlayer)
+		document.getElementById('ink').style.backgroundColor = 'rgba(' +
+		 player.color[0] + ', ' + player.color[1] + ', ' + player.color[2] + ', 0.5)';
 	
 	if(this.type != 'lobby') {
 		player.canvas = document.createElement('canvas');
@@ -1397,13 +1402,11 @@ Player.prototype.drawIndicator = function() {
 
 	x = Math.min(x, this.x);
 	y = Math.min(y, this.y);
-
-	ctx.fillStyle    = '#000';
-	ctx.font         = fontSize + 'px sans-serif';
+	ctx.fillStyle = '#000';
+	ctx.font = fontSize + 'pt Helvetica bold, sans-serif';
+	ctx.textAlign = 'right';
 	ctx.textBaseline = 'top';
-
-	var textWidth = ctx.measureText(text).width;
-	ctx.fillText(text, x - 2 - textWidth, y - 3 - fontSize);
+	ctx.fillText(text, x - 2, y - 3 - fontSize);
 }
 
 /* this is object for storing touch info */
