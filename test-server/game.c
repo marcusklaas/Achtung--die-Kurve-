@@ -111,6 +111,7 @@ void broadcastgamelist() {
 
 void logstartgame(struct game *gm) {
 	loggame(gm, "started! players: %d\n", gm->n);
+
 	if(gm->type == GT_CUSTOM) {
 		char *a;
 		cJSON *j;
@@ -908,7 +909,7 @@ void mainloop() {
 		sleepuntil = ++serverticks * TICK_LENGTH;
 
 		if(sleepuntil < servermsecs() - 3 * TICK_LENGTH && servermsecs() - lastheavyloadmsg > 1000) {
-			warning("%d msec behind on schedule!\n", servermsecs() - sleepuntil);
+			warning("%ld msec behind on schedule!\n", servermsecs() - sleepuntil);
 			lastheavyloadmsg = servermsecs();
 		}
 
