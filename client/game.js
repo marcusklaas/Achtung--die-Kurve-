@@ -115,7 +115,7 @@ GameEngine.prototype.setGameState = function(newState) {
 		case 'lobby':
 			setOptionVisibility('disconnect');
 			setContentVisibility('gameListContainer');
-			this.createButton.disabled = false;
+			this.createButton.disabled = this.automatchButton.disabled = false;
 			break;
 		case 'editing':
 			setContentVisibility('editor');
@@ -724,6 +724,7 @@ GameEngine.prototype.setParams = function(obj) {
 GameEngine.prototype.requestGame = function(player, minPlayers, maxPlayers) {
 	this.sendMsg('requestGame', {'playerName': player.playerName,
 	 'minPlayers': minPlayers, 'maxPlayers': maxPlayers});
+	this.automatchButton.disabled = true;
 }
 
 GameEngine.prototype.createGame = function() {
