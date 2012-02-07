@@ -348,6 +348,7 @@ void leavegame(struct user *usr) {
 		if(gm->host == usr) {
 			gm->host = curr;
 			tellhost(gm, 0);
+			gamelistcurrent = 0;
 		}
 	}
 
@@ -415,9 +416,9 @@ void joingame(struct game *gm, struct user *newusr) {
 	/* tell players of game someone new joined and send a message to the new player for every other player that is already in the game */
 	for(usr = gm->usr; usr; usr = usr->nxt) {
 		json = jsoncreate("newPlayer");
-		jsonaddnum(json, "playerId", newusr->id);
-		jsonaddnum(json, "index", newusr->index);
-		jsonaddstr(json, "playerName", newusr->name);
+		jsonaddnum(json, "playerId", usr->id);
+		jsonaddnum(json, "index", usr->index);
+		jsonaddstr(json, "playerName", usr->name);
 		if(usr == newusr)
 			sendjsontogame(json, gm, newusr);
 		else
