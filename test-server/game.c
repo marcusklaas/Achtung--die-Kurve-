@@ -315,13 +315,17 @@ struct game *searchgame(int gameid) {
 	return gm;
 }
 
-void tellhost(struct game *gm, struct user *usr) {
+void broadcasthost(struct game *gm) {
 	cJSON *j = jsoncreate("setHost");
 	jsonaddnum(j, "playerId", gm->host->id);
-	if(usr)
-		sendjson(j, usr);
-	else
-		sendjsontogame(j, gm, 0);
+	sendjsontogame(j, gm, 0);
+	jsondel(j);
+}
+
+void tellhost(struct user *host, struct user *usr) {
+	cJSON *j = jsoncreate("setHost");
+	jsonaddnum(j, "playerId", host->id);
+	sendjson(j, usr);
 	jsondel(j);
 }
 
@@ -348,7 +352,7 @@ void leavegame(struct user *usr) {
 		curr->nxt = usr->nxt;
 		if(gm->host == usr) {
 			gm->host = curr;
-			tellhost(gm, 0);
+			broadcasthost(gm);
 			gamelistcurrent = 0;
 		}
 	}
@@ -435,7 +439,7 @@ void joingame(struct game *gm, struct user *newusr) {
 		if(gm->map)
 			sendmap(gm->map, newusr);
 		if(gm->host)
-			tellhost(gm, newusr);
+			tellhost(gm->host, newusr);
 	}
 
 	if(gm->type == GT_AUTO && gm->n >= gm->nmin)
