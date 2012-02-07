@@ -16,9 +16,6 @@ else if(location.href.indexOf('C:/Dropbox') != -1)
 var gapAlpha = 0.2;
 var lineWidth = 3; // only visual, does not influence collisions
 var lineCapStyle = 'round';
-var indicatorLength = 15;
-var indicatorArrowLength = 8;
-var indicatorArrowOffset = 2;
 var syncTries = 2;
 var syncDelays = 50;
 var tickTockDifference = 2; // desired difference between tock and tick
@@ -46,7 +43,7 @@ var autoMatchWaitMessage = 'Waiting for more players..';
 /* touch */
 var touchDevice = 'createTouch' in document;
 var steerBoxSize = 0.15;
-var pencilTreshold = 20; // minimum SCALED units you need to move to transform steertouch into penciltouch 
+var pencilTreshold = 20; // minimum SCALED units movement required to transform steer to pencil 
 
 /* pencil */
 var inkBufferTicks = 5;
@@ -73,6 +70,13 @@ var modePencil = 2;
 var modeJson = 3;
 var modeOther = 7;
 var modeSetMap = 8 + 7;
+
+/* indicators */
+var indicatorLength = 15;
+var indicatorArrowLength = 8;
+var indicatorArrowOffset = 2;
+var indicatorFontLocal = 24;
+var indicatorFont = 16; // set to 0 to not draw at all
 
 /* editor */
 var editorStepTime = 125;

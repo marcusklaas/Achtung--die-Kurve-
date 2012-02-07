@@ -878,11 +878,8 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	this.resize();
 
 	/* draw angle indicators */
-	for(var i = 0; i < startPositions.length; i++) {
-		var player = this.getPlayer(startPositions[i].playerId);
-
-		player.drawIndicator();
-	}
+	for(var i = 0; i < startPositions.length; i++)
+		this.getPlayer(startPositions[i].playerId).drawIndicator();
 
 	var self = this;
 	this.gameloopTimeout = window.setTimeout(function() { self.realStart(); }, delay + this.tickLength);
@@ -1389,6 +1386,23 @@ Player.prototype.drawIndicator = function() {
 		ctx.closePath();
 	}
 	ctx.fill();
+
+	/* draws name next to indicator */
+	var text = this.isLocal ? 'you' : this.playerName; 
+	var fontSize = this.isLocal ? indicatorFontLocal : indicatorFont;
+
+	if(fontSize == 0)
+		return;
+
+	x = Math.min(x, this.x);
+	y = Math.min(y, this.y);
+
+	ctx.fillStyle    = '#000';
+	ctx.font         = fontSize + 'px sans-serif';
+	ctx.textBaseline = 'top';
+
+	var textWidth = ctx.measureText(text).width;
+	ctx.fillText(text, x - 2 - textWidth, y - 3 - fontSize);
 }
 
 /* this is object for storing touch info */
