@@ -401,11 +401,8 @@ void joingame(struct game *gm, struct user *newusr) {
 	newusr->nxt = gm->usr;
 	gm->usr = newusr;
 	gm->n++;
-	if(gm->type == GT_CUSTOM) {
-		if(!gm->host)
-			gm->host = newusr;
-		tellhost(gm, newusr);
-	}
+	if(gm->type == GT_CUSTOM && !gm->host)
+		gm->host = newusr;
 
 	/* tell user s/he joined a game */
 	json = jsoncreate("joinedGame");
@@ -426,7 +423,7 @@ void joingame(struct game *gm, struct user *newusr) {
 			sendjson(json, newusr);
 		jsondel(json);
 	}
-
+	
 	/* send either game details or game list */
 	if(gm->type == GT_LOBBY)
 		sendgamelist(newusr);
@@ -437,6 +434,8 @@ void joingame(struct game *gm, struct user *newusr) {
 		
 		if(gm->map)
 			sendmap(gm->map, newusr);
+		if(gm->host)
+			tellhost(gm, newusr);
 	}
 
 	if(gm->type == GT_AUTO && gm->n >= gm->nmin)
