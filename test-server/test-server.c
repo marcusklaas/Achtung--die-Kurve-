@@ -328,6 +328,7 @@ callback_game(struct libwebsocket_context * context,
 			}
 
 			j = jsoncheckjson(json, "segments");
+			
 			if(j) {
 				if(u->gm->map)
 					freemap(u->gm->map);

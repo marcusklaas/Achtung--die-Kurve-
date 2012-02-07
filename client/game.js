@@ -574,19 +574,15 @@ GameEngine.prototype.appendGameList = function(obj) {
 	row.appendChild(node);
 
 	node = document.createElement('td');
+	node.innerHTML = obj.host != undefined ? obj.host : '-';
+	row.appendChild(node);
+
+	node = document.createElement('td');
 	node.innerHTML = obj.state;
 	row.appendChild(node);
 
 	node = document.createElement('td');
-	node.innerHTML = obj.nmin;
-	row.appendChild(node);
-
-	node = document.createElement('td');
-	node.innerHTML = obj.nmax;
-	row.appendChild(node);
-
-	node = document.createElement('td');
-	node.innerHTML = obj.n;
+	node.innerHTML = obj.n + "/" + (obj.type == 'custom' ? obj.nmax : obj.nmin);
 	row.appendChild(node);
 
 	var button = document.createElement('button');
