@@ -776,6 +776,8 @@ GameEngine.prototype.doTock = function() {
 
 GameEngine.prototype.addPlayer = function(player) {
 	player.color = playerColors[player.index];
+	if(player == this.localPlayer)
+		this.pencil.inkDiv.style.backgroundColor = getRGBAstring(player.color, 0.5);
 	player.status = 'ready';
 	player.points = 0;
 	player.isHost = false;
@@ -1327,8 +1329,7 @@ Player.prototype.updateRow = function() {
 		this.row.className = 'left';
 		
 	if(this.game.type != 'lobby')
-		this.row.childNodes[0].style.color = 'rgb(' + this.color[0] + ', ' + this.color[1] + ', '
-		 + this.color[2] + ')';
+		this.row.childNodes[0].style.color = getRGBstring(this.color);
 
 	this.row.childNodes[1].innerHTML = this.status;
 	this.row.childNodes[2].innerHTML = this.points;
@@ -1368,7 +1369,7 @@ Player.prototype.drawIndicator = function() {
 	ctx.lineTo(x += Math.cos(angle) * indicatorLength, y += Math.sin(angle) * indicatorLength);
 	ctx.stroke();
 
-	ctx.fillStyle = 'rgb('+this.color[0]+','+this.color[1]+','+this.color[2]+')';
+	ctx.fillStyle = getRGBstring(this.color);
 	ctx.beginPath();
 	var a = indicatorArrowOffset;
 	var b = indicatorArrowLength;
@@ -2434,4 +2435,14 @@ function getPos(e) {
 	}
 
 	return [posx, posy];
+}
+
+function getRGBstring(color) {
+	return 'rgb(' + color[0] + ', ' + color[1] + ', '
+		 + color[2] + ')';
+}
+
+function getRGBAstring(color, alpha) {
+	return 'rgba(' + color[0] + ', ' + color[1] + ', '
+		 + color[2] + ', ' + alpha + ')';
 }
