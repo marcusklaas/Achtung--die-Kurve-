@@ -47,9 +47,10 @@ canvas {
 
 .reward {
 	position: absolute;
-	color: white;
+	color: black;
 	z-index: 3;
 	font-size: large;
+	font-weight: bold;
 }
 
 .reward-hidden {

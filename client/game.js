@@ -1394,7 +1394,7 @@ Player.prototype.drawIndicator = function() {
 	ctx.fill();
 
 	/* draws name next to indicator */
-	var text = this.isLocal ? 'you' : this.playerName;
+	var text = this.isLocal ? 'YOU' : this.playerName;
 	ctx.fillStyle = getRGBstring(this.color);// this.isLocal ? '#fff' : '#444';
 	ctx.font = 'bold ' + indicatorFont + 'px Helvetica, sans-serif';
 	ctx.textBaseline = 'bottom';
