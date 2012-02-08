@@ -11,7 +11,7 @@
 #define TICK_LENGTH 24 // in msecs
 #define SERVER_DELAY 200 // in msecs
 #define COUNTDOWN 2000 // in msecs
-#define COOLDOWN 4000 // time between end of round and countdown of next in msecs
+#define COOLDOWN 3500 // time between end of round and countdown of next in msecs
 #define SB_MAX 50 // sendbuffer max size
 #define DELTA_COUNT 11
 #define DELTA_MAX 25

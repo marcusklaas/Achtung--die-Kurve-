@@ -1394,19 +1394,14 @@ Player.prototype.drawIndicator = function() {
 	ctx.fill();
 
 	/* draws name next to indicator */
-	var text = this.isLocal ? 'you' : this.playerName; 
-	var fontSize = this.isLocal ? indicatorFontLocal : indicatorFont;
-
-	if(fontSize == 0)
-		return;
-
-	x = Math.min(x, this.x);
-	y = Math.min(y, this.y);
-	ctx.fillStyle = '#000';
-	ctx.font = fontSize + 'pt Helvetica bold, sans-serif';
-	ctx.textAlign = 'right';
-	ctx.textBaseline = 'top';
-	ctx.fillText(text, x - 2, y - 3 - fontSize);
+	var text = this.isLocal ? 'you' : this.playerName;
+	ctx.fillStyle = getRGBstring(this.color);// this.isLocal ? '#fff' : '#444';
+	ctx.font = 'bold ' + indicatorFont + 'px Helvetica, sans-serif';
+	ctx.textBaseline = 'bottom';
+	var w = ctx.measureText(text).width;
+	x = this.x - (this.angle > Math.PI * 3 / 2 ? w + 2 : 0);
+	y = this.y - 3;
+	ctx.fillText(text, Math.min(this.game.width - w, Math.max(0, x)), y);
 }
 
 /* this is object for storing touch info */

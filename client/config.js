@@ -35,7 +35,6 @@ var safeTickDifference = 30;
 var resizeDelay = 200; // the duration the window should have a constant size before calling resize
 var paramUpdateInterval = 500; // don't send game intervals more often that one per this many msecs
 var paramInputInterval = 2000; // wait for this duration before sending params to server after text edit
-var unlockInterval = 0; // minimum time between last changing settings and gamestart in msecs
 
 var customGameWaitMessage = 'Waiting for host to start the game..';
 var autoMatchWaitMessage = 'Waiting for more players..';
@@ -70,13 +69,13 @@ var modePencil = 2;
 var modeJson = 3;
 var modeOther = 7;
 var modeSetMap = 8 + 7;
+var unlockInterval = 0; // minimum time between last changing settings and gamestart in msecs
 
 /* indicators */
 var indicatorLength = 15;
 var indicatorArrowLength = 8;
 var indicatorArrowOffset = 2;
-var indicatorFontLocal = 24;
-var indicatorFont = 16; // set to 0 to not draw at all
+var indicatorFont = 24;
 
 /* editor */
 var editorStepTime = 125;
