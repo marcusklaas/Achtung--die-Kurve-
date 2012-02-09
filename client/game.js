@@ -529,7 +529,7 @@ GameEngine.prototype.setHost = function(player) {
 	
 	var localHost = this.host == this.localPlayer;
 	
-	var hostBlock = localHost  ? 'block' : 'none';
+	var hostBlock = localHost ? 'block' : 'none';
 	var nonhostBlock = localHost ? 'none' : 'block';
 	this.hostContainer.style.display = hostBlock;
 	this.nonhostContainer.style.display = nonhostBlock;
@@ -537,6 +537,8 @@ GameEngine.prototype.setHost = function(player) {
 	var inputElts = document.getElementById('details').getElementsByTagName('input');
 	for(var i = 0; i < inputElts.length; i++)
 		inputElts[i].disabled = !localHost;
+
+	/* TODO: (un)hide kick links */
 }
 
 GameEngine.prototype.buildGameList = function(list) {
@@ -1079,18 +1081,30 @@ GameEngine.prototype.displayDebugStatus = function() {
 		 ', game time adjustments: ' + this.adjustGameTimeMessagesReceived;
 }
 
+GameEngine.prototype.requestKick = function(id) {
+	this.gameMessage('trying to kick ' + id);
+	this.sendMsg('kick', {'playerId': id});
+}
+
 GameEngine.prototype.appendPlayerList = function(player) {
 	var row = document.createElement('tr');
 	var nameNode = document.createElement('td');
 	var nameSpan = document.createElement('span');
+	var kickLink = document.createElement('a');
 	var statusNode = document.createElement('td');
 	var pointsNode = document.createElement('td');
+	var self = this;
 
 	nameSpan.innerHTML = player.playerName;
 	nameSpan.className = 'noverflow';
 	player.row = row;
 
+	kickLink.className = 'kickLink';
+	kickLink.innerHTML = 'x';
+	kickLink.addEventListener('click', function() { self.requestKick(player.id); });
+
 	this.playerList.appendChild(row);
+	nameNode.appendChild(kickLink);
 	nameNode.appendChild(nameSpan);
 	row.appendChild(nameNode);
 	row.appendChild(statusNode);

@@ -172,6 +172,17 @@ callback_game(struct libwebsocket_context * context,
 			warning("no mode specified!\n");
 			break;
 		}
+		else if(!strcmp(mode, "kick")) {
+			int victimid = jsongetint(json, "playerId");
+			struct user *victim = findplayer(u->gm, victimid);
+
+			if(!victim || u->gm->host - u || u->gm->state != GS_LOBBY /* || u == victim */) {
+				warning("user %d tried to kick usr %d, but does not meet requirements\n", u->id, victimid);
+				break;
+			}
+
+			joingame(lobby, victim);
+		}
 		else if(!strcmp(mode, "join")) {
 			int gameid;
 			struct game *gm;

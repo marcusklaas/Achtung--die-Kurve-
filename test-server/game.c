@@ -309,6 +309,12 @@ struct game *findgame(int nmin, int nmax) {
 	return bestgame;
 }
 
+struct user *findplayer(struct game *gm, int id) {
+	struct user *waldo;
+	for(waldo = gm->usr; waldo && waldo->id - id; waldo = waldo->nxt);
+	return waldo;
+}
+
 /* takes game id and returns pointer to game */
 struct game *searchgame(int gameid) {
 	struct game *gm;
@@ -418,7 +424,8 @@ void joingame(struct game *gm, struct user *newusr) {
 	sendjson(json, newusr);
 	jsondel(json);
 
-	/* tell players of game someone new joined and send a message to the new player for every other player that is already in the game */
+	/* tell players of game someone new joined and send a message to the new
+	 * player for every other player that is already in the game */
 	for(usr = gm->usr; usr; usr = usr->nxt) {
 		json = jsoncreate("newPlayer");
 		jsonaddnum(json, "playerId", usr->id);
@@ -1071,7 +1078,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 		/* read next block */
 		type = json->valueint;
 		if(!(json = json->next)) break;
-		x= json->valueint;
+		x = json->valueint;
 		if(!(json = json->next)) break;
 		y = json->valueint;
 		if(!(json = json->next)) break;
