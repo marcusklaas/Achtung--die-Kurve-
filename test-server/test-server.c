@@ -181,6 +181,9 @@ callback_game(struct libwebsocket_context * context,
 				break;
 			}
 
+			log("host %d kicked user %d\n", u->id, victimid);
+
+			leavegame(victim, LEAVE_KICKED);
 			joingame(lobby, victim);
 		}
 		else if(!strcmp(mode, "join")) {

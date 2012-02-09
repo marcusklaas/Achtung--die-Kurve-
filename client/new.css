@@ -362,6 +362,10 @@ a.kickLink {
 	user-select: none;
 }
 
+a.kickLink.hidden {
+	display: none;
+}
+
 a.kickLink:hover {
 	text-decoration: none;
 	opacity: 0.4;

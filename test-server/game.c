@@ -48,14 +48,17 @@ cJSON *encodesegments(struct seg *seg) {
 
 cJSON *encodegame(struct game *gm) {
 	cJSON *json = cJSON_CreateObject();
+	char buf[20];
+
 	jsonaddnum(json, "id", gm->id);
 	jsonaddnum(json, "n", gm->n);
 	jsonaddnum(json, "nmin", gm->nmin);
 	jsonaddnum(json, "nmax", gm->nmax);
 	if(gm->host)
 		jsonaddstr(json, "host", gm->host->name);
-	jsonaddstr(json, "type", gametypetostr(gm->type));
-	jsonaddstr(json, "state", statetostr(gm->state));
+
+	jsonaddstr(json, "type", gametypetostr(gm->type, buf));
+	jsonaddstr(json, "state", statetostr(gm->state, buf));
 	return json;
 }
 
@@ -312,7 +315,7 @@ struct game *findgame(int nmin, int nmax) {
 
 struct user *findplayer(struct game *gm, int id) {
 	struct user *waldo;
-	for(waldo = gm->usr; waldo && waldo->id - id; waldo = waldo->nxt);
+	for(waldo = gm->usr; waldo && waldo->id != id; waldo = waldo->nxt);
 	return waldo;
 }
 
@@ -339,9 +342,10 @@ void tellhost(struct user *host, struct user *usr) {
 	jsondel(j);
 }
 
-void leavegame(struct user *usr) {
+void leavegame(struct user *usr, int reason) {
 	struct game *gm = usr->gm;
 	struct user *curr;
+	char buf[20];
 	cJSON *json;
 
 	if(DEBUG_MODE && gm->type != GT_LOBBY)
@@ -374,6 +378,7 @@ void leavegame(struct user *usr) {
 	/* send message to group: this player left */
 	json = jsoncreate("playerLeft");
 	jsonaddnum(json, "playerId", usr->id);
+	jsonaddstr(json, "reason", leavereasontostr(reason, buf));
 	sendjsontogame(json, gm, 0);
 	jsondel(json);
 
@@ -389,10 +394,11 @@ void leavegame(struct user *usr) {
 
 void joingame(struct game *gm, struct user *newusr) {
 	struct user *usr;
+	char buf[20];
 	cJSON *json;
 
 	if(newusr->gm)
-		leavegame(newusr);
+		leavegame(newusr, LEAVE_NORMAL);
 
 	if(DEBUG_MODE)
 		printf("user %d is joining game %p\n", newusr->id, (void*)gm);
@@ -420,7 +426,7 @@ void joingame(struct game *gm, struct user *newusr) {
 
 	/* tell user s/he joined a game */
 	json = jsoncreate("joinedGame");
-	jsonaddstr(json, "type", gametypetostr(gm->type));
+	jsonaddstr(json, "type", gametypetostr(gm->type, buf));
 	jsonaddnum(json, "index", newusr->index);
 	sendjson(json, newusr);
 	jsondel(json);
@@ -1037,7 +1043,7 @@ void deleteuser(struct user *usr) {
 	int i;
 	
 	if(usr->gm)
-		leavegame(usr);
+		leavegame(usr, LEAVE_DISCONNECT);
 
 	clearinputs(usr);
 	cleanpencil(&(usr->pencil));
