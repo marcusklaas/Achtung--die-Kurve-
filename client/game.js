@@ -3,7 +3,6 @@ function GameEngine(audioController) {
 	// game variables
 	this.players = [];
 	this.indexToPlayer = new Array(8);
-	this.tickTockDifference = tickTockDifference;
 	this.state = 'new'; // new, lobby, editing, waiting, countdown, playing, watching, ended
 	this.type = null;
 
@@ -346,7 +345,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 				this.nonhostContainer.innerHTML = obj.type == 'custom' ? customGameWaitMessage :
 				 autoMatchWaitMessage;
 
-			if(obj.type == 'auto')
+			if(obj.type != 'custom')
 				this.setHost(null);
 			break;
 		case 'gameParameters':
@@ -395,8 +394,9 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'playerLeft':
 			var player = this.getPlayer(obj.playerId);
 			
-			if(this.state != 'lobby')
-				this.gameMessage(player.playerName + ' left the game');
+			if(this.state != 'lobby' || obj.reason != 'normal')
+				this.gameMessage(player.playerName + ' left the game' +
+				 (obj.reason == 'normal' ? '' : ' (' + obj.reason + ')'));
 
 			this.removePlayer(player);
 			this.audioController.playSound('playerLeft');
@@ -540,7 +540,7 @@ GameEngine.prototype.setHost = function(player) {
 	
 	var localHost = this.host == this.localPlayer;
 	
-	var hostBlock = localHost  ? 'block' : 'none';
+	var hostBlock = localHost ? 'block' : 'none';
 	var nonhostBlock = localHost ? 'none' : 'block';
 	this.hostContainer.style.display = hostBlock;
 	this.nonhostContainer.style.display = nonhostBlock;
@@ -548,6 +548,10 @@ GameEngine.prototype.setHost = function(player) {
 	var inputElts = document.getElementById('details').getElementsByTagName('input');
 	for(var i = 0; i < inputElts.length; i++)
 		inputElts[i].disabled = !localHost;
+
+	var kickLinks = this.playerList.getElementsByTagName('a');
+	for(var i = 0; i < kickLinks.length; i++)
+		kickLinks[i].className = localHost ? 'kickLink' : 'kickLink hidden';
 }
 
 GameEngine.prototype.buildGameList = function(list) {
@@ -932,7 +936,7 @@ GameEngine.prototype.realStart = function() {
 		 		return;
 		 	}
 
-			while(self.tick - self.tock >= self.tickTockDifference) //self.tickTockDifference?? is dat niet global?
+			while(self.tick - self.tock >= tickTockDifference)
 				self.doTock();
 			self.doTick();
 		} while((timeOut = (self.tick + 1) * self.tickLength - (Date.now() - self.gameStartTimestamp)
@@ -1090,18 +1094,30 @@ GameEngine.prototype.displayDebugStatus = function() {
 		 ', game time adjustments: ' + this.adjustGameTimeMessagesReceived;
 }
 
+GameEngine.prototype.requestKick = function(id) {
+	this.sendMsg('kick', {'playerId': id});
+}
+
 GameEngine.prototype.appendPlayerList = function(player) {
 	var row = document.createElement('tr');
 	var nameNode = document.createElement('td');
 	var nameSpan = document.createElement('span');
+	var kickLink = document.createElement('a');
 	var statusNode = document.createElement('td');
 	var pointsNode = document.createElement('td');
+	var self = this;
 
 	nameSpan.innerHTML = player.playerName;
 	nameSpan.className = 'noverflow';
 	player.row = row;
 
+	kickLink.className = this.host == this.localPlayer ? 'kickLink' : 'kickLink hidden';
+	kickLink.innerHTML = 'x';
+	kickLink.addEventListener('click', function() { self.requestKick(parseInt(player.id)); });
+
 	this.playerList.appendChild(row);
+	if(player != this.localPlayer)
+		nameNode.appendChild(kickLink);
 	nameNode.appendChild(nameSpan);
 	row.appendChild(nameNode);
 	row.appendChild(statusNode);
@@ -1130,7 +1146,6 @@ GameEngine.prototype.sortPlayerList = function() {
 		return score1 == score2 ? 0 : (score1 > score2 ? -1 : 1);
 	});
 
-	/* even moar phat optimization! */
 	for(var i = 1; i < arr.length; i++)
 		if(arr[i] != this.playerList.lastChild) {
 			this.playerList.removeChild(arr[i]);

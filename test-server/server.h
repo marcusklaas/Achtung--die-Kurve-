@@ -64,6 +64,11 @@
 #define SPAM_STEERING_MAX		60
 #define SPAM_STEERING_INTERVAL	60
 
+/* game leave reasons */
+#define LEAVE_NORMAL 0
+#define LEAVE_DISCONNECT 1
+#define LEAVE_KICKED 2
+
 /* pencil */
 #define PM_ON 0
 #define PM_ONDEATH 1
@@ -201,8 +206,8 @@ struct game *creategame(int gametype, int nmin, int nmax);
 void endgame(struct game *gm, struct user *winner);
 void joingame(struct game *gm, struct user *newusr);
 float getlength(float x, float y);
-char *gametypetostr(int gametype);
-char *pencilmodetostr(int pencilmode);
+char *gametypetostr(int gametype, char *buf);
+char *pencilmodetostr(int pencilmode, char *buf);
 void addsegment(struct game *gm, struct seg *seg);
 float checkcollision(struct game *gm, struct seg *seg);
 void endround(struct game *gm);

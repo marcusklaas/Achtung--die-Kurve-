@@ -149,6 +149,7 @@ cJSON *jsoncreate(char *mode) {
 
 cJSON *getjsongamepars(struct game *gm) {
 	cJSON *json = jsoncreate("gameParameters");
+	char buf[20];
 
 	jsonaddnum(json, "countdown", COUNTDOWN);
 	jsonaddnum(json, "hsize", gm->hsize);
@@ -161,8 +162,8 @@ cJSON *getjsongamepars(struct game *gm) {
 	jsonaddnum(json, "ts", gm->ts);
 	jsonaddnum(json, "id", gm->id);
 	jsonaddnum(json, "goal", gm->goal);
-	jsonaddstr(json, "type", gametypetostr(gm->type));
-	jsonaddstr(json, "pencilmode", pencilmodetostr(gm->pencilmode));
+	jsonaddstr(json, "type", gametypetostr(gm->type, buf));
+	jsonaddstr(json, "pencilmode", pencilmodetostr(gm->pencilmode, buf));
 	jsonaddnum(json, "torus", gm->torus);
 	jsonaddnum(json, "inkcap", gm->inkcap);
 	jsonaddnum(json, "inkregen", gm->inkregen);
@@ -375,43 +376,32 @@ void appendpencil_full(struct buffer *buf, char down, int tick) {
  * THIS-TO-THAT CONVERTERS
  */
 
-char *gametypetostr(int gametype) {
-	char *str = smalloc(7);
-
+char *gametypetostr(int gametype, char *str) {
 	if(gametype == GT_AUTO)
-		strcpy(str, "auto");
-	else if(gametype == GT_LOBBY)
-		strcpy(str, "lobby");
-	else
-		strcpy(str, "custom");
-
-	return str;
+		return strcpy(str, "auto");
+	if(gametype == GT_LOBBY)
+		return strcpy(str, "lobby");
+	return strcpy(str, "custom");
 }
 
-char *statetostr(int gamestate) {
-	char *str = smalloc(8);
-
+char *statetostr(int gamestate, char *str) {
 	if(gamestate == GS_LOBBY)
-		strcpy(str, "lobby");
-	else if(gamestate == GS_STARTED)
-		strcpy(str, "started");
-	else
-		strcpy(str, "ended");
-
-	return str;
+		return strcpy(str, "lobby");
+	return (gamestate == GS_STARTED) ? strcpy(str, "started") : strcpy(str, "ended");
 }
 
-char *pencilmodetostr(int pencilmode) {
-	char *str = smalloc(10);
+char *leavereasontostr(int reason, char *str) {
+	if(reason == LEAVE_NORMAL)
+		return strcpy(str, "normal");
+	if(reason == LEAVE_DISCONNECT)
+		return strcpy(str, "disconnected");
+	return strcpy(str, "kicked");
+}
 
+char *pencilmodetostr(int pencilmode, char *str) {
 	if(pencilmode == PM_ON)
-		strcpy(str, "on");
-	else if(pencilmode == PM_ONDEATH)
-		strcpy(str, "ondeath");
-	else
-		strcpy(str, "off");
-
-	return str;
+		return strcpy(str, "on");
+	return (pencilmode == PM_ONDEATH) ? strcpy(str, "ondeath") : strcpy(str, "off");
 }
 
 int strtopencilmode(char *pencilstr) {

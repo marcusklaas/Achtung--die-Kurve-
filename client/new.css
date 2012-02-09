@@ -346,6 +346,33 @@ span.noverflow {
 	margin: 0;
 }
 
+a.kickLink {
+	color: #000000;
+	float: left;
+	font-size: 14px;
+	font-weight: bold;
+	opacity: 0.2;
+	text-shadow: 0 1px 0 #FFFFFF;
+	-webkit-touch-callout: none;
+	-webkit-user-select: none;
+	-khtml-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	-o-user-select: none;
+	user-select: none;
+}
+
+a.kickLink.hidden {
+	display: none;
+}
+
+a.kickLink:hover {
+	text-decoration: none;
+	opacity: 0.4;
+	filter: alpha(opacity=40);
+	cursor: pointer;
+}
+
 col.col1 {
 	width: 40px;
 }
