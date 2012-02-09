@@ -150,6 +150,7 @@ GameEngine.prototype.setGameState = function(newState) {
 				setOptionVisibility('back');
 			break;
 		case 'new':
+			resizeChat();
 			setContentVisibility('connectionContainer');
 			setOptionVisibility('nothing');
 			this.connectButton.disabled = false;
