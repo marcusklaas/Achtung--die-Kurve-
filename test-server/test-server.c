@@ -183,6 +183,10 @@ callback_game(struct libwebsocket_context * context,
 
 			log("host %d kicked user %d\n", u->id, victimid);
 
+			j = jsoncreate("kickNotification");
+			sendjson(j, victim);
+			jsondel(j);
+
 			leavegame(victim, LEAVE_KICKED);
 			joingame(lobby, victim);
 		}
@@ -214,6 +218,7 @@ callback_game(struct libwebsocket_context * context,
 					jsonaddstr(j, "reason", "full");
 
 				sendjson(j, u);
+				jsondel(j);
 			}
 		}
 		else if(!strcmp(mode, "chat")) {
@@ -407,7 +412,6 @@ static struct option options[] = {
 	{ "closetest",  no_argument,		NULL, 'c' },
 	{ NULL, 0, 0, 0 }
 };
-
 
 int main(int argc, char **argv) {
 	int n = 0;

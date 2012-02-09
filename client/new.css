@@ -124,8 +124,8 @@ h2.contentHeader {
 
 #gameTitle.leftSide {
 	width: 175px;
-	margin: 10px 5px 0 10px;
-	padding: 0;
+	margin: 5px 5px 5px 10px;
+	padding: 5px 0 0 0;
 	text-align: left;
 	text-overflow: ellipsis;
 	overflow: hidden;
@@ -133,9 +133,11 @@ h2.contentHeader {
 }
 
 #goalDisplay {
-	width: 100px;
-	margin: 0 10px 0 0;
-	padding: 0;
+	position: absolute;
+	right: 0;
+	top: 0;
+	margin: 0 0 0 0;
+	padding: 10px 5px 0 0;
 	text-align: right;
 }
 
