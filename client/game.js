@@ -113,8 +113,9 @@ GameEngine.prototype.setGameState = function(newState) {
 	if(newState == 'waiting' || newState == 'lobby' || newState == 'new') {
 		document.getElementById('gameTitle').className = '';
 		document.getElementById('goalDisplay').style.display = 'none';
-		document.getElementById('gameTitle').style.display = 'block';
 	}
+
+	this.state = newState;
 
 	switch(newState) {
 		case 'lobby':
@@ -127,9 +128,9 @@ GameEngine.prototype.setGameState = function(newState) {
 			break;
 		case 'countdown':
 			setContentVisibility('gameContainer');
+			this.setKickLinksVisibility();
 			document.getElementById('gameTitle').className = 'leftSide';
-			document.getElementById('goalDisplay').style.display = 'inline-block';
-			document.getElementById('gameTitle').style.display = 'inline-block';
+			document.getElementById('goalDisplay').style.display = 'block';
 			break;
 		case 'waiting':
 			setOptionVisibility('stop');
@@ -143,6 +144,7 @@ GameEngine.prototype.setGameState = function(newState) {
 		case 'ended':
 			this.showSidebar();
 			this.resize();
+			this.setKickLinksVisibility();
 
 			if(this.type == 'custom')
 				setOptionVisibility('back');
@@ -154,8 +156,6 @@ GameEngine.prototype.setGameState = function(newState) {
 			this.connectButton.innerHTML = 'Connect to Server';
 			break;
 	}
-
-	this.state = newState;
 }
 
 GameEngine.prototype.toggleSidebar = function() {
@@ -321,6 +321,9 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.localPlayer.id = obj.playerId.toString();
 			this.tickLength = obj.tickLength;
 			this.pencil.inkMinimumDistance = obj.inkMinimumDistance;
+			break;
+		case 'kickNotification':
+			this.gameMessage('You were kicked from the game');
 			break;
 		case 'joinedGame':
 			this.resetPlayers();
@@ -493,7 +496,9 @@ GameEngine.prototype.interpretMsg = function(msg) {
 				document.getElementById('game' + obj.id).getElementsByTagName('button')[0].disabled = true;
 			else if(obj.reason == 'notFound') {
 				var row = document.getElementById('game' + obj.id);
-				row.parentNode.removeChild(row);
+
+				if(row != null)
+					row.parentNode.removeChild(row);
 
 				if(!this.gameList.hasChildNodes())
 					document.getElementById('noGames').style.display = 'block';
@@ -518,6 +523,15 @@ GameEngine.prototype.removePlayer = function(player) {
 		player.status = 'left';
 		player.updateRow();
 	}
+}
+
+GameEngine.prototype.setKickLinksVisibility = function() {
+	var showLinks = this.host == this.localPlayer &&
+	 (this.state == 'waiting' || this.state == 'ended' || this.state == 'editing');
+	var kickLinks = this.playerList.getElementsByTagName('a');
+
+	for(var i = 0; i < kickLinks.length; i++)
+		kickLinks[i].className = showLinks ? 'kickLink' : 'kickLink hidden';
 }
 
 GameEngine.prototype.setHost = function(player) {
@@ -549,9 +563,7 @@ GameEngine.prototype.setHost = function(player) {
 	for(var i = 0; i < inputElts.length; i++)
 		inputElts[i].disabled = !localHost;
 
-	var kickLinks = this.playerList.getElementsByTagName('a');
-	for(var i = 0; i < kickLinks.length; i++)
-		kickLinks[i].className = localHost ? 'kickLink' : 'kickLink hidden';
+	this.setKickLinksVisibility();
 }
 
 GameEngine.prototype.buildGameList = function(list) {
@@ -2143,8 +2155,8 @@ window.onload = function() {
 	var audioController = game.audioController;
 
 	/* add sounds to controller */
-	audioController.addSound('localDeath', 'sounds/wilhelm', ['ogg', 'mp3']);
-	audioController.addSound('localDeath', 'sounds/loser', ['ogg', 'mp3']);
+	//audioController.addSound('localDeath', 'sounds/wilhelm', ['ogg', 'mp3']);
+	//audioController.addSound('localDeath', 'sounds/loser', ['ogg', 'mp3']);
 	audioController.addSound('countdown', 'sounds/countdown', ['ogg', 'mp3']);
 	audioController.addSound('playerLeft', 'sounds/doorclose', ['ogg', 'mp3']);
 	audioController.addSound('newPlayer', 'sounds/playerjoint', ['ogg', 'wav']);
@@ -2356,7 +2368,7 @@ function setCookie(c_name, value, exdays) {
 
 function getCookie(c_name) {
 	var i, x, y, ARRcookies=document.cookie.split(';');
-	for (i = 0; i<ARRcookies.length; i++) {
+	for (i = 0; i < ARRcookies.length; i++) {
 		x = ARRcookies[i].substr(0,ARRcookies[i].indexOf('='));
 		y = ARRcookies[i].substr(ARRcookies[i].indexOf('=')+1);
 		x = x.replace(/^\s+|\s+$/g,'');
