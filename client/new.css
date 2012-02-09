@@ -121,6 +121,11 @@ h2.contentHeader {
 	padding: 12px 0 5px 0;
 }
 
+#goal {
+	font-size: small;
+	padding-left: 10px;
+}
+
 #gameListContainer {
 	padding: 0 5px 0 5px;
 	width: 600px;

@@ -1,14 +1,17 @@
 void randomizeplayerstarts(struct game *gm) {
-	int diameter = ceil(2.0 * gm->v/ gm->ts); /* diameter of circle in px when turning at max rate */
+	int borderwidth, borderheight, diameter = gm->ts > 0 ? 2.0 * gm->v/ gm->ts : 9999; /* diameter of circle in px when turning at max rate */
 	struct user *usr;
+	
+	borderwidth = min(gm->w / 3, max(gm->w / 10, diameter)); 
+	borderheight = min(gm->h / 3, max(gm->h / 10, diameter)); 
 		
 	for(usr = gm->usr; usr; usr = usr->nxt) {
 		struct seg seg;
 		int tries = 0;
 
 		do {
-			usr->x = diameter + rand() % (gm->w - 2 * diameter);
-			usr->y =  diameter + rand() % (gm->h - 2 * diameter);
+			usr->x = borderwidth + rand() % (gm->w - 2 * borderwidth);
+			usr->y =  borderheight + rand() % (gm->h - 2 * borderheight);
 			usr->angle = rand() % 628 / 100.0;
 			seg.x1 = usr->x;
 			seg.y1 = usr->y;
