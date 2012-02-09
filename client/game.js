@@ -110,6 +110,12 @@ GameEngine.prototype.setGameState = function(newState) {
 		document.getElementById('gameTitle').style.display = display;
 		document.getElementById('chatForm').style.display = display;
 	}
+	
+	if(newState == 'waiting' || newState == 'lobby' || newState == 'new') {
+		document.getElementById('gameTitle').className = '';
+		document.getElementById('goalDisplay').style.display = 'none';
+		document.getElementById('gameTitle').style.display = 'block';
+	}
 
 	switch(newState) {
 		case 'lobby':
@@ -122,6 +128,9 @@ GameEngine.prototype.setGameState = function(newState) {
 			break;
 		case 'countdown':
 			setContentVisibility('gameContainer');
+			document.getElementById('gameTitle').className = 'leftSide';
+			document.getElementById('goalDisplay').style.display = 'inline-block';
+			document.getElementById('gameTitle').style.display = 'inline-block';
 			break;
 		case 'waiting':
 			setOptionVisibility('stop');
@@ -360,6 +369,8 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			// first back to game lobby for some reset work
 			if(this.state == 'ended')
 				this.backToGameLobby();
+				
+			document.getElementById('goalDisplay').innerHTML = 'Goal: ' + obj.goal + ' points';
 
 			if(nextRoundDelay > this.countdown) {
 				var self = this;

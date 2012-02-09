@@ -6,7 +6,8 @@ html, body, #sidebar {
 
 #gameContainer, #gameListContainer, #disconnect,
  #waitContainer, #status, #stop, #editor, #back,
- #gameTitle, #playerListContainer, #chatForm {
+ #gameTitle, #playerListContainer, #chatForm,
+ #goalDisplay {
 	display: none;
 }
 
@@ -121,9 +122,21 @@ h2.contentHeader {
 	padding: 12px 0 5px 0;
 }
 
-#goal {
-	font-size: small;
-	padding-left: 10px;
+#gameTitle.leftSide {
+	width: 175px;
+	margin: 10px 5px 0 10px;
+	padding: 0;
+	text-align: left;
+	text-overflow: ellipsis;
+	overflow: hidden;
+	white-space: nowrap;
+}
+
+#goalDisplay {
+	width: 100px;
+	margin: 0 10px 0 0;
+	padding: 0;
+	text-align: right;
 }
 
 #gameListContainer {
@@ -218,6 +231,10 @@ input[type=number] {
 
 #chat {
 	width: 280px;
+}
+
+.gameMessage, .chatMessage {
+	line-height: 18px;
 }
 
 #inkIndicator {

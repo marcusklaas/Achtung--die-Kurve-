@@ -221,6 +221,7 @@ void startgame(struct game *gm) {
 
 	/* spreading the word to all in the game */
 	jsonaddnum(root, "startTime", (int)gm->start);
+	jsonaddnum(root, "goal", gm->goal);
 	cJSON_AddItemToObject(root, "startPositions", start_locations);
 	sendjsontogame(root, gm, 0);
 	jsondel(root);
