@@ -2,7 +2,7 @@
 #define loggame(gm, ...) {LOGTICK; LOGGAME(gm); LOGMSG(__VA_ARGS__);}
 #define logplayer(usr, ...) {LOGTICK; LOGGAME(usr->gm); LOGPLAYER(usr); LOGMSG(__VA_ARGS__);}
 #define LOGTICK {logtime(); LOGMSG("%4lu ", serverticks % 10000);}
-#define LOGGAME(gm) LOGMSG("g:%-4d ", gm->id)
+#define LOGGAME(gm) if(gm) LOGMSG("g:%-4d ", gm->id)
 #define LOGPLAYER(usr) LOGMSG("u:%-4d ", usr->id)
 #define LOGMSG(...) printf(__VA_ARGS__)
 
@@ -10,7 +10,7 @@
 #define warninggame(gm, ...) {WARNINGTICK; WARNINGGAME(gm); WARNINGMSG(__VA_ARGS__);}
 #define warningplayer(usr, ...) {WARNINGTICK; WARNINGGAME(usr->gm); WARNINGPLAYER(usr); WARNINGMSG(__VA_ARGS__);}
 #define WARNINGTICK {logwarningtime(); WARNINGMSG("%4lu ", serverticks % 10000);}
-#define WARNINGGAME(gm) WARNINGMSG("g:%-4d ", gm->id)
+#define WARNINGGAME(gm) if(gm) WARNINGMSG("g:%-4d ", gm->id)
 #define WARNINGPLAYER(usr) WARNINGMSG("u:%-4d ", usr->id)
 #define WARNINGMSG(...) fprintf(stderr, __VA_ARGS__)
 
