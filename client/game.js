@@ -489,8 +489,11 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.setHost(this.getPlayer(obj.playerId));
 			break;
 		case 'joinFailed':
-			var msg = obj.reason == 'notFound' ? 'game not found' :
-			 (obj.reason == 'full' ? 'too many players' : 'game already started');
+			var msg = 'game already started';
+			if(obj.reason == 'notFound') msg = 'game not found';
+			else if(obj.reason == 'full') msg = 'game is full';
+			else if(obj.reason == 'kicked') msg = 'you are banned for another ' + obj.timer + ' milliseconds';
+
 			this.gameMessage('Could not join game: ' + msg);
 
 			if(obj.reason == 'started')

@@ -283,6 +283,7 @@ void remgame(struct game *gm) {
 	if(gm->map)
 		freemap(gm->map);
 	free(gm->seg);
+	freekicklist(gm->kicklist);
 	free(gm);
 
 	gamelistcurrent = 0;
@@ -487,7 +488,8 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 
 	gm->id = gmc++;
 	gm->type = gametype;
-	gm->nmin = nmin; gm->nmax = nmax;
+	gm->nmin = nmin;
+	gm->nmax = nmax;
 	gm->w = GAME_WIDTH;
 	gm->h = GAME_HEIGHT;
 	gm->state = GS_LOBBY;
@@ -503,7 +505,6 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	gm->inkdelay = INK_SOLID;
 	gm->inkstart = START_INK;
 	gm->inkmousedown = MOUSEDOWN_INK;
-	gm->round = 0;
 	gm->hsize = HOLE_SIZE;
 	gm->hfreq = HOLE_FREQ;
 	headgame = gm;
@@ -1056,6 +1057,43 @@ void deleteuser(struct user *usr) {
 
 	if(usr->recvbuf)
 		free(usr->recvbuf);
+}
+
+void freekicklist(struct kicknode *kick) {
+	struct kicknode *nxt;
+
+	while(kick) {
+		nxt = kick->nxt;
+		free(kick);
+		kick = nxt;
+	}
+}
+
+/* returns non-zero iff usr was kicked and the ban has not yet expired -- also
+ * removes all expired entries from the game's kicklist. note that this relies
+ * on the fact that list is decreasing in expiration */
+int checkkick(struct game *gm, struct user *usr) {
+	struct kicknode *prev = 0, *kick;
+	unsigned long now = servermsecs();
+
+	for(kick = gm->kicklist; kick; kick = kick->nxt) {
+		if(now >= kick->expiration) {
+			if(prev)
+				prev->nxt = 0;
+			else
+				gm->kicklist = 0;
+
+			freekicklist(kick);
+			return 0;
+		}
+
+		if(kick->usr == usr)
+			return kick->expiration - now;
+
+		prev = kick;
+	}
+
+	return 0;
 }
 
 /* pencil game */

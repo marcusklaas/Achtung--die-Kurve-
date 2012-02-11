@@ -175,13 +175,20 @@ callback_game(struct libwebsocket_context * context,
 		else if(!strcmp(mode, "kick")) {
 			int victimid = jsongetint(json, "playerId");
 			struct user *victim = findplayer(u->gm, victimid);
+			struct kicknode *kick;
 
-			if(!victim || u->gm->host - u || u->gm->state != GS_LOBBY /* || u == victim */) {
+			if(!victim || u->gm->host - u || u->gm->state != GS_LOBBY) {
 				warning("user %d tried to kick usr %d, but does not meet requirements\n", u->id, victimid);
 				break;
 			}
 
 			log("host %d kicked user %d\n", u->id, victimid);
+
+			kick = smalloc(sizeof(struct kicknode));
+			kick->usr = victim;
+			kick->expiration = servermsecs() + KICK_REJOIN_TIME;
+			kick->nxt = u->gm->kicklist;
+			u->gm->kicklist = kick;
 
 			j = jsoncreate("kickNotification");
 			sendjson(j, victim);
@@ -191,7 +198,7 @@ callback_game(struct libwebsocket_context * context,
 			joingame(lobby, victim);
 		}
 		else if(!strcmp(mode, "join")) {
-			int gameid;
+			int gameid, kicktimer = 0;
 			struct game *gm;
 
 			if(u->gm != lobby)
@@ -204,7 +211,8 @@ callback_game(struct libwebsocket_context * context,
 				printf("Received join package! Game-id: %d, user-id: %d, gm: %p\n",
 				 gameid, u->id, (void *) gm);
 
-			if(gm && gm->state == GS_LOBBY && gm->nmax > gm->n && !checkspam(u, SPAM_CAT_JOINLEAVE))
+			if(gm && gm->state == GS_LOBBY && gm->nmax > gm->n &&
+			 !(kicktimer = checkkick(gm, u)) && !checkspam(u, SPAM_CAT_JOINLEAVE))
 				joingame(gm, u);
 			else {
 				j = jsoncreate("joinFailed");
@@ -214,6 +222,10 @@ callback_game(struct libwebsocket_context * context,
 					jsonaddstr(j, "reason", "notFound");
 				else if(gm->state - GS_LOBBY)
 					jsonaddstr(j, "reason", "started");
+				else if(kicktimer){
+					jsonaddstr(j, "reason", "kicked");
+					jsonaddnum(j, "timer", kicktimer);					
+				}
 				else
 					jsonaddstr(j, "reason", "full");
 

@@ -24,6 +24,7 @@
 #define TORUS_MODE 0
 #define GAMELIST_UPDATE_INTERVAL 10000
 #define MAX_USERS_IN_GAME 8
+#define KICK_REJOIN_TIME 15000
 
 /* byte messages */
 #define MODE_MODIFIED 0
@@ -111,8 +112,15 @@ struct point {
 	float x, y;
 };
 
+/* yo waarom is er de map struct? kun je niet net zo goed gewoon de segptr gebruiken? :S */
 struct map {
 	struct seg *seg;
+};
+
+struct kicknode {
+	struct user *usr;
+	unsigned long expiration; // servermsecs at which the ban expires
+	struct kicknode *nxt;
 };
 
 struct game {
@@ -142,6 +150,7 @@ struct game {
 	struct seg *tosend;		// voor de DEBUG_SEGMENTS
 	char pencilmode, torus;	// see PM_*, torus enabled y/n
 	struct map *map;
+	struct kicknode *kicklist; // for remembering who was kicked so that they dont rejoin too soon
 };
 
 struct pencilseg {
@@ -223,3 +232,5 @@ void appendheader(struct buffer *buf, char type, char player);
 void appendpos(struct buffer *buf, int x, int y);
 void logtime();
 void logwarningtime();
+int checkkick(struct game *gm, struct user *usr);
+void freekicklist(struct kicknode *kick);
