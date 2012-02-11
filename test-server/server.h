@@ -112,7 +112,7 @@ struct point {
 	float x, y;
 };
 
-/* yo waarom is er de map struct? kun je niet net zo goed gewoon de segptr gebruiken? :S */
+/* nvm ik snap het wel -- hier kunnen later dan ook de custom startposities in */
 struct map {
 	struct seg *seg;
 };
