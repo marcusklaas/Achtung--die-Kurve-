@@ -304,7 +304,7 @@ callback_game(struct libwebsocket_context * context,
 				break;
 			}
 			
-			joingame(creategame(GT_CUSTOM, 2, 4), u);
+			joingame(creategame(GT_CUSTOM, 2, 8), u);
 		}
 		else if(!strcmp(mode, "leaveGame")) {
 			if(!checkspam(u, SPAM_CAT_JOINLEAVE) && u->gm && u->gm - lobby)
