@@ -175,7 +175,8 @@ void startgame(struct game *gm) {
 	/* reset users */
 	for(usr = gm->usr; usr; usr = usr->nxt){
 		usr->state.turn = 0;
-		usr->alive = 1;
+		usr->state.alive = 1;
+		usr->state.tick = 0;
 		usr->deltaon = usr->deltaat = 0;
 		usr->state.v = gm->v;
 		usr->state.ts = gm->ts;
@@ -356,8 +357,10 @@ void leavegame(struct user *usr, int reason) {
 	if(DEBUG_MODE && gm->type != GT_LOBBY)
 		printf("user %d is leaving his game!\n", usr->id);
 
-	if(gm->state == GS_STARTED && usr->alive)
-		killplayer(usr);
+	if(gm->state == GS_STARTED && usr->state.alive) {
+		usr->state.alive = 0;
+		handledeath(usr);
+	}
 	
 	if(gm->state == GS_STARTED)
 		logplayer(usr, "ragequit\n");
@@ -711,76 +714,44 @@ void queueseg(struct game *gm, struct seg *seg) {
 	gm->tosend = copy;
 }
 
-/* updates x, y and angle by simulating 1 tick. if seg != 0, check for collision */
-float simstate(struct userpos *state, struct game *gm, struct seg *seg) {
-	float cut = -1;
+void simuser(struct userpos *state, struct user *usr, char addsegments) {
+	float cut, oldx = usr->state.x, oldy = usr->state.y, oldangle = usr->state.angle;
+	int inhole, inside;
+	struct seg seg;
 
 	state->angle += state->turn * state->ts * TICK_LENGTH / 1000.0;
 	state->x += cos(state->angle) * state->v * TICK_LENGTH / 1000.0;
 	state->y += sin(state->angle) * state->v * TICK_LENGTH / 1000.0;
-
-	if(seg) {
-		seg->x2 = state->x;
-		seg->y2 = state->y;
-		cut = checkcollision(gm, seg);
-
-		if(cut != -1.0) {
-			state->x = seg->x2 = (1 - cut) * seg->x1 + cut * seg->x2;
-			state->y = seg->y2 = (1 - cut) * seg->y1 + cut * seg->y2;
-		}
-	}
-
-	return cut;
-}
-
-/* simulate user tick. returns 1 if player dies during this tick, 0 otherwise
- * warning: this function can be called multiple times with same tick value */
-int simuser(struct user *usr, int tick, char wrapped) {
-	int inhole, inside;
-	float cut, oldx = usr->state.x, oldy = usr->state.y, oldangle = usr->state.angle;
-	struct seg newseg;
-
-	if(!wrapped)
-		usr->inputmechanism(usr, tick);
-
-	/* does this still get called when user is dead? */
-	if(usr->gm->pencilmode != PM_OFF)
-		simpencil(&usr->pencil);
-
-	if(usr->inputhead && usr->inputhead->tick == tick) {
-		struct userinput *input = usr->inputhead;
-		usr->state.turn = input->turn;
-		usr->inputhead = input->nxt;
-		free(input);
-		if(!usr->inputhead)
-			usr->inputtail = 0;
-	}
-
-	newseg.x1 = oldx;
-	newseg.y1 = oldy;
-	inhole = tick > usr->hstart 
-	 && (tick + usr->hstart) % (usr->hsize + usr->hfreq) < usr->hsize;
-
-	cut = simstate(&usr->state, usr->gm, inhole ? 0 : &newseg);
 	
-	inside = usr->state.x >= 0 && usr->state.x <= usr->gm->w
-	 && usr->state.y >= 0 && usr->state.y <= usr->gm->h;
+	inhole = state->tick > usr->hstart 
+	 && (state->tick + usr->hstart) % (usr->hsize + usr->hfreq) < usr->hsize;
+	inside = state->x >= 0 && state->x <= usr->gm->w
+	 && state->y >= 0 && state->y <= usr->gm->h;
 
-	/* we still collide with map border while in hole */
-	if(inhole && inside)
-		return 0;
-
-	if(!inhole) {
-		addsegment(usr->gm, &newseg);
+	/* check for collisions and add segment to map if needed. if inhole we only
+	 * have to check for collisions with map borders */
+	 if(!inhole || !inside) {
+		seg.x1 = oldx;
+		seg.y1 = oldy;
+		seg.x2 = state->x;
+		seg.y2 = state->y;
 		
-		if(SEND_SEGMENTS)
-			queueseg(usr->gm, &newseg);
-	}
+		cut = checkcollision(usr->gm, &seg); // TODO: we should only check collision with map borders while !inhole
+		if(cut != -1.0) {
+			state->x = seg.x2 = (1 - cut) * seg.x1 + cut * seg.x2;
+			state->y = seg.y2 = (1 - cut) * seg.y1 + cut * seg.y2;
+			state->alive = 0;
+		}
+		if(addsegments) {
+			addsegment(usr->gm, &seg);
+			
+			if(SEND_SEGMENTS)
+				queueseg(usr->gm, &seg);
+		}
+	 }
 
-	if(cut != -1.0)
-		return 1;
-
-	if(!inside) {
+	/* simulate this tick again from another point */
+	if(state->alive && !inside) {
 		if(usr->state.x > usr->gm->w)
 			usr->state.x = oldx - usr->gm->w;
 		else if(usr->state.x < 0)
@@ -791,13 +762,12 @@ int simuser(struct user *usr, int tick, char wrapped) {
 		else if(usr->state.y < 0)
 			usr->state.y = oldy + usr->gm->h;
 
-		/* reset angle and simulate this tick again. usr->state.
-		 * turn will keep the right value */
 		usr->state.angle = oldangle;
-		return simuser(usr, tick, 1);
+		simuser(state, usr, addsegments);
+		return;
 	}
-
-	return 0;
+	
+	state->tick++;
 }
 
 /* send message to group: this player died */
@@ -861,7 +831,7 @@ void endround(struct game *gm) {
 	if(SEND_SEGMENTS)
 		sendsegments(gm);
 
-	for(roundwinner = gm->usr; roundwinner && !roundwinner->alive;
+	for(roundwinner = gm->usr; roundwinner && !roundwinner->state.alive;
 	 roundwinner = roundwinner->nxt);
 
 	json = jsoncreate("endRound");
@@ -897,17 +867,17 @@ void endround(struct game *gm) {
 	}
 }
 
-void killplayer(struct user *victim) {
+void handledeath(struct user *victim) {
 	struct game *gm = victim->gm;
 	struct user *usr;
-	int reward = gm->pointsys(gm->rsn, gm->alive -= victim->alive--);
+	int reward = gm->pointsys(gm->rsn, gm->alive--);
 	
 	if(gm->pencilmode == PM_ONDEATH) {
 		victim->pencil.tick = gm->tick;
 	}
 
 	for(usr = gm->usr; usr; usr = usr->nxt)
-		if(usr->alive)
+		if(usr->state.alive)
 			usr->points += reward;
 	
 	deadplayermsg(victim, gm->tick, reward);
@@ -925,9 +895,27 @@ void simgame(struct game *gm) {
 		return;
 	}
 
-	for(usr = gm->usr; usr; usr = usr->nxt)
-		if(usr->alive && simuser(usr, gm->tick, 0))
-			killplayer(usr);
+	for(usr = gm->usr; usr; usr = usr->nxt) {
+		if(gm->pencilmode != PM_OFF)
+			simpencil(&usr->pencil);
+
+		if(usr->state.alive) {
+			usr->inputmechanism(usr, gm->tick);
+			
+			if(usr->inputhead && usr->inputhead->tick == gm->tick) {
+				struct userinput *input = usr->inputhead;
+				usr->state.turn = input->turn;
+				usr->inputhead = input->nxt;
+				free(input);
+				if(!usr->inputhead)
+					usr->inputtail = 0;
+			}
+			
+			simuser(&usr->state, usr, 1);
+			if(!usr->state.alive)
+				handledeath(usr);
+		}
+	}
 
 	if(SEND_SEGMENTS && gm->tick % SEND_SEGMENTS == 0)
 		sendsegments(gm);
@@ -991,7 +979,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 			printf("invalid user input received from user %d.\n", usr->id);
 		return;
 	}
-	if(!usr->alive) {
+	if(!usr->state.alive) {
 		if(SHOW_WARNING)
 			printf("received input for dead user %d? ignoring..\n", usr->id);
 		return;
@@ -1334,20 +1322,25 @@ void inputmechanism_marcusai(struct user *usr, int tick) {
 void inputmechanism_checktangent(struct user *usr, int tick) {
 	int turn;
 	struct seg seg;
-	float visionlength = usr->ts != 0 ? 3.14 / usr->ts * usr->v : 9999;
+	float visionlength;
+	struct userpos *pos = &usr->aistate;
 
-	tick += SERVER_DELAY/ TICK_LENGTH;
+	if(tick == 0) {
+		memcpy(pos, &usr->state, sizeof(struct userpos));
+	}
 	
-	seg.x1 = usr->x;
-	seg.y1 = usr->y;
-	seg.x2 = seg.x1 + cos(usr->angle) * visionlength;
-	seg.y2 = seg.y1 + sin(usr->angle) * visionlength;
+	visionlength = pos->ts != 0 ? 3.14 / pos->ts * pos->v : 9999;
+
+	seg.x1 = pos->x;
+	seg.y1 = pos->y;
+	seg.x2 = seg.x1 + cos(pos->angle) * visionlength;
+	seg.y2 = seg.y1 + sin(pos->angle) * visionlength;
 	turn = checkcollision(usr->gm, &seg) != -1.0;
 	if(turn) {
 		float x, y, a, b;
 		
-		x = cos(usr->angle);
-		y = sin(usr->angle);
+		x = cos(pos->angle);
+		y = sin(pos->angle);
 		a = collidingseg->x1 - collidingseg->x2;
 		b = collidingseg->y1 - collidingseg->y2;
 		if(x * a + y * b < 0) {
@@ -1356,6 +1349,8 @@ void inputmechanism_checktangent(struct user *usr, int tick) {
 		}
 		turn = x * b - y * a > 0 ? 1 : -1;
 	}
+	pos->turn = turn;
+	simuser(pos, usr, 0);
 
 	if(turn == usr->lastinputturn)
 		return;
