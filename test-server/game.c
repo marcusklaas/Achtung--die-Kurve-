@@ -870,7 +870,7 @@ void endround(struct game *gm) {
 void handledeath(struct user *victim) {
 	struct game *gm = victim->gm;
 	struct user *usr;
-	int reward = gm->pointsys(gm->rsn, gm->alive--);
+	int reward = gm->pointsys(gm->rsn, --gm->alive);
 	
 	if(gm->pencilmode == PM_ONDEATH) {
 		victim->pencil.tick = gm->tick;
