@@ -526,7 +526,7 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	return gm;
 }
 
-/* returns -1 if collision, between 0 and 1 other wise */
+/* returns -1 if no collision, between 0 and 1 other wise */
 float segcollision(struct seg *seg1, struct seg *seg2) {
 	float denom, numer_a, numer_b, a, b;
 	
@@ -1282,6 +1282,26 @@ void inputmechanism_human(struct user *usr, int tick) {
 void inputmechanism_circling(struct user *usr, int tick) {
 	int turn = tick > 5 && !(tick % 5);
 	tick += SERVER_DELAY/ TICK_LENGTH;
+
+	if(turn == usr->lastinputturn)
+		return;
+
+	queueinput(usr, tick, turn);
+	steermsg(usr, tick, turn, 0);
+}
+
+void inputmechanism_leftisallineed(struct user *usr, int tick) {
+	int turn;
+	struct seg seg;
+	float visionlength = usr->ts != 0 ? 3.14 / usr->ts * usr->v : 9999;
+
+	tick += SERVER_DELAY/ TICK_LENGTH;
+	
+	seg.x1 = usr->x;
+	seg.y1 = usr->y;
+	seg.x2 = seg.x1 + cos(usr->angle) * visionlength;
+	seg.y2 = seg.y1 + sin(usr->angle) * visionlength;
+	turn = -1 * (checkcollision(usr->gm, &seg) != -1.0);
 
 	if(turn == usr->lastinputturn)
 		return;
