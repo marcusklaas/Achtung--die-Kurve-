@@ -48,8 +48,7 @@ void *srealloc(void *ptr, size_t size) {
 
 struct seg *copyseg(const struct seg *a) {
 	struct seg *b = smalloc(sizeof(struct seg));
-	memcpy(b, a, sizeof(struct seg));
-	return b;
+	return memcpy(b, a, sizeof(struct seg));
 }
 
 /******************************************************************

@@ -1327,27 +1327,95 @@ void inputmechanism_leftisallineed(struct user *usr, int tick) {
 	steermsg(usr, tick, turn, 0);
 }
 
+float marcusai_helper(struct userpos *state, struct game *gm, int depth, int tickstep) {
+	struct seg megaseg;
+	struct userpos newstate;
+	int turn, i;
+	float best = 0;
+
+	/* check how far we can go by just going straight ahead */
+	if(depth == 0) {
+		megaseg.x1 = state->x;
+		megaseg.y1 = state->y;
+		megaseg.x2 = state->x + 500 * cos(state->angle);
+		megaseg.y2 = state->y + 500 * sin(state->angle);
+		return checkcollision(gm, &megaseg);
+	}
+
+	/* simulate a bit ahead*/
+	memcpy(&newstate, state, sizeof(struct userpos));
+
+	for(i = 0; i < tickstep; i++) {
+		megaseg.x1 = newstate.x;
+		megaseg.y1 = newstate.y;
+		best = simstate(&newstate, gm, &megaseg);
+
+		if(best >= 0)
+			return best;
+	}
+
+	/* check what path has best future */
+	for(turn = -1; turn <= 1; turn++) {
+		newstate.turn = turn;
+		best = max(best, marcusai_helper(&newstate, gm, depth - 1, tickstep));
+	}
+
+	return 1 + best;
+}
+
 void inputmechanism_marcusai(struct user *usr, int tick) {
-	
+	int origturn, i, j, turn = 0, depth = 3, totalticks, tickstep;
+	float best = 0, current;
+
+	if(tick < 5)
+		return;
+
+	/* TODO: simulate to tick tick + COMPUTER_DELAY */
+
+	totalticks = ceil(M_PI * 1.5 * 1000.0/ usr->state.ts/ TICK_LENGTH); // we want to make atleast 3/4 circles
+	tickstep = totalticks/ depth + !!(totalticks % depth);
+	origturn = usr->state.turn;
+
+	for(i = 1; i <= 3; i++) {
+		j = (i % 3) - 1;
+		usr->state.turn = j;
+
+		if((current = marcusai_helper(&usr->state, usr->gm, depth, tickstep)) > best) {
+			best = current;
+			turn = j;
+		}
+
+		//log("turn %d has score %f\n", j, current);
+	}
+
+	usr->state.turn = origturn;
+	//log("totalticks %d, tickstep %d, bestscore: %f\n", totalticks, tickstep, best);
+
+	if(turn == usr->lastinputturn)
+		return;
+
+	tick += COMPUTER_DELAY;
+	queueinput(usr, tick, turn);
+	steermsg(usr, tick, turn, 0);
 }
 
 void inputmechanism_checktangent(struct user *usr, int tick) {
 	int turn;
 	struct seg seg;
-	float visionlength = usr->ts != 0 ? 3.14 / usr->ts * usr->v : 9999;
+	float visionlength = usr->state.ts != 0 ? 3.14 / usr->state.ts * usr->state.v : 9999;
 
-	tick += SERVER_DELAY/ TICK_LENGTH;
+	tick += COMPUTER_DELAY;
 	
-	seg.x1 = usr->x;
-	seg.y1 = usr->y;
-	seg.x2 = seg.x1 + cos(usr->angle) * visionlength;
-	seg.y2 = seg.y1 + sin(usr->angle) * visionlength;
+	seg.x1 = usr->state.x;
+	seg.y1 = usr->state.y;
+	seg.x2 = seg.x1 + cos(usr->state.angle) * visionlength;
+	seg.y2 = seg.y1 + sin(usr->state.angle) * visionlength;
 	turn = checkcollision(usr->gm, &seg) != -1.0;
 	if(turn) {
 		float x, y, a, b;
 		
-		x = cos(usr->angle);
-		y = sin(usr->angle);
+		x = cos(usr->state.angle);
+		y = sin(usr->state.angle);
 		a = collidingseg->x1 - collidingseg->x2;
 		b = collidingseg->y1 - collidingseg->y2;
 		if(x * a + y * b < 0) {
