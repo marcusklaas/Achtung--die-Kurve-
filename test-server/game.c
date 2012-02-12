@@ -277,7 +277,11 @@ void remgame(struct game *gm) {
 
 	for(usr = gm->usr; usr; usr = nxt) {
 		nxt = usr->nxt;
-		joingame(lobby, usr);
+
+		if(usr->inputmechanism == inputmechanism_human)
+			joingame(lobby, usr);
+		else
+			deleteuser(usr);
 	}
 
 	if(gm->map)
@@ -356,20 +360,23 @@ void leavegame(struct user *usr, int reason) {
 		killplayer(usr);
 	
 	if(gm->state == GS_STARTED)
-		logplayer(usr, "left game before endgame\n");
+		logplayer(usr, "ragequit\n");
 
-
-	/* remove user from linked list and swap host if necessary */
-	if(gm->usr == usr) {
+	/* remove user from linked list */
+	if(gm->usr == usr)
 		gm->usr = usr->nxt;
-	} else {
+	else {
 		for(curr = gm->usr; curr->nxt && curr->nxt != usr; curr = curr->nxt);
 		curr->nxt = usr->nxt;
-		if(gm->host == usr) {
-			gm->host = curr;
-			broadcasthost(gm);
-			gamelistcurrent = 0;
-		}
+	}
+
+	/* check if there still human players in list */
+	for(curr = gm->usr; curr && curr->inputmechanism != inputmechanism_human; curr = curr->nxt);
+
+	if(curr && gm->host == usr) {
+		gm->host = curr;
+		broadcasthost(gm);
+		gamelistcurrent = 0;
 	}
 
 	gm->n--;
@@ -386,7 +393,7 @@ void leavegame(struct user *usr, int reason) {
 	if(gm->type != GT_LOBBY) {
 		if(gm->state == GS_STARTED && gm->n == 1)
 			endround(gm);
-		else if(gm->state != GS_REMOVING_GAME && gm->n == 0)
+		else if(gm->state != GS_REMOVING_GAME && !curr)
 			remgame(gm);
 	}
 
@@ -703,7 +710,9 @@ int simuser(struct user *usr, int tick) {
 	int inhole, inside;
 	float cut, oldx = usr->x, oldy = usr->y, oldangle = usr->angle;
 	struct seg newseg;
-	
+
+	usr->inputmechanism(usr, tick);
+
 	if(usr->inputhead && usr->inputhead->tick == tick) {
 		struct userinput *input = usr->inputhead;
 		usr->turn = input->turn;
@@ -762,7 +771,10 @@ int simuser(struct user *usr, int tick) {
 		else if(usr->y < 0)
 			usr->y = oldy + usr->gm->h;
 
-		/* reset angle and simulate this tick again. usr->turn will keep the right value. */
+		/* reset angle and simulate this tick again. usr->turn will keep the
+		 * right value. TODO: we don't want to call inputmechanism again 
+		 * when wrapping around, so simuser should probably take an additional
+		 * bool argument whether or not we are recursing */
 		usr->angle = oldangle;
 		return simuser(usr, tick);
 	}
@@ -936,8 +948,19 @@ void mainloop() {
 	}
 }
 
+void queueinput(struct user *usr, int tick, int turn) {
+	struct userinput *input = smalloc(sizeof(struct userinput));
+	input->tick = tick;
+	input->turn = turn;
+	input->nxt = 0;
+	
+	if(!usr->inputtail)
+		usr->inputhead = usr->inputtail = input;
+	else
+		usr->inputtail = usr->inputtail->nxt = input;
+}
+
 void interpretinput(cJSON *json, struct user *usr) {
-	struct userinput *input;
 	int turn = jsongetint(json, "turn");
 	int tick = jsongetint(json, "tick");
 	int delay, msgtick = tick;
@@ -969,16 +992,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 	if(delay)
 		usr->gm->modifieds++;
 	
-	/* put it in user queue */
-	input = smalloc(sizeof(struct userinput));
-	input->tick = tick;
-	input->turn = turn;
-	input->nxt = 0;
-	
-	if(!usr->inputtail)
-		usr->inputhead = usr->inputtail = input;
-	else
-		usr->inputtail = usr->inputtail->nxt = input;
+	queueinput(usr, tick, turn);	
 	
 	if(SHOW_DELAY) {
 		int x = (servermsecs() - usr->gm->start) - time;
@@ -1018,9 +1032,6 @@ void interpretinput(cJSON *json, struct user *usr) {
 	}
 
 	steermsg(usr, tick, turn, delay);
-	usr->lastinputtick = tick;
-	usr->lastinputturn = turn;
-	usr->inputcount++;
 }
 
 void clearinputs(struct user *usr) {
@@ -1038,6 +1049,7 @@ void iniuser(struct user *usr, struct libwebsocket *wsi) {
 	memset(usr, 0, sizeof(struct user));
 	usr->id = usrc++;
 	usr->wsi = wsi;
+	usr->inputmechanism = inputmechanism_human;
 }
 
 void deleteuser(struct user *usr) {
@@ -1258,6 +1270,25 @@ void gototick(struct pencil *p, int tick) {
 
 	p->ink = min(p->ink + inc, p->usr->gm->inkcap);
 }
+
+/* inputmechanisms determine how users are controlled. in particular whether they
+ * are player or computer controlled. returns turn for current tick */
+void inputmechanism_human(struct user *usr, int tick) {
+	// players send their inputs over network so do nothing here (unless
+	// we want to sabotage them ;P)
+}
+
+// this is the stupidest ai possible second only to the ai that does nothing at all
+void inputmechanism_circling(struct user *usr, int tick) {
+	int turn = tick > 5 && !(tick % 5);
+	tick += SERVER_DELAY/ TICK_LENGTH;
+
+	if(turn == usr->lastinputturn)
+		return;
+
+	queueinput(usr, tick, turn);
+	steermsg(usr, tick, turn, 0);
+}	
 
 /* point systems specify how many points the remaining players get when
  * someone dies */

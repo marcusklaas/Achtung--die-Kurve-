@@ -101,6 +101,10 @@ GameEngine.prototype.leaveGame = function() {
 	this.leaveButton.disabled = true;
 }
 
+GameEngine.prototype.addComputer = function() {
+	this.sendMsg('addComputer', {});
+}
+
 /* this function handles user interface changes for state transitions */
 GameEngine.prototype.setGameState = function(newState) {
 	if(newState == 'new' || this.state == 'new') {
@@ -2245,7 +2249,6 @@ window.onload = function() {
 	game.disconnectButton = document.getElementById('disconnect');
 	game.disconnectButton.addEventListener('click', function() {
 		game.websocket.close(1000);
-		game.setGameState('new');
 	}, false);
 	
 	game.backButton = document.getElementById('back');
@@ -2259,6 +2262,11 @@ window.onload = function() {
 	
 	game.hostContainer = document.getElementById('hostContainer');
 	game.nonhostContainer = document.getElementById('nonhostContainer');
+
+	game.addComputerButton = document.getElementById('addComputer');
+	game.addComputerButton.addEventListener('click', function() {
+		game.addComputer()
+	}, false);
 
 	var minPlayers = getCookie('minPlayers');
 	if(minPlayers != null)

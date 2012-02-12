@@ -640,7 +640,7 @@ button.error,
 }
 
 .btn:focus, button:focus {
-	outline: 1px dotted #666;
+	/* outline: 1px dotted #666; */
 }
 
 .btn.primary, button.primary {

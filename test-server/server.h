@@ -178,6 +178,8 @@ struct user {
 	struct game *gm;
 	struct user *nxt;
 	char *name;
+
+	void (*inputmechanism)(struct user *, int); // determines whether this player is player or computer controlled
 	
 	char *recvbuf;		// receivebuffer
 	int sbmsglen[SB_MAX]; // length of messages in sendbuffer
@@ -234,3 +236,6 @@ void logtime();
 void logwarningtime();
 int checkkick(struct game *gm, struct user *usr);
 void freekicklist(struct kicknode *kick);
+void inputmechanism_human(struct user *usr, int tick);
+void inputmechanism_circling(struct user *usr, int tick);
+void deleteuser(struct user *usr);

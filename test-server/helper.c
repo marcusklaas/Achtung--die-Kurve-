@@ -182,6 +182,9 @@ cJSON *getjsongamepars(struct game *gm) {
 void sendstr(char *str, int len, struct user *u) {
 	char *buf;
 
+	if(u->inputmechanism != inputmechanism_human)
+		return;
+
 	if(u->sbat == SB_MAX) {
 		if(SHOW_WARNING) printf("send-buffer full.\n");
 		return;
@@ -207,7 +210,12 @@ void sendstr(char *str, int len, struct user *u) {
 }
 
 void sendjson(cJSON *json, struct user *u) {
-	char *buf = jsonprint(json);
+	char *buf;
+
+	if(u->inputmechanism != inputmechanism_human)
+		return;
+
+	buf = jsonprint(json);
 	sendstr(buf, strlen(buf), u);
 	free(buf);
 }
@@ -332,6 +340,10 @@ void steermsg(struct user *usr, int tick, int turn, int delay) {
 
 	if(delay)
 		modifiedmsg(usr, delay);
+
+	usr->lastinputtick = tick;
+	usr->lastinputturn = turn;
+	usr->inputcount++;
 }
 
 void allocroom(struct buffer *buf, int size) {

@@ -184,18 +184,23 @@ callback_game(struct libwebsocket_context * context,
 
 			log("host %d kicked user %d\n", u->id, victimid);
 
-			kick = smalloc(sizeof(struct kicknode));
-			kick->usr = victim;
-			kick->expiration = servermsecs() + KICK_REJOIN_TIME;
-			kick->nxt = u->gm->kicklist;
-			u->gm->kicklist = kick;
-
-			j = jsoncreate("kickNotification");
-			sendjson(j, victim);
-			jsondel(j);
-
 			leavegame(victim, LEAVE_KICKED);
-			joingame(lobby, victim);
+
+			if(victim->inputmechanism == inputmechanism_human) {
+				kick = smalloc(sizeof(struct kicknode));
+				kick->usr = victim;
+				kick->expiration = servermsecs() + KICK_REJOIN_TIME;
+				kick->nxt = u->gm->kicklist;
+				u->gm->kicklist = kick;
+
+				j = jsoncreate("kickNotification");
+				sendjson(j, victim);
+				jsondel(j);
+
+				joingame(lobby, victim);
+			}
+			else
+				deleteuser(victim);
 		}
 		else if(!strcmp(mode, "join")) {
 			int gameid, kicktimer = 0;
@@ -294,6 +299,24 @@ callback_game(struct libwebsocket_context * context,
 					gm = creategame(GT_AUTO, nmin, nmax);
 				joingame(gm, u);
 			}
+		}
+		else if(!strcmp(mode, "addComputer")) {
+			struct user *comp;
+
+			if(u->gm->host != u || u->gm->state != GS_LOBBY || 
+			 u->gm->nmax <= u->gm->n) {
+				warning("user %d tried to add computer, but does not meet reqs\n", u->id);
+				break;
+			}
+
+			loggame(u->gm, "adding computer player\n");
+
+			comp = smalloc(sizeof(struct user));
+			iniuser(comp, 0);
+			comp->name = smalloc(8);
+			strcpy(comp->name, "CIRCLER");
+			comp->inputmechanism = inputmechanism_circling;
+			joingame(u->gm, comp);
 		}
 		else if(!strcmp(mode, "createGame")) {
 			if(DEBUG_MODE) printf("user %d is creating a game\n", u->id);
