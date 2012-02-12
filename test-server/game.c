@@ -10,13 +10,13 @@ void randomizeplayerstarts(struct game *gm) {
 		int tries = 0;
 
 		do {
-			usr->x = borderwidth + rand() % (gm->w - 2 * borderwidth);
-			usr->y =  borderheight + rand() % (gm->h - 2 * borderheight);
-			usr->angle = rand() % 628 / 100.0;
-			seg.x1 = usr->x;
-			seg.y1 = usr->y;
-			seg.x2 = cos(usr->angle) * diameter + usr->x;
-			seg.y2 = sin(usr->angle) * diameter + usr->y;
+			usr->state.x = borderwidth + rand() % (gm->w - 2 * borderwidth);
+			usr->state.y =  borderheight + rand() % (gm->h - 2 * borderheight);
+			usr->state.angle = rand() % 628 / 100.0;
+			seg.x1 = usr->state.x;
+			seg.y1 = usr->state.y;
+			seg.x2 = cos(usr->state.angle) * diameter + usr->state.x;
+			seg.y2 = sin(usr->state.angle) * diameter + usr->state.y;
 		} while(gm->map && checkcollision(gm, &seg) != -1.0 && tries++ < MAX_PLAYERSTART_TRIES);
 
 		/* hstart now between 1 and 2 times usr->hsize + usr->hfreq */
@@ -174,11 +174,11 @@ void startgame(struct game *gm) {
 		
 	/* reset users */
 	for(usr = gm->usr; usr; usr = usr->nxt){
-		usr->turn = 0;
+		usr->state.turn = 0;
 		usr->alive = 1;
 		usr->deltaon = usr->deltaat = 0;
-		usr->v = gm->v;
-		usr->ts = gm->ts;
+		usr->state.v = gm->v;
+		usr->state.ts = gm->ts;
 		usr->hsize = gm->hsize;
 		usr->hfreq = gm->hfreq;
 		usr->inputcount = 0;
@@ -215,9 +215,9 @@ void startgame(struct game *gm) {
 	for(usr = gm->usr; usr; usr = usr->nxt) {
 		cJSON *player = cJSON_CreateObject();
 		cJSON_AddNumberToObject(player, "playerId", usr->id);
-		cJSON_AddNumberToObject(player, "startX", usr->x);
-		cJSON_AddNumberToObject(player, "startY", usr->y);
-		cJSON_AddNumberToObject(player, "startAngle", usr->angle);
+		cJSON_AddNumberToObject(player, "startX", usr->state.x);
+		cJSON_AddNumberToObject(player, "startY", usr->state.y);
+		cJSON_AddNumberToObject(player, "startAngle", usr->state.angle);
 		cJSON_AddNumberToObject(player, "holeStart", usr->hstart);
 		cJSON_AddItemToArray(start_locations, player);
 	}
@@ -704,50 +704,64 @@ void queueseg(struct game *gm, struct seg *seg) {
 	gm->tosend = copy;
 }
 
+/* updates x, y and angle by simulating 1 tick. if seg != 0, check for collision */
+float simstate(struct userpos *state, struct game *gm, struct seg *seg) {
+	float cut = -1;
+
+	state->angle += state->turn * state->ts * TICK_LENGTH / 1000.0;
+	state->x += cos(state->angle) * state->v * TICK_LENGTH / 1000.0;
+	state->y += sin(state->angle) * state->v * TICK_LENGTH / 1000.0;
+
+	if(seg) {
+		seg->x2 = state->x;
+		seg->y2 = state->y;
+		cut = checkcollision(gm, seg);
+
+		if(cut != -1.0) {
+			state->x = seg->x2 = (1 - cut) * seg->x1 + cut * seg->x2;
+			state->y = seg->y2 = (1 - cut) * seg->y1 + cut * seg->y2;
+		}
+	}
+
+	return cut;
+}
+
 /* simulate user tick. returns 1 if player dies during this tick, 0 otherwise
- * warning: this function can be called multiple times with same tick value   */
-int simuser(struct user *usr, int tick) {
+ * warning: this function can be called multiple times with same tick value */
+int simuser(struct user *usr, int tick, char wrapped) {
 	int inhole, inside;
-	float cut, oldx = usr->x, oldy = usr->y, oldangle = usr->angle;
+	float cut, oldx = usr->state.x, oldy = usr->state.y, oldangle = usr->state.angle;
 	struct seg newseg;
 
-	usr->inputmechanism(usr, tick);
+	if(!wrapped)
+		usr->inputmechanism(usr, tick);
+
+	/* does this still get called when user is dead? */
+	if(usr->gm->pencilmode != PM_OFF)
+		simpencil(&usr->pencil);
 
 	if(usr->inputhead && usr->inputhead->tick == tick) {
 		struct userinput *input = usr->inputhead;
-		usr->turn = input->turn;
+		usr->state.turn = input->turn;
 		usr->inputhead = input->nxt;
 		free(input);
 		if(!usr->inputhead)
 			usr->inputtail = 0;
 	}
-	
-	if(usr->gm->pencilmode != PM_OFF)
-		simpencil(&usr->pencil);
 
-	usr->angle += usr->turn * usr->ts * TICK_LENGTH / 1000.0;
-	usr->x += cos(usr->angle) * usr->v * TICK_LENGTH / 1000.0;
-	usr->y += sin(usr->angle) * usr->v * TICK_LENGTH / 1000.0;
+	newseg.x1 = oldx;
+	newseg.y1 = oldy;
+	inhole = tick > usr->hstart 
+	 && (tick + usr->hstart) % (usr->hsize + usr->hfreq) < usr->hsize;
+
+	cut = simstate(&usr->state, usr->gm, inhole ? 0 : &newseg);
 	
-	inhole = (tick > usr->hstart
-	 && ((tick + usr->hstart) % (usr->hsize + usr->hfreq)) < usr->hsize);
-	inside = usr->x >= 0 && usr->x <= usr->gm->w && usr->y >= 0 && usr->y <= usr->gm->h;
+	inside = usr->state.x >= 0 && usr->state.x <= usr->gm->w
+	 && usr->state.y >= 0 && usr->state.y <= usr->gm->h;
 
 	/* we still collide with map border while in hole */
 	if(inhole && inside)
 		return 0;
-
-	newseg.x1 = oldx;
-	newseg.y1 = oldy;
-	newseg.x2 = usr->x;
-	newseg.y2 = usr->y;
-
-	cut = checkcollision(usr->gm, &newseg);
-
-	if(cut != -1.0) {
-		usr->x = newseg.x2 = (1 - cut) * newseg.x1 + cut * newseg.x2;
-		usr->y = newseg.y2 = (1 - cut) * newseg.y1 + cut * newseg.y2;
-	}
 
 	if(!inhole) {
 		addsegment(usr->gm, &newseg);
@@ -759,24 +773,21 @@ int simuser(struct user *usr, int tick) {
 	if(cut != -1.0)
 		return 1;
 
-	/* wrap around */
 	if(!inside) {
-		if(usr->x > usr->gm->w)
-			usr->x = oldx - usr->gm->w;
-		else if(usr->x < 0)
-			usr->x = oldx + usr->gm->w;
+		if(usr->state.x > usr->gm->w)
+			usr->state.x = oldx - usr->gm->w;
+		else if(usr->state.x < 0)
+			usr->state.x = oldx + usr->gm->w;
 
-		if(usr->y > usr->gm->h)
-			usr->y = oldy - usr->gm->h;
-		else if(usr->y < 0)
-			usr->y = oldy + usr->gm->h;
+		if(usr->state.y > usr->gm->h)
+			usr->state.y = oldy - usr->gm->h;
+		else if(usr->state.y < 0)
+			usr->state.y = oldy + usr->gm->h;
 
-		/* reset angle and simulate this tick again. usr->turn will keep the
-		 * right value. TODO: we don't want to call inputmechanism again 
-		 * when wrapping around, so simuser should probably take an additional
-		 * bool argument whether or not we are recursing */
-		usr->angle = oldangle;
-		return simuser(usr, tick);
+		/* reset angle and simulate this tick again. usr->state.
+		 * turn will keep the right value */
+		usr->state.angle = oldangle;
+		return simuser(usr, tick, 1);
 	}
 
 	return 0;
@@ -788,8 +799,8 @@ void deadplayermsg(struct user *usr, int tick, int reward) {
 	jsonaddnum(json, "playerId", usr->id);
 	jsonaddnum(json, "reward", reward);
 	jsonaddnum(json, "tick", tick);
-	jsonaddnum(json, "x", usr->x);
-	jsonaddnum(json, "y", usr->y);
+	jsonaddnum(json, "x", usr->state.x);
+	jsonaddnum(json, "y", usr->state.y);
 	sendjsontogame(json, usr->gm, 0);
 	jsondel(json);
 }
@@ -908,7 +919,7 @@ void simgame(struct game *gm) {
 	}
 
 	for(usr = gm->usr; usr; usr = usr->nxt)
-		if(usr->alive && simuser(usr, gm->tick))
+		if(usr->alive && simuser(usr, gm->tick, 0))
 			killplayer(usr);
 
 	if(SEND_SEGMENTS && gm->tick % SEND_SEGMENTS == 0)
@@ -1278,10 +1289,9 @@ void inputmechanism_human(struct user *usr, int tick) {
 	// we want to sabotage them ;P)
 }
 
-// this is the stupidest ai possible second only to the ai that does nothing at all
 void inputmechanism_circling(struct user *usr, int tick) {
 	int turn = tick > 5 && !(tick % 5);
-	tick += SERVER_DELAY/ TICK_LENGTH;
+	tick += COMPUTER_DELAY;
 
 	if(turn == usr->lastinputturn)
 		return;
@@ -1293,14 +1303,14 @@ void inputmechanism_circling(struct user *usr, int tick) {
 void inputmechanism_leftisallineed(struct user *usr, int tick) {
 	int turn;
 	struct seg seg;
-	float visionlength = usr->ts != 0 ? 3.14 / usr->ts * usr->v : 9999;
+	float visionlength = usr->state.ts != 0 ? 3.14 / usr->state.ts * usr->state.v : 9999;
 
-	tick += SERVER_DELAY/ TICK_LENGTH;
+	tick += COMPUTER_DELAY;
 	
-	seg.x1 = usr->x;
-	seg.y1 = usr->y;
-	seg.x2 = seg.x1 + cos(usr->angle) * visionlength;
-	seg.y2 = seg.y1 + sin(usr->angle) * visionlength;
+	seg.x1 = usr->state.x;
+	seg.y1 = usr->state.y;
+	seg.x2 = seg.x1 + cos(usr->state.angle) * visionlength;
+	seg.y2 = seg.y1 + sin(usr->state.angle) * visionlength;
 	turn = -1 * (checkcollision(usr->gm, &seg) != -1.0);
 
 	if(turn == usr->lastinputturn)
@@ -1308,7 +1318,11 @@ void inputmechanism_leftisallineed(struct user *usr, int tick) {
 
 	queueinput(usr, tick, turn);
 	steermsg(usr, tick, turn, 0);
-}	
+}
+
+void inputmechanism_marcusai(struct user *usr, int tick) {
+	
+}
 
 /* point systems specify how many points the remaining players get when
  * someone dies */

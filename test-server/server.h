@@ -26,6 +26,11 @@
 #define MAX_USERS_IN_GAME 8
 #define KICK_REJOIN_TIME 15000
 
+/* artificial intelligence */
+#define COMPUTER_NAME "COMPUTER"
+#define COMPUTER_AI inputmechanism_leftisallineed
+#define COMPUTER_DELAY (SERVER_DELAY/ TICK_LENGTH)
+
 /* byte messages */
 #define MODE_MODIFIED 0
 #define MODE_TICKUPDATE 1
@@ -112,7 +117,7 @@ struct point {
 	float x, y;
 };
 
-/* nvm ik snap het wel -- hier kunnen later dan ook de custom startposities in */
+/* hier kunnen later dan ook de custom startposities in */
 struct map {
 	struct seg *seg;
 };
@@ -173,21 +178,28 @@ struct userinput {
 	struct userinput *nxt;
 };
 
+struct userpos {
+	float x, y, angle, v, ts;
+	int turn;
+
+	// int tick ??
+};
+
 struct user {
 	int id, index;
 	struct game *gm;
 	struct user *nxt;
 	char *name;
 
-	void (*inputmechanism)(struct user *, int); // determines whether this player is player or computer controlled
+	void (*inputmechanism)(struct user *, int);
 	
 	char *recvbuf;		// receivebuffer
 	int sbmsglen[SB_MAX]; // length of messages in sendbuffer
 	char *sb[SB_MAX];	// sendbuffer
 	int sbat;			// sendbuffer at
 
-	float x, y, angle, v, ts;	// used in simulation (these are thus SERVER_DELAY behind)
-	int turn, points, lastinputtick, lastinputturn, inputcount, gamelistage;
+	struct userpos state;	// used in simulation (these are thus SERVER_DELAY behind)
+	int points, lastinputtick, lastinputturn, inputcount, gamelistage;
 	char alive, ignoreinput;
 	
 	int hstart, hsize, hfreq;	// hole start, hole size, hole frequency
