@@ -596,7 +596,7 @@ int lineboxcollision(struct seg *seg, int top, int right, int bottom, int left) 
 }
 
 /* returns -1 in case no collision, else between 0 and -1 */
-float checktilecollision(struct seg *tile, struct seg *seg) {
+float checktilecollision(struct seg *tile, struct seg *seg, struct seg **collidingseg) {
 	struct seg *current;
 	float cut, mincut = -1;
 
@@ -604,9 +604,12 @@ float checktilecollision(struct seg *tile, struct seg *seg) {
 		cut = segcollision(current, seg);
 
 		if(cut != -1.0) {
-			mincut = (mincut == -1.0) ? cut : min(cut, mincut);
+			if(mincut == -1.0 || cut < mincut) {
+				mincut = cut;
+				*collidingseg = current;
+			}
 
-			if(DEBUG_MODE) {
+			if(ULTRA_VERBOSE) {
 				printseg(current);printf(" collided with ");printseg(seg);printf("\n");
 			}
 			if(SAVE_COLLISION_TO_FILE) {
@@ -655,9 +658,11 @@ void tiles(struct game *gm, struct seg *seg, int *tileindices) {
 }
 
 /* returns -1 in case of no collision, between 0 and 1 else */
+struct seg *collidingseg; // maybe instead as parameter to checkcollision
 float checkcollision(struct game *gm, struct seg *seg) {
 	int i, j, tileindices[4];
 	float cut, mincut = -1;
+	struct seg *seg2;
 
 	tiles(gm, seg, tileindices);
 	
@@ -667,10 +672,12 @@ float checkcollision(struct game *gm, struct seg *seg) {
 			 (j + 1) * gm->tileh, i * gm->tilew))
 				continue;
 
-			cut = checktilecollision(gm->seg[gm->htiles * j + i], seg);
+			cut = checktilecollision(gm->seg[gm->htiles * j + i], seg, &seg2);
 
-			if(cut != -1.0)
-				mincut = (mincut == -1.0) ? cut : min(cut, mincut);
+			if(cut != -1.0 && (mincut == -1.0 || cut < mincut)) {
+				mincut = cut;
+				collidingseg = seg2;
+			}
 		}
 	}
 
@@ -1323,6 +1330,39 @@ void inputmechanism_leftisallineed(struct user *usr, int tick) {
 void inputmechanism_marcusai(struct user *usr, int tick) {
 	
 }
+
+void inputmechanism_checktangent(struct user *usr, int tick) {
+	int turn;
+	struct seg seg;
+	float visionlength = usr->ts != 0 ? 3.14 / usr->ts * usr->v : 9999;
+
+	tick += SERVER_DELAY/ TICK_LENGTH;
+	
+	seg.x1 = usr->x;
+	seg.y1 = usr->y;
+	seg.x2 = seg.x1 + cos(usr->angle) * visionlength;
+	seg.y2 = seg.y1 + sin(usr->angle) * visionlength;
+	turn = checkcollision(usr->gm, &seg) != -1.0;
+	if(turn) {
+		float x, y, a, b;
+		
+		x = cos(usr->angle);
+		y = sin(usr->angle);
+		a = collidingseg->x1 - collidingseg->x2;
+		b = collidingseg->y1 - collidingseg->y2;
+		if(x * a + y * b < 0) {
+			a = -a;
+			b = -b;
+		}
+		turn = x * b - y * a > 0 ? 1 : -1;
+	}
+
+	if(turn == usr->lastinputturn)
+		return;
+
+	queueinput(usr, tick, turn);
+	steermsg(usr, tick, turn, 0);
+}	
 
 /* point systems specify how many points the remaining players get when
  * someone dies */
