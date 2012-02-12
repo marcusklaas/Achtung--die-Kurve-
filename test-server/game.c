@@ -736,7 +736,7 @@ void simuser(struct userpos *state, struct user *usr, char addsegments) {
 		seg.x2 = state->x;
 		seg.y2 = state->y;
 		
-		cut = checkcollision(usr->gm, &seg); // TODO: we should only check collision with map borders while !inhole
+		cut = checkcollision(usr->gm, &seg); // TODO: we should only check collision with map borders while !inhole // i dont agree -- do it always when !torus
 		if(cut != -1.0) {
 			state->x = seg.x2 = (1 - cut) * seg.x1 + cut * seg.x2;
 			state->y = seg.y2 = (1 - cut) * seg.y1 + cut * seg.y2;
@@ -1323,8 +1323,76 @@ void inputmechanism_leftisallineed(struct user *usr, int tick) {
 	steermsg(usr, tick, turn, 0);
 }
 
+float marcusai_helper(struct userpos *state, struct user *usr, int depth, int tickstep) {
+	struct seg megaseg;
+	struct userpos newstate;
+	int turn, i;
+	float best = 0;
+
+	/* check how far we can go by just going straight ahead */
+	if(depth == 0) {
+		megaseg.x1 = state->x;
+		megaseg.y1 = state->y;
+		megaseg.x2 = state->x + 500 * cos(state->angle);
+		megaseg.y2 = state->y + 500 * sin(state->angle);
+		return fabs(checkcollision(usr->gm, &megaseg));
+	}
+
+	/* simulate a bit ahead*/
+	memcpy(&newstate, state, sizeof(struct userpos));
+
+	for(i = 0; i < tickstep; i++) {
+		megaseg.x1 = newstate.x;
+		megaseg.y1 = newstate.y;
+		simuser(&newstate, usr, 0);
+
+		if(!newstate.alive)
+			return ((float) i)/ tickstep;
+	}
+
+	/* check what path has best future */
+	for(turn = -1; turn <= 1; turn++) {
+		newstate.turn = turn;
+		best = max(best, marcusai_helper(&newstate, usr, depth - 1, tickstep));
+	}
+
+	return 1 + best;
+}
+
 void inputmechanism_marcusai(struct user *usr, int tick) {
-	
+	int i, j, turn = 0, depth = 3, totalticks, tickstep;
+	float best = 0, current;
+	struct userpos *pos = &usr->aistate;
+
+	if(0 == tick) {
+		memcpy(pos, &usr->state, sizeof(struct userpos));
+
+		for(i = 0; i < COMPUTER_DELAY; i++)
+			simuser(pos, usr, 0);
+	}
+
+	totalticks = ceil(M_PI * 1.5 * 1000.0/ pos->ts/ TICK_LENGTH); // we want to make atleast 3/4 circles
+	tickstep = totalticks/ depth + !!(totalticks % depth);
+
+	for(i = 1; i <= 3; i++) {
+		j = (i % 3) - 1;
+		pos->turn = j;
+
+		if((current = marcusai_helper(pos, usr, depth, tickstep)) > best) {
+			best = current;
+			turn = j;
+		}
+	}
+
+	pos->turn = turn;
+	simuser(pos, usr, 0);
+
+	if(turn == usr->lastinputturn)
+		return;
+
+	tick += COMPUTER_DELAY;
+	queueinput(usr, tick, turn);
+	steermsg(usr, tick, turn, 0);
 }
 
 void inputmechanism_checktangent(struct user *usr, int tick) {
@@ -1346,7 +1414,7 @@ void inputmechanism_checktangent(struct user *usr, int tick) {
 	turn = checkcollision(usr->gm, &seg) != -1.0;
 	if(turn) {
 		float x, y, a, b;
-		
+	
 		x = cos(pos->angle);
 		y = sin(pos->angle);
 		a = collidingseg->x1 - collidingseg->x2;
