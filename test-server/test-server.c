@@ -401,7 +401,7 @@ callback_game(struct libwebsocket_context * context,
 		else if(!strcmp(mode, "pencil")) {
 			if(u->gm && u->gm->state == GS_STARTED && !u->ignoreinput
 			 && (u->gm->pencilmode == PM_ON
-			 || (u->gm->pencilmode == PM_ONDEATH && !u->alive)))
+			 || (u->gm->pencilmode == PM_ONDEATH && !u->state.alive)))
 				handlepencilmsg(json, u); 		
 		}
 		else if(!strcmp(mode, "enableInput")) {

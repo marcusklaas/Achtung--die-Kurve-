@@ -180,9 +180,8 @@ struct userinput {
 
 struct userpos {
 	float x, y, angle, v, ts;
-	int turn;
-
-	// int tick ??
+	int turn, tick;
+	char alive;
 };
 
 struct user {
@@ -197,12 +196,13 @@ struct user {
 	int sbmsglen[SB_MAX]; // length of messages in sendbuffer
 	char *sb[SB_MAX];	// sendbuffer
 	int sbat;			// sendbuffer at
-
-	struct userpos state;	// used in simulation (these are thus SERVER_DELAY behind)
-	int points, lastinputtick, lastinputturn, inputcount, gamelistage;
-	char alive, ignoreinput;
 	
-	int hstart, hsize, hfreq;	// hole start, hole size, hole frequency
+	struct userpos state;	// used in simulation (these are thus SERVER_DELAY behind)
+	struct userpos aistate;	
+	int points, lastinputtick, lastinputturn, inputcount, gamelistage;
+	char ignoreinput;
+	
+	int hstart, hsize, hfreq;	// hole start, hole size, hole frequency  //TODO: should be moved to userpos
 
 	struct userinput *inputhead, // store unhandled user inputs in queue
 					 *inputtail; // insert at tail, remove at head
@@ -237,7 +237,7 @@ void endround(struct game *gm);
 void tiles(struct game *gm, struct seg *seg, int *tileindices);
 void clearinputs(struct user *usr);
 char *checkname(char *name);
-void killplayer(struct user *usr);
+void handledeath(struct user *usr);
 int pointsystem_trivial(int players, int alive);
 int pointsystem_wta(int players, int alive);
 int pointsystem_rik(int players, int alive);
