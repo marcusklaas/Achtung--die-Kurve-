@@ -28,7 +28,7 @@
 
 /* artificial intelligence */
 #define COMPUTER_NAME "COMPUTER"
-#define COMPUTER_AI inputmechanism_checktangent
+#define COMPUTER_AI inputmechanism_leftisallineed
 #define COMPUTER_DELAY (SERVER_DELAY/ TICK_LENGTH)
 
 /* byte messages */

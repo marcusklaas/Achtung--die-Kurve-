@@ -715,7 +715,7 @@ void queueseg(struct game *gm, struct seg *seg) {
 }
 
 void simuser(struct userpos *state, struct user *usr, char addsegments) {
-	float cut, oldx = usr->state.x, oldy = usr->state.y, oldangle = usr->state.angle;
+	float cut, oldx = state->x, oldy = state->y, oldangle = state->angle;
 	int inhole, inside;
 	struct seg seg;
 
@@ -752,17 +752,17 @@ void simuser(struct userpos *state, struct user *usr, char addsegments) {
 
 	/* simulate this tick again from another point */
 	if(state->alive && !inside) {
-		if(usr->state.x > usr->gm->w)
-			usr->state.x = oldx - usr->gm->w;
-		else if(usr->state.x < 0)
-			usr->state.x = oldx + usr->gm->w;
+		if(state->x > usr->gm->w)
+			state->x = oldx - usr->gm->w;
+		else if(state->x < 0)
+			state->x = oldx + usr->gm->w;
 
-		if(usr->state.y > usr->gm->h)
-			usr->state.y = oldy - usr->gm->h;
-		else if(usr->state.y < 0)
-			usr->state.y = oldy + usr->gm->h;
+		if(state->y > usr->gm->h)
+			state->y = oldy - usr->gm->h;
+		else if(state->y < 0)
+			state->y = oldy + usr->gm->h;
 
-		usr->state.angle = oldangle;
+		state->angle = oldangle;
 		simuser(state, usr, addsegments);
 		return;
 	}
@@ -1298,15 +1298,23 @@ void inputmechanism_circling(struct user *usr, int tick) {
 void inputmechanism_leftisallineed(struct user *usr, int tick) {
 	int turn;
 	struct seg seg;
-	float visionlength = usr->state.ts != 0 ? 3.14 / usr->state.ts * usr->state.v : 9999;
+	float visionlength;
+	struct userpos *pos = &usr->aistate;
 
-	tick += COMPUTER_DELAY;
+	if(tick == 0) {
+		memcpy(pos, &usr->state, sizeof(struct userpos));
+	}
 	
-	seg.x1 = usr->state.x;
-	seg.y1 = usr->state.y;
-	seg.x2 = seg.x1 + cos(usr->state.angle) * visionlength;
-	seg.y2 = seg.y1 + sin(usr->state.angle) * visionlength;
+	visionlength = pos->ts != 0 ? 3.14 / pos->ts * pos->v : 9999;
+
+	seg.x1 = pos->x;
+	seg.y1 = pos->y;
+	seg.x2 = seg.x1 + cos(pos->angle) * visionlength;
+	seg.y2 = seg.y1 + sin(pos->angle) * visionlength;
 	turn = -1 * (checkcollision(usr->gm, &seg) != -1.0);
+	
+	pos->turn = turn;
+	simuser(pos, usr, 0);
 
 	if(turn == usr->lastinputturn)
 		return;
