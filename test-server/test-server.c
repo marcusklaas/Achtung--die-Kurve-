@@ -313,11 +313,13 @@ callback_game(struct libwebsocket_context * context,
 
 			comp = smalloc(sizeof(struct user));
 			iniuser(comp, 0);
-			comp->name = smalloc(8);
+			comp->name = smalloc(20);
 			//strcpy(comp->name, "CIRCLER");
 			//comp->inputmechanism = inputmechanism_circling;
 			strcpy(comp->name, "WHY TURN RIGHT?");
 			comp->inputmechanism = inputmechanism_leftisallineed;
+			strcpy(comp->name, "CHECKTANGENT'");
+			comp->inputmechanism = inputmechanism_checktangent;
 			joingame(u->gm, comp);
 		}
 		else if(!strcmp(mode, "createGame")) {
