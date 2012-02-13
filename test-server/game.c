@@ -621,21 +621,21 @@ void tiles(struct game *gm, struct seg *seg, int *tileindices) {
 	tileindices[2] = min(tileindices[2], gm->vtiles - 1);
 }
 
-/* returns -1 in case of no collision, between 0 and 1 else */
-// TODO: this can probably be made a bit quicker by not 
-// calculating index gm->htiles * j + i everytime, but just incrementing it
-// doubly goes for addsegment
 struct seg *collidingseg = 0; // maybe instead as parameter to checkcollision
+
+/* returns -1 in case of no collision, between 0 and 1 else */
 float checkcollision(struct game *gm, struct seg *seg) {
-	int i, j, tileindices[4];
+	int i, j, tileindices[4], index, dx;
 	float cut, mincut = -1;
 	struct seg *collider = 0;
 
 	tiles(gm, seg, tileindices);
+	index = gm->htiles * tileindices[0] + tileindices[3];
+	dx = gm->htiles + tileindices[3] - tileindices[1] - 1;
 
-	for(j = tileindices[0]; j <= tileindices[2]; j++) {
-		for(i = tileindices[3]; i <= tileindices[1]; i++) {
-			cut = checktilecollision(gm->seg[gm->htiles * j + i], seg, &collider);
+	for(j = tileindices[0]; j <= tileindices[2]; j++, index += dx) {
+		for(i = tileindices[3]; i <= tileindices[1]; i++, index++) {
+			cut = checktilecollision(gm->seg[index], seg, &collider);
 
 			if(cut != -1.0 && (mincut == -1.0 || cut < mincut)) {
 				mincut = cut;
@@ -649,16 +649,18 @@ float checkcollision(struct game *gm, struct seg *seg) {
 
 /* adds segment to the game. does not check for collision */
 void addsegment(struct game *gm, struct seg *seg) {
-	int i, j, tileindices[4];
+	int i, j, tileindices[4], index, dx;
 	struct seg *copy;
 
 	tiles(gm, seg, tileindices);
+	index = gm->htiles * tileindices[0] + tileindices[3];
+	dx = gm->htiles + tileindices[3] - tileindices[1] - 1;
 
-	for(j = tileindices[0]; j <= tileindices[2]; j++) {
-		for(i = tileindices[3]; i <= tileindices[1]; i++) {
+	for(j = tileindices[0]; j <= tileindices[2]; j++, index += dx) {
+		for(i = tileindices[3]; i <= tileindices[1]; i++, index++) {
 			copy = copyseg(seg);
-			copy->nxt = gm->seg[gm->htiles * j + i];
-			gm->seg[gm->htiles * j + i] = copy;
+			copy->nxt = gm->seg[index];
+			gm->seg[index] = copy;
 		}
 	}
 }
@@ -826,7 +828,7 @@ void endround(struct game *gm) {
 void handledeath(struct user *victim) {
 	struct game *gm = victim->gm;
 	struct user *usr;
-	int reward = gm->pointsys(gm->rsn, gm->alive--);
+	int reward = gm->pointsys(gm->rsn, --gm->alive);
 	
 	if(gm->pencilmode == PM_ONDEATH) {
 		victim->pencil.tick = gm->tick;
@@ -1286,8 +1288,8 @@ float marcusai_helper(struct userpos *state, struct user *usr, int depth, int ti
 	if(depth == 0) {
 		megaseg.x1 = state->x;
 		megaseg.y1 = state->y;
-		megaseg.x2 = state->x + COMPUTER_SEARCH_CAREFULNESS * cos(state->angle);
-		megaseg.y2 = state->y + COMPUTER_SEARCH_CAREFULNESS * sin(state->angle);
+		megaseg.x2 = state->x + state->v * COMPUTER_SEARCH_CAREFULNESS * cos(state->angle);
+		megaseg.y2 = state->y + state->v * COMPUTER_SEARCH_CAREFULNESS * sin(state->angle);
 		return fabs(checkcollision(usr->gm, &megaseg));
 	}
 

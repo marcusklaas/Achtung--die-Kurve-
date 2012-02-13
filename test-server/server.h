@@ -32,7 +32,7 @@
 #define COMPUTER_DELAY (SERVER_DELAY/ TICK_LENGTH)
 #define COMPUTER_SEARCH_DEPTH 2 // for marcusai
 #define COMPUTER_SEARCH_ANGLE 3.141592
-#define COMPUTER_SEARCH_CAREFULNESS 1500 // this is very careful -- not tight circling
+#define COMPUTER_SEARCH_CAREFULNESS 1 // how long we go straight in seconds
 
 /* byte messages */
 #define MODE_MODIFIED 0
