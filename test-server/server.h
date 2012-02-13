@@ -3,7 +3,7 @@
 #define GAME_HEIGHT 644
 #define MAX_GAME_WIDTH 2047
 #define MAX_GAME_HEIGHT 1023
-#define TILE_SIZE_MULTIPLIER 10 // tilesize/ segmentlength
+#define TILE_SIZE_MULTIPLIER 3 // tilesize/ segmentlength
 #define VELOCITY 70 // pixels per sec
 #define TURN_SPEED 2.5 // radians per sec
 #define HOLE_SIZE 5 // in ticks
@@ -30,6 +30,9 @@
 #define COMPUTER_NAME "COMPUTER"
 #define COMPUTER_AI inputmechanism_marcusai
 #define COMPUTER_DELAY (SERVER_DELAY/ TICK_LENGTH)
+#define COMPUTER_SEARCH_DEPTH 2 // for marcusai
+#define COMPUTER_SEARCH_ANGLE 3.141592
+#define COMPUTER_SEARCH_CAREFULNESS 1500 // this is very careful -- not tight circling
 
 /* byte messages */
 #define MODE_MODIFIED 0
@@ -44,7 +47,7 @@
 #define ULTRA_VERBOSE 0
 #define SHOW_WARNING 0
 #define GOD_MODE 0
-#define SEND_SEGMENTS 20 // om de hoeveel ticks het moet gebeuren (0=nooit)
+#define SEND_SEGMENTS 0 // om de hoeveel ticks het moet gebeuren (0=nooit)
 #define SAVE_COLLISION_TO_FILE 0
 
 /* input control */
