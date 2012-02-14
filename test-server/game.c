@@ -539,63 +539,24 @@ float segcollision(struct seg *seg1, struct seg *seg2) {
 	denom = (seg1->x1 - seg1->x2) * (seg2->y1 - seg2->y2) -
 	 (seg1->y1 - seg1->y2) * (seg2->x1 - seg2->x2);
 
+	/* segments are parallel */
+	if(fabs(denom) < EPS)
+		return -1;
+
 	numer_a = (seg2->x2 - seg2->x1) * (seg1->y1 - seg2->y1) -
 	 (seg2->y2 - seg2->y1) * (seg1->x1 - seg2->x1);
 
 	numer_b = (seg1->x2 - seg1->x1) * (seg1->y1 - seg2->y1) -
 	 (seg1->y2 - seg1->y1) * (seg1->x1 - seg2->x1);
-	
-	/* segments are parallel */
-	if(fabs(denom) < EPS)
-		return -1;
 
 	a = numer_a/ denom;
+
+	if(a < 0 || a > 1)
+		return -1;
+
 	b = numer_b/ denom;
 
-	if(a >= 0 && a <= 1 && b >= 0 && b <= 1)
-		return b;
-
-	return -1;
-}
-
-/* returns 1 in case the segment intersects the box */
-int lineboxcollision(struct seg *seg, int top, int right, int bottom, int left) {
-	struct seg edge;
-
-	/* if the segment intersects box, either both points are in box, 
-	 * or there is intersection with the edges. note: this is naive way.
-	 * there is probably a more efficient way to do it */
-
-	if(seg->x1 >= left && seg->x1 <= right && seg->y1 <= bottom && seg->y1 >= top)
-		return 1;
-
-	if(seg->x2 >= left && seg->x2 <= right && seg->y2 <= bottom && seg->y2 >= top)
-		return 1;
-
-	/* check intersect left border */
-	edge.x1 = edge.x2 = left;
-	edge.y1 = bottom;
-	edge.y2 = top;
-	if(segcollision(seg, &edge) != -1.0)
-		return 1;
-
-	/* check intersect right border */
-	edge.x1 = edge.x2 = right;
-	if(segcollision(seg, &edge) != -1.0)
-		return 1;
-
-	/* check intersect top border */
-	edge.x1 = left;
-	edge.y1 = edge.y2 = top;
-	if(segcollision(seg, &edge) != -1.0)
-		return 1;
-
-	/* check intersect bottom border */
-	edge.y1 = edge.y2 = bottom;
-	if(segcollision(seg, &edge) != -1.0)
-		return 1;
-
-	return 0;
+	return (b >= 0 && b <= 1) ? b : -1;
 }
 
 /* returns -1 in case no collision, else between 0 and -1 */
@@ -634,20 +595,20 @@ float checktilecollision(struct seg *tile, struct seg *seg, struct seg **collidi
 }
 
 /* fills tileindices: top right bottom left.
- * NOTE: bottom means greater y-values */
+* NOTE: bottom means greater y-values */
 void tiles(struct game *gm, struct seg *seg, int *tileindices) {
 	int swap;
 
-	tileindices[3] = floor(seg->x1/ gm->tilew);
-	tileindices[1] = floor(seg->x2/ gm->tilew);
+	tileindices[3] = ((int) seg->x1)/ gm->tilew;
+	tileindices[1] = ((int) seg->x2)/ gm->tilew;
 	if(tileindices[3] > tileindices[1]) {
 		swap = tileindices[3];
 		tileindices[3] = tileindices[1];
 		tileindices[1] = swap;
 	}
 
-	tileindices[2] = floor(seg->y1/ gm->tileh);
-	tileindices[0] = floor(seg->y2/ gm->tileh);
+	tileindices[2] = ((int) seg->y1)/ gm->tileh;
+	tileindices[0] = ((int) seg->y2)/ gm->tileh;
 	if(tileindices[2] < tileindices[0]) {
 		swap = tileindices[2];
 		tileindices[2] = tileindices[0];
@@ -660,26 +621,25 @@ void tiles(struct game *gm, struct seg *seg, int *tileindices) {
 	tileindices[2] = min(tileindices[2], gm->vtiles - 1);
 }
 
+struct seg *collidingseg = 0; // maybe instead as parameter to checkcollision
+
 /* returns -1 in case of no collision, between 0 and 1 else */
-struct seg *collidingseg; // maybe instead as parameter to checkcollision
 float checkcollision(struct game *gm, struct seg *seg) {
-	int i, j, tileindices[4];
+	int i, j, tileindices[4], index, dx;
 	float cut, mincut = -1;
-	struct seg *seg2;
+	struct seg *collider = 0;
 
 	tiles(gm, seg, tileindices);
-	
-	for(i = tileindices[3]; i <= tileindices[1]; i++) {
-		for(j = tileindices[0]; j <= tileindices[2]; j++) {
-			if(!lineboxcollision(seg, j * gm->tileh, (i + 1) * gm->tilew,
-			 (j + 1) * gm->tileh, i * gm->tilew))
-				continue;
+	index = gm->htiles * tileindices[0] + tileindices[3];
+	dx = gm->htiles + tileindices[3] - tileindices[1] - 1;
 
-			cut = checktilecollision(gm->seg[gm->htiles * j + i], seg, &seg2);
+	for(j = tileindices[0]; j <= tileindices[2]; j++, index += dx) {
+		for(i = tileindices[3]; i <= tileindices[1]; i++, index++) {
+			cut = checktilecollision(gm->seg[index], seg, &collider);
 
 			if(cut != -1.0 && (mincut == -1.0 || cut < mincut)) {
 				mincut = cut;
-				collidingseg = seg2;
+				collidingseg = collider;
 			}
 		}
 	}
@@ -689,20 +649,18 @@ float checkcollision(struct game *gm, struct seg *seg) {
 
 /* adds segment to the game. does not check for collision */
 void addsegment(struct game *gm, struct seg *seg) {
-	int i, j, tileindices[4];
+	int i, j, tileindices[4], index, dx;
 	struct seg *copy;
 
 	tiles(gm, seg, tileindices);
+	index = gm->htiles * tileindices[0] + tileindices[3];
+	dx = gm->htiles + tileindices[3] - tileindices[1] - 1;
 
-	for(i = tileindices[3]; i <= tileindices[1]; i++) {
-		for(j = tileindices[0]; j <= tileindices[2]; j++) {
-			if(!lineboxcollision(seg, j * gm->tileh, (i + 1) * gm->tilew,
-			 (j + 1) * gm->tileh, i * gm->tilew))
-				continue;
-
+	for(j = tileindices[0]; j <= tileindices[2]; j++, index += dx) {
+		for(i = tileindices[3]; i <= tileindices[1]; i++, index++) {
 			copy = copyseg(seg);
-			copy->nxt = gm->seg[gm->htiles * j + i];
-			gm->seg[gm->htiles * j + i] = copy;
+			copy->nxt = gm->seg[index];
+			gm->seg[index] = copy;
 		}
 	}
 }
@@ -736,7 +694,7 @@ void simuser(struct userpos *state, struct user *usr, char addsegments) {
 		seg.x2 = state->x;
 		seg.y2 = state->y;
 		
-		cut = checkcollision(usr->gm, &seg); // TODO: we should only check collision with map borders while !inhole // i dont agree -- do it always when !torus
+		cut = checkcollision(usr->gm, &seg); // TODO: we should only check collision with map borders while !inhole
 		if(cut != -1.0) {
 			state->x = seg.x2 = (1 - cut) * seg.x1 + cut * seg.x2;
 			state->y = seg.y2 = (1 - cut) * seg.y1 + cut * seg.y2;
@@ -944,7 +902,7 @@ void mainloop() {
 		resetspamcounters(lobby, serverticks);
 		sleepuntil = ++serverticks * TICK_LENGTH;
 
-		if(sleepuntil < servermsecs() - 3 * TICK_LENGTH && servermsecs() - lastheavyloadmsg > 1000) {
+		if(sleepuntil < servermsecs() - 3 * TICK_LENGTH && servermsecs() - lastheavyloadmsg > 100) {
 			warning("%ld msec behind on schedule!\n", servermsecs() - sleepuntil);
 			lastheavyloadmsg = servermsecs();
 		}
@@ -1279,10 +1237,7 @@ void gototick(struct pencil *p, int tick) {
 
 /* inputmechanisms determine how users are controlled. in particular whether they
  * are player or computer controlled. returns turn for current tick */
-void inputmechanism_human(struct user *usr, int tick) {
-	// players send their inputs over network so do nothing here (unless
-	// we want to sabotage them ;P)
-}
+void inputmechanism_human(struct user *usr, int tick) {;}
 
 void inputmechanism_circling(struct user *usr, int tick) {
 	int turn = tick > 5 && !(tick % 5);
@@ -1333,17 +1288,15 @@ float marcusai_helper(struct userpos *state, struct user *usr, int depth, int ti
 	if(depth == 0) {
 		megaseg.x1 = state->x;
 		megaseg.y1 = state->y;
-		megaseg.x2 = state->x + 500 * cos(state->angle);
-		megaseg.y2 = state->y + 500 * sin(state->angle);
+		megaseg.x2 = state->x + state->v * COMPUTER_SEARCH_CAREFULNESS * cos(state->angle);
+		megaseg.y2 = state->y + state->v * COMPUTER_SEARCH_CAREFULNESS * sin(state->angle);
 		return fabs(checkcollision(usr->gm, &megaseg));
 	}
 
-	/* simulate a bit ahead*/
+	/* simulate a bit ahead */
 	memcpy(&newstate, state, sizeof(struct userpos));
 
 	for(i = 0; i < tickstep; i++) {
-		megaseg.x1 = newstate.x;
-		megaseg.y1 = newstate.y;
 		simuser(&newstate, usr, 0);
 
 		if(!newstate.alive)
@@ -1360,7 +1313,7 @@ float marcusai_helper(struct userpos *state, struct user *usr, int depth, int ti
 }
 
 void inputmechanism_marcusai(struct user *usr, int tick) {
-	int i, j, turn = 0, depth = 3, totalticks, tickstep;
+	int i, j, turn = 0, totalticks, tickstep;
 	float best = 0, current;
 	struct userpos *pos = &usr->aistate;
 
@@ -1371,14 +1324,15 @@ void inputmechanism_marcusai(struct user *usr, int tick) {
 			simuser(pos, usr, 0);
 	}
 
-	totalticks = ceil(M_PI * 1.5 * 1000.0/ pos->ts/ TICK_LENGTH); // we want to make atleast 3/4 circles
-	tickstep = totalticks/ depth + !!(totalticks % depth);
+	totalticks = ceil(COMPUTER_SEARCH_ANGLE * 1000.0/ pos->ts/ TICK_LENGTH);
+	tickstep = totalticks/ COMPUTER_SEARCH_DEPTH +
+	 !!(totalticks % COMPUTER_SEARCH_DEPTH);
 
 	for(i = 1; i <= 3; i++) {
 		j = (i % 3) - 1;
 		pos->turn = j;
 
-		if((current = marcusai_helper(pos, usr, depth, tickstep)) > best) {
+		if((current = marcusai_helper(pos, usr, COMPUTER_SEARCH_DEPTH, tickstep)) > best) {
 			best = current;
 			turn = j;
 		}
