@@ -1971,8 +1971,9 @@ Editor = function(game) {
 	this.pos = [0, 0];
 	this.segments = [];
 	this.canvas.width = this.canvas.height = 0;
+	this.mode = 'pencil';
 	var self = this;
-	
+		
 	this.canvas.addEventListener('mousedown', function(ev) { self.onmouse('down', ev); }, false);
 	this.canvas.addEventListener('mousemove', function(ev) { self.onmouse('move', ev); }, false);
 	document.body.addEventListener('mouseup', function(ev) { self.onmouse('up', ev); }, false);
@@ -2056,6 +2057,11 @@ Editor = function(game) {
 	this.canvas.addEventListener('touchmove', touchMove, false);
 	this.canvas.addEventListener('touchend', touchEnd, false);
 	this.canvas.addEventListener('touchcancel', touchEnd, false);
+	
+	var pencilButton = document.getElementById('editorPencil');
+	pencilButton.addEventListener('click', function() { self.mode = 'pencil'; }, false);
+	pencilButton.checked = true;
+	document.getElementById('editorEraser').addEventListener('click', function() { self.mode = 'eraser'; }, false);
 }
 
 Editor.prototype.onmouse = function(type, ev) {
@@ -2080,9 +2086,22 @@ Editor.prototype.onmouse = function(type, ev) {
 	 (type == 'move' && Date.now() - this.lastTime > editorStepTime))) {
 	 	if(!this.out && (this.x != x || this.y != y)) {
 			var seg = new BasicSegment(this.x, this.y, x, y);
-			this.segments.push(seg);
-			this.mapChanged = true;
-			this.drawSegment(seg);
+			if(this.mode == 'pencil') {
+				this.segments.push(seg);
+				this.mapChanged = true;
+				this.drawSegment(seg);
+			} else if(this.mode == 'eraser') {
+				var changed = false;
+				for(var i = 0; i < this.segments.length; i++) {
+					if(segmentCollision(this.segments[i], seg) != -1) {
+						this.segments.splice(i, 1);
+						i--;
+						changed = true;
+					}
+				}
+				if(changed)
+					this.resize();
+			}
 			this.x = x;
 			this.y = y;
 			this.lastTime = Date.now();
@@ -2134,6 +2153,7 @@ Editor.prototype.resize = function() {
 	game.calcScale(this.resetButton.offsetHeight + 6);
 	var w = Math.round(game.scale * game.width);
 	var h = Math.round(game.scale * game.height);
+	var sizeChanged = w != this.canvas.width;
 	this.canvas.width = w;
 	this.canvas.height = h;
 	this.context.scale(game.scale, game.scale);
@@ -2145,8 +2165,10 @@ Editor.prototype.resize = function() {
 		this.drawSegment(this.segments[i]);
 		
 	// stop drawing
-	this.down = false;
-	this.out = false;
+	if(sizeChanged) {
+		this.down = false;
+		this.out = false;
+	}
 }
 
 BasicSegment = function(x1, y1, x2, y2) {
@@ -2493,4 +2515,25 @@ function getRGBstring(color) {
 function getRGBAstring(color, alpha) {
 	return 'rgba(' + color[0] + ', ' + color[1] + ', '
 		 + color[2] + ', ' + alpha + ')';
+}
+
+function segmentCollision(a, b) {
+	if(a.x2 == b.x1 && a.y2 == b.y1)
+		return -1;
+	
+	var denominator = (a.x1 - a.x2) * (b.y1 - b.y2) - (a.y1 - a.y2) * (b.x1 - b.x2);
+	
+	if(Math.abs(denominator) < epsilon)
+		return -1;
+		
+	var numeratorA = (b.x2 - b.x1) * (a.y1 - b.y1) - (b.y2 - b.y1) * (a.x1 - b.x1);
+	var numeratorB = (a.x2 - a.x1) * (a.y1 - b.y1) - (a.y2 - a.y1) * (a.x1 - b.x1);
+	var t = numeratorA / denominator;
+	
+	if(t < 0 || t > 1)
+		return -1;
+		
+	var s = numeratorB / denominator;
+	
+	return (s >= 0 && s <= 1) ? s : -1;
 }

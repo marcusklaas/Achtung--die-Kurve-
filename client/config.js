@@ -36,6 +36,8 @@ var resizeDelay = 200; // the duration the window should have a constant size be
 var paramUpdateInterval = 500; // don't send game intervals more often that one per this many msecs
 var paramInputInterval = 2000; // wait for this duration before sending params to server after text edit
 
+var epsilon = 0.0001;
+
 var customGameWaitMessage = 'Waiting for host to start the game..';
 var autoMatchWaitMessage = 'Waiting for more players..';
 
