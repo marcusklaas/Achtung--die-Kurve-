@@ -30,7 +30,7 @@
 #define COMPUTER_NAME "COMPUTER"
 #define COMPUTER_AI inputmechanism_marcusai
 #define COMPUTER_DELAY (SERVER_DELAY/ TICK_LENGTH)
-#define COMPUTER_SEARCH_DEPTH 2 // for marcusai
+#define COMPUTER_SEARCH_DEPTH 5 // for marcusai
 #define COMPUTER_SEARCH_ANGLE 3.141592
 #define COMPUTER_SEARCH_CAREFULNESS 1 // how long we go straight in seconds
 

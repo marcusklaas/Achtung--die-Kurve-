@@ -1043,7 +1043,7 @@ void deleteuser(struct user *usr) {
 	if(usr->recvbuf)
 		free(usr->recvbuf);
 
-	//if(usr->inputmechanism != inputmechanism_human)
+	if(usr->inputmechanism != inputmechanism_human)
 		free(usr);
 }
 
