@@ -120,9 +120,9 @@ struct point {
 	float x, y;
 };
 
-/* hier kunnen later dan ook de custom startposities in */
 struct map {
 	struct seg *seg;
+	struct seg *playerstarts;
 };
 
 struct kicknode {
