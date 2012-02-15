@@ -78,11 +78,14 @@ cJSON *encodegamelist() {
 }
 
 void newgamelist() {
+	cJSON *games = encodegamelist();
+
 	if(gamelist)
 		free(gamelist);
 
-	gamelist = jsonprint(encodegamelist());
+	gamelist = jsonprint(games);
 	gamelistlen = strlen(gamelist);
+	jsondel(games);
 }
 
 void updategamelist() {
@@ -262,6 +265,7 @@ void freemap(struct map *map) {
 
 void remgame(struct game *gm) {
 	struct user *usr, *nxt;
+	int i, num_tiles = gm->htiles * gm->vtiles;
 	
 	if(DEBUG_MODE)
 		printf("deleting game %p\n", (void *) gm);
@@ -284,6 +288,10 @@ void remgame(struct game *gm) {
 		else
 			deleteuser(usr);
 	}
+
+	/* freeing up segments */
+	for(i = 0; i < num_tiles; i++)
+		freesegments(gm->seg[i]);
 
 	if(gm->map)
 		freemap(gm->map);
@@ -394,10 +402,10 @@ void leavegame(struct user *usr, int reason) {
 	jsondel(json);
 
 	if(gm->type != GT_LOBBY) {
-		if(gm->state == GS_STARTED && gm->n == 1)
-			endround(gm);
-		else if(gm->state != GS_REMOVING_GAME && !curr)
+		if(gm->state != GS_REMOVING_GAME && !curr)
 			remgame(gm);
+		else if(gm->state == GS_STARTED && gm->n == 1)
+			endround(gm);
 	}
 
 	if(DEBUG_MODE) printgames();
@@ -478,6 +486,7 @@ void joingame(struct game *gm, struct user *newusr) {
 		json = encodegame(gm);
 		cJSON_AddStringToObject(json, "mode", "newGame");
 		sendjsontogame(json, lobby, newusr);
+		jsondel(json);
 		newgamelist();
 	}
 	
@@ -1033,6 +1042,9 @@ void deleteuser(struct user *usr) {
 
 	if(usr->recvbuf)
 		free(usr->recvbuf);
+
+	//if(usr->inputmechanism != inputmechanism_human)
+		free(usr);
 }
 
 void freekicklist(struct kicknode *kick) {
