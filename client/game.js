@@ -2068,6 +2068,8 @@ Editor.prototype.onmouse = function(type, ev) {
 			var seg = new BasicSegment(this.x, this.y, x, y);
 			if(this.mode == 'pencil' || this.mode == 'playerStart') {
 				if(this.mode == 'playerStart') {
+					if(getLength(seg.x2 - seg.x1, seg.y2 - seg.y1) < pencilTreshold)
+						return;
 					seg.playerStart = true;
 					seg.angle = getAngle(seg.x2 - seg.x1, seg.y2 - seg.y1);
 					seg.x2 = seg.x1 + Math.cos(seg.angle) * (indicatorLength + 2 * indicatorArrowLength);
