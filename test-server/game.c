@@ -1,26 +1,68 @@
 void randomizeplayerstarts(struct game *gm) {
-	int borderwidth, borderheight, diameter = gm->ts > 0 ? 2.0 * gm->v/ gm->ts : 9999; /* diameter of circle in px when turning at max rate */
+	int i, borderwidth, borderheight, diameter = gm->ts > 0 ? 2.0 * gm->v/ gm->ts : 9999; /* diameter of circle in px when turning at max rate */
 	struct user *usr;
+	struct seg *starts[MAX_USERS_IN_GAME];
 	
 	borderwidth = min(gm->w / 3, max(gm->w / 10, diameter)); 
 	borderheight = min(gm->h / 3, max(gm->h / 10, diameter)); 
-		
-	for(usr = gm->usr; usr; usr = usr->nxt) {
-		struct seg seg;
-		int tries = 0;
 
-		do {
-			usr->state.x = borderwidth + rand() % (gm->w - 2 * borderwidth);
-			usr->state.y =  borderheight + rand() % (gm->h - 2 * borderheight);
-			usr->state.angle = rand() % 628 / 100.0;
-			seg.x1 = usr->state.x;
-			seg.y1 = usr->state.y;
-			seg.x2 = cos(usr->state.angle) * diameter + usr->state.x;
-			seg.y2 = sin(usr->state.angle) * diameter + usr->state.y;
-		} while(gm->map && checkcollision(gm, &seg) != -1.0 && tries++ < MAX_PLAYERSTART_TRIES);
+	// random distribution of playerstarts
+	if(gm->map) {
+		struct seg *seg;
+		int spotsleft = 0, playersleft = gm->n;
+		int permutation[MAX_USERS_IN_GAME], permutationindex = 0;
+
+		for(i = 0; i < gm->n; i++) {
+			permutation[i] = i;
+			starts[i] = 0;
+		}
+
+		for(seg = gm->map->playerstarts; seg; seg = seg->nxt)
+			if(seg->x1 >= 0 && seg->x1 <= gm->w && seg->y1 >= 0 && seg->y1 <= gm->h)
+				spotsleft++;
+
+		for(seg = gm->map->playerstarts; seg; seg = seg->nxt) {
+			if(rand() % 1000 < 1000 * playersleft / spotsleft) {
+				if(seg->x1 >= 0 && seg->x1 <= gm->w && seg->y1 >= 0 && seg->y1 <= gm->h) {
+					int j = rand() % playersleft + permutationindex;
+					int player = permutation[j];
+					starts[player] = seg;
+					permutation[j] = permutation[permutationindex++];
+					if(!--playersleft)
+						break;
+				}
+			}
+			spotsleft--;
+		}
+	}
+	
+	i = 0;
+	for(usr = gm->usr; usr; usr = usr->nxt) {
+		int tries = 0;
+		struct seg seg;
+
+		if(gm->map && starts[i]) {
+			usr->state.x = starts[i]->x1;
+			usr->state.y = starts[i]->y1;
+			usr->state.angle = starts[i]->x2;
+			tries = 1;
+		}
+
+		if(!tries) {
+			do {
+				usr->state.x = borderwidth + rand() % (gm->w - 2 * borderwidth);
+				usr->state.y =  borderheight + rand() % (gm->h - 2 * borderheight);
+				usr->state.angle = rand() % 628 / 100.0;
+				seg.x1 = usr->state.x;
+				seg.y1 = usr->state.y;
+				seg.x2 = cos(usr->state.angle) * diameter + usr->state.x;
+				seg.y2 = sin(usr->state.angle) * diameter + usr->state.y;
+			} while(gm->map && checkcollision(gm, &seg) != -1.0 && tries++ < MAX_PLAYERSTART_TRIES);
+		}
 
 		/* hstart now between 1 and 2 times usr->hsize + usr->hfreq */
 		usr->hstart = (1 + rand() % 5000/ 2500.0) * (usr->hsize + usr->hfreq);
+		i++;
 	}
 }
 
@@ -243,15 +285,21 @@ struct map *createmap(cJSON *j) {
 		seg->y1 = jsongetint(j, "y1");
 		seg->x2 = jsongetint(j, "x2");
 		seg->y2 = jsongetint(j, "y2");
-		
-		if(!seginside(seg, MAX_GAME_WIDTH, MAX_GAME_HEIGHT)) {
-			warning("some host made custom map with segments outside max boundaries\n");
-			free(seg);
-			break;
+
+		if(jsoncheckjson(j, "playerStart")) {
+			seg->x2 = jsongetfloat(j, "angle");
+			seg->nxt = map->playerstarts;
+			map->playerstarts = seg;
+		} else {
+			if(!seginside(seg, MAX_GAME_WIDTH, MAX_GAME_HEIGHT)) {
+				warning("some host made custom map with segments outside max boundaries\n");
+				free(seg);
+				break;
+			}
+			seg->nxt = map->seg;
+			map->seg = seg;
 		}
-		
-		seg->nxt = map->seg;
-		map->seg = seg;
+
 		j = j->next;
 	}
 
@@ -260,6 +308,7 @@ struct map *createmap(cJSON *j) {
 
 void freemap(struct map *map) {
 	freesegments(map->seg);
+	freesegments(map->playerstarts);
 	free(map);
 }
 

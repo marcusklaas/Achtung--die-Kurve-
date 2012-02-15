@@ -976,8 +976,10 @@ GameEngine.prototype.drawMapSegments = function() {
 	setLineColor(ctx, mapSegmentColor, 1);
 	for(var i = 0; i < this.mapSegments.length; i++) {
 		var seg = this.mapSegments[i];
-		ctx.moveTo(seg.x1, seg.y1);
-		ctx.lineTo(seg.x2, seg.y2);
+		if(seg.playerStart == undefined) {
+			ctx.moveTo(seg.x1, seg.y1);
+			ctx.lineTo(seg.x2, seg.y2);
+		}
 	}
 	ctx.stroke();
 }
@@ -1414,31 +1416,8 @@ Player.prototype.initialise = function(x, y, angle, holeStart) {
 Player.prototype.drawIndicator = function() {
 	var ctx = this.game.baseContext, x = this.x, y = this.y, angle = this.angle;
 
-	setLineColor(ctx, this.color, 1);
-	ctx.beginPath();
-	ctx.moveTo(this.x, this.y);
-	ctx.lineTo(x += Math.cos(angle) * indicatorLength, y += Math.sin(angle) * indicatorLength);
-	ctx.stroke();
-
-	ctx.fillStyle = getRGBstring(this.color);
-	ctx.beginPath();
-	var a = indicatorArrowOffset;
-	var b = indicatorArrowLength;
-	var c = ctx.lineWidth;
-	var d = Math.PI/ 4;
+	drawIndicatorArrow(ctx, x, y, angle, this.color);
 	
-	x += Math.cos(angle) * a;
-	y += Math.sin(angle) * a;
-	for(var i = 0; i < 2; i++) {
-		ctx.moveTo(x + Math.cos(angle - d) * c, y + Math.sin(angle - d) * c);
-		ctx.arc(x, y, c, angle - d, angle + d, false);
-		x += Math.cos(angle) * b;
-		y += Math.sin(angle) * b;
-		ctx.lineTo(x, y);
-		ctx.closePath();
-	}
-	ctx.fill();
-
 	/* draws name next to indicator */
 	var text = this.isLocal ? 'YOU' : this.playerName;
 	ctx.fillStyle = getRGBstring(this.color);// this.isLocal ? '#fff' : '#444';
@@ -2062,6 +2041,7 @@ Editor = function(game) {
 	pencilButton.addEventListener('click', function() { self.mode = 'pencil'; }, false);
 	pencilButton.checked = true;
 	document.getElementById('editorEraser').addEventListener('click', function() { self.mode = 'eraser'; }, false);
+	document.getElementById('editorPlayerStart').addEventListener('click', function() { self.mode = 'playerStart'; }, false);
 }
 
 Editor.prototype.onmouse = function(type, ev) {
@@ -2086,7 +2066,14 @@ Editor.prototype.onmouse = function(type, ev) {
 	 (type == 'move' && Date.now() - this.lastTime > editorStepTime))) {
 	 	if(!this.out && (this.x != x || this.y != y)) {
 			var seg = new BasicSegment(this.x, this.y, x, y);
-			if(this.mode == 'pencil') {
+			if(this.mode == 'pencil' || this.mode == 'playerStart') {
+				if(this.mode == 'playerStart') {
+					seg.playerStart = true;
+					seg.angle = getAngle(seg.x2 - seg.x1, seg.y2 - seg.y1);
+					seg.x2 = seg.x1 + Math.cos(seg.angle) * (indicatorLength + 2 * indicatorArrowLength);
+					seg.y2 = seg.y1 + Math.sin(seg.angle) * (indicatorLength + 2 * indicatorArrowLength);
+					this.down = false;
+				}
 				this.segments.push(seg);
 				this.mapChanged = true;
 				this.drawSegment(seg);
@@ -2097,6 +2084,7 @@ Editor.prototype.onmouse = function(type, ev) {
 						this.segments.splice(i, 1);
 						i--;
 						changed = true;
+						this.mapChanged = true;
 					}
 				}
 				if(changed)
@@ -2116,10 +2104,15 @@ Editor.prototype.onmouse = function(type, ev) {
 Editor.prototype.drawSegment = function(seg) {
 	if(seg.x1 == seg.x2 && seg.y1 == seg.y2)
 		return;
-	this.context.beginPath();
-	this.context.moveTo(seg.x1, seg.y1);
-	this.context.lineTo(seg.x2, seg.y2);
-	this.context.stroke();
+	if(seg.playerStart != undefined) {
+		drawIndicatorArrow(this.context, seg.x1, seg.y1, seg.angle, playerColors[0]);
+		setLineColor(this.context, mapSegmentColor, 1);
+	} else {
+		this.context.beginPath();
+		this.context.moveTo(seg.x1, seg.y1);
+		this.context.lineTo(seg.x2, seg.y2);
+		this.context.stroke();
+	}
 }
 
 Editor.prototype.copy = function() {
@@ -2536,4 +2529,37 @@ function segmentCollision(a, b) {
 	var s = numeratorB / denominator;
 	
 	return (s >= 0 && s <= 1) ? s : -1;
+}
+
+function drawIndicatorArrow(ctx, x, y, angle, color) {
+	setLineColor(ctx, color, 1);
+	ctx.beginPath();
+	ctx.moveTo(x, y);
+	ctx.lineTo(x += Math.cos(angle) * indicatorLength, y += Math.sin(angle) * indicatorLength);
+	ctx.stroke();
+
+	ctx.fillStyle = getRGBstring(color);
+	ctx.beginPath();
+	var a = indicatorArrowOffset;
+	var b = indicatorArrowLength;
+	var c = ctx.lineWidth;
+	var d = Math.PI/ 4;
+	
+	x += Math.cos(angle) * a;
+	y += Math.sin(angle) * a;
+	for(var i = 0; i < 2; i++) {
+		ctx.moveTo(x + Math.cos(angle - d) * c, y + Math.sin(angle - d) * c);
+		ctx.arc(x, y, c, angle - d, angle + d, false);
+		x += Math.cos(angle) * b;
+		y += Math.sin(angle) * b;
+		ctx.lineTo(x, y);
+		ctx.closePath();
+	}
+	ctx.fill();
+}
+
+function getAngle(x, y) {
+	if(x == 0)
+		return y < 0 ? Math.PI * 3 / 2 : Math.PI / 2;
+	return Math.atan(y / x) + (x > 0 ? 0 : Math.PI);
 }
