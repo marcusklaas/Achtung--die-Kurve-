@@ -1424,7 +1424,7 @@ Player.prototype.drawIndicator = function() {
 	ctx.font = 'bold ' + indicatorFont + 'px Helvetica, sans-serif';
 	ctx.textBaseline = 'bottom';
 	var w = ctx.measureText(text).width;
-	x = this.x - (this.angle > Math.PI * 3 / 2 ? w + 2 : 0);
+	x = this.x - (Math.cos(this.angle) > 0 && Math.sin(this.angle) < 0 ? w + 2 : 0);
 	y = this.y - 3;
 	ctx.fillText(text, Math.min(this.game.width - w, Math.max(0, x)), y);
 }
@@ -2068,6 +2068,8 @@ Editor.prototype.onmouse = function(type, ev) {
 			var seg = new BasicSegment(this.x, this.y, x, y);
 			if(this.mode == 'pencil' || this.mode == 'playerStart') {
 				if(this.mode == 'playerStart') {
+					if(getLength(seg.x2 - seg.x1, seg.y2 - seg.y1) < pencilTreshold)
+						return;
 					seg.playerStart = true;
 					seg.angle = getAngle(seg.x2 - seg.x1, seg.y2 - seg.y1);
 					seg.x2 = seg.x1 + Math.cos(seg.angle) * (indicatorLength + 2 * indicatorArrowLength);
