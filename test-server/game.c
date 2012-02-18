@@ -499,6 +499,9 @@ void joingame(struct game *gm, struct user *newusr) {
 	sendjson(json, newusr);
 	jsondel(json);
 
+	printf("got this far\n");
+	fflush(stdout);
+
 	/* tell players of game someone new joined and send a message to the new
 	 * player for every other player that is already in the game */
 	for(usr = gm->usr; usr; usr = usr->nxt) {
@@ -530,6 +533,9 @@ void joingame(struct game *gm, struct user *newusr) {
 	if(gm->type == GT_AUTO && gm->n >= gm->nmin)
 		startgame(gm);
 
+	printf("even got this far\n");
+	fflush(stdout);
+
 	/* tell everyone in lobby of new game */
 	if(gm->n == 1) {
 		json = encodegame(gm);
@@ -545,6 +551,9 @@ void joingame(struct game *gm, struct user *newusr) {
 		printf("user %d joined game %p\n", newusr->id, (void *)gm);
 		printgames();
 	}
+
+	printf("got to end!\n");
+	fflush(stdout);
 }
 
 struct game *creategame(int gametype, int nmin, int nmax) {
@@ -588,7 +597,7 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 }
 
 /* returns -1 if no collision, between 0 and 1 other wise */
-float segcollision(struct seg *seg1, struct seg *seg2) {
+float OLD_segcollision(struct seg *seg1, struct seg *seg2) {
 	float denom, numer_a, numer_b, a, b;
 	
 	if(seg1->x2 == seg2->x1 && seg1->y2 == seg2->y1)
@@ -615,6 +624,35 @@ float segcollision(struct seg *seg1, struct seg *seg2) {
 	b = numer_b/ denom;
 
 	return (b >= 0 && b <= 1) ? b : -1;
+}
+
+/* variant of segcollision which might be faster. XPERIMENTAL: needs benchmark */
+float segcollision(struct seg *seg1, struct seg *seg2) {
+	float denom, numer_a, numer_b, seg1dx, seg1dy, seg2dx, seg2dy, dx1, dy1;
+	
+	if(seg1->x2 == seg2->x1 && seg1->y2 == seg2->y1)
+		return -1;
+
+	seg1dx = seg1->x1 - seg1->x2;
+	seg1dy = seg1->y1 - seg1->y2;
+	seg2dx = seg2->x1 - seg2->x2;
+	seg2dy = seg2->y1 - seg2->y2;
+	denom = seg1dx * seg2dy - seg1dy * seg2dx;
+
+	/* segments are parallel */
+	if(fabs(denom) < EPS)
+		return -1;
+
+	dx1 = seg1->x1 - seg2->x1;
+	dy1 = seg1->y1 - seg2->y1;
+	numer_a = seg2dx * dy1 + seg2dy * dx1;
+
+	if(denom >= 0 ? (numer_a < 0 || numer_a > denom) : (numer_a > 0 || numer_a < denom))
+		return -1;
+
+	numer_b = seg1dy * dx1 - seg1dx * dy1;
+
+	return (denom >= 0 ? (numer_b < 0 || numer_b > denom) : (numer_b > 0 || numer_b < denom)) ? -1 : numer_b/ denom;
 }
 
 /* returns -1 in case no collision, else between 0 and -1 */
@@ -945,6 +983,7 @@ void simgame(struct game *gm) {
 /* tries to simgame every game every TICK_LENGTH milliseconds */
 void mainloop() {
 	int sleepuntil;
+	unsigned long now;
 	struct game *gm;
 	static int lastheavyloadmsg;
 
@@ -959,14 +998,15 @@ void mainloop() {
 		broadcastgamelist();
 		resetspamcounters(lobby, serverticks);
 		sleepuntil = ++serverticks * TICK_LENGTH;
+		now = servermsecs();
 
-		if(sleepuntil < servermsecs() - 3 * TICK_LENGTH && servermsecs() - lastheavyloadmsg > 100) {
-			warning("%ld msec behind on schedule!\n", servermsecs() - sleepuntil);
-			lastheavyloadmsg = servermsecs();
+		if(sleepuntil < now - 3 * TICK_LENGTH && now - lastheavyloadmsg > 100) {
+			warning("%ld msec behind on schedule!\n", now - sleepuntil);
+			lastheavyloadmsg = now;
 		}
 
-		do { libwebsocket_service(ctx, max(0, sleepuntil - servermsecs())); }
-		while(sleepuntil - servermsecs() > 0);
+		do { libwebsocket_service(ctx, max(0, sleepuntil - now)); }
+		while(sleepuntil - (now = servermsecs()) > 0);
 	}
 }
 
@@ -985,6 +1025,7 @@ void queueinput(struct user *usr, int tick, int turn) {
 void interpretinput(cJSON *json, struct user *usr) {
 	int turn = jsongetint(json, "turn");
 	int tick = jsongetint(json, "tick");
+	unsigned long now = servermsecs();
 	int delay, msgtick = tick;
 	int time = tick * TICK_LENGTH + TICK_LENGTH/ 2;
 	cJSON *j;
@@ -1004,7 +1045,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 	if(tick < usr->gm->tick) {
 		if(SHOW_WARNING)
 			printf("received msg from user %d of %d msec old! tick incremented by %d\n",
-			 usr->id, (int) (servermsecs() - usr->gm->start - time), usr->gm->tick - tick);
+			 usr->id, (int) (now - usr->gm->start - time), usr->gm->tick - tick);
 		tick = usr->gm->tick;
 	}
 	if(tick <= usr->lastinputtick)
@@ -1017,12 +1058,12 @@ void interpretinput(cJSON *json, struct user *usr) {
 	queueinput(usr, tick, turn);	
 	
 	if(SHOW_DELAY) {
-		int x = (servermsecs() - usr->gm->start) - time;
+		int x = (now - usr->gm->start) - time;
 		printf("delay: %d\n", x);
 	}
 	
 	/* check if user needs to adjust her gametime */
-	usr->delta[usr->deltaat++] = (servermsecs() - usr->gm->start) - time;
+	usr->delta[usr->deltaat++] = (now - usr->gm->start) - time;
 	if(usr->deltaat == DELTA_COUNT) {
 		usr->deltaat = 0;
 		usr->deltaon = 1;
@@ -1131,6 +1172,15 @@ int checkkick(struct game *gm, struct user *usr) {
 	}
 
 	return 0;
+}
+
+void addcomputer(struct game *gm) {
+	struct user *comp = smalloc(sizeof(struct user));
+	iniuser(comp, 0);
+	comp->name = smalloc(MAX_NAME_LENGTH + 1);
+	strcpy(comp->name, COMPUTER_NAME);
+	comp->inputmechanism = COMPUTER_AI;
+	joingame(gm, comp);
 }
 
 /* pencil game */

@@ -30,7 +30,7 @@
 #define COMPUTER_NAME "COMPUTER"
 #define COMPUTER_AI inputmechanism_marcusai
 #define COMPUTER_DELAY (SERVER_DELAY/ TICK_LENGTH)
-#define COMPUTER_SEARCH_DEPTH 5 // for marcusai
+#define COMPUTER_SEARCH_DEPTH 2 // for marcusai
 #define COMPUTER_SEARCH_ANGLE 3.141592
 #define COMPUTER_SEARCH_CAREFULNESS 1 // how long we go straight in seconds
 
@@ -140,8 +140,7 @@ struct game {
 		goal, state,		// required points to win, game state, see GS_* definitions
 		tick, alive,		// #ticks that have passed, #alive players
 		hsize, hfreq,		// hole size and frequency in ticks
-		start, rsn,			// start in msecs after server start, #players at round start
-		paramupd,			// servermsecs at time of last paramupdate
+		paramupd, rsn,		// servermsecs at time of last paramupdate, #players at round start
 		inkcap, inkregen,	// ink capacity, ink regen/ sec
 		inkdelay,			// ink harden time in msec
 		inkmousedown,		// ink cost to start new line
@@ -150,6 +149,7 @@ struct game {
 		modifieds,
 		timeadjustments;
 
+	unsigned long start;	// start in msecs after server start
 	int (*pointsys)(int, int); // function that determines points on death
 	float ts;				// turning speed in radians per sec
 	struct seg **seg;		// two dimensional array of linked lists, one for each tile
@@ -253,4 +253,5 @@ int checkkick(struct game *gm, struct user *usr);
 void freekicklist(struct kicknode *kick);
 void inputmechanism_human(struct user *usr, int tick);
 void inputmechanism_circling(struct user *usr, int tick);
+void inputmechanism_marcusai(struct user *usr, int tick);
 void deleteuser(struct user *usr);

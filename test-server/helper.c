@@ -455,14 +455,17 @@ char *getFileExt(char *path) {
 	return ext;
 }
 
-static long servermsecs() {
+static unsigned long servermsecs() {
 	static struct timeval tv;
-	static long serverstart = -1;
+	static unsigned long serverstart = -1;
+
 	if(serverstart == -1) {
 		serverstart = 0;
 		serverstart = servermsecs();
 	}
+
 	gettimeofday(&tv, 0);
+
 	return 1000 * tv.tv_sec + tv.tv_usec/ 1000 - serverstart;
 }
 
@@ -510,7 +513,9 @@ void printjson(cJSON *json) {
 }
 
 void logtime() {
-	if(servermsecs() - lastlogtime > 1000 * 60 * 5) {
+	unsigned long now = servermsecs();
+
+	if(now - lastlogtime > 1000 * 60 * 5) {
 		struct tm *local;
 		time_t t;
 
@@ -518,12 +523,14 @@ void logtime() {
 		local = localtime(&t);
 
 		LOGMSG("%s", asctime(local));
-		lastlogtime = servermsecs();
+		lastlogtime = now;
 	}
 }
 
 void logwarningtime() {
-	if(servermsecs() - lastwarninglogtime > 1000 * 60 * 5) {
+	unsigned long now = servermsecs();
+
+	if(now - lastwarninglogtime > 1000 * 60 * 5) {
 		struct tm *local;
 		time_t t;
 
@@ -531,7 +538,7 @@ void logwarningtime() {
 		local = localtime(&t);
 
 		WARNINGMSG("%s", asctime(local));
-		lastwarninglogtime = servermsecs();
+		lastwarninglogtime = now;
 	}
 }
 
