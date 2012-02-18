@@ -25,6 +25,7 @@
 #define GAMELIST_UPDATE_INTERVAL 10000
 #define MAX_USERS_IN_GAME 8
 #define KICK_REJOIN_TIME 15000
+#define MAX_TELEPORTS 8
 
 /* artificial intelligence */
 #define COMPUTER_NAME "COMPUTER"
@@ -111,9 +112,16 @@ enum demo_protocols {
 	DEMO_PROTOCOL_COUNT // always last
 };
 
-struct seg{
+struct seg {
 	float x1, y1, x2, y2;
+	struct teleport *dest;
 	struct seg *nxt;
+};
+
+struct teleport {
+	struct seg seg;
+	int colorid;
+	struct teleport *nxt;
 };
 
 struct point {
@@ -121,8 +129,8 @@ struct point {
 };
 
 struct map {
-	struct seg *seg;
-	struct seg *playerstarts;
+	struct seg *seg, *playerstarts;
+	struct teleport *teleports;
 };
 
 struct kicknode {

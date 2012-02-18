@@ -278,6 +278,11 @@ void startgame(struct game *gm) {
 
 struct map *createmap(cJSON *j) {
 	struct map *map = scalloc(1, sizeof(struct map));
+	struct seg taken, *telbuffer[MAX_TELEPORTS];
+	int i;
+
+	for(i = 0; i < MAX_TELEPORTS; i++)
+		telbuffer[i] = 0;
 
 	while(j) {
 		struct seg *seg = smalloc(sizeof(struct seg));
@@ -287,21 +292,74 @@ struct map *createmap(cJSON *j) {
 		seg->y2 = jsongetint(j, "y2");
 
 		if(jsoncheckjson(j, "playerStart")) {
+
 			seg->x2 = jsongetfloat(j, "angle");
 			seg->nxt = map->playerstarts;
 			map->playerstarts = seg;
+
 		} else {
+
 			if(!seginside(seg, MAX_GAME_WIDTH, MAX_GAME_HEIGHT)) {
 				warning("some host made custom map with segments outside max boundaries\n");
 				free(seg);
-				break;
+				j = j->next;
+				continue;
 			}
-			seg->nxt = map->seg;
-			map->seg = seg;
+
+			if(jsoncheckjson(j, "teleportId")) {
+				int id;
+				
+				id = jsongetint(j, "teleportId");
+				if(id < 0 || id >= MAX_TELEPORTS) {
+					warning("createmap teleport error 1\n");
+					free(seg);
+					j = j->next;
+					continue;
+				}
+
+				if(!telbuffer[id]) {
+					telbuffer[id] = seg;
+				} else if(telbuffer[id] == &taken) {
+					warning("createmap teleport error 2\n");
+					free(seg);
+					j = j->next;
+					continue;
+				} else {
+					struct teleport *cur, *tela, *telb;
+
+					tela = smalloc(sizeof(struct teleport));
+					telb = smalloc(sizeof(struct teleport));
+					tela->colorid = telb->colorid = id;
+					seg->dest = tela;
+					telbuffer[id]->dest = telb;
+					tela->seg = *telbuffer[id];
+					telb->seg = *seg;
+					
+					tela->nxt = telb;
+					telb->nxt = map->teleports;
+					map->teleports = tela;
+
+					//seg->nxt = telbuffer[id];
+					//telbuffer[id]->nxt = map->seg;
+					//map->seg = seg;
+					free(seg);
+					free(telbuffer[id]);
+
+					telbuffer[id] = &taken;
+				}
+
+			} else {
+				seg->nxt = map->seg;
+				map->seg = seg;
+			}
 		}
 
 		j = j->next;
 	}
+
+	for(i = 0; i < MAX_TELEPORTS; i++)
+		if(telbuffer[i] && telbuffer[i] != &taken)
+			free(telbuffer[i]);
 
 	return map;
 }
@@ -928,8 +986,12 @@ void simgame(struct game *gm) {
 			}
 			
 			simuser(&usr->state, usr, 1);
-			if(!usr->state.alive)
-				handledeath(usr);
+			if(!usr->state.alive) {
+				if(GOD_MODE)
+					usr->state.alive = 1;
+				else
+					handledeath(usr);
+			}
 		}
 	}
 
@@ -1311,14 +1373,33 @@ void inputmechanism_circling(struct user *usr, int tick) {
 	steermsg(usr, tick, turn, 0);
 }
 
-void inputmechanism_leftisallineed(struct user *usr, int tick) {
+void inputmechanism_random(struct user *usr, int tick) {
 	int turn;
+
+	if(tick % 10)
+		return;
+
+	turn = rand() % 3 - 1;
+	tick += COMPUTER_DELAY;
+
+	if(turn == usr->lastinputturn)
+		return;
+
+	queueinput(usr, tick, turn);
+	steermsg(usr, tick, turn, 0);
+}
+
+void inputmechanism_leftisallineed(struct user *usr, int tick) {
+	int turn, i;
 	struct seg seg;
 	float visionlength;
 	struct userpos *pos = &usr->aistate;
 
 	if(tick == 0) {
 		memcpy(pos, &usr->state, sizeof(struct userpos));
+
+		for(i = 0; i < COMPUTER_DELAY; i++)
+			simuser(pos, usr, 0);
 	}
 	
 	visionlength = pos->ts != 0 ? 3.14 / pos->ts * pos->v : 9999;

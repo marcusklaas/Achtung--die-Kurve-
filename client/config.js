@@ -72,6 +72,8 @@ var modeJson = 3;
 var modeOther = 7;
 var modeSetMap = 8 + 7;
 var unlockInterval = 0; // minimum time between last changing settings and gamestart in msecs
+var minTeleportSize = 15;
+var maxTeleports = 8;
 
 /* indicators */
 var indicatorLength = 15;

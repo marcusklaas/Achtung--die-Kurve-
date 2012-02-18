@@ -240,16 +240,32 @@ char *duplicatestring(char *orig) {
 
 struct buffer encodemap(struct map *map) {
 	struct buffer buf;
-	struct seg *seg = map->seg;
+	struct seg *seg;
+	struct teleport *tel;
 	
 	buf.start = 0;
 	allocroom(&buf, 200);
 	appendheader(&buf, MODE_SETMAP, 0);
-	while(seg) {
+
+	for(tel = map->teleports; tel; tel = tel->nxt) {
+		allocroom(&buf, 13);
+		*buf.at++ = tel->colorid | 32;
+		seg = &tel->seg;
+		appendpos(&buf, seg->x1, seg->y1);
+		appendpos(&buf, seg->x2, seg->y2);
+		seg = &tel->seg.dest->seg;
+		appendpos(&buf, seg->x1, seg->y1);
+		appendpos(&buf, seg->x2, seg->y2);
+	}
+
+	// this marks start of segments
+	allocroom(&buf, 1);
+	*buf.at++ = 0;
+
+	for(seg = map->seg; seg; seg = seg->nxt) {
 		allocroom(&buf, 6);
 		appendpos(&buf, seg->x1, seg->y1);
 		appendpos(&buf, seg->x2, seg->y2);
-		seg = seg->nxt;
 	}
 	return buf;
 }

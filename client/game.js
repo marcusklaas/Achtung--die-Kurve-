@@ -254,6 +254,19 @@ GameEngine.prototype.parseByteMsg = function(str) {
 			case modeSetMap:
 				var msg = new ByteMessage(str, 1);
 				this.mapSegments = [];
+				this.mapTeleports = [];
+				while(true) {
+					var b = str.charCodeAt(msg.at++);
+					if(b == 0)
+						break;
+					var colorId = b & 31;
+					var posA = msg.readPos();
+					var posB = msg.readPos();
+					var posC = msg.readPos();
+					var posD = msg.readPos();
+					this.mapTeleports.push({x1: posA[0], y1: posA[1], x2: posB[0], y2: posB[1],
+					 color: playerColors[colorId], dest: new BasicSegment(posC[0], posC[1], posD[0], posD[1])});
+				}
 				while(msg.at < msg.data.length) {
 					var posA = msg.readPos();
 					var posB = msg.readPos();
@@ -876,7 +889,6 @@ GameEngine.prototype.sendStartGame = function() {
 	if(this.editor.mapChanged) {
 		obj.segments = this.editor.segments;
 		this.editor.mapChanged = false;
-		this.mapSegments = this.editor.segments;
 	}
 
 	this.sendMsg('startGame', obj);
@@ -936,7 +948,7 @@ GameEngine.prototype.realStart = function() {
 	this.setGameState('playing');
 	this.sendMsg('enableInput', {});
 	this.tick = 0;
-
+	
 	var self = this;
 	var gameloop = function() {
 		var timeOut;
@@ -950,12 +962,12 @@ GameEngine.prototype.realStart = function() {
 				self.displayRewards(1);
 
 			if(tellert++ > 100) {
-		 		this.gameMessage('ERROR. stopping gameloop. debug information: next tick time = ' +
+		 		self.gameMessage('ERROR. stopping gameloop. debug information: next tick time = ' +
 		 		 ((self.tick + 1) * self.tickLength) + ', current game time = ' + 
 		 		 (Date.now() - self.gameStartTimestamp));
 		 		return;
 		 	}
-
+			
 			while(self.tick - self.tock >= tickTockDifference)
 				self.doTock();
 			self.doTick();
@@ -976,12 +988,15 @@ GameEngine.prototype.drawMapSegments = function() {
 	setLineColor(ctx, mapSegmentColor, 1);
 	for(var i = 0; i < this.mapSegments.length; i++) {
 		var seg = this.mapSegments[i];
-		if(seg.playerStart == undefined) {
-			ctx.moveTo(seg.x1, seg.y1);
-			ctx.lineTo(seg.x2, seg.y2);
-		}
+		ctx.moveTo(seg.x1, seg.y1);
+		ctx.lineTo(seg.x2, seg.y2);
 	}
 	ctx.stroke();
+	
+	for(var i in this.mapTeleports) {
+		var seg = this.mapTeleports[i];
+		drawTeleport(ctx, seg);
+	}
 }
 
 GameEngine.prototype.createRewardNode = function(player, reward) {
@@ -2042,6 +2057,7 @@ Editor = function(game) {
 	pencilButton.checked = true;
 	document.getElementById('editorEraser').addEventListener('click', function() { self.mode = 'eraser'; }, false);
 	document.getElementById('editorPlayerStart').addEventListener('click', function() { self.mode = 'playerStart'; }, false);
+	document.getElementById('editorTeleport').addEventListener('click', function() { self.mode = 'teleport'; }, false);
 }
 
 Editor.prototype.onmouse = function(type, ev) {
@@ -2054,7 +2070,8 @@ Editor.prototype.onmouse = function(type, ev) {
 	var x = pos[0];
 	var y = pos[1];
 
-	if(type == 'down' || (this.out && type == 'over' && this.down)) {
+	// mouse click event, or cursor back on canvas event while still holding mouse button in correct mode
+	if(type == 'down' || (this.out && type == 'over' && this.down && (this.mode == 'eraser' || this.mode == 'pencil') )) {
 		this.x = x;
 		this.y = y;
 		this.lastTime = Date.now();
@@ -2062,24 +2079,40 @@ Editor.prototype.onmouse = function(type, ev) {
 		this.down = true;
 	}
 	
+	// mouse out, up or move event, and for move event only when last event was editorStepTime msec ago
 	else if(this.down && (type == 'out' || type == 'up' || 
 	 (type == 'move' && Date.now() - this.lastTime > editorStepTime))) {
-	 	if(!this.out && (this.x != x || this.y != y)) {
+	 
+		var out = this.out;
+		if(type == 'out')
+			this.out = true;
+		else if(type == 'up')
+			this.down = false;
+			
+		// check if we are on the canvas and in different position from last position, and for playerStart or teleport mode if it is not a move event
+	 	if(!out && (this.x != x || this.y != y) && ((this.mode != 'playerStart' && this.mode != 'teleport') || type != 'move')) {
 			var seg = new BasicSegment(this.x, this.y, x, y);
-			if(this.mode == 'pencil' || this.mode == 'playerStart') {
+			
+			if(this.mode == 'pencil' || this.mode == 'playerStart' || this.mode == 'teleport') {
 				if(this.mode == 'playerStart') {
-					if(getLength(seg.x2 - seg.x1, seg.y2 - seg.y1) < pencilTreshold)
-						return;
 					seg.playerStart = true;
 					seg.angle = getAngle(seg.x2 - seg.x1, seg.y2 - seg.y1);
 					seg.x2 = seg.x1 + Math.cos(seg.angle) * (indicatorLength + 2 * indicatorArrowLength);
 					seg.y2 = seg.y1 + Math.sin(seg.angle) * (indicatorLength + 2 * indicatorArrowLength);
-					this.down = false;
+				} else if(this.mode == 'teleport') {
+					if(getLength(seg.x2 - seg.x1, seg.y2 - seg.y1) < minTeleportSize)
+						return;
+					seg.teleportId = this.getNextTeleportId();
+					if(seg.teleportId == -1)
+						return;
+					seg.color = playerColors[seg.teleportId];
 				}
 				this.segments.push(seg);
 				this.mapChanged = true;
 				this.drawSegment(seg);
-			} else if(this.mode == 'eraser') {
+			} 
+			
+			else if(this.mode == 'eraser') {
 				var changed = false;
 				for(var i = 0; i < this.segments.length; i++) {
 					if(segmentCollision(this.segments[i], seg) != -1) {
@@ -2092,15 +2125,31 @@ Editor.prototype.onmouse = function(type, ev) {
 				if(changed)
 					this.resize();
 			}
+			
 			this.x = x;
 			this.y = y;
 			this.lastTime = Date.now();
 		}
-		if(type == 'out')
-			this.out = true;
-		else if(type == 'up')
-			this.down = false;
 	}
+}
+
+Editor.prototype.getNextTeleportId = function () {
+	var ar = new Array(maxTeleports);
+	for(var i = 0; i < maxTeleports; i++)
+		ar[i] = 0;
+	for(var i in this.segments) {
+		var seg = this.segments[i];
+		if(seg.teleportId != undefined)
+			ar[seg.teleportId]++;
+	}
+	var id = -1;
+	for(var i = 0; i < maxTeleports; i++) {
+		if(ar[i] == 1)
+			return i;
+		else if(ar[i] == 0 && id == -1)
+			id = i;
+	}
+	return id;
 }
 
 Editor.prototype.drawSegment = function(seg) {
@@ -2108,6 +2157,9 @@ Editor.prototype.drawSegment = function(seg) {
 		return;
 	if(seg.playerStart != undefined) {
 		drawIndicatorArrow(this.context, seg.x1, seg.y1, seg.angle, playerColors[0]);
+		setLineColor(this.context, mapSegmentColor, 1);
+	} else if(seg.teleportId != undefined) {
+		drawTeleport(this.context, seg);
 		setLineColor(this.context, mapSegmentColor, 1);
 	} else {
 		this.context.beginPath();
@@ -2282,7 +2334,7 @@ window.onload = function() {
 
 	game.addComputerButton = document.getElementById('addComputer');
 	game.addComputerButton.addEventListener('click', function() {
-		game.addComputer()
+		game.addComputer();
 	}, false);
 
 	var minPlayers = getCookie('minPlayers');
@@ -2558,6 +2610,32 @@ function drawIndicatorArrow(ctx, x, y, angle, color) {
 		ctx.closePath();
 	}
 	ctx.fill();
+}
+
+function drawTeleport(ctx, seg) {
+	setLineColor(ctx, seg.color, 1);
+	ctx.lineWidth = 2;
+	var dx = seg.x2 - seg.x1;
+	var dy = seg.y2 - seg.y1;
+	var len = getLength(dx, dy);
+	var dashLength = 5;
+	var dashSpacing = 5;
+	dx /= len;
+	dy /= len;
+	var dashes = Math.max(2, Math.round((len + dashSpacing) / (dashLength + dashSpacing)));
+	dashSpacing = (len + dashSpacing) / dashes - dashLength;
+	
+	ctx.beginPath();
+	var x = seg.x1;
+	var y = seg.y1;
+	for(var i = 0; i < dashes; i++) {
+		ctx.moveTo(x, y);
+		ctx.lineTo(x += dx * dashLength, y += dy * dashLength);
+		x += dx * dashSpacing;
+		y += dy * dashSpacing;
+	}
+	ctx.stroke();
+	ctx.lineWidth = lineWidth;
 }
 
 function getAngle(x, y) {
