@@ -197,8 +197,12 @@ void startgame(struct game *gm) {
 	
 	if(gm->map) {
 		struct seg *seg;
+		struct teleport *t;
 		for(seg = gm->map->seg; seg; seg = seg->nxt)
 			addsegment(gm, seg);
+		
+		for(t = gm->map->teleports; t; t = t->nxt)
+			addsegment(gm, &t->seg);
 	}
 	
 	/* add border segments */
@@ -285,7 +289,7 @@ struct map *createmap(cJSON *j) {
 		telbuffer[i] = 0;
 
 	while(j) {
-		struct seg *seg = smalloc(sizeof(struct seg));
+		struct seg *seg = scalloc(sizeof(struct seg));
 		seg->x1 = jsongetint(j, "x1");
 		seg->y1 = jsongetint(j, "y1");
 		seg->x2 = jsongetint(j, "x2");
@@ -802,27 +806,24 @@ void simuser(struct userpos *state, struct user *usr, char addsegments) {
 	inside = state->x >= 0 && state->x <= usr->gm->w
 	 && state->y >= 0 && state->y <= usr->gm->h;
 
-	/* check for collisions and add segment to map if needed. if inhole we only
-	 * have to check for collisions with map borders */
-	 if(!inhole || !inside) {
-		seg.x1 = oldx;
-		seg.y1 = oldy;
-		seg.x2 = state->x;
-		seg.y2 = state->y;
+	/* check for collisions and add segment to map if needed */
+	seg.x1 = oldx;
+	seg.y1 = oldy;
+	seg.x2 = state->x;
+	seg.y2 = state->y;
 		
-		cut = checkcollision(usr->gm, &seg); // TODO: we should only check collision with map borders while !inhole
-		if(cut != -1.0) {
-			state->x = seg.x2 = (1 - cut) * seg.x1 + cut * seg.x2;
-			state->y = seg.y2 = (1 - cut) * seg.y1 + cut * seg.y2;
-			state->alive = 0;
-		}
-		if(addsegments) {
-			addsegment(usr->gm, &seg);
+	cut = checkcollision(usr->gm, &seg);
+	if(cut != -1.0) {
+		state->x = seg.x2 = (1 - cut) * seg.x1 + cut * seg.x2;
+		state->y = seg.y2 = (1 - cut) * seg.y1 + cut * seg.y2;
+		state->alive = 0;
+	}
+	if(addsegments && !inhole) {
+		addsegment(usr->gm, &seg);
 			
-			if(SEND_SEGMENTS)
-				queueseg(usr->gm, &seg);
-		}
-	 }
+		if(SEND_SEGMENTS)
+			queueseg(usr->gm, &seg);
+	}
 
 	/* simulate this tick again from another point */
 	if(state->alive && !inside) {

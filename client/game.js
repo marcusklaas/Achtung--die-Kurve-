@@ -208,6 +208,63 @@ GameEngine.prototype.updateTitle = function(title) {
 	}
 }
 
+GameEngine.prototype.getCollision = function(x1, y1, x2, y2) {
+	var seg = new BasicSegment(x1, y1, x2, y2);
+	var mincut = 1;
+	var other = null;
+	
+	for(var i in this.mapTeleports) {
+		var t = this.mapTeleports[i];
+		if(Math.max(x1, x2) < t.left || Math.min(x1, x2) > t.right || 
+			Math.max(y1, y2) < t.top || Math.min(y1, y2) > t.bottom)
+			continue;
+		var cut = segmentCollision(seg, t);
+		if(cut != -1 && cut < mincut) {
+			mincut = cut;
+			other = t;
+		}
+	}
+	
+	if(other != null) {
+		var obj = {};
+		obj.isTeleport = true;
+		x1 += (x2 - x1) * cut;
+		y1 += (y2 - y1) * cut;
+		obj.collisionX = x1;
+		obj.collisionY = y1;
+		x1 -= other.x1;
+		y1 -= other.y1;
+		x1 *= other.scale;
+		y1 *= other.scale;
+		var v = rotateVector(x1, y1, other.extraAngle);
+		obj.destX = v.x + other.destX;
+		obj.destY = v.y + other.destY;
+		obj.extraAngle = other.extraAngle;
+		return obj;
+	}
+	
+	return null;
+}
+
+GameEngine.prototype.getTeleport = function(colorId, a, b, c, d) {
+	var vx = b.x - a.x;
+	var vy = b.y - a.y;
+	var wx = d.x - c.x;
+	var wy = d.y - c.y;
+	
+	var t = new BasicSegment(a.x, a.y, b.x, b.y);
+	t.color = playerColors[colorId];
+	t.scale = getLength(wx, wy) / getLength(vx, vy);
+	t.extraAngle = getAngle(wx, wy) - getAngle(vx, vy);
+	t.destX = c.x;
+	t.destY = c.y;
+	t.left = Math.min(a.x, b.x);
+	t.right = Math.max(a.x, b.x);
+	t.top = Math.min(a.y, b.y);
+	t.bottom = Math.max(a.y, b.y);
+	return t;
+}
+
 GameEngine.prototype.parseByteMsg = function(str) {
 	var a = str.charCodeAt(0);
 	var mode = a & 7;
@@ -260,17 +317,13 @@ GameEngine.prototype.parseByteMsg = function(str) {
 					if(b == 0)
 						break;
 					var colorId = b & 31;
-					var posA = msg.readPos();
-					var posB = msg.readPos();
-					var posC = msg.readPos();
-					var posD = msg.readPos();
-					this.mapTeleports.push({x1: posA[0], y1: posA[1], x2: posB[0], y2: posB[1],
-					 color: playerColors[colorId], dest: new BasicSegment(posC[0], posC[1], posD[0], posD[1])});
+					this.mapTeleports.push(this.getTeleport(colorId, msg.readPos(), 
+						msg.readPos(), msg.readPos(), msg.readPos()));
 				}
 				while(msg.at < msg.data.length) {
-					var posA = msg.readPos();
-					var posB = msg.readPos();
-					this.mapSegments.push({x1: posA[0], y1: posA[1], x2: posB[0], y2: posB[1]});
+					var a1 = msg.readPos();
+					var a2 = msg.readPos();
+					this.mapSegments.push(new BasicSegment(a1.x, a1.y, a2.x, a2.y));
 				}
 			return true;
 		}
@@ -825,6 +878,8 @@ GameEngine.prototype.doTock = function() {
 
 GameEngine.prototype.addPlayer = function(player) {
 	player.color = playerColors[player.index];
+	player.segColor = getRGBstring(player.color);
+	player.holeColor = getRGBAstring(player.color, holeAlpha);
 	if(player == this.localPlayer)
 		this.pencil.inkDiv.style.backgroundColor = getRGBAstring(player.color, 0.5);
 	player.status = 'ready';
@@ -1093,13 +1148,16 @@ GameEngine.prototype.resize = function() {
 		player.canvas.height = scaledHeight;
 		this.setDefaultValues(player.context);
 		
+		//TODO: voor alle startvariabelen zelfde methode gebruiken als saveLocation loadLocation
 		player.x = player.startX;
 		player.y = player.startY;
-		player.angle = player.startAngle
+		player.angle = player.startAngle;
+		player.changeCourse(0);
+		player.inHole = false;
 		player.velocity = player.startVelocity;
 		player.tick = 0;
 		player.turn = 0;
-		player.nextInput = 0;
+		player.nextInputIndex = 0;
 		var knownTick;
 		if(!player.isLocal && player.finalTick < this.tock)
 			knownTick = player.finalTick;
@@ -1121,6 +1179,12 @@ GameEngine.prototype.setDefaultValues = function(ctx) {
 	ctx.scale(this.scale, this.scale);
 	ctx.lineWidth = lineWidth;
 	ctx.lineCap = lineCapStyle;
+	ctx.drawLine = function(x1, y1, x2, y2) {
+		ctx.beginPath();
+		ctx.moveTo(x1, y1);
+		ctx.lineTo(x2, y2);
+		ctx.stroke();
+	};
 }
 
 GameEngine.prototype.displayDebugStatus = function() {
@@ -1254,7 +1318,10 @@ Player.prototype.saveLocation = function() {
 	this.lcturn = this.turn;
 	this.lcvelocity = this.velocity;
 	this.lctick = this.tick;
-	this.lcnextInput = this.nextInput;
+	this.lcnextInputIndex = this.nextInputIndex;
+	this.lcinHole = this.inHole;
+	this.lcdx = this.dx;
+	this.lcdy = this.dy;
 }
 
 Player.prototype.loadLocation = function() {
@@ -1264,7 +1331,16 @@ Player.prototype.loadLocation = function() {
 	this.turn = this.lcturn;
 	this.velocity = this.lcvelocity;
 	this.tick = this.lctick;
-	this.nextInput = this.lcnextInput;
+	this.nextInputIndex = this.lcnextInputIndex;
+	this.inHole = this.lcinHole;
+	this.dx = this.lcdx;
+	this.dy = this.lcdy;
+}
+
+Player.prototype.changeCourse = function(angle) {
+	this.angle += angle;
+	this.dx = Math.cos(this.angle) * this.velocity * this.game.tickLength / 1000;
+	this.dy = Math.sin(this.angle) * this.velocity * this.game.tickLength / 1000;
 }
 
 Player.prototype.steer = function(tick, localTick) {
@@ -1303,79 +1379,78 @@ Player.prototype.finalSteer = function(obj) {
 	}
 }
 
+Player.prototype.setSegmentStyle = function(ctx) {
+	ctx.strokeStyle = this.inHole ? this.holeColor : this.segColor;
+	ctx.lineCap = this.inHole ? 'butt' : 'round';
+}
+
 Player.prototype.simulate = function(endTick, ctx) {
 	if(this.tick > endTick || this.tick > this.finalTick)
 		return;
-	var input = null, sin = Math.sin(this.angle),
-	 cos = Math.cos(this.angle), step = this.game.tickLength/ 1000;
-	var inHole = (this.tick > this.holeStart && (this.tick + this.holeStart)
-	 % (this.holeSize + this.holeFreq) < this.holeSize);
-
-	ctx.beginPath();
-	setLineColor(ctx, this.color, inHole ? gapAlpha : 1);
-	ctx.lineCap = inHole ? 'butt' : lineCapStyle;
-	if(debugBaseContext && ctx == this.game.baseContext)
-		setLineColor(ctx, [0,0,0], inHole ? gapAlpha : 1);
-	ctx.moveTo(this.x, this.y);
-
-	if(this.nextInput < this.inputs.length)
-		input = this.inputs[this.nextInput];
+	
+	var nextInput = this.inputs[this.nextInputIndex];
+	this.setSegmentStyle(ctx);
 	
 	for(; this.tick <= endTick; this.tick++) {
-		if(inHole !== (this.tick > this.holeStart && (this.tick + this.holeStart)
-		 % (this.holeSize + this.holeFreq) < this.holeSize)) {
-		 	inHole = !inHole;
-			ctx.stroke();
-			ctx.beginPath();
-			ctx.moveTo(this.x, this.y);
-			setLineColor(ctx, this.color, inHole ? gapAlpha : 1);
-			ctx.lineCap = inHole ? 'butt' : lineCapStyle;
-			if(debugBaseContext && ctx == this.game.baseContext)
-				setLineColor(ctx, [0,0,0], inHole ? gapAlpha : 1);
+	
+		var inHole = (this.tick > this.holeStart && (this.tick + this.holeStart)
+		 % (this.holeSize + this.holeFreq) < this.holeSize);
+		if(inHole != this.inHole) {
+			this.inHole = inHole;
+			this.setSegmentStyle(ctx);
 		}
-
-		if(input != null && input.tick == this.tick) {
-			if(input.finalTurn) {
-				this.x = input.x;
-				this.y = input.y;
-				ctx.lineTo(this.x, this.y);
-				ctx.stroke();
+		
+		if(nextInput != null && nextInput.tick == this.tick) {
+			if(nextInput.finalTurn) {
+				ctx.drawLine(this.x, this.y, nextInput.x, nextInput.y);
+				this.x = nextInput.x;
+				this.y = nextInput.y;
 				this.simulateDead();
 				this.tick++;
 				return;
 			} else {
-				this.turn = input.turn;
-				input = (++this.nextInput < this.inputs.length) ? this.inputs[this.nextInput] : null;
+				this.turn = nextInput.turn;
+				nextInput = this.inputs[++this.nextInputIndex];
 			}
 		}
 
 		if(this.turn != 0) {
-			this.angle += this.turn * this.turnSpeed * step;
-			cos = Math.cos(this.angle);
-			sin = Math.sin(this.angle);
+			this.changeCourse(this.turn * this.turnSpeed  * this.game.tickLength / 1000);
 		}
+		
+		var obj = this.game.getCollision(this.x, this.y, this.x + this.dx, this.y + this.dy);
+		var handled = false;
+		
+		if(obj != null) {
+			if(obj.isTeleport) {
+				ctx.drawLine(this.x, this.y, obj.collisionX, obj.collisionY);
+				this.changeCourse(obj.extraAngle);
+				this.x = obj.destX + Math.cos(this.angle);
+				this.y = obj.destY + Math.sin(this.angle);
+				handled = true;
+			}
+		}
+		
+		if(!handled) {
+			ctx.drawLine(this.x, this.y, this.x += this.dx, this.y += this.dy);
+			
+			/* wrap around */
+			if(this.game.torus && (this.x < 0 || this.x > this.game.width ||
+				this.y < 0 || this.y > this.game.height)) {
+				if(this.x > this.game.width)
+					this.x -= this.game.width;
+				else if(this.x < 0)
+					this.x += this.game.width;
 
-		var oldx = this.x, oldy = this.y;
-		ctx.lineTo(this.x += this.velocity * step * cos, this.y += this.velocity * step * sin);
+				if(this.y > this.game.height)
+					this.y -= this.game.height;
+				else if(this.y < 0)
+					this.y += this.game.height;
 
-		/* wrap around */
-		if(this.game.torus && (this.x < 0 || this.x > this.game.width ||
-		 this.y < 0 || this.y > this.game.height)) {
-			if(this.x > this.game.width)
-				this.x = oldx - this.game.width;
-			else if(this.x < 0)
-				this.x = oldx + this.game.width;
-
-			if(this.y > this.game.height)
-				this.y = oldy - this.game.height;
-			else if(this.y < 0)
-				this.y = oldy + this.game.height;
-
-			ctx.moveTo(this.x, this.y);
-			ctx.lineTo(this.x += this.velocity * step * cos, this.y += this.velocity * step * sin);
+				ctx.drawLine(this.x - this.dx, this.y - this.dy, this.x, this.y);
+			}
 		}
 	}
-	ctx.stroke();
 }
 
 Player.prototype.simulateDead = function() {	
@@ -1409,11 +1484,13 @@ Player.prototype.initialise = function(x, y, angle, holeStart) {
 	this.holeStart = holeStart;
 	this.holeSize = this.game.holeSize;
 	this.holeFreq = this.game.holeFreq;
+	this.inHole = false;
 	this.status = 'alive';
 	this.startX = this.x = x;
 	this.startY = this.y = y;
-	this.nextInput = 0;
+	this.nextInputIndex = 0;
 	this.startAngle = this.angle = angle;
+	this.changeCourse(0);
 	this.turn = 0;
 	this.inputs = [];
 	this.tick = 0;
@@ -1909,15 +1986,15 @@ Pencil.prototype.handleMessage = function(msg, player) {
 				tick = lastTick + pen.tickDifference;
 			}
 			
-			var seg = {x1: player.pencilX, y1: player.pencilY, x2: pos[0], y2: pos[1], tickSolid: tick};
+			var seg = {x1: player.pencilX, y1: player.pencilY, x2: pos.x, y2: pos.y, tickSolid: tick};
 			if(player != this.game.localPlayer)
 				this.drawSegment(seg.x1, seg.y1, seg.x2, seg.y2, player, pencilAlpha);
 			player.inbuffer.push(seg);
 			lastTick = tick;
 		}
 		
-		player.pencilX = pos[0];
-		player.pencilY = pos[1];
+		player.pencilX = pos.x;
+		player.pencilY = pos.y;
 	}
 }
 
@@ -1936,7 +2013,7 @@ ByteMessage.prototype.readPos = function() {
 	x = a | (b & 15) << 7;
 	y = b >> 4 | c << 3;
 	
-	return [x, y];
+	return {x: x, y: y};
 }
 
 ByteMessage.prototype.readPencil = function() {
@@ -2364,7 +2441,7 @@ window.onload = function() {
 			if(game.state == 'editing')
 				game.editor.resize();
 			else if (game.state == 'playing' || game.state == 'watching' || 
-			 game.state == 'ended')
+			 game.state == 'ended' || game.state == 'countdown')
 				game.resize();
 		}, resizeDelay);
 
@@ -2642,4 +2719,10 @@ function getAngle(x, y) {
 	if(x == 0)
 		return y < 0 ? Math.PI * 3 / 2 : Math.PI / 2;
 	return Math.atan(y / x) + (x > 0 ? 0 : Math.PI);
+}
+
+function rotateVector(x, y, angle) {
+	var a = Math.cos(angle) * x - Math.sin(angle) * y;
+	var b = Math.sin(angle) * x + Math.cos(angle) * y;
+	return {x: a, y: b};
 }

@@ -13,7 +13,7 @@ else if(location.href.indexOf('C:/Dropbox') != -1)
 	serverURL = "ws://localhost:7681";
 
 /* visual stuff */
-var gapAlpha = 0.2;
+var holeAlpha = 0.2;
 var lineWidth = 3; // only visual, does not influence collisions
 var lineCapStyle = 'round';
 var syncTries = 2;
@@ -36,7 +36,6 @@ var resizeDelay = 200; // the duration the window should have a constant size be
 var paramUpdateInterval = 500; // don't send game intervals more often that one per this many msecs
 var paramInputInterval = 2000; // wait for this duration before sending params to server after text edit
 
-var epsilon = 0.0001;
 
 var customGameWaitMessage = 'Waiting for host to start the game..';
 var autoMatchWaitMessage = 'Waiting for more players..';
@@ -74,6 +73,7 @@ var modeSetMap = 8 + 7;
 var unlockInterval = 0; // minimum time between last changing settings and gamestart in msecs
 var minTeleportSize = 15;
 var maxTeleports = 8;
+var epsilon = 0.0001;
 
 /* indicators */
 var indicatorLength = 15;
