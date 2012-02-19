@@ -20,10 +20,6 @@ static int gamelistlen = 0; // strlen of gamelist
 static int gamelistage = 0; // servermsecs() on which encodedgamelist was last updated
 static char gamelistcurrent = 1; // 0 if gamelist is not up to date
 static int lastlogtime, lastwarninglogtime;
-
-
-/* FIXME: dit moet eigenlijk anders, onafhankelijk van
- * definities van SPAM_CAT_*, maar ik weet niet hoe */
 static int spam_maxs[SPAM_CAT_COUNT] = {SPAM_JOINLEAVE_MAX, SPAM_CHAT_MAX,
  SPAM_SETTINGS_MAX, SPAM_STEERING_MAX};
 static int spam_intervals[SPAM_CAT_COUNT] = {SPAM_JOINLEAVE_INTERVAL, SPAM_CHAT_INTERVAL,
@@ -301,8 +297,6 @@ callback_game(struct libwebsocket_context * context,
 			}
 		}
 		else if(!strcmp(mode, "addComputer")) {
-			struct user *comp;
-
 			if(u->gm->host != u || u->gm->state != GS_LOBBY || 
 			 u->gm->nmax <= u->gm->n) {
 				warning("user %d tried to add computer, but does not meet reqs\n", u->id);
@@ -310,13 +304,7 @@ callback_game(struct libwebsocket_context * context,
 			}
 
 			loggame(u->gm, "adding computer player\n");
-
-			comp = smalloc(sizeof(struct user));
-			iniuser(comp, 0);
-			comp->name = smalloc(MAX_NAME_LENGTH + 1);
-			strcpy(comp->name, COMPUTER_NAME);
-			comp->inputmechanism = COMPUTER_AI;
-			joingame(u->gm, comp);
+			addcomputer(u->gm);
 		}
 		else if(!strcmp(mode, "createGame")) {
 			if(DEBUG_MODE) printf("user %d is creating a game\n", u->id);
