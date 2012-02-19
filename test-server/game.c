@@ -597,7 +597,7 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 }
 
 /* returns -1 if no collision, between 0 and 1 other wise */
-float OLD_segcollision(struct seg *seg1, struct seg *seg2) {
+float segcollision(struct seg *seg1, struct seg *seg2) {
 	float denom, numer_a, numer_b, a, b;
 	
 	if(seg1->x2 == seg2->x1 && seg1->y2 == seg2->y1)
@@ -627,7 +627,7 @@ float OLD_segcollision(struct seg *seg1, struct seg *seg2) {
 }
 
 /* variant of segcollision which might be faster. XPERIMENTAL: needs benchmark */
-float segcollision(struct seg *seg1, struct seg *seg2) {
+float fastcollision(struct seg *seg1, struct seg *seg2) {
 	float denom, numer_a, numer_b, seg1dx, seg1dy, seg2dx, seg2dy, dx1, dy1;
 	
 	if(seg1->x2 == seg2->x1 && seg1->y2 == seg2->y1)
@@ -645,7 +645,7 @@ float segcollision(struct seg *seg1, struct seg *seg2) {
 
 	dx1 = seg1->x1 - seg2->x1;
 	dy1 = seg1->y1 - seg2->y1;
-	numer_a = seg2dx * dy1 + seg2dy * dx1;
+	numer_a = seg2dy * dx1 - seg2dx * dy1;
 
 	if(denom >= 0 ? (numer_a < 0 || numer_a > denom) : (numer_a > 0 || numer_a < denom))
 		return -1;

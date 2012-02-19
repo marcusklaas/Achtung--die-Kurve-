@@ -1,6 +1,6 @@
 #!/bin/sh
 
-gcc benchmarks.c -O2 -o bench -Wall -lwebsockets -lm
+gcc benchmarks.c -O2 -o bench -Wall -lwebsockets -lm -pg -g
 
 if test $# -gt 0; then 
 if test $1 = "run"; then
