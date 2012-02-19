@@ -197,24 +197,12 @@ void startgame(struct game *gm) {
 	
 	if(gm->map) {
 		struct seg *seg;
+		struct teleport *t;
 		for(seg = gm->map->seg; seg; seg = seg->nxt)
 			addsegment(gm, seg);
-	}
-	
-	/* add border segments */
-	if(!gm->torus) {
-		struct seg seg;
-		seg.x1 = seg.y1 = seg.y2 = 0;
-		seg.x2 = gm->w - EPS;
-		addsegment(gm, &seg);
-		seg.x1 = gm->w - EPS;
-		seg.y1 = gm->h - EPS;
-		addsegment(gm, &seg);
-		seg.x2 = 0;
-		seg.y2 = gm->h - EPS;
-		addsegment(gm, &seg);
-		seg.x1 = seg.y1 = 0;
-		addsegment(gm, &seg);
+		
+		for(t = gm->map->teleports; t; t = t->nxt)
+			addsegment(gm, &t->seg);
 	}
 		
 	/* reset users */
@@ -276,32 +264,96 @@ void startgame(struct game *gm) {
 	jsondel(root);
 }
 
+struct teleport *createteleport(struct seg *seg, struct seg *dest, int id) {
+	struct teleport *t;
+	
+	t = smalloc(sizeof(struct teleport));
+	t->colorid = id;
+	t->seg = *seg;
+	t->seg.t = t;
+	t->dx = (dest->x2 - dest->x1) / getseglength(seg);
+	t->dy = (dest->y2 - dest->y1) / getseglength(seg);
+	t->dest = *dest;
+	t->anglediff = getsegangle(dest) - getsegangle(seg);
+	return t;
+}
+
 struct map *createmap(cJSON *j) {
 	struct map *map = scalloc(1, sizeof(struct map));
+	struct seg taken, *telbuffer[MAX_TELEPORTS];
+	int i;
+
+	for(i = 0; i < MAX_TELEPORTS; i++)
+		telbuffer[i] = 0;
 
 	while(j) {
-		struct seg *seg = smalloc(sizeof(struct seg));
+		struct seg *seg = scalloc(1, sizeof(struct seg));
 		seg->x1 = jsongetint(j, "x1");
 		seg->y1 = jsongetint(j, "y1");
 		seg->x2 = jsongetint(j, "x2");
 		seg->y2 = jsongetint(j, "y2");
 
 		if(jsoncheckjson(j, "playerStart")) {
+
 			seg->x2 = jsongetfloat(j, "angle");
 			seg->nxt = map->playerstarts;
 			map->playerstarts = seg;
+
 		} else {
+
 			if(!seginside(seg, MAX_GAME_WIDTH, MAX_GAME_HEIGHT)) {
 				warning("some host made custom map with segments outside max boundaries\n");
 				free(seg);
-				break;
+				j = j->next;
+				continue;
 			}
-			seg->nxt = map->seg;
-			map->seg = seg;
+
+			if(jsoncheckjson(j, "teleportId")) {
+				int id;
+				
+				id = jsongetint(j, "teleportId");
+				if(id < 0 || id >= MAX_TELEPORTS) {
+					warning("createmap teleport error 1\n");
+					free(seg);
+					j = j->next;
+					continue;
+				}
+
+				if(!telbuffer[id]) {
+					telbuffer[id] = seg;
+				} else if(telbuffer[id] == &taken) {
+					warning("createmap teleport error 2\n");
+					free(seg);
+					j = j->next;
+					continue;
+				} else {
+					struct teleport *cur, *tela, *telb;
+
+					tela = createteleport(seg, telbuffer[id], id);
+					telb = createteleport(telbuffer[id], seg, id);
+					
+					tela->nxt = telb;
+					telb->nxt = map->teleports;
+					map->teleports = tela;
+
+					free(seg);
+					free(telbuffer[id]);
+
+					telbuffer[id] = &taken;
+				}
+
+			} else {
+				seg->nxt = map->seg;
+				map->seg = seg;
+			}
 		}
 
 		j = j->next;
 	}
+
+	for(i = 0; i < MAX_TELEPORTS; i++)
+		if(telbuffer[i] && telbuffer[i] != &taken)
+			free(telbuffer[i]);
 
 	return map;
 }
@@ -770,8 +822,9 @@ void queueseg(struct game *gm, struct seg *seg) {
 
 void simuser(struct userpos *state, struct user *usr, char addsegments) {
 	float cut, oldx = state->x, oldy = state->y, oldangle = state->angle;
-	int inhole, inside;
+	int inhole, outside;
 	struct seg seg;
+	char handled = 0;
 
 	state->angle += state->turn * state->ts * TICK_LENGTH / 1000.0;
 	state->x += cos(state->angle) * state->v * TICK_LENGTH / 1000.0;
@@ -779,46 +832,74 @@ void simuser(struct userpos *state, struct user *usr, char addsegments) {
 	
 	inhole = state->tick > usr->hstart 
 	 && (state->tick + usr->hstart) % (usr->hsize + usr->hfreq) < usr->hsize;
-	inside = state->x >= 0 && state->x <= usr->gm->w
-	 && state->y >= 0 && state->y <= usr->gm->h;
+	outside = state->x < 0 || state->x > usr->gm->w
+	 || state->y < 0 || state->y > usr->gm->h;
 
-	/* check for collisions and add segment to map if needed. if inhole we only
-	 * have to check for collisions with map borders */
-	 if(!inhole || !inside) {
-		seg.x1 = oldx;
-		seg.y1 = oldy;
-		seg.x2 = state->x;
-		seg.y2 = state->y;
+	/* check for collisions and add segment to map if needed */
+	seg.t = 0;
+	seg.x1 = oldx;
+	seg.y1 = oldy;
+	seg.x2 = state->x;
+	seg.y2 = state->y;
 		
-		cut = checkcollision(usr->gm, &seg); // TODO: we should only check collision with map borders while !inhole
-		if(cut != -1.0) {
+	cut = checkcollision(usr->gm, &seg);
+	if(cut != -1.0) {
+		if(collidingseg->t) {
+			struct teleport *t = collidingseg->t;
+			float x = (1 - cut) * seg.x1 + cut * seg.x2;
+			float y = (1 - cut) * seg.y1 + cut * seg.y2;
+			float r = getlength(x - collidingseg->x1, y - collidingseg->y1);
+			
+			/* we make sure to not cross the teleport */
+			seg.x2 = x - cos(state->angle) / 10;
+			seg.y2 = y - sin(state->angle) / 10;
+
+			state->angle += t->anglediff;
+			state->x = t->dest.x1 + t->dx * r + cos(state->angle) / 2;
+			state->y = t->dest.y1 + t->dy * r + sin(state->angle) / 2;
+			handled = 1; 
+		} else if(!inhole || !HACKS) {
 			state->x = seg.x2 = (1 - cut) * seg.x1 + cut * seg.x2;
 			state->y = seg.y2 = (1 - cut) * seg.y1 + cut * seg.y2;
 			state->alive = 0;
+			handled = 1;
 		}
-		if(addsegments) {
-			addsegment(usr->gm, &seg);
+	}
+	if(addsegments && !inhole) {
+		addsegment(usr->gm, &seg);
 			
-			if(SEND_SEGMENTS)
-				queueseg(usr->gm, &seg);
+		if(SEND_SEGMENTS)
+			queueseg(usr->gm, &seg);
+	}
+
+	if(!handled && outside) {
+
+		if(usr->gm->torus) {
+
+			if(state->x > usr->gm->w)
+				state->x = oldx - usr->gm->w;
+			else if(state->x < 0)
+				state->x = oldx + usr->gm->w;
+			else
+				state->x = oldx;
+
+			if(state->y > usr->gm->h)
+				state->y = oldy - usr->gm->h;
+			else if(state->y < 0)
+				state->y = oldy + usr->gm->h;
+			else
+				state->y = oldy;
+			
+			/* simulate this tick again from another point */
+			state->angle = oldangle;
+			simuser(state, usr, addsegments);
+			return;
+
+		} else {
+		
+			state->alive = 0;
+
 		}
-	 }
-
-	/* simulate this tick again from another point */
-	if(state->alive && !inside) {
-		if(state->x > usr->gm->w)
-			state->x = oldx - usr->gm->w;
-		else if(state->x < 0)
-			state->x = oldx + usr->gm->w;
-
-		if(state->y > usr->gm->h)
-			state->y = oldy - usr->gm->h;
-		else if(state->y < 0)
-			state->y = oldy + usr->gm->h;
-
-		state->angle = oldangle;
-		simuser(state, usr, addsegments);
-		return;
 	}
 	
 	state->tick++;
@@ -966,8 +1047,12 @@ void simgame(struct game *gm) {
 			}
 			
 			simuser(&usr->state, usr, 1);
-			if(!usr->state.alive)
-				handledeath(usr);
+			if(!usr->state.alive) {
+				if(GOD_MODE)
+					usr->state.alive = 1;
+				else
+					handledeath(usr);
+			}
 		}
 	}
 
@@ -1361,18 +1446,38 @@ void inputmechanism_circling(struct user *usr, int tick) {
 	steermsg(usr, tick, turn, 0);
 }
 
-void inputmechanism_leftisallineed(struct user *usr, int tick) {
+void inputmechanism_random(struct user *usr, int tick) {
 	int turn;
+
+	if(tick % 10)
+		return;
+
+	turn = rand() % 3 - 1;
+	tick += COMPUTER_DELAY;
+
+	if(turn == usr->lastinputturn)
+		return;
+
+	queueinput(usr, tick, turn);
+	steermsg(usr, tick, turn, 0);
+}
+
+void inputmechanism_leftisallineed(struct user *usr, int tick) {
+	int turn, i;
 	struct seg seg;
 	float visionlength;
 	struct userpos *pos = &usr->aistate;
 
 	if(tick == 0) {
 		memcpy(pos, &usr->state, sizeof(struct userpos));
+
+		for(i = 0; i < COMPUTER_DELAY; i++)
+			simuser(pos, usr, 0);
 	}
 	
 	visionlength = pos->ts != 0 ? 3.14 / pos->ts * pos->v : 9999;
 
+	seg.t = 0;
 	seg.x1 = pos->x;
 	seg.y1 = pos->y;
 	seg.x2 = seg.x1 + cos(pos->angle) * visionlength;

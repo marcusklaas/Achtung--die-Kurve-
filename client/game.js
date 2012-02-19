@@ -208,6 +208,60 @@ GameEngine.prototype.updateTitle = function(title) {
 	}
 }
 
+GameEngine.prototype.getCollision = function(x1, y1, x2, y2) {
+	var seg = new BasicSegment(x1, y1, x2, y2);
+	var mincut = 1;
+	var other = null;
+	
+	for(var i in this.mapTeleports) {
+		var t = this.mapTeleports[i];
+		if(Math.max(x1, x2) < t.left || Math.min(x1, x2) > t.right || 
+			Math.max(y1, y2) < t.top || Math.min(y1, y2) > t.bottom)
+			continue;
+		var cut = segmentCollision(t, seg);
+		if(cut != -1 && cut < mincut) {
+			mincut = cut;
+			other = t;
+		}
+	}
+	
+	if(other != null) {
+		var obj = {};
+		obj.isTeleport = true;
+		var colx = x1 + (x2 - x1) * cut;
+		var coly = y1 + (y2 - y1) * cut;
+		obj.collisionX = colx;
+		obj.collisionY = coly;
+		var r = getLength(colx - other.x1, coly - other.y1);
+		obj.destX = other.destX + r * other.dx;
+		obj.destY = other.destY + r * other.dy;
+		obj.extraAngle = other.extraAngle;
+		return obj;
+	}
+	
+	return null;
+}
+
+GameEngine.prototype.getTeleport = function(colorId, a, b, c, d) {
+	var vx = b.x - a.x;
+	var vy = b.y - a.y;
+	var wx = d.x - c.x;
+	var wy = d.y - c.y;
+	
+	var t = new BasicSegment(a.x, a.y, b.x, b.y);
+	t.color = playerColors[colorId];
+	t.dx = wx / getLength(vx, vy);
+	t.dy = wy / getLength(vx, vy);
+	t.extraAngle = getAngle(wx, wy) - getAngle(vx, vy);
+	t.destX = c.x;
+	t.destY = c.y;
+	t.left = Math.min(a.x, b.x);
+	t.right = Math.max(a.x, b.x);
+	t.top = Math.min(a.y, b.y);
+	t.bottom = Math.max(a.y, b.y);
+	return t;
+}
+
 GameEngine.prototype.parseByteMsg = function(str) {
 	var a = str.charCodeAt(0);
 	var mode = a & 7;
@@ -254,10 +308,19 @@ GameEngine.prototype.parseByteMsg = function(str) {
 			case modeSetMap:
 				var msg = new ByteMessage(str, 1);
 				this.mapSegments = [];
+				this.mapTeleports = [];
+				while(true) {
+					var b = str.charCodeAt(msg.at++);
+					if(b == 0)
+						break;
+					var colorId = b & 31;
+					this.mapTeleports.push(this.getTeleport(colorId, msg.readPos(), 
+						msg.readPos(), msg.readPos(), msg.readPos()));
+				}
 				while(msg.at < msg.data.length) {
-					var posA = msg.readPos();
-					var posB = msg.readPos();
-					this.mapSegments.push({x1: posA[0], y1: posA[1], x2: posB[0], y2: posB[1]});
+					var a1 = msg.readPos();
+					var a2 = msg.readPos();
+					this.mapSegments.push(new BasicSegment(a1.x, a1.y, a2.x, a2.y));
 				}
 			return true;
 		}
@@ -812,6 +875,8 @@ GameEngine.prototype.doTock = function() {
 
 GameEngine.prototype.addPlayer = function(player) {
 	player.color = playerColors[player.index];
+	player.segColor = getRGBstring(player.color);
+	player.holeColor = getRGBAstring(player.color, holeAlpha);
 	if(player == this.localPlayer)
 		this.pencil.inkDiv.style.backgroundColor = getRGBAstring(player.color, 0.5);
 	player.status = 'ready';
@@ -876,7 +941,6 @@ GameEngine.prototype.sendStartGame = function() {
 	if(this.editor.mapChanged) {
 		obj.segments = this.editor.segments;
 		this.editor.mapChanged = false;
-		this.mapSegments = this.editor.segments;
 	}
 
 	this.sendMsg('startGame', obj);
@@ -936,7 +1000,7 @@ GameEngine.prototype.realStart = function() {
 	this.setGameState('playing');
 	this.sendMsg('enableInput', {});
 	this.tick = 0;
-
+	
 	var self = this;
 	var gameloop = function() {
 		var timeOut;
@@ -950,12 +1014,12 @@ GameEngine.prototype.realStart = function() {
 				self.displayRewards(1);
 
 			if(tellert++ > 100) {
-		 		this.gameMessage('ERROR. stopping gameloop. debug information: next tick time = ' +
+		 		self.gameMessage('ERROR. stopping gameloop. debug information: next tick time = ' +
 		 		 ((self.tick + 1) * self.tickLength) + ', current game time = ' + 
 		 		 (Date.now() - self.gameStartTimestamp));
 		 		return;
 		 	}
-
+			
 			while(self.tick - self.tock >= tickTockDifference)
 				self.doTock();
 			self.doTick();
@@ -976,12 +1040,15 @@ GameEngine.prototype.drawMapSegments = function() {
 	setLineColor(ctx, mapSegmentColor, 1);
 	for(var i = 0; i < this.mapSegments.length; i++) {
 		var seg = this.mapSegments[i];
-		if(seg.playerStart == undefined) {
-			ctx.moveTo(seg.x1, seg.y1);
-			ctx.lineTo(seg.x2, seg.y2);
-		}
+		ctx.moveTo(seg.x1, seg.y1);
+		ctx.lineTo(seg.x2, seg.y2);
 	}
 	ctx.stroke();
+	
+	for(var i in this.mapTeleports) {
+		var seg = this.mapTeleports[i];
+		drawTeleport(ctx, seg);
+	}
 }
 
 GameEngine.prototype.createRewardNode = function(player, reward) {
@@ -1078,13 +1145,16 @@ GameEngine.prototype.resize = function() {
 		player.canvas.height = scaledHeight;
 		this.setDefaultValues(player.context);
 		
+		//TODO: voor alle startvariabelen zelfde methode gebruiken als saveLocation loadLocation
 		player.x = player.startX;
 		player.y = player.startY;
-		player.angle = player.startAngle
+		player.angle = player.startAngle;
+		player.changeCourse(0);
+		player.inHole = false;
 		player.velocity = player.startVelocity;
 		player.tick = 0;
 		player.turn = 0;
-		player.nextInput = 0;
+		player.nextInputIndex = 0;
 		var knownTick;
 		if(!player.isLocal && player.finalTick < this.tock)
 			knownTick = player.finalTick;
@@ -1106,6 +1176,12 @@ GameEngine.prototype.setDefaultValues = function(ctx) {
 	ctx.scale(this.scale, this.scale);
 	ctx.lineWidth = lineWidth;
 	ctx.lineCap = lineCapStyle;
+	ctx.drawLine = function(x1, y1, x2, y2) {
+		ctx.beginPath();
+		ctx.moveTo(x1, y1);
+		ctx.lineTo(x2, y2);
+		ctx.stroke();
+	};
 }
 
 GameEngine.prototype.displayDebugStatus = function() {
@@ -1239,7 +1315,10 @@ Player.prototype.saveLocation = function() {
 	this.lcturn = this.turn;
 	this.lcvelocity = this.velocity;
 	this.lctick = this.tick;
-	this.lcnextInput = this.nextInput;
+	this.lcnextInputIndex = this.nextInputIndex;
+	this.lcinHole = this.inHole;
+	this.lcdx = this.dx;
+	this.lcdy = this.dy;
 }
 
 Player.prototype.loadLocation = function() {
@@ -1249,7 +1328,16 @@ Player.prototype.loadLocation = function() {
 	this.turn = this.lcturn;
 	this.velocity = this.lcvelocity;
 	this.tick = this.lctick;
-	this.nextInput = this.lcnextInput;
+	this.nextInputIndex = this.lcnextInputIndex;
+	this.inHole = this.lcinHole;
+	this.dx = this.lcdx;
+	this.dy = this.lcdy;
+}
+
+Player.prototype.changeCourse = function(angle) {
+	this.angle += angle;
+	this.dx = Math.cos(this.angle) * this.velocity * this.game.tickLength / 1000;
+	this.dy = Math.sin(this.angle) * this.velocity * this.game.tickLength / 1000;
 }
 
 Player.prototype.steer = function(tick, localTick) {
@@ -1288,79 +1376,78 @@ Player.prototype.finalSteer = function(obj) {
 	}
 }
 
+Player.prototype.setSegmentStyle = function(ctx) {
+	ctx.strokeStyle = this.inHole ? this.holeColor : this.segColor;
+	ctx.lineCap = this.inHole ? 'butt' : 'round';
+}
+
 Player.prototype.simulate = function(endTick, ctx) {
 	if(this.tick > endTick || this.tick > this.finalTick)
 		return;
-	var input = null, sin = Math.sin(this.angle),
-	 cos = Math.cos(this.angle), step = this.game.tickLength/ 1000;
-	var inHole = (this.tick > this.holeStart && (this.tick + this.holeStart)
-	 % (this.holeSize + this.holeFreq) < this.holeSize);
-
-	ctx.beginPath();
-	setLineColor(ctx, this.color, inHole ? gapAlpha : 1);
-	ctx.lineCap = inHole ? 'butt' : lineCapStyle;
-	if(debugBaseContext && ctx == this.game.baseContext)
-		setLineColor(ctx, [0,0,0], inHole ? gapAlpha : 1);
-	ctx.moveTo(this.x, this.y);
-
-	if(this.nextInput < this.inputs.length)
-		input = this.inputs[this.nextInput];
+	
+	var nextInput = this.inputs[this.nextInputIndex];
+	this.setSegmentStyle(ctx);
 	
 	for(; this.tick <= endTick; this.tick++) {
-		if(inHole !== (this.tick > this.holeStart && (this.tick + this.holeStart)
-		 % (this.holeSize + this.holeFreq) < this.holeSize)) {
-		 	inHole = !inHole;
-			ctx.stroke();
-			ctx.beginPath();
-			ctx.moveTo(this.x, this.y);
-			setLineColor(ctx, this.color, inHole ? gapAlpha : 1);
-			ctx.lineCap = inHole ? 'butt' : lineCapStyle;
-			if(debugBaseContext && ctx == this.game.baseContext)
-				setLineColor(ctx, [0,0,0], inHole ? gapAlpha : 1);
+	
+		var inHole = (this.tick > this.holeStart && (this.tick + this.holeStart)
+		 % (this.holeSize + this.holeFreq) < this.holeSize);
+		if(inHole != this.inHole) {
+			this.inHole = inHole;
+			this.setSegmentStyle(ctx);
 		}
-
-		if(input != null && input.tick == this.tick) {
-			if(input.finalTurn) {
-				this.x = input.x;
-				this.y = input.y;
-				ctx.lineTo(this.x, this.y);
-				ctx.stroke();
+		
+		if(nextInput != null && nextInput.tick == this.tick) {
+			if(nextInput.finalTurn) {
+				ctx.drawLine(this.x, this.y, nextInput.x, nextInput.y);
+				this.x = nextInput.x;
+				this.y = nextInput.y;
 				this.simulateDead();
 				this.tick++;
 				return;
 			} else {
-				this.turn = input.turn;
-				input = (++this.nextInput < this.inputs.length) ? this.inputs[this.nextInput] : null;
+				this.turn = nextInput.turn;
+				nextInput = this.inputs[++this.nextInputIndex];
 			}
 		}
 
 		if(this.turn != 0) {
-			this.angle += this.turn * this.turnSpeed * step;
-			cos = Math.cos(this.angle);
-			sin = Math.sin(this.angle);
+			this.changeCourse(this.turn * this.turnSpeed  * this.game.tickLength / 1000);
 		}
+		
+		var obj = this.game.getCollision(this.x, this.y, this.x + this.dx, this.y + this.dy);
+		var handled = false;
+		
+		if(obj != null) {
+			if(obj.isTeleport) {
+				ctx.drawLine(this.x, this.y, obj.collisionX, obj.collisionY);
+				this.changeCourse(obj.extraAngle);
+				this.x = obj.destX + Math.cos(this.angle) / 2;
+				this.y = obj.destY + Math.sin(this.angle) / 2;
+				handled = true;
+			}
+		}
+		
+		if(!handled) {
+			ctx.drawLine(this.x, this.y, this.x += this.dx, this.y += this.dy);
+			
+			/* wrap around */
+			if(this.game.torus && (this.x < 0 || this.x > this.game.width ||
+				this.y < 0 || this.y > this.game.height)) {
+				if(this.x > this.game.width)
+					this.x -= this.game.width;
+				else if(this.x < 0)
+					this.x += this.game.width;
 
-		var oldx = this.x, oldy = this.y;
-		ctx.lineTo(this.x += this.velocity * step * cos, this.y += this.velocity * step * sin);
+				if(this.y > this.game.height)
+					this.y -= this.game.height;
+				else if(this.y < 0)
+					this.y += this.game.height;
 
-		/* wrap around */
-		if(this.game.torus && (this.x < 0 || this.x > this.game.width ||
-		 this.y < 0 || this.y > this.game.height)) {
-			if(this.x > this.game.width)
-				this.x = oldx - this.game.width;
-			else if(this.x < 0)
-				this.x = oldx + this.game.width;
-
-			if(this.y > this.game.height)
-				this.y = oldy - this.game.height;
-			else if(this.y < 0)
-				this.y = oldy + this.game.height;
-
-			ctx.moveTo(this.x, this.y);
-			ctx.lineTo(this.x += this.velocity * step * cos, this.y += this.velocity * step * sin);
+				ctx.drawLine(this.x - this.dx, this.y - this.dy, this.x, this.y);
+			}
 		}
 	}
-	ctx.stroke();
 }
 
 Player.prototype.simulateDead = function() {	
@@ -1394,11 +1481,13 @@ Player.prototype.initialise = function(x, y, angle, holeStart) {
 	this.holeStart = holeStart;
 	this.holeSize = this.game.holeSize;
 	this.holeFreq = this.game.holeFreq;
+	this.inHole = false;
 	this.status = 'alive';
 	this.startX = this.x = x;
 	this.startY = this.y = y;
-	this.nextInput = 0;
+	this.nextInputIndex = 0;
 	this.startAngle = this.angle = angle;
+	this.changeCourse(0);
 	this.turn = 0;
 	this.inputs = [];
 	this.tick = 0;
@@ -1894,15 +1983,15 @@ Pencil.prototype.handleMessage = function(msg, player) {
 				tick = lastTick + pen.tickDifference;
 			}
 			
-			var seg = {x1: player.pencilX, y1: player.pencilY, x2: pos[0], y2: pos[1], tickSolid: tick};
+			var seg = {x1: player.pencilX, y1: player.pencilY, x2: pos.x, y2: pos.y, tickSolid: tick};
 			if(player != this.game.localPlayer)
 				this.drawSegment(seg.x1, seg.y1, seg.x2, seg.y2, player, pencilAlpha);
 			player.inbuffer.push(seg);
 			lastTick = tick;
 		}
 		
-		player.pencilX = pos[0];
-		player.pencilY = pos[1];
+		player.pencilX = pos.x;
+		player.pencilY = pos.y;
 	}
 }
 
@@ -1921,7 +2010,7 @@ ByteMessage.prototype.readPos = function() {
 	x = a | (b & 15) << 7;
 	y = b >> 4 | c << 3;
 	
-	return [x, y];
+	return {x: x, y: y};
 }
 
 ByteMessage.prototype.readPencil = function() {
@@ -2042,6 +2131,7 @@ Editor = function(game) {
 	pencilButton.checked = true;
 	document.getElementById('editorEraser').addEventListener('click', function() { self.mode = 'eraser'; }, false);
 	document.getElementById('editorPlayerStart').addEventListener('click', function() { self.mode = 'playerStart'; }, false);
+	document.getElementById('editorTeleport').addEventListener('click', function() { self.mode = 'teleport'; }, false);
 }
 
 Editor.prototype.onmouse = function(type, ev) {
@@ -2054,7 +2144,8 @@ Editor.prototype.onmouse = function(type, ev) {
 	var x = pos[0];
 	var y = pos[1];
 
-	if(type == 'down' || (this.out && type == 'over' && this.down)) {
+	// mouse click event, or cursor back on canvas event while still holding mouse button in correct mode
+	if(type == 'down' || (this.out && type == 'over' && this.down && (this.mode == 'eraser' || this.mode == 'pencil') )) {
 		this.x = x;
 		this.y = y;
 		this.lastTime = Date.now();
@@ -2062,24 +2153,40 @@ Editor.prototype.onmouse = function(type, ev) {
 		this.down = true;
 	}
 	
+	// mouse out, up or move event, and for move event only when last event was editorStepTime msec ago
 	else if(this.down && (type == 'out' || type == 'up' || 
 	 (type == 'move' && Date.now() - this.lastTime > editorStepTime))) {
-	 	if(!this.out && (this.x != x || this.y != y)) {
+	 
+		var out = this.out;
+		if(type == 'out')
+			this.out = true;
+		else if(type == 'up')
+			this.down = false;
+			
+		// check if we are on the canvas and in different position from last position, and for playerStart or teleport mode if it is not a move event
+	 	if(!out && (this.x != x || this.y != y) && ((this.mode != 'playerStart' && this.mode != 'teleport') || type != 'move')) {
 			var seg = new BasicSegment(this.x, this.y, x, y);
-			if(this.mode == 'pencil' || this.mode == 'playerStart') {
+			
+			if(this.mode == 'pencil' || this.mode == 'playerStart' || this.mode == 'teleport') {
 				if(this.mode == 'playerStart') {
-					if(getLength(seg.x2 - seg.x1, seg.y2 - seg.y1) < pencilTreshold)
-						return;
 					seg.playerStart = true;
 					seg.angle = getAngle(seg.x2 - seg.x1, seg.y2 - seg.y1);
 					seg.x2 = seg.x1 + Math.cos(seg.angle) * (indicatorLength + 2 * indicatorArrowLength);
 					seg.y2 = seg.y1 + Math.sin(seg.angle) * (indicatorLength + 2 * indicatorArrowLength);
-					this.down = false;
+				} else if(this.mode == 'teleport') {
+					if(getLength(seg.x2 - seg.x1, seg.y2 - seg.y1) < minTeleportSize)
+						return;
+					seg.teleportId = this.getNextTeleportId();
+					if(seg.teleportId == -1)
+						return;
+					seg.color = playerColors[seg.teleportId];
 				}
 				this.segments.push(seg);
 				this.mapChanged = true;
 				this.drawSegment(seg);
-			} else if(this.mode == 'eraser') {
+			} 
+			
+			else if(this.mode == 'eraser') {
 				var changed = false;
 				for(var i = 0; i < this.segments.length; i++) {
 					if(segmentCollision(this.segments[i], seg) != -1) {
@@ -2092,15 +2199,31 @@ Editor.prototype.onmouse = function(type, ev) {
 				if(changed)
 					this.resize();
 			}
+			
 			this.x = x;
 			this.y = y;
 			this.lastTime = Date.now();
 		}
-		if(type == 'out')
-			this.out = true;
-		else if(type == 'up')
-			this.down = false;
 	}
+}
+
+Editor.prototype.getNextTeleportId = function () {
+	var ar = new Array(maxTeleports);
+	for(var i = 0; i < maxTeleports; i++)
+		ar[i] = 0;
+	for(var i in this.segments) {
+		var seg = this.segments[i];
+		if(seg.teleportId != undefined)
+			ar[seg.teleportId]++;
+	}
+	var id = -1;
+	for(var i = 0; i < maxTeleports; i++) {
+		if(ar[i] == 1)
+			return i;
+		else if(ar[i] == 0 && id == -1)
+			id = i;
+	}
+	return id;
 }
 
 Editor.prototype.drawSegment = function(seg) {
@@ -2108,6 +2231,9 @@ Editor.prototype.drawSegment = function(seg) {
 		return;
 	if(seg.playerStart != undefined) {
 		drawIndicatorArrow(this.context, seg.x1, seg.y1, seg.angle, playerColors[0]);
+		setLineColor(this.context, mapSegmentColor, 1);
+	} else if(seg.teleportId != undefined) {
+		drawTeleport(this.context, seg);
 		setLineColor(this.context, mapSegmentColor, 1);
 	} else {
 		this.context.beginPath();
@@ -2282,7 +2408,7 @@ window.onload = function() {
 
 	game.addComputerButton = document.getElementById('addComputer');
 	game.addComputerButton.addEventListener('click', function() {
-		game.addComputer()
+		game.addComputer();
 	}, false);
 
 	var minPlayers = getCookie('minPlayers');
@@ -2312,7 +2438,7 @@ window.onload = function() {
 			if(game.state == 'editing')
 				game.editor.resize();
 			else if (game.state == 'playing' || game.state == 'watching' || 
-			 game.state == 'ended')
+			 game.state == 'ended' || game.state == 'countdown')
 				game.resize();
 		}, resizeDelay);
 
@@ -2560,8 +2686,40 @@ function drawIndicatorArrow(ctx, x, y, angle, color) {
 	ctx.fill();
 }
 
+function drawTeleport(ctx, seg) {
+	setLineColor(ctx, seg.color, 1);
+	ctx.lineWidth = 2;
+	var dx = seg.x2 - seg.x1;
+	var dy = seg.y2 - seg.y1;
+	var len = getLength(dx, dy);
+	var dashLength = 5;
+	var dashSpacing = 5;
+	dx /= len;
+	dy /= len;
+	var dashes = Math.max(2, Math.round((len + dashSpacing) / (dashLength + dashSpacing)));
+	dashSpacing = (len + dashSpacing) / dashes - dashLength;
+	
+	ctx.beginPath();
+	var x = seg.x1;
+	var y = seg.y1;
+	for(var i = 0; i < dashes; i++) {
+		ctx.moveTo(x, y);
+		ctx.lineTo(x += dx * dashLength, y += dy * dashLength);
+		x += dx * dashSpacing;
+		y += dy * dashSpacing;
+	}
+	ctx.stroke();
+	ctx.lineWidth = lineWidth;
+}
+
 function getAngle(x, y) {
 	if(x == 0)
 		return y < 0 ? Math.PI * 3 / 2 : Math.PI / 2;
 	return Math.atan(y / x) + (x > 0 ? 0 : Math.PI);
+}
+
+function rotateVector(x, y, angle) {
+	var a = Math.cos(angle) * x - Math.sin(angle) * y;
+	var b = Math.sin(angle) * x + Math.cos(angle) * y;
+	return {x: a, y: b};
 }

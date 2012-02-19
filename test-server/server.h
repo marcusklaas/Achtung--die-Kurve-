@@ -1,4 +1,5 @@
 #define EPS 0.0001
+#define PI 3.141592653
 #define GAME_WIDTH 1024
 #define GAME_HEIGHT 644
 #define MAX_GAME_WIDTH 2047
@@ -25,6 +26,8 @@
 #define GAMELIST_UPDATE_INTERVAL 10000
 #define MAX_USERS_IN_GAME 8
 #define KICK_REJOIN_TIME 15000
+#define MAX_TELEPORTS 8
+#define HACKS 0
 
 /* artificial intelligence */
 #define COMPUTER_NAME "COMPUTER"
@@ -47,7 +50,7 @@
 #define ULTRA_VERBOSE 0
 #define SHOW_WARNING 0
 #define GOD_MODE 0
-#define SEND_SEGMENTS 0 // om de hoeveel ticks het moet gebeuren (0=nooit)
+#define SEND_SEGMENTS 30 // om de hoeveel ticks het moet gebeuren (0=nooit)
 #define SAVE_COLLISION_TO_FILE 0
 
 /* input control */
@@ -111,9 +114,17 @@ enum demo_protocols {
 	DEMO_PROTOCOL_COUNT // always last
 };
 
-struct seg{
+struct seg {
 	float x1, y1, x2, y2;
+	struct teleport *t;
 	struct seg *nxt;
+};
+
+struct teleport {
+	struct seg seg, dest;
+	float dx, dy, anglediff;
+	int colorid;
+	struct teleport *nxt;
 };
 
 struct point {
@@ -121,8 +132,8 @@ struct point {
 };
 
 struct map {
-	struct seg *seg;
-	struct seg *playerstarts;
+	struct seg *seg, *playerstarts;
+	struct teleport *teleports;
 };
 
 struct kicknode {

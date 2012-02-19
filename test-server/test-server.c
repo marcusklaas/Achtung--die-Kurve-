@@ -376,7 +376,7 @@ callback_game(struct libwebsocket_context * context,
 					freemap(u->gm->map);
 				u->gm->map = createmap(j->child);
 				
-				sendmaptogame(u->gm->map, u->gm, u);
+				sendmaptogame(u->gm->map, u->gm, 0);
 			}
 
 			startgame(u->gm);
