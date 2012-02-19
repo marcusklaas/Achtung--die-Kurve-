@@ -218,7 +218,7 @@ GameEngine.prototype.getCollision = function(x1, y1, x2, y2) {
 		if(Math.max(x1, x2) < t.left || Math.min(x1, x2) > t.right || 
 			Math.max(y1, y2) < t.top || Math.min(y1, y2) > t.bottom)
 			continue;
-		var cut = segmentCollision(seg, t);
+		var cut = segmentCollision(t, seg);
 		if(cut != -1 && cut < mincut) {
 			mincut = cut;
 			other = t;
@@ -228,17 +228,13 @@ GameEngine.prototype.getCollision = function(x1, y1, x2, y2) {
 	if(other != null) {
 		var obj = {};
 		obj.isTeleport = true;
-		x1 += (x2 - x1) * cut;
-		y1 += (y2 - y1) * cut;
-		obj.collisionX = x1;
-		obj.collisionY = y1;
-		x1 -= other.x1;
-		y1 -= other.y1;
-		x1 *= other.scale;
-		y1 *= other.scale;
-		var v = rotateVector(x1, y1, other.extraAngle);
-		obj.destX = v.x + other.destX;
-		obj.destY = v.y + other.destY;
+		var colx = x1 + (x2 - x1) * cut;
+		var coly = y1 + (y2 - y1) * cut;
+		obj.collisionX = colx;
+		obj.collisionY = coly;
+		var r = getLength(colx - other.x1, coly - other.y1);
+		obj.destX = other.destX + r * other.dx;
+		obj.destY = other.destY + r * other.dy;
 		obj.extraAngle = other.extraAngle;
 		return obj;
 	}
@@ -254,7 +250,8 @@ GameEngine.prototype.getTeleport = function(colorId, a, b, c, d) {
 	
 	var t = new BasicSegment(a.x, a.y, b.x, b.y);
 	t.color = playerColors[colorId];
-	t.scale = getLength(wx, wy) / getLength(vx, vy);
+	t.dx = wx / getLength(vx, vy);
+	t.dy = wy / getLength(vx, vy);
 	t.extraAngle = getAngle(wx, wy) - getAngle(vx, vy);
 	t.destX = c.x;
 	t.destY = c.y;
@@ -1425,8 +1422,8 @@ Player.prototype.simulate = function(endTick, ctx) {
 			if(obj.isTeleport) {
 				ctx.drawLine(this.x, this.y, obj.collisionX, obj.collisionY);
 				this.changeCourse(obj.extraAngle);
-				this.x = obj.destX + Math.cos(this.angle);
-				this.y = obj.destY + Math.sin(this.angle);
+				this.x = obj.destX + Math.cos(this.angle) / 2;
+				this.y = obj.destY + Math.sin(this.angle) / 2;
 				handled = true;
 			}
 		}

@@ -253,7 +253,7 @@ struct buffer encodemap(struct map *map) {
 		seg = &tel->seg;
 		appendpos(&buf, seg->x1, seg->y1);
 		appendpos(&buf, seg->x2, seg->y2);
-		seg = &tel->seg.dest->seg;
+		seg = &tel->dest;
 		appendpos(&buf, seg->x1, seg->y1);
 		appendpos(&buf, seg->x2, seg->y2);
 	}
@@ -486,6 +486,21 @@ float getlength(float x, float y) {
 	return sqrt(x * x + y * y);
 }
 
+float getseglength(struct seg *seg) {
+	return getlength(seg->x2 - seg->x1, seg->y2 - seg->y1);
+}
+
+float getangle(float x, float y) {
+	if(x == 0)
+		return y < 0 ? PI * 3 / 2 : PI / 2;
+		
+	return atan(y / x) + (x > 0 ? 0 : PI);
+}
+
+float getsegangle(struct seg *seg) {
+	return getangle(seg->x2 - seg->x1, seg->y2 - seg->y1);
+}
+
 char seginside(struct seg *seg, int w, int h) {
 	return min(seg->x1, seg->x2) >= 0 && min(seg->y1, seg->y2) >= 0 &&
 	 max(seg->x1, seg->x2) <= w && max(seg->y1, seg->y2) <= h;
@@ -591,3 +606,4 @@ char *checkname(char *name) {
 
 	return checkedName;
 }
+
