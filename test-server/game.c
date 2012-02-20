@@ -811,7 +811,8 @@ void queueseg(struct game *gm, struct seg *seg) {
 }
 
 void simuser(struct userpos *state, struct user *usr, char addsegments) {
-	float cut, oldx = state->x, oldy = state->y, oldangle = state->angle;
+	float cut;
+	double oldx = state->x, oldy = state->y, oldangle = state->angle;
 	int inhole, outside;
 	struct seg seg;
 	char handled = 0;
@@ -836,9 +837,9 @@ void simuser(struct userpos *state, struct user *usr, char addsegments) {
 	if(cut != -1.0) {
 		if(collidingseg->t) {
 			struct teleport *t = collidingseg->t;
-			float x = (1 - cut) * seg.x1 + cut * seg.x2;
-			float y = (1 - cut) * seg.y1 + cut * seg.y2;
-			float r = getlength(x - collidingseg->x1, y - collidingseg->y1);
+			double x = (1 - cut) * seg.x1 + cut * seg.x2;
+			double y = (1 - cut) * seg.y1 + cut * seg.y2;
+			double r = getlength(x - collidingseg->x1, y - collidingseg->y1);
 			
 			/* we make sure to not cross the teleport */
 			seg.x2 = x - cos(state->angle) / 10;
@@ -1573,7 +1574,7 @@ void inputmechanism_checktangent(struct user *usr, int tick) {
 	seg.y2 = seg.y1 + sin(pos->angle) * visionlength;
 	turn = checkcollision(usr->gm, &seg) != -1.0;
 	if(turn) {
-		float x, y, a, b;
+		double x, y, a, b;
 	
 		x = cos(pos->angle);
 		y = sin(pos->angle);

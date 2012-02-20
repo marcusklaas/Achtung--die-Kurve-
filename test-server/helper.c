@@ -485,22 +485,22 @@ static long servermsecs() {
 	return 1000 * tv.tv_sec + tv.tv_usec/ 1000 - serverstart;
 }
 
-float getlength(float x, float y) {
+double getlength(double x, double y) {
 	return sqrt(x * x + y * y);
 }
 
-float getseglength(struct seg *seg) {
+double getseglength(struct seg *seg) {
 	return getlength(seg->x2 - seg->x1, seg->y2 - seg->y1);
 }
 
-float getangle(float x, float y) {
+double getangle(double x, double y) {
 	if(x == 0)
 		return y < 0 ? PI * 3 / 2 : PI / 2;
 		
 	return atan(y / x) + (x > 0 ? 0 : PI);
 }
 
-float getsegangle(struct seg *seg) {
+double getsegangle(struct seg *seg) {
 	return getangle(seg->x2 - seg->x1, seg->y2 - seg->y1);
 }
 

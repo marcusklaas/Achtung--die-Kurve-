@@ -115,20 +115,20 @@ enum demo_protocols {
 };
 
 struct seg {
-	float x1, y1, x2, y2;
+	double x1, y1, x2, y2;
 	struct teleport *t;
 	struct seg *nxt;
 };
 
 struct teleport {
 	struct seg seg, dest;
-	float dx, dy, anglediff;
+	double dx, dy, anglediff;
 	int colorid;
 	struct teleport *nxt;
 };
 
 struct point {
-	float x, y;
+	double x, y;
 };
 
 struct map {
@@ -162,7 +162,7 @@ struct game {
 
 	long start;	// start in msecs after server start
 	int (*pointsys)(int, int); // function that determines points on death
-	float ts;				// turning speed in radians per sec
+	double ts;				// turning speed in radians per sec
 	struct seg **seg;		// two dimensional array of linked lists, one for each tile
 	struct user *usr, *host;// user list, game host
 	struct game *nxt;
@@ -193,7 +193,7 @@ struct userinput {
 };
 
 struct userpos {
-	float x, y, angle, v, ts;
+	double x, y, angle, v, ts;
 	int turn, tick;
 	char alive;
 };
@@ -242,7 +242,7 @@ void gototick(struct pencil *p, int tick);
 struct game *creategame(int gametype, int nmin, int nmax);
 void endgame(struct game *gm, struct user *winner);
 void joingame(struct game *gm, struct user *newusr);
-float getlength(float x, float y);
+double getlength(double x, double y);
 char *gametypetostr(int gametype, char *buf);
 char *pencilmodetostr(int pencilmode, char *buf);
 void addsegment(struct game *gm, struct seg *seg);
