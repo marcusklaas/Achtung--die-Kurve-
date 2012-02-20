@@ -732,47 +732,74 @@ float checktilecollision(struct seg *tile, struct seg *seg, struct seg **collidi
 	return mincut;
 }
 
-/* fills tileindices: top right bottom left.
-* NOTE: bottom means greater y-values */
-void tiles(struct game *gm, struct seg *seg, int *tileindices) {
-	int swap;
+/* returns 1 in case the segment intersects the box */
+int lineboxcollision(struct seg *seg, int top, int right, int bottom, int left) {
+	struct seg edge;
 
-	tileindices[3] = ((int) seg->x1)/ gm->tilew;
-	tileindices[1] = ((int) seg->x2)/ gm->tilew;
-	if(tileindices[3] > tileindices[1]) {
-		swap = tileindices[3];
-		tileindices[3] = tileindices[1];
-		tileindices[1] = swap;
-	}
+	/* if the segment intersects box, either both points are in box, 
+	 * or there is intersection with the edges. note: this is naive way.
+	 * there is probably a more efficient way to do it */
 
-	tileindices[2] = ((int) seg->y1)/ gm->tileh;
-	tileindices[0] = ((int) seg->y2)/ gm->tileh;
-	if(tileindices[2] < tileindices[0]) {
-		swap = tileindices[2];
-		tileindices[2] = tileindices[0];
-		tileindices[0] = swap;
-	}
+	if(seg->x1 >= left && seg->x1 < right && seg->y1 < bottom && seg->y1 >= top)
+		return 1;
 
-	tileindices[3] = max(tileindices[3], 0);
-	tileindices[1] = min(tileindices[1], gm->htiles - 1);
-	tileindices[0] = max(tileindices[0], 0);
-	tileindices[2] = min(tileindices[2], gm->vtiles - 1);
+	if(seg->x2 >= left && seg->x2 < right && seg->y2 < bottom && seg->y2 >= top)
+		return 1;
+
+	/* check intersect left border */
+	edge.x1 = edge.x2 = left;
+	edge.y1 = bottom;
+	edge.y2 = top;
+	if(segcollision(seg, &edge) != -1.0)
+		return 1;
+
+	/* check intersect right border */
+	edge.x1 = edge.x2 = right;
+	if(segcollision(seg, &edge) != -1.0)
+		return 1;
+
+	/* check intersect top border */
+	edge.x1 = left;
+	edge.y1 = edge.y2 = top;
+	if(segcollision(seg, &edge) != -1.0)
+		return 1;
+
+	/* check intersect bottom border */
+	edge.y1 = edge.y2 = bottom;
+	if(segcollision(seg, &edge) != -1.0)
+		return 1;
+
+	return 0;
+}
+
+void gettiles(struct game *gm, struct seg *seg, int *pa, int *pb, int *pc, int *pd) {
+	int a, b, c, d;
+
+	a = ((int) seg->x1)/ gm->tilew;
+	b = ((int) seg->x2)/ gm->tilew;
+	d = ((int) seg->y1)/ gm->tileh;
+	c = ((int) seg->y2)/ gm->tileh;
+
+	*pa = max(min(a, b), 0);
+	*pb = min(max(a, b), gm->htiles - 1);
+	*pc = max(min(c, d), 0);
+	*pd = min(max(c, d), gm->vtiles - 1);
 }
 
 struct seg *collidingseg = 0; // maybe instead as parameter to checkcollision
 
 /* returns -1 in case of no collision, between 0 and 1 else */
 float checkcollision(struct game *gm, struct seg *seg) {
-	int i, j, tileindices[4], index, dx;
+	int i, j, a, b, c, d, index, dx;
 	float cut, mincut = -1;
 	struct seg *collider = 0;
 
-	tiles(gm, seg, tileindices);
-	index = gm->htiles * tileindices[0] + tileindices[3];
-	dx = gm->htiles + tileindices[3] - tileindices[1] - 1;
+	gettiles(gm, seg, &a, &b, &c, &d);
+	index = gm->htiles * c + a;
+	dx = gm->htiles + a - b - 1;
 
-	for(j = tileindices[0]; j <= tileindices[2]; j++, index += dx) {
-		for(i = tileindices[3]; i <= tileindices[1]; i++, index++) {
+	for(j = c; j <= d; j++, index += dx) {
+		for(i = a; i <= b; i++, index++) {
 			cut = checktilecollision(gm->seg[index], seg, &collider);
 
 			if(cut != -1.0 && (mincut == -1.0 || cut < mincut)) {
@@ -787,15 +814,19 @@ float checkcollision(struct game *gm, struct seg *seg) {
 
 /* adds segment to the game. does not check for collision */
 void addsegment(struct game *gm, struct seg *seg) {
-	int i, j, tileindices[4], index, dx;
+	int i, j, a, b, c, d, index, dx;
 	struct seg *copy;
+	
+	gettiles(gm, seg, &a, &b, &c, &d);
+	index = gm->htiles * c + a;
+	dx = gm->htiles + a - b - 1;
 
-	tiles(gm, seg, tileindices);
-	index = gm->htiles * tileindices[0] + tileindices[3];
-	dx = gm->htiles + tileindices[3] - tileindices[1] - 1;
+	for(j = c; j <= d; j++, index += dx) {
+		for(i = a; i <= b; i++, index++) {
+			if(!lineboxcollision(seg, j * gm->tileh, (i + 1) * gm->tilew,
+				(j + 1) * gm->tileh, i * gm->tilew))
+				continue;
 
-	for(j = tileindices[0]; j <= tileindices[2]; j++, index += dx) {
-		for(i = tileindices[3]; i <= tileindices[1]; i++, index++) {
 			copy = copyseg(seg);
 			copy->nxt = gm->seg[index];
 			gm->seg[index] = copy;

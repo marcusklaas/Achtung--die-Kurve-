@@ -398,6 +398,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.type = obj.type;
 			this.setGameState((obj.type == 'lobby') ? 'lobby' : 'waiting');
 			this.mapSegments = undefined;
+			this.mapTeleports = [];
 			this.editor.segments = [];
 			this.indexToPlayer[obj.index] = this.localPlayer;
 			this.localPlayer.index = obj.index;
