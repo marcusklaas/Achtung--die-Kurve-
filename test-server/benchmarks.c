@@ -30,7 +30,7 @@ static int spam_intervals[SPAM_CAT_COUNT] = {SPAM_JOINLEAVE_INTERVAL, SPAM_CHAT_
 
 int main(int cn, char *crs[]) {
 	struct game *gm = creategame(GT_CUSTOM, 2, 2);
-	unsigned long start = servermsecs();
+	long start = servermsecs();
 	int games = 1;
 	int computers = 3;
 

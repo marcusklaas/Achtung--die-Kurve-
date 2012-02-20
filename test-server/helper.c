@@ -471,9 +471,9 @@ char *getFileExt(char *path) {
 	return ext;
 }
 
-static unsigned long servermsecs() {
+static long servermsecs() {
 	static struct timeval tv;
-	static unsigned long serverstart = -1;
+	static long serverstart = -1;
 
 	if(serverstart == -1) {
 		serverstart = 0;
@@ -544,7 +544,7 @@ void printjson(cJSON *json) {
 }
 
 void logtime() {
-	unsigned long now = servermsecs();
+	long now = servermsecs();
 
 	if(now - lastlogtime > 1000 * 60 * 5) {
 		struct tm *local;
@@ -559,7 +559,7 @@ void logtime() {
 }
 
 void logwarningtime() {
-	unsigned long now = servermsecs();
+	long now = servermsecs();
 
 	if(now - lastwarninglogtime > 1000 * 60 * 5) {
 		struct tm *local;

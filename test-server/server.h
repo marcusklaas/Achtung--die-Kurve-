@@ -138,7 +138,7 @@ struct map {
 
 struct kicknode {
 	struct user *usr;
-	unsigned long expiration; // servermsecs at which the ban expires
+	long expiration; // servermsecs at which the ban expires
 	struct kicknode *nxt;
 };
 
@@ -160,7 +160,7 @@ struct game {
 		modifieds,
 		timeadjustments;
 
-	unsigned long start;	// start in msecs after server start
+	long start;	// start in msecs after server start
 	int (*pointsys)(int, int); // function that determines points on death
 	float ts;				// turning speed in radians per sec
 	struct seg **seg;		// two dimensional array of linked lists, one for each tile

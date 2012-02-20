@@ -327,7 +327,7 @@ struct map *createmap(cJSON *j) {
 					j = j->next;
 					continue;
 				} else {
-					struct teleport *cur, *tela, *telb;
+					struct teleport *tela, *telb;
 
 					tela = createteleport(seg, telbuffer[id], id);
 					telb = createteleport(telbuffer[id], seg, id);
@@ -551,9 +551,6 @@ void joingame(struct game *gm, struct user *newusr) {
 	sendjson(json, newusr);
 	jsondel(json);
 
-	printf("got this far\n");
-	fflush(stdout);
-
 	/* tell players of game someone new joined and send a message to the new
 	 * player for every other player that is already in the game */
 	for(usr = gm->usr; usr; usr = usr->nxt) {
@@ -585,9 +582,6 @@ void joingame(struct game *gm, struct user *newusr) {
 	if(gm->type == GT_AUTO && gm->n >= gm->nmin)
 		startgame(gm);
 
-	printf("even got this far\n");
-	fflush(stdout);
-
 	/* tell everyone in lobby of new game */
 	if(gm->n == 1) {
 		json = encodegame(gm);
@@ -603,9 +597,6 @@ void joingame(struct game *gm, struct user *newusr) {
 		printf("user %d joined game %p\n", newusr->id, (void *)gm);
 		printgames();
 	}
-
-	printf("got to end!\n");
-	fflush(stdout);
 }
 
 struct game *creategame(int gametype, int nmin, int nmax) {
@@ -665,14 +656,13 @@ float segcollision(struct seg *seg1, struct seg *seg2) {
 	numer_a = (seg2->x2 - seg2->x1) * (seg1->y1 - seg2->y1) -
 	 (seg2->y2 - seg2->y1) * (seg1->x1 - seg2->x1);
 
-	numer_b = (seg1->x2 - seg1->x1) * (seg1->y1 - seg2->y1) -
-	 (seg1->y2 - seg1->y1) * (seg1->x1 - seg2->x1);
-
 	a = numer_a/ denom;
 
 	if(a < 0 || a > 1)
 		return -1;
 
+	numer_b = (seg1->x2 - seg1->x1) * (seg1->y1 - seg2->y1) -
+	 (seg1->y2 - seg1->y1) * (seg1->x1 - seg2->x1);
 	b = numer_b/ denom;
 
 	return (b >= 0 && b <= 1) ? b : -1;
@@ -1068,7 +1058,7 @@ void simgame(struct game *gm) {
 /* tries to simgame every game every TICK_LENGTH milliseconds */
 void mainloop() {
 	int sleepuntil;
-	unsigned long now;
+	long now;
 	struct game *gm;
 	static int lastheavyloadmsg;
 
@@ -1110,7 +1100,7 @@ void queueinput(struct user *usr, int tick, int turn) {
 void interpretinput(cJSON *json, struct user *usr) {
 	int turn = jsongetint(json, "turn");
 	int tick = jsongetint(json, "tick");
-	unsigned long now = servermsecs();
+	long now = servermsecs();
 	int delay, msgtick = tick;
 	int time = tick * TICK_LENGTH + TICK_LENGTH/ 2;
 	cJSON *j;
@@ -1237,7 +1227,7 @@ void freekicklist(struct kicknode *kick) {
  * on the fact that list is decreasing in expiration */
 int checkkick(struct game *gm, struct user *usr) {
 	struct kicknode *prev = 0, *kick;
-	unsigned long now = servermsecs();
+	long now = servermsecs();
 
 	for(kick = gm->kicklist; kick; kick = kick->nxt) {
 		if(now >= kick->expiration) {
