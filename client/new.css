@@ -559,14 +559,14 @@ textarea:disabled {
 }
 
 /* bootstrap buttons */
-button.danger,
-button.danger:hover,
-button.error,
-button.error:hover,
-button.success,
-button.success:hover,
-button.info,
-button.info:hover {
+button.danger, .btn.danger,
+button.danger:hover, .btn.danger:hover,
+button.error, .btn.error,
+button.error:hover, .btn.error:hover,
+button.success, .btn.success,
+button.success:hover, .btn.success:hover,
+button.info, .btn.info,
+button.info:hover, .btn.info:hover {
 	color: #ffffff;
 }
 
@@ -575,10 +575,7 @@ button .close, .alert-message .close {
 	line-height: 18px;
 }
 
-button.danger,
-.alert-message.danger,
-button.error,
-.alert-message.error {
+button.danger, button.error, .btn.danger, .btn.error {
 	background-color: #c43c35;
 	background-repeat: repeat-x;
 	background-image: -khtml-gradient(linear, left top, left bottom, from(#ee5f5b), to(#c43c35));
@@ -676,8 +673,6 @@ button.active, button:active, .btn:active {
 .btn-group {
 	position: relative;
 	display: inline-block;
-	height: 20px;
-	overflow: hidden;
 }
 
 .btn-group .btn {

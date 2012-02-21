@@ -63,7 +63,7 @@
 
 			<div id="connectionContainer">
 				<h1>Achtung, die Kurve!</h1>
-				<p id="welcome">Welcome to our online remake of the classic Achtung die Kurve! Instead of running on a single computer, this version works over the network. This means you can play your friends over the internet as well as total strangers! Have fun!</p>
+				<p id="welcome">Welcome to our online remake of the classic Achtung die Kurve! Instead of running on a single computer, this version works over the internet. This means you can play your friends as well as total strangers! Have fun!</p>
 				<div id="noWebsocket" class="alert alert-error">It seems like your browser does not support websockets! This is required to play the game. Please consider trying a websocket compliant browser like Firefox, Chrome or Safari.</div>
 				<div id="connectForm">
 					<input type="text" id="playername" placeholder="playername" />
@@ -78,7 +78,8 @@
 				<p>There are two types of games. Automatches and custom games. Automatches are the easiest way to find a game. You specify with how many people you'd like to play and press the automatch button. You automatically join a game which fits your requirements, or a new game is created if such a game cannot be found. The game automatically starts when there are enough players. These automatches always use the default settings.</p>
 				<h3>Custom games</h3>
 				<p>Custom games on the other hand have a host, who desides when the game starts and has the authority to kick people from the game. The host can also set the game parameters to values of his or her liking (within reason). In addition, it is possible to add computer players to the game. Finally, you can also build your own map. Create obstacles, fixed starting positions and even teleporters! There are incredibly many different ways to make the game even more crazy!</p>
-				<p id="credits">This game is made by Marcus and Rik as a holiday project. The code is hosted at <a href="https://github.com/marcusklaas/Achtung--die-Kurve-">github</a>, which you are free to fork. If you have any suggestions or complaints, or if you just want to tell us what you think about the game, send us an email at <a href="mailto:devnull@diekurve.net">devnull@diekurve.net</a>!</p>
+				<h3>About the game</h3>
+				<p>This game is made by Marcus and Rik as a holiday project. The code is hosted at <a href="https://github.com/marcusklaas/Achtung--die-Kurve-">github</a>, which you are free to fork. If you have any suggestions or complaints, or if you just want to tell us what you think about the game, send us an email at <a href="mailto:devnull@diekurve.net">devnull@diekurve.net</a>!</p>
 			</div>
 
 			<div id="gameListContainer">
@@ -121,24 +122,40 @@
 			<div id="editor">
 				<canvas id="editorCanvas"></canvas>
 				<div id="editorControls" class="btn-toolbar">
-					<label>Pencil <input type="radio" name="editorMode" id="editorPencil" /></label>
-					<label>Eraser <input type="radio" name="editorMode" id="editorEraser" /></label>
-					<label>Set Start Location<input type="radio" name="editorMode" id="editorPlayerStart" /></label>
-					<label>Set Teleporter<input type="radio" name="editorMode" id="editorTeleport" /></label>
+					<!---
+					<div class="btn-group">
+						<label>Pencil <input type="radio" name="editorMode" id="editorPencil" /></label>
+						<label>Eraser <input type="radio" name="editorMode" id="editorEraser" /></label>
+						<label>Set Start Location<input type="radio" name="editorMode" id="editorPlayerStart" /></label>
+						<label>Set Teleporter<input type="radio" name="editorMode" id="editorTeleport" /></label>
+					</div>
+					-->
 
-					<!--- WIP <div class="btn-group">
-						<a class="btn">Pencil</a>
-						<a class="btn">Start Location</a>
-						<a class="btn">Teleport</a>
-						<a class="btn">Eraser</a>
-					</div> -->
+					<div class="btn-group" id="editorMode">
+						<a class="btn" id="editorPencil">Pencil</a>
+						<a class="btn" id="editorPlayerStart">Start Location</a>
+						<a class="btn" id="editorTeleport">Teleport</a>
+						<a class="btn" id="editorEraser">Eraser</a>
+					</div>
 
-					<button id="editorCopy">Copy to Text Field</button>
-					<button id="editorLoad">Load from Text Field</button>
-					<input id="editorTextField" type="text" />
-					<button id="editorUndo">Undo</button>
-					<button id="editorReset" class="danger">Reset</button>
-					<button id="editorStop" class="primary">Done</button>
+					<div class="btn-group">
+						<a id="editorCopy" class="btn">Save Map</a>
+						<a id="editorLoad" class="btn">Load Map</a>
+					</div>
+
+					<!--- <input id="editorTextField" type="text" /> --->
+
+					<div class="btn-group">
+						<a id="editorUndo" class="btn">Undo</a>
+					</div>
+
+					<div class="btn-group">
+						<a id="editorReset" class="btn danger">Reset</a>
+					</div>
+
+					<div class="btn-group">
+						<a id="editorStop" class="btn primary">Done</a>
+					</div>
 				</div>		
 			</div>
 
