@@ -2125,13 +2125,37 @@ Editor = function(game) {
 	this.canvas.addEventListener('touchmove', touchMove, false);
 	this.canvas.addEventListener('touchend', touchEnd, false);
 	this.canvas.addEventListener('touchcancel', touchEnd, false);
+
+	function activate(node) {
+		var siblings = node.parentNode.getElementsByTagName('a');
+
+		for(var i = 0; i < siblings.length; i++)
+			siblings[i].className = 'btn';
+
+		node.className = 'btn active';
+	}
 	
 	var pencilButton = document.getElementById('editorPencil');
-	pencilButton.addEventListener('click', function() { self.mode = 'pencil'; }, false);
-	pencilButton.checked = true;
-	document.getElementById('editorEraser').addEventListener('click', function() { self.mode = 'eraser'; }, false);
-	document.getElementById('editorPlayerStart').addEventListener('click', function() { self.mode = 'playerStart'; }, false);
-	document.getElementById('editorTeleport').addEventListener('click', function() { self.mode = 'teleport'; }, false);
+	pencilButton.className = 'btn active';
+	pencilButton.addEventListener('click', function(e) {
+		activate(e.target);
+		self.mode = 'pencil';
+	}, false);
+
+	document.getElementById('editorEraser').addEventListener('click', function(e) {
+		activate(e.target);
+		self.mode = 'eraser';
+	}, false);
+
+	document.getElementById('editorPlayerStart').addEventListener('click', function(e) {
+		activate(e.target);
+		self.mode = 'playerStart';
+	}, false);
+
+	document.getElementById('editorTeleport').addEventListener('click', function(e) {
+		activate(e.target);
+		self.mode = 'teleport';
+	}, false);
 }
 
 Editor.prototype.onmouse = function(type, ev) {
@@ -2271,7 +2295,7 @@ Editor.prototype.undo = function() {
 
 Editor.prototype.resize = function() {
 	var game = this.game;
-	game.calcScale(this.resetButton.offsetHeight + 6);
+	game.calcScale(this.resetButton.offsetHeight + 10);
 	var w = Math.round(game.scale * game.width);
 	var h = Math.round(game.scale * game.height);
 	var sizeChanged = w != this.canvas.width;
