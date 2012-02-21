@@ -183,7 +183,7 @@ GameEngine.prototype.hideSidebar = function() {
 }
 
 GameEngine.prototype.showSidebar = function() {
-	if(this.sidebar.style.display != 'none')
+	if(this.sidebar.style.display != 'none' && this.sidebar.style.display != '')
 		return;
 
 	this.sidebar.style.display = 'block';
@@ -2345,6 +2345,8 @@ window.onload = function() {
 
 	function connect() {
 		var playerName = document.getElementById('playername').value;
+
+		game.showSidebar();
 
 		if(typeof playerName != 'string' || playerName.length < 1 || playerName.length > maxNameLength) {
 			game.gameMessage('Enter a cool nickname please (no longer than ' + maxNameLength + ' chars)');

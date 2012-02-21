@@ -39,6 +39,9 @@ canvas {
 
 #editorCanvas {
 	background-color: #D0D0D0;
+	border: 1px solid #999;
+	border-top: 0;
+	border-left: 0;
 	position: static;
 }
 
@@ -78,7 +81,7 @@ a {
 
 #sidebar {
 	position: fixed;
-	display: block;
+	display: none; /* block */
 	top: 0;
 	left: 0;
 	width: 300px;
@@ -102,7 +105,7 @@ ul {
 }
 
 #content {
-	padding: 0 0 0 301px;
+	padding: 0 0 0 0; /* 301px left */
 	height: 100%;
 }
 
@@ -110,6 +113,7 @@ h1 {
 	padding-top: 20px;
 	padding-bottom: 5px;
 	margin: 0;
+	text-align: center;
 }
 
 h2 {
@@ -141,10 +145,13 @@ h2.contentHeader {
 	text-align: right;
 }
 
-#gameListContainer {
+#gameListContainer, #waitContainer, #connectionContainer {
 	padding: 0 5px 0 5px;
-	width: 600px;
 	margin: auto;
+}
+
+#gameListContainer {
+	width: 600px;
 	text-align: right;
 	height: 100%;
 }
@@ -156,19 +163,27 @@ h2.contentHeader {
 }
 
 #waitContainer {
+	width: 450px;
 	text-align: right;
 }
 
-#waitContainer, #connectionContainer {
-	padding: 0 5px 0 5px;
-	width: 400px;
-	margin: auto;
+#connectionContainer {
+	width: 600px;
+	text-align: justify;
+}
+
+#connectForm {
+	text-align: center;
+}
+
+#playername {
+	width: 250px;
 }
 
 #canvasContainer {
 	position: relative;
-	border-bottom: 1px solid #808080;
-	border-right: 1px solid #808080;
+	border-bottom: 1px solid #999;
+	border-right: 1px solid #999;
 	text-align: center;
 }
 
@@ -183,10 +198,6 @@ h2.contentHeader {
 
 #details td:last-child {
 	text-align: right;
-}
-
-#playername {
-	width: 245px;
 }
 
 #options {
@@ -295,7 +306,7 @@ tr.left td:first-child {
 	left: 0;
 	top: 20px;
 	background-color: rgba(255, 255, 255, 0.5);
-	border: 1px solid #808080;
+	border: 1px solid #999;
 	border-left: 0;
 	-webkit-border-radius: 0 4px 4px 0;
 	-moz-border-radius: 0 4px 4px 0;
@@ -508,7 +519,7 @@ textarea:disabled {
 	margin: 0 -1px 0 0;
 	padding: 5px 4px 6px 5px;
 	font-weight: normal;
-	color: #999999;
+	color: #999;
 	vertical-align: middle;
 	text-align: center;
 	text-shadow: 0 1px 0 #ffffff;
@@ -516,53 +527,35 @@ textarea:disabled {
 	border: 1px solid #ccc;
 }
 
-/* bootstrap warning alert */
-.alert-message {
-	position: relative;
-	padding: 7px 15px;
+/* bootstrap alerts */
+.alert {
+	padding: 8px 35px 8px 14px;
 	margin-bottom: 18px;
-	color: #404040;
-	background-color: #eedc94;
-	background-repeat: repeat-x;
-	background-image: -khtml-gradient(linear, left top, left bottom, from(#fceec1), to(#eedc94));
-	background-image: -moz-linear-gradient(top, #fceec1, #eedc94);
-	background-image: -ms-linear-gradient(top, #fceec1, #eedc94);
-	background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #fceec1), color-stop(100%, #eedc94));
-	background-image: -webkit-linear-gradient(top, #fceec1, #eedc94);
-	background-image: -o-linear-gradient(top, #fceec1, #eedc94);
-	background-image: linear-gradient(top, #fceec1, #eedc94);
-	filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#fceec1', endColorstr='#eedc94', GradientType=0);
-	text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.25);
-	border-color: #eedc94 #eedc94 #e4c652;
-	border-color: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.25);
 	text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
-	border-width: 1px;
-	border-style: solid;
+	background-color: #fcf8e3;
+	border: 1px solid #fbeed5;
 	-webkit-border-radius: 4px;
 	-moz-border-radius: 4px;
 	border-radius: 4px;
-	-webkit-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
-	-moz-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
-	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
-/* bootstrap block info */
-.alert-message.block-message {
-	background-image: none;
-	background-color: #fdf5d9;
-	filter: progid:DXImageTransform.Microsoft.gradient(enabled = false);
-	padding: 14px;
-	border-color: #fceec1;
-	-webkit-box-shadow: none;
-	-moz-box-shadow: none;
-	box-shadow: none;
+.alert, .alert-heading {
+	color: #c09853;
 }
 
-.alert-message.block-message.info {
-	color: #404040;
-	text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
-	background-color: #fddfde;
-	border-color: #fbc7c6;
+.alert-danger, .alert-error {
+	background-color: #f2dede;
+	border-color: #eed3d7;
+	color: #b94a48;
+}
+
+.alert-info, .alert-info .alert-heading {
+	color: #3a87ad;
+}
+
+.alert-info {
+	background-color: #d9edf7;
+	border-color: #bce8f1;
 }
 
 /* bootstrap buttons */
@@ -677,6 +670,42 @@ button.active, button:active, .btn:active {
 	-webkit-box-shadow: none;
 	-moz-box-shadow: none;
 	box-shadow: none;
+}
+
+/* button groups van bootstrap */
+.btn-group {
+	position: relative;
+	display: inline-block;
+	height: 20px;
+	overflow: hidden;
+}
+
+.btn-group .btn {
+	position: relative;
+	float: left;
+	margin-left: -1px;
+	-webkit-border-radius: 0;
+	-moz-border-radius: 0;
+	border-radius: 0;
+}
+
+.btn-group .btn:first-child {
+	margin-left: 0;
+	-webkit-border-top-left-radius: 4px;
+	-moz-border-radius-topleft: 4px;
+	border-top-left-radius: 4px;
+	-webkit-border-bottom-left-radius: 4px;
+	-moz-border-radius-bottomleft: 4px;
+	border-bottom-left-radius: 4px;
+}
+
+.btn-group .btn:last-child {
+	-webkit-border-top-right-radius: 4px;
+	-moz-border-radius-topright: 4px;
+	border-top-right-radius: 4px;
+	-webkit-border-bottom-right-radius: 4px;
+	-moz-border-radius-bottomright: 4px;
+	border-bottom-right-radius: 4px;
 }
 
 /* tables css geleend van bootstrap */
