@@ -87,7 +87,7 @@ int jsongetint(cJSON *json, char* obj) {
 }
 
 // returns -1 on error
-float jsongetfloat(cJSON *json, char* obj) {
+double jsongetdouble(cJSON *json, char* obj) {
 	json = cJSON_GetObjectItem(json, obj);
 	if(!json) {
 		if(DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
@@ -181,7 +181,7 @@ cJSON *getjsongamepars(struct game *gm) {
 void sendstr(char *str, int len, struct user *u) {
 	char *buf;
 
-	if(u->inputmechanism != inputmechanism_human)
+	if(!u->human)
 		return;
 
 	if(u->sbat == SB_MAX) {
@@ -211,7 +211,7 @@ void sendstr(char *str, int len, struct user *u) {
 void sendjson(cJSON *json, struct user *u) {
 	char *buf;
 
-	if(u->inputmechanism != inputmechanism_human)
+	if(!u->human)
 		return;
 
 	buf = jsonprint(json);
@@ -613,4 +613,3 @@ char *checkname(char *name) {
 
 	return checkedName;
 }
-
