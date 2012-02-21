@@ -210,7 +210,7 @@ GameEngine.prototype.updateTitle = function(title) {
 
 GameEngine.prototype.getCollision = function(x1, y1, x2, y2) {
 	var seg = new BasicSegment(x1, y1, x2, y2);
-	var mincut = 1;
+	var cut, mincut = 1;
 	var other = null;
 	
 	for(var i in this.mapTeleports) {
@@ -218,7 +218,7 @@ GameEngine.prototype.getCollision = function(x1, y1, x2, y2) {
 		if(Math.max(x1, x2) < t.left || Math.min(x1, x2) > t.right || 
 			Math.max(y1, y2) < t.top || Math.min(y1, y2) > t.bottom)
 			continue;
-		var cut = segmentCollision(t, seg);
+		cut = segmentCollision(t, seg);
 		if(cut != -1 && cut < mincut) {
 			mincut = cut;
 			other = t;
@@ -228,6 +228,7 @@ GameEngine.prototype.getCollision = function(x1, y1, x2, y2) {
 	if(other != null) {
 		var obj = {};
 		obj.isTeleport = true;
+		cut = mincut;
 		var colx = (1 - cut) * x1 + cut * x2;
 		var coly = (1 - cut) * y1 + cut * y2;
 		obj.collisionX = colx;
@@ -1467,7 +1468,7 @@ Player.prototype.simulate = function(endTick, ctx) {
 		}
 		
 		if(debugPos && debugPosA[this.tick] == null)
-			debugPosA[this.tick] = format(this.x, 21) + ', ' + format(this.y, 21) + 
+			debugPosA[this.tick] = format(this.x, 21) + ', ' + format(this.y, 21) + ', ' + 
 				format(this.angle, 21) + ', ' + handled;
 	}
 }

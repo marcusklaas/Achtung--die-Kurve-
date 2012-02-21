@@ -55,7 +55,7 @@
 #define GOD_MODE 0
 #define SEND_SEGMENTS 30 // om de hoeveel ticks het moet gebeuren (0=nooit)
 #define SAVE_COLLISION_TO_FILE 0
-#define PRINTPOS 1
+#define PRINTPOS 0
 
 /* input control */
 #define MAX_FILE_REQ_LEN 100
