@@ -512,6 +512,9 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			while(this.tock <= obj.finalTick)
 				this.doTock();
 				
+			if(debugPos) 
+				printDebugPos();
+				
 			var player = (obj.winnerId != -1) ? this.getPlayer(obj.winnerId) : null;
 			var winner = (player != null) ? (player.playerName + ' won') : 'draw!';
 			this.setGameState('countdown');
@@ -576,6 +579,9 @@ GameEngine.prototype.interpretMsg = function(msg) {
 				if(!this.gameList.hasChildNodes())
 					document.getElementById('noGames').style.display = 'block';
 			}
+			break;
+		case 'debugPos':
+			debugPosB[obj.tick] = obj.msg;
 			break;
 		default:
 			this.gameMessage('Unknown mode ' + obj.mode + '!');
@@ -940,10 +946,17 @@ GameEngine.prototype.sendParams = function() {
 GameEngine.prototype.sendStartGame = function() {
 	var obj = {};
 
+	if(debugMap != null && debugMap != '')
+		this.editor.load(debugMap);
+	
 	if(this.editor.mapChanged) {
 		obj.segments = this.editor.segments;
 		this.editor.mapChanged = false;
 	}
+	
+	if(debugComputers > 0)
+		for(var i = 0; i < debugComputers; i++)
+			this.addComputer();
 
 	this.sendMsg('startGame', obj);
 	this.startButton.disabled = true;
@@ -956,6 +969,11 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	var delay = this.gameStartTimestamp - Date.now();
 
 	this.reset();
+	
+	if(debugPos) {
+		debugPosA = [];
+		debugPosB = [];
+	}
 	
 	if(jsProfiling)
 		console.profile('canvas performance');
@@ -1447,6 +1465,10 @@ Player.prototype.simulate = function(endTick, ctx) {
 					this.y = this.game.height;
 			}
 		}
+		
+		if(debugPos && debugPosA[this.tick] == null)
+			debugPosA[this.tick] = format(this.x, 21) + ', ' + format(this.y, 21) + 
+				format(this.angle, 21) + ', ' + handled;
 	}
 }
 
@@ -2059,7 +2081,7 @@ Editor = function(game) {
 	copy.addEventListener('click', function() { self.copy(); }, false);
 
 	var load = document.getElementById('editorLoad');
-	load.addEventListener('click', function() { self.load(); }, false);
+	load.addEventListener('click', function() { self.load(self.textField.value); }, false);
 
 	var undo = document.getElementById('editorUndo');
 	undo.addEventListener('click', function() { self.undo(); }, false);
@@ -2271,18 +2293,16 @@ Editor.prototype.copy = function() {
 	this.textField.value = JSON.stringify(this.segments);
 }
 
-Editor.prototype.load = function() {
+Editor.prototype.load = function(str) {
 	try {
-		var segs = JSON.parse(this.textField.value);
+		var segs = JSON.parse(str);
 	}
 	catch(ex) {
 		this.game.gameMessage('JSON parse exception!');
 	}
-
-	for(var i = 0; i < segs.length; i++)
-		this.drawSegment(segs[i]);
-
-	this.segments = this.segments.concat(segs);
+	
+	this.segments = segs;
+	this.resize();
 	this.mapChanged = true;
 }
 
@@ -2748,4 +2768,16 @@ function rotateVector(x, y, angle) {
 	var a = Math.cos(angle) * x - Math.sin(angle) * y;
 	var b = Math.sin(angle) * x + Math.cos(angle) * y;
 	return {x: a, y: b};
+}
+
+function printDebugPos() {
+	var s = '';
+	for(var i = 0; i < debugPosA.length; i++) {
+		s += debugPosA[i] + '<br />' + debugPosB[i] + '<br />' + '<br />';
+	}
+	echo(s);
+}
+
+function format(s, len) {
+	return (s  +  '0000000000000000000000000000').substr(0, len);
 }

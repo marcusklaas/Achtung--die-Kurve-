@@ -1,14 +1,8 @@
 #define EPS 0.0001
 #define PI 3.141592653589793
-#define GAME_WIDTH 1024
-#define GAME_HEIGHT 644
 #define MAX_GAME_WIDTH 2047
 #define MAX_GAME_HEIGHT 1023
 #define TILE_SIZE_MULTIPLIER 3 // tilesize/ segmentlength
-#define VELOCITY 70 // pixels per sec
-#define TURN_SPEED 2.5 // radians per sec
-#define HOLE_SIZE 5 // in ticks
-#define HOLE_FREQ 150 // number of ticks between holes
 #define TICK_LENGTH 24 // in msecs
 #define SERVER_DELAY 200 // in msecs
 #define COUNTDOWN 2000 // in msecs
@@ -29,6 +23,14 @@
 #define MAX_TELEPORTS 8
 #define HACKS 0
 
+/* default game settings */
+#define VELOCITY 70 // pixels per sec
+#define GAME_WIDTH 1024
+#define GAME_HEIGHT 644
+#define TURN_SPEED 2.5 // radians per sec
+#define HOLE_SIZE 5 // in ticks
+#define HOLE_FREQ 150 // number of ticks between holes
+
 /* artificial intelligence */
 #define COMPUTER_NAME "COMPUTER"
 #define COMPUTER_AI inputmechanism_marcusai
@@ -45,6 +47,7 @@
 #define MODE_OTHER 7
 #define MODE_SETMAP (8 + 7)
 
+/* debugging */
 #define DEBUG_MODE 1
 #define PENCIL_DEBUG 0
 #define ULTRA_VERBOSE 0
@@ -52,6 +55,7 @@
 #define GOD_MODE 0
 #define SEND_SEGMENTS 30 // om de hoeveel ticks het moet gebeuren (0=nooit)
 #define SAVE_COLLISION_TO_FILE 0
+#define PRINTPOS 1
 
 /* input control */
 #define MAX_FILE_REQ_LEN 100

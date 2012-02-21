@@ -926,6 +926,18 @@ void simuser(struct userpos *state, struct user *usr, char addsegments) {
 		}
 	}
 	
+	if(PRINTPOS) {
+		char s[255];
+		cJSON *j = jsoncreate("debugPos");
+		sprintf(s, "%.*f, %.*f, %.*f, %d", 19 - (int)log10(state->x), state->x, 
+			19 - (int)log10(state->y), state->y,
+			19 - (int)log10(state->angle), state->angle, handled);
+		jsonaddstr(j, "msg", s);
+		jsonaddnum(j, "tick", state->tick);
+		sendjson(j, usr);
+		jsondel(j);
+	}
+	
 	state->tick++;
 }
 
