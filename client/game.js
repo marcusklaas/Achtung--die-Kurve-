@@ -228,11 +228,11 @@ GameEngine.prototype.getCollision = function(x1, y1, x2, y2) {
 	if(other != null) {
 		var obj = {};
 		obj.isTeleport = true;
-		var colx = x1 + (x2 - x1) * cut;
-		var coly = y1 + (y2 - y1) * cut;
+		var colx = (1 - cut) * x1 + cut * x2;
+		var coly = (1 - cut) * y1 + cut * y2;
 		obj.collisionX = colx;
 		obj.collisionY = coly;
-		var r = getLength(colx - other.x1, coly - other.y1);
+		var r = other.tall ? coly - other.y1 : colx - other.x1;
 		obj.destX = other.destX + r * other.dx;
 		obj.destY = other.destY + r * other.dy;
 		obj.extraAngle = other.extraAngle;
@@ -249,9 +249,10 @@ GameEngine.prototype.getTeleport = function(colorId, a, b, c, d) {
 	var wy = d.y - c.y;
 	
 	var t = new BasicSegment(a.x, a.y, b.x, b.y);
+	t.tall = Math.abs(vy) > Math.abs(vx);
 	t.color = playerColors[colorId];
-	t.dx = wx / getLength(vx, vy);
-	t.dy = wy / getLength(vx, vy);
+	t.dx = wx / (t.tall ? vy : vx);
+	t.dy = wy / (t.tall ? vy : vx);
 	t.extraAngle = getAngle(wx, wy) - getAngle(vx, vy);
 	t.destX = c.x;
 	t.destY = c.y;
@@ -1423,8 +1424,8 @@ Player.prototype.simulate = function(endTick, ctx) {
 			if(obj.isTeleport) {
 				ctx.drawLine(this.x, this.y, obj.collisionX, obj.collisionY);
 				this.changeCourse(obj.extraAngle);
-				this.x = obj.destX + Math.cos(this.angle) / 2;
-				this.y = obj.destY + Math.sin(this.angle) / 2;
+				this.x = obj.destX + Math.cos(this.angle) / 10;
+				this.y = obj.destY + Math.sin(this.angle) / 10;
 				handled = true;
 			}
 		}
@@ -1436,16 +1437,14 @@ Player.prototype.simulate = function(endTick, ctx) {
 			if(this.game.torus && (this.x < 0 || this.x > this.game.width ||
 				this.y < 0 || this.y > this.game.height)) {
 				if(this.x > this.game.width)
-					this.x -= this.game.width;
+					this.x = 0;
 				else if(this.x < 0)
-					this.x += this.game.width;
+					this.x = this.game.width;
 
 				if(this.y > this.game.height)
-					this.y -= this.game.height;
+					this.y = 0;
 				else if(this.y < 0)
-					this.y += this.game.height;
-
-				ctx.drawLine(this.x - this.dx, this.y - this.dy, this.x, this.y);
+					this.y = this.game.height;
 			}
 		}
 	}
@@ -2651,12 +2650,12 @@ function segmentCollision(a, b) {
 		return -1;
 		
 	var numeratorA = (b.x2 - b.x1) * (a.y1 - b.y1) - (b.y2 - b.y1) * (a.x1 - b.x1);
-	var numeratorB = (a.x2 - a.x1) * (a.y1 - b.y1) - (a.y2 - a.y1) * (a.x1 - b.x1);
 	var t = numeratorA / denominator;
 	
 	if(t < 0 || t > 1)
 		return -1;
-		
+	
+	var numeratorB = (a.x2 - a.x1) * (a.y1 - b.y1) - (a.y2 - a.y1) * (a.x1 - b.x1);
 	var s = numeratorB / denominator;
 	
 	return (s >= 0 && s <= 1) ? s : -1;

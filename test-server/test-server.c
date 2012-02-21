@@ -182,7 +182,7 @@ callback_game(struct libwebsocket_context * context,
 
 			leavegame(victim, LEAVE_KICKED);
 
-			if(victim->inputmechanism == inputmechanism_human) {
+			if(victim->human) {
 				kick = smalloc(sizeof(struct kicknode));
 				kick->usr = victim;
 				kick->expiration = servermsecs() + KICK_REJOIN_TIME;
@@ -341,7 +341,7 @@ callback_game(struct libwebsocket_context * context,
 			u->gm->w = min(MAX_GAME_WIDTH, max(100, jsongetint(json, "w")));
 			u->gm->h = min(MAX_GAME_HEIGHT, max(100, jsongetint(json, "h")));
 			u->gm->v = min(1000, max(0, jsongetint(json, "v")));
-			u->gm->ts = min(10, max(0, jsongetfloat(json, "ts"))); 
+			u->gm->ts = (int) (min(10, max(0, jsongetdouble(json, "ts"))) * 1000) / 1000.0; 
 			u->gm->hsize = min(1000, max(0, jsongetint(json, "hsize")));
 			u->gm->hfreq = min(10000, max(0, jsongetint(json, "hfreq")));
 			u->gm->goal = min(1000, max(1, jsongetint(json, "goal")));

@@ -1,5 +1,5 @@
 #define EPS 0.0001
-#define PI 3.141592653
+#define PI 3.141592653589793
 #define GAME_WIDTH 1024
 #define GAME_HEIGHT 644
 #define MAX_GAME_WIDTH 2047
@@ -122,7 +122,7 @@ struct seg {
 
 struct teleport {
 	struct seg seg, dest;
-	double dx, dy, anglediff;
+	double dx, dy, anglediff, tall;
 	int colorid;
 	struct teleport *nxt;
 };
@@ -179,7 +179,7 @@ struct pencilseg {
 };
 
 struct pencil {
-	float ink;
+	double ink;
 	int x, y, tick;
 	char down;
 	struct pencilseg *pseghead, *psegtail;
@@ -203,6 +203,7 @@ struct user {
 	struct game *gm;
 	struct user *nxt;
 	char *name;
+	char human;
 
 	void (*inputmechanism)(struct user *, int);
 	
@@ -246,7 +247,7 @@ double getlength(double x, double y);
 char *gametypetostr(int gametype, char *buf);
 char *pencilmodetostr(int pencilmode, char *buf);
 void addsegment(struct game *gm, struct seg *seg);
-float checkcollision(struct game *gm, struct seg *seg);
+double checkcollision(struct game *gm, struct seg *seg);
 void endround(struct game *gm);
 void tiles(struct game *gm, struct seg *seg, int *tileindices);
 void clearinputs(struct user *usr);
@@ -265,4 +266,8 @@ void freekicklist(struct kicknode *kick);
 void inputmechanism_human(struct user *usr, int tick);
 void inputmechanism_circling(struct user *usr, int tick);
 void inputmechanism_marcusai(struct user *usr, int tick);
+void inputmechanism_straightahead(struct user *usr, int tick);
+void inputmechanism_random(struct user *usr, int tick);
+void inputmechanism_leftisallineed(struct user *usr, int tick);
+void inputmechanism_checktangent(struct user *usr, int tick);
 void deleteuser(struct user *usr);

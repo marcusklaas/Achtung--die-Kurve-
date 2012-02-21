@@ -62,6 +62,12 @@ void randomizeplayerstarts(struct game *gm) {
 
 		/* hstart now between 1 and 2 times usr->hsize + usr->hfreq */
 		usr->hstart = (1 + rand() % 5000/ 2500.0) * (usr->hsize + usr->hfreq);
+
+		/* to make sure client receives same values */
+		usr->state.angle = (int) (usr->state.angle * 1000) / 1000.0; 
+		usr->state.x = (int) usr->state.x;
+		usr->state.y = (int) usr->state.y; 
+
 		i++;
 	}
 }
@@ -266,13 +272,17 @@ void startgame(struct game *gm) {
 
 struct teleport *createteleport(struct seg *seg, struct seg *dest, int id) {
 	struct teleport *t;
+	double w, h;
 	
 	t = smalloc(sizeof(struct teleport));
 	t->colorid = id;
 	t->seg = *seg;
 	t->seg.t = t;
-	t->dx = (dest->x2 - dest->x1) / getseglength(seg);
-	t->dy = (dest->y2 - dest->y1) / getseglength(seg);
+	w = seg->x2 - seg->x1;
+	h = seg->y2 - seg->y1;
+	t->tall = fabs(h) > fabs(w);
+	t->dx = (dest->x2 - dest->x1) / (t->tall ? h : w);
+	t->dy = (dest->y2 - dest->y1) / (t->tall ? h : w);
 	t->dest = *dest;
 	t->anglediff = getsegangle(dest) - getsegangle(seg);
 	return t;
@@ -295,14 +305,15 @@ struct map *createmap(cJSON *j) {
 
 		if(jsoncheckjson(j, "playerStart")) {
 
-			seg->x2 = jsongetfloat(j, "angle");
+			seg->x2 = jsongetdouble(j, "angle");
 			seg->nxt = map->playerstarts;
 			map->playerstarts = seg;
 
 		} else {
 
-			if(!seginside(seg, MAX_GAME_WIDTH, MAX_GAME_HEIGHT)) {
-				warning("some host made custom map with segments outside max boundaries\n");
+			if(!seginside(seg, MAX_GAME_WIDTH, MAX_GAME_HEIGHT) || 
+					(seg->x1 == seg->x2 && seg->y1 == seg->y2)) {
+				warning("createmap segment out of boundaries or zero-length error\n");
 				free(seg);
 				j = j->next;
 				continue;
@@ -384,7 +395,7 @@ void remgame(struct game *gm) {
 	for(usr = gm->usr; usr; usr = nxt) {
 		nxt = usr->nxt;
 
-		if(usr->inputmechanism == inputmechanism_human)
+		if(usr->human)
 			joingame(lobby, usr);
 		else
 			deleteuser(usr);
@@ -483,7 +494,7 @@ void leavegame(struct user *usr, int reason) {
 	}
 
 	/* check if there still human players in list */
-	for(curr = gm->usr; curr && curr->inputmechanism != inputmechanism_human; curr = curr->nxt);
+	for(curr = gm->usr; curr && !curr->human; curr = curr->nxt);
 
 	if(curr && gm->host == usr) {
 		gm->host = curr;
@@ -601,7 +612,7 @@ void joingame(struct game *gm, struct user *newusr) {
 
 struct game *creategame(int gametype, int nmin, int nmax) {
 	struct game *gm = scalloc(1, sizeof(struct game));
-	float seglen;
+	double seglen;
 	
 	if(DEBUG_MODE)
 		printf("creating game %p\n", (void*)gm);
@@ -640,8 +651,8 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 }
 
 /* returns -1 if no collision, between 0 and 1 other wise */
-float segcollision(struct seg *seg1, struct seg *seg2) {
-	float denom, numer_a, numer_b, a, b;
+double segcollision(struct seg *seg1, struct seg *seg2) {
+	double denom, numer_a, numer_b, a, b;
 	
 	if(seg1->x2 == seg2->x1 && seg1->y2 == seg2->y1)
 		return -1;
@@ -698,9 +709,9 @@ float fastcollision(struct seg *seg1, struct seg *seg2) {
 }
 
 /* returns -1 in case no collision, else between 0 and -1 */
-float checktilecollision(struct seg *tile, struct seg *seg, struct seg **collidingseg) {
+double checktilecollision(struct seg *tile, struct seg *seg, struct seg **collidingseg) {
 	struct seg *current;
-	float cut, mincut = -1;
+	double cut, mincut = -1;
 
 	for(current = tile; current; current = current->nxt) {
 		cut = segcollision(current, seg);
@@ -789,9 +800,9 @@ void gettiles(struct game *gm, struct seg *seg, int *pa, int *pb, int *pc, int *
 struct seg *collidingseg = 0; // maybe instead as parameter to checkcollision
 
 /* returns -1 in case of no collision, between 0 and 1 else */
-float checkcollision(struct game *gm, struct seg *seg) {
+double checkcollision(struct game *gm, struct seg *seg) {
 	int i, j, a, b, c, d, index, dx;
-	float cut, mincut = -1;
+	double cut, mincut = -1;
 	struct seg *collider = 0;
 
 	gettiles(gm, seg, &a, &b, &c, &d);
@@ -842,43 +853,44 @@ void queueseg(struct game *gm, struct seg *seg) {
 }
 
 void simuser(struct userpos *state, struct user *usr, char addsegments) {
-	float cut;
-	double oldx = state->x, oldy = state->y, oldangle = state->angle;
+	double cut;
 	int inhole, outside;
 	struct seg seg;
 	char handled = 0;
+	
+	seg.t = 0;
+	seg.x1 = state->x;
+	seg.y1 = state->y;
 
 	state->angle += state->turn * state->ts * TICK_LENGTH / 1000.0;
 	state->x += cos(state->angle) * state->v * TICK_LENGTH / 1000.0;
 	state->y += sin(state->angle) * state->v * TICK_LENGTH / 1000.0;
+
+	seg.x2 = state->x;
+	seg.y2 = state->y;
 	
 	inhole = state->tick > usr->hstart 
 	 && (state->tick + usr->hstart) % (usr->hsize + usr->hfreq) < usr->hsize;
 	outside = state->x < 0 || state->x > usr->gm->w
 	 || state->y < 0 || state->y > usr->gm->h;
 
+	
 	/* check for collisions and add segment to map if needed */
-	seg.t = 0;
-	seg.x1 = oldx;
-	seg.y1 = oldy;
-	seg.x2 = state->x;
-	seg.y2 = state->y;
-		
 	cut = checkcollision(usr->gm, &seg);
 	if(cut != -1.0) {
 		if(collidingseg->t) {
 			struct teleport *t = collidingseg->t;
 			double x = (1 - cut) * seg.x1 + cut * seg.x2;
 			double y = (1 - cut) * seg.y1 + cut * seg.y2;
-			double r = getlength(x - collidingseg->x1, y - collidingseg->y1);
+			double r = t->tall ? y - collidingseg->y1 : x - collidingseg->x1;
 			
 			/* we make sure to not cross the teleport */
 			seg.x2 = x - cos(state->angle) / 10;
 			seg.y2 = y - sin(state->angle) / 10;
 
 			state->angle += t->anglediff;
-			state->x = t->dest.x1 + t->dx * r + cos(state->angle) / 2;
-			state->y = t->dest.y1 + t->dy * r + sin(state->angle) / 2;
+			state->x = t->dest.x1 + t->dx * r + cos(state->angle) / 10;
+			state->y = t->dest.y1 + t->dy * r + sin(state->angle) / 10;
 			handled = 1; 
 		} else if(!inhole || !HACKS) {
 			state->x = seg.x2 = (1 - cut) * seg.x1 + cut * seg.x2;
@@ -899,28 +911,18 @@ void simuser(struct userpos *state, struct user *usr, char addsegments) {
 		if(usr->gm->torus) {
 
 			if(state->x > usr->gm->w)
-				state->x = oldx - usr->gm->w;
+				state->x = 0;
 			else if(state->x < 0)
-				state->x = oldx + usr->gm->w;
-			else
-				state->x = oldx;
+				state->x = usr->gm->w;
 
 			if(state->y > usr->gm->h)
-				state->y = oldy - usr->gm->h;
+				state->y = 0;
 			else if(state->y < 0)
-				state->y = oldy + usr->gm->h;
-			else
-				state->y = oldy;
-			
-			/* simulate this tick again from another point */
-			state->angle = oldangle;
-			simuser(state, usr, addsegments);
-			return;
+				state->y = usr->gm->h;
 
 		} else {
 		
 			state->alive = 0;
-
 		}
 	}
 	
@@ -1220,6 +1222,7 @@ void iniuser(struct user *usr, struct libwebsocket *wsi) {
 	usr->id = usrc++;
 	usr->wsi = wsi;
 	usr->inputmechanism = inputmechanism_human;
+	usr->human = 1;
 }
 
 void deleteuser(struct user *usr) {
@@ -1240,7 +1243,7 @@ void deleteuser(struct user *usr) {
 	if(usr->recvbuf)
 		free(usr->recvbuf);
 
-	if(usr->inputmechanism != inputmechanism_human)
+	if(!usr->human)
 		free(usr);
 }
 
@@ -1284,6 +1287,7 @@ int checkkick(struct game *gm, struct user *usr) {
 void addcomputer(struct game *gm) {
 	struct user *comp = smalloc(sizeof(struct user));
 	iniuser(comp, 0);
+	comp->human = 0;
 	comp->name = smalloc(MAX_NAME_LENGTH + 1);
 	strcpy(comp->name, COMPUTER_NAME);
 	comp->inputmechanism = COMPUTER_AI;
@@ -1350,7 +1354,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 				break;
 			}
 		} else {
-			float d = getlength(p->x - x, p->y - y);
+			double d = getlength(p->x - x, p->y - y);
 			if(p->ink < d - EPS || !p->down) {
 				warningplayer(u, "error: pencil move: not enough ink or pencil not down, down: %d, ink difference: %f\n", p->down, d - p->ink);
 				break;
@@ -1448,7 +1452,7 @@ void cleanpencil(struct pencil *pen) {
 
 void gototick(struct pencil *p, int tick) {
 	int ticks = tick - p->tick;
-	float inc = ticks * TICK_LENGTH / 1000.0 * p->usr->gm->inkregen;
+	double inc = ticks * TICK_LENGTH / 1000.0 * p->usr->gm->inkregen;
 
 	p->ink = min(p->ink + inc, p->usr->gm->inkcap);
 }
@@ -1487,7 +1491,7 @@ void inputmechanism_random(struct user *usr, int tick) {
 void inputmechanism_leftisallineed(struct user *usr, int tick) {
 	int turn, i;
 	struct seg seg;
-	float visionlength;
+	double visionlength;
 	struct userpos *pos = &usr->aistate;
 
 	if(tick == 0) {
@@ -1590,7 +1594,7 @@ void inputmechanism_marcusai(struct user *usr, int tick) {
 void inputmechanism_checktangent(struct user *usr, int tick) {
 	int turn;
 	struct seg seg;
-	float visionlength;
+	double visionlength;
 	struct userpos *pos = &usr->aistate;
 
 	if(tick == 0) {
