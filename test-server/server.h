@@ -55,7 +55,7 @@
 #define GOD_MODE 0
 #define SEND_SEGMENTS 30 // om de hoeveel ticks het moet gebeuren (0=nooit)
 #define SAVE_COLLISION_TO_FILE 0
-#define PRINTPOS 0
+#define DEBUGPOS 0
 
 /* input control */
 #define MAX_FILE_REQ_LEN 100
@@ -237,9 +237,20 @@ struct buffer {
 	char *start, *at, *end;
 };
 
+#define jsonaddnum cJSON_AddNumberToObject
+#define jsonaddstr cJSON_AddStringToObject
+#define jsonaddfalse cJSON_AddFalseToObject
+#define jsonaddtrue cJSON_AddTrueToObject
+#define jsonaddjson cJSON_AddItemToObject
+#define jsonprint cJSON_PrintUnformatted
+#define jsonaddbool(json, name, value) cJSON_AddItemToObject(json, name, cJSON_CreateBool(value))
+#define jsondel	cJSON_Delete
+#define max(a,b) ((b) > (a) ? (b) : (a))
+#define min(a,b) ((b) > (a) ? (a) : (b))
+
 void *smalloc(size_t size);
 void *scalloc(size_t num, size_t size);
-cJSON *getjsongamepars(struct game *gm);
+cJSON *encodegamepars(struct game *gm);
 void resetpencil(struct pencil *p, struct user *u);
 void cleanpencil(struct pencil *p);
 void simpencil(struct pencil *p);
@@ -275,3 +286,6 @@ void inputmechanism_random(struct user *usr, int tick);
 void inputmechanism_leftisallineed(struct user *usr, int tick);
 void inputmechanism_checktangent(struct user *usr, int tick);
 void deleteuser(struct user *usr);
+void updategamelist();
+char *statetostr(int gamestate, char *str);
+cJSON *jsoncreate(char *mode);

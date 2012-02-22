@@ -260,7 +260,7 @@ callback_game(struct libwebsocket_context * context,
 			j = jsoncreate("chat");
 			jsonaddnum(j, "playerId", u->id);
 			jsonaddstr(j, "message", duplicatestring(msg));
-			sendjsontogame(j, u->gm, u);
+			airjson(j, u->gm, u);
 			jsondel(j);
 		}
 		else if(!strcmp(mode, "getTime")) {
@@ -352,8 +352,8 @@ callback_game(struct libwebsocket_context * context,
 			u->gm->inkdelay = min(20000, max(0, jsongetint(json, "inkdelay")));
 			u->gm->torus = (0 != jsongetint(json, "torus"));
 
-			j = getjsongamepars(u->gm);
-			sendjsontogame(j, u->gm, 0);
+			j = encodegamepars(u->gm);
+			airjson(j, u->gm, 0);
 			jsondel(j);
 		}
 		else if(!strcmp(mode, "startGame")) {
@@ -376,7 +376,7 @@ callback_game(struct libwebsocket_context * context,
 					freemap(u->gm->map);
 				u->gm->map = createmap(j->child);
 				
-				sendmaptogame(u->gm->map, u->gm, 0);
+				airmap(u->gm->map, u->gm, 0);
 			}
 
 			startgame(u->gm);
