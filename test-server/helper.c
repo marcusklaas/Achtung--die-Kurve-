@@ -59,6 +59,14 @@ void freesegments(struct seg *seg) {
 	}
 }
 
+void freeteleports(struct teleport *tp) {
+	struct teleport *nxt;
+	for(; tp; tp = nxt) {
+		nxt = tp->nxt;
+		free(tp);
+	}
+}
+
 char *duplicatestring(char *orig) {
 	return strcpy(smalloc(strlen(orig) + 1), orig);
 }

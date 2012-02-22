@@ -86,7 +86,7 @@ callback_game(struct libwebsocket_context * context,
 {
 	struct user *u = user;
 	char *inchar= in;
-	cJSON *json, *j;
+	cJSON *json = 0, *j;
 	char *mode;
 	int i, msgsize, bufsize;
 
@@ -102,6 +102,7 @@ callback_game(struct libwebsocket_context * context,
 		jsonaddnum(json, "inkMinimumDistance", INK_MIN_DISTANCE);
 		sendjson(json, u);
 		jsondel(json);
+		json = 0;
 		break;
 
 	case LWS_CALLBACK_CLOSED:
@@ -398,12 +399,14 @@ callback_game(struct libwebsocket_context * context,
 		else
 			warning("unkown mode!\n");
 
-		jsondel(json);
 		break;
 
 	default:
 		break;
 	}
+
+	if(json)
+		jsondel(json);
 
 	return 0;
 }

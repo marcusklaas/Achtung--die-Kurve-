@@ -272,6 +272,7 @@ struct map *createmap(cJSON *j) {
 void freemap(struct map *map) {
 	freesegments(map->seg);
 	freesegments(map->playerstarts);
+	freeteleports(map->teleports);
 	free(map);
 }
 
