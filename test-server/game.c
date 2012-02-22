@@ -80,6 +80,14 @@ void freesegments(struct seg *seg) {
 	}
 }
 
+void freeteleports(struct teleport *tp) {
+	struct teleport *nxt;
+	for(; tp; tp = nxt) {
+		nxt = tp->nxt;
+		free(tp);
+	}
+}
+
 cJSON *encodesegments(struct seg *seg) {
 	cJSON *ar = cJSON_CreateArray();
 	while(seg) {
@@ -372,6 +380,7 @@ struct map *createmap(cJSON *j) {
 void freemap(struct map *map) {
 	freesegments(map->seg);
 	freesegments(map->playerstarts);
+	freeteleports(map->teleports);
 	free(map);
 }
 
