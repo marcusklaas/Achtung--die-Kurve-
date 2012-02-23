@@ -1565,9 +1565,24 @@ function InputController(player, left, right) {
 	/* listen for keyboard events */
 	window.addEventListener('keydown', function(e) {
 		if(self.player.status != 'alive' || game.state != 'playing') {
-			if(game.state == 'editing') {
-				if(e.keyCode == 90 && e.ctrlKey) {
+			if(game.state == 'editing' && document.activeElement != game.chatBar) {
+				if(e.keyCode == 85) {
 					game.editor.undo();
+					e.preventDefault();
+				}
+				if(e.keyCode == 83) {
+					simulateClick(game.editor.playerStartButton);
+				}
+				if(e.keyCode == 80) {
+					simulateClick(game.editor.pencilButton);
+					e.preventDefault();
+				}
+				if(e.keyCode == 84) {
+					simulateClick(game.editor.teleportButton);
+					e.preventDefault();
+				}
+				if(e.keyCode == 69) {
+					simulateClick(game.editor.eraserButton);
 					e.preventDefault();
 				}
 			}
@@ -2158,27 +2173,26 @@ Editor = function(game) {
 		node.className = 'btn active';
 	}
 	
-	var pencilButton = document.getElementById('editorPencil');
-	pencilButton.className = 'btn active';
-	pencilButton.addEventListener('click', function(e) {
+	this.pencilButton = document.getElementById('editorPencil');
+	this.eraserButton = document.getElementById('editorEraser');
+	this.playerStartButton = document.getElementById('editorPlayerStart');
+	this.teleportButton = document.getElementById('editorTeleport');
+	
+	this.pencilButton.mode = 'pencil';
+	this.eraserButton.mode = 'eraser';
+	this.playerStartButton.mode = 'playerStart';
+	this.teleportButton.mode = 'teleport';
+	
+	var click = function(e) {
 		activate(e.target);
-		self.mode = 'pencil';
-	}, false);
-
-	document.getElementById('editorEraser').addEventListener('click', function(e) {
-		activate(e.target);
-		self.mode = 'eraser';
-	}, false);
-
-	document.getElementById('editorPlayerStart').addEventListener('click', function(e) {
-		activate(e.target);
-		self.mode = 'playerStart';
-	}, false);
-
-	document.getElementById('editorTeleport').addEventListener('click', function(e) {
-		activate(e.target);
-		self.mode = 'teleport';
-	}, false);
+		self.mode = e.target.mode;
+	};
+	
+	this.pencilButton.className = 'btn active';
+	this.pencilButton.addEventListener('click', click, false);
+	this.eraserButton.addEventListener('click', click, false);
+	this.playerStartButton.addEventListener('click', click, false);
+	this.teleportButton.addEventListener('click', click, false);
 }
 
 Editor.prototype.onmouse = function(type, ev) {
@@ -2190,7 +2204,7 @@ Editor.prototype.onmouse = function(type, ev) {
 	
 	var x = pos[0];
 	var y = pos[1];
-
+	
 	// mouse click event, or cursor back on canvas event while still holding mouse button in correct mode
 	if(type == 'down' || (this.out && type == 'over' && this.down && (this.mode == 'eraser' || this.mode == 'pencil') )) {
 		this.x = x;
@@ -2781,4 +2795,11 @@ function printDebugPos() {
 
 function format(s, len) {
 	return (s  +  '0000000000000000000000000000').substr(0, len);
+}
+
+function simulateClick(element) {
+	var evt = document.createEvent("MouseEvents");
+	evt.initMouseEvent("click", true, true, window, 
+		0, 0, 0, 0, 0, false, false, false, false, 0, null);
+	element.dispatchEvent(evt);
 }
