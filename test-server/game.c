@@ -1260,6 +1260,8 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 				seg->y1 = p->y;
 				seg->x2 = x;
 				seg->y2 = y;
+				seg->t = 0;
+
 				pseg->tick = tickSolid;
 				pseg->nxt = p->pseghead;
 				if(p->pseghead)
