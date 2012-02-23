@@ -39,6 +39,7 @@ GameEngine.prototype.reset = function() {
 	this.redrawsPrevented = 0;
 	this.adjustGameTimeMessagesReceived = 0;
 	this.modifiedInputs = 0;
+	this.crossQueue = []; // x and y coordinates
 	document.getElementById('winAnnouncer').style.display = 'none';
 	
 	this.pencil.reset();
@@ -499,6 +500,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;
 		case 'endRound':
 			window.clearTimeout(this.gameloopTimeout);
+			this.revertBackup();
 			document.getElementById('inkIndicator').style.display = 'none';
 			for(var i = this.maxHiddenRewards; i < this.rewardNodes.length; i++)
 				this.canvasContainer.removeChild(this.rewardNodes.pop());
@@ -1011,7 +1013,7 @@ GameEngine.prototype.revertBackup = function() {
 		var player = this.players[i];
 		
 		if(player.status == 'ready')
-			continue; // break beter?
+			break;
 
 		player.loadLocation();
 
@@ -1023,17 +1025,24 @@ GameEngine.prototype.revertBackup = function() {
 		player.saveLocation();
 	}
 
+	// draw crosses
+	for(var i = 0, len = this.crossQueue.length/ 2; i < len; i++)
+		this.drawCross(this.backupContext, this.crossQueue[2 * i], this.crossQueue[2 * i + 1]);
+
+	this.crossQueue = [];
+
 	// copy backupcanvas to basecanvas
 	this.baseContext.drawImage(this.backupCanvas, 0, 0, this.width, this.height);
 
 	// simulate every player up to tick/ tock
 	for(var i in this.players) {
 		var player = this.players[i];
+		var tick = player.isLocal ? this.tick - 1 : this.tock - 1;
 
 		if(player.status == 'ready')
-			continue;
+			break;
 
-		player.simulate(player.isLocal ? this.tick - 1 : this.tock - 1, this.baseContext);
+		player.simulate(tick, this.baseContext);
 	}
 
 	this.backupNeeded = false;
@@ -1189,7 +1198,7 @@ GameEngine.prototype.resize = function() {
 		var player = this.players[i];
 		
 		if(player.status == 'ready')
-			continue; // break beter?
+			break;
 
 		//TODO: voor alle startvariabelen zelfde methode gebruiken als saveLocation loadLocation
 		player.x = player.startX;
@@ -1209,6 +1218,18 @@ GameEngine.prototype.resize = function() {
 
 	if(this.pencilMode != 'off')
 		this.pencil.drawPlayerSegs(true);
+}
+
+GameEngine.prototype.drawCross = function(ctx, x, y) {	
+	setLineColor(ctx, crossColor, 1);
+	ctx.lineWidth = crossLineWidth;
+	ctx.beginPath();
+	ctx.moveTo(x - crossSize / 2, y - crossSize / 2);
+	ctx.lineTo(x + crossSize / 2, y + crossSize / 2);
+	ctx.moveTo(x + crossSize / 2, y - crossSize / 2);
+	ctx.lineTo(x - crossSize / 2, y + crossSize / 2);
+	ctx.stroke();
+	ctx.lineWidth = lineWidth;
 }
 
 GameEngine.prototype.initContext = function(ctx) {
@@ -1410,9 +1431,8 @@ Player.prototype.simulate = function(endTick, ctx) {
 		if(nextInput != null && nextInput.tick == this.tick) {
 			if(nextInput.finalTurn) {
 				ctx.drawLine(this.x, this.y, nextInput.x, nextInput.y);
-				this.x = nextInput.x;
-				this.y = nextInput.y;
-				this.simulateDead();
+				this.game.crossQueue.push(this.x = nextInput.x);
+				this.game.crossQueue.push(this.y = nextInput.y);
 				this.tick++;
 				return;
 			} else {
@@ -1460,20 +1480,6 @@ Player.prototype.simulate = function(endTick, ctx) {
 			debugPosA[this.tick] = format(this.x, 21) + ', ' + format(this.y, 21) + ', ' + 
 				format(this.angle, 21) + ', ' + handled;
 	}
-}
-
-Player.prototype.simulateDead = function() {	
-	// draw cross
-	var ctx = this.game.baseContext;
-	setLineColor(ctx, crossColor, 1);
-	ctx.lineWidth = crossLineWidth;
-	ctx.beginPath();
-	ctx.moveTo(this.x - crossSize / 2, this.y - crossSize / 2);
-	ctx.lineTo(this.x + crossSize / 2, this.y + crossSize / 2);
-	ctx.moveTo(this.x + crossSize / 2, this.y - crossSize / 2);
-	ctx.lineTo(this.x - crossSize / 2, this.y + crossSize / 2);
-	ctx.stroke();
-	ctx.lineWidth = lineWidth;
 }
 
 Player.prototype.updateRow = function() {
@@ -1943,7 +1949,7 @@ Pencil.prototype.drawPlayerSegs = function(redraw) {
 		var player = this.game.players[i];
 		
 		if(player.status == 'ready')
-			continue;
+			return;
 		
 		var buffer = player.inbuffer;
 		var index = redraw ? 0 : player.inbufferIndex;
