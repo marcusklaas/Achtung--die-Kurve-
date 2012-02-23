@@ -1031,9 +1031,6 @@ GameEngine.prototype.revertBackup = function() {
 
 	this.crossQueue = [];
 
-	// copy backupcanvas to basecanvas
-	this.baseContext.drawImage(this.backupCanvas, 0, 0, this.width, this.height);
-
 	// simulate every player up to tick/ tock
 	for(var i in this.players) {
 		var player = this.players[i];
@@ -1044,6 +1041,9 @@ GameEngine.prototype.revertBackup = function() {
 
 		player.simulate(tick, this.baseContext);
 	}
+
+	// copy backupcanvas to basecanvas
+	this.baseContext.drawImage(this.backupCanvas, 0, 0, this.width, this.height);
 
 	this.backupNeeded = false;
 }
@@ -1214,10 +1214,11 @@ GameEngine.prototype.resize = function() {
 	}
 	
 	this.drawMapSegments();
-	this.revertBackup();
 
 	if(this.pencilMode != 'off')
 		this.pencil.drawPlayerSegs(true);
+
+	this.revertBackup();
 }
 
 GameEngine.prototype.drawCross = function(ctx, x, y) {	
@@ -1929,7 +1930,11 @@ Pencil.prototype.doTick = function() {
 			this.outbuffer.push(x);
 			this.outbuffer.push(y);
 			this.outbuffer.push(this.game.tick);
-			this.drawSegment(this.x, this.y, x, y, this.game.localPlayer, pencilAlpha);
+
+			/* i think we can get away with just drawing on baseContext here, because we will receive these
+			 * segs from server not much later and then they'll be drawn on backupContext as well */
+			this.drawSegment(this.game.baseContext, this.x, this.y, x, y, this.game.localPlayer, pencilAlpha);
+
 			this.x = x;
 			this.y = y;
 			this.upped = false;
@@ -1952,15 +1957,19 @@ Pencil.prototype.drawPlayerSegs = function(redraw) {
 			return;
 		
 		var buffer = player.inbuffer;
-		var index = redraw ? 0 : player.inbufferIndex;
 		
-		while(index < buffer.length) {
+		for(var index = redraw ? 0 : player.inbufferIndex; index < buffer.length; index++) {
 			var seg = buffer[index];
 			var solid = seg.tickSolid <= this.game.tick;
 			if(!solid && !redraw)
 				break;
-			this.drawSegment(seg.x1, seg.y1, seg.x2, seg.y2, player, solid ? 1 : pencilAlpha);
-			index++;
+
+			if(!redraw)
+				this.drawSegment(this.game.baseContext, seg.x1, seg.y1,
+				 seg.x2, seg.y2, player, solid ? 1 : pencilAlpha);
+
+			this.drawSegment(this.game.backupContext, seg.x1, seg.y1,
+			 seg.x2, seg.y2, player, solid ? 1 : pencilAlpha);
 		}
 		
 		if(!redraw)
@@ -1968,10 +1977,10 @@ Pencil.prototype.drawPlayerSegs = function(redraw) {
 	}
 }
 
-Pencil.prototype.drawSegment = function(x1, y1, x2, y2, player, alpha) {
+Pencil.prototype.drawSegment = function(ctx, x1, y1, x2, y2, player, alpha) {
 	if(x1 == x2 && y1 == y2)
 		return;
-	var ctx = this.game.baseContext;
+
 	ctx.beginPath();
 	setLineColor(ctx, player.color, alpha);
 	var tmp = ctx.lineCap;
@@ -2001,8 +2010,11 @@ Pencil.prototype.handleMessage = function(msg, player) {
 			}
 			
 			var seg = {x1: player.pencilX, y1: player.pencilY, x2: pos.x, y2: pos.y, tickSolid: tick};
-			if(player != this.game.localPlayer)
-				this.drawSegment(seg.x1, seg.y1, seg.x2, seg.y2, player, pencilAlpha);
+			if(player != this.game.localPlayer) {
+				this.drawSegment(this.game.baseContext, seg.x1, seg.y1, seg.x2, seg.y2, player, pencilAlpha);
+				this.drawSegment(this.game.backupContext, seg.x1, seg.y1, seg.x2, seg.y2, player, pencilAlpha);
+			}
+
 			player.inbuffer.push(seg);
 			lastTick = tick;
 		}
