@@ -72,67 +72,6 @@ void randomizeplayerstarts(struct game *gm) {
 	}
 }
 
-void freesegments(struct seg *seg) {
-	struct seg *nxt;
-	for(; seg; seg = nxt) {
-		nxt = seg->nxt;
-		free(seg);
-	}
-}
-
-void freeteleports(struct teleport *tp) {
-	struct teleport *nxt;
-	for(; tp; tp = nxt) {
-		nxt = tp->nxt;
-		free(tp);
-	}
-}
-
-cJSON *encodesegments(struct seg *seg) {
-	cJSON *ar = cJSON_CreateArray();
-	while(seg) {
-		cJSON *a = cJSON_CreateObject();
-		jsonaddnum(a,"x1", seg->x1);
-		jsonaddnum(a,"y1", seg->y1);
-		jsonaddnum(a,"x2", seg->x2);
-		jsonaddnum(a,"y2", seg->y2);
-		cJSON_AddItemToArray(ar, a);
-		seg = seg->nxt;
-	}
-	return ar;
-}
-
-cJSON *encodegame(struct game *gm) {
-	cJSON *json = cJSON_CreateObject();
-	char buf[20];
-
-	jsonaddnum(json, "id", gm->id);
-	jsonaddnum(json, "n", gm->n);
-	jsonaddnum(json, "nmin", gm->nmin);
-	jsonaddnum(json, "nmax", gm->nmax);
-	if(gm->host)
-		jsonaddstr(json, "host", gm->host->name);
-
-	jsonaddstr(json, "type", gametypetostr(gm->type, buf));
-	jsonaddstr(json, "state", statetostr(gm->state, buf));
-	return json;
-}
-
-cJSON *encodegamelist() {
-	struct game *gm;
-	cJSON *game, *gmArr, *json = jsoncreate("gameList");
-	
-	gmArr = cJSON_CreateArray();
-	cJSON_AddItemToObject(json, "games", gmArr);
-
-	for(gm = headgame; gm; gm = gm->nxt) {
-		game = encodegame(gm);
-		cJSON_AddItemToArray(gmArr, game);
-	}
-
-	return json;
-}
-
 void newgamelist() {
 	cJSON *games = encodegamelist();
 
@@ -151,53 +90,6 @@ void updategamelist() {
 		newgamelist();
 		gamelistage = servermsecs();
 		gamelistcurrent = 1;
-	}
-}
-
-void sendgamelist(struct user *usr) {
-	updategamelist();
-
-	if(gamelistage > usr->gamelistage) {
-		usr->gamelistage = gamelistage;
-		sendstr(gamelist, gamelistlen, usr);
-	}
-}
-
-void broadcastgamelist() {
-	struct user *usr;
-	static int updateticks = GAMELIST_UPDATE_INTERVAL/ TICK_LENGTH;
-	int i = 0, maxsends = ceil(lobby->n * (float) (serverticks % updateticks) / updateticks);
-
-	// should be faster?
-	// maxsends = lobby->n * (serverticks % updateticks) / updateticks + 1;
-
-	for(usr = lobby->usr; usr && i++ < maxsends; usr = usr->nxt)
-		if(servermsecs() - GAMELIST_UPDATE_INTERVAL > usr->gamelistage)
-			sendgamelist(usr);
-}
-
-void logstartgame(struct game *gm) {
-	loggame(gm, "started! players: %d\n", gm->n);
-
-	if(gm->type == GT_CUSTOM) {
-		char *a;
-		cJSON *j;
-
-		j = getjsongamepars(gm);
-		a = cJSON_Print(j);
-		log("%s\n", a);
-
-		free(a);
-		jsondel(j);
-
-		if(gm->map) {
-			j = encodesegments(gm->map->seg);
-			a = cJSON_PrintUnformatted(j);
-			log("%s\n", a);
-
-			free(a);
-			jsondel(j);
-		}
 	}
 }
 
@@ -274,7 +166,7 @@ void startgame(struct game *gm) {
 	jsonaddnum(root, "startTime", (int)gm->start);
 	jsonaddnum(root, "goal", gm->goal);
 	cJSON_AddItemToObject(root, "startPositions", start_locations);
-	sendjsontogame(root, gm, 0);
+	airjson(root, gm, 0);
 	jsondel(root);
 }
 
@@ -440,8 +332,8 @@ struct game *findgame(int nmin, int nmax) {
 		gm->nmin = max(gm->nmin, nmin);
 		gm->nmax = min(gm->nmax, nmax);
 		gm->goal = 20; // TEMP REMOVAL // ceil(roundavgpts(gm->n + 1, gm->pointsys) * AUTO_ROUNDS);
-		json = getjsongamepars(gm);
-		sendjsontogame(json, gm, 0);
+		json = encodegamepars(gm);
+		airjson(json, gm, 0);
 		jsondel(json);
 	}
 	
@@ -461,20 +353,6 @@ struct game *searchgame(int gameid) {
 	for(gm = headgame; gm && gameid != gm->id; gm = gm->nxt);
 
 	return gm;
-}
-
-void broadcasthost(struct game *gm) {
-	cJSON *j = jsoncreate("setHost");
-	jsonaddnum(j, "playerId", gm->host->id);
-	sendjsontogame(j, gm, 0);
-	jsondel(j);
-}
-
-void tellhost(struct user *host, struct user *usr) {
-	cJSON *j = jsoncreate("setHost");
-	jsonaddnum(j, "playerId", host->id);
-	sendjson(j, usr);
-	jsondel(j);
 }
 
 void leavegame(struct user *usr, int reason) {
@@ -507,7 +385,7 @@ void leavegame(struct user *usr, int reason) {
 
 	if(curr && gm->host == usr) {
 		gm->host = curr;
-		broadcasthost(gm);
+		airhost(gm);
 		gamelistcurrent = 0;
 	}
 
@@ -519,7 +397,7 @@ void leavegame(struct user *usr, int reason) {
 	json = jsoncreate("playerLeft");
 	jsonaddnum(json, "playerId", usr->id);
 	jsonaddstr(json, "reason", leavereasontostr(reason, buf));
-	sendjsontogame(json, gm, 0);
+	airjson(json, gm, 0);
 	jsondel(json);
 
 	if(gm->type != GT_LOBBY) {
@@ -579,7 +457,7 @@ void joingame(struct game *gm, struct user *newusr) {
 		jsonaddnum(json, "index", usr->index);
 		jsonaddstr(json, "playerName", usr->name);
 		if(usr == newusr)
-			sendjsontogame(json, gm, newusr);
+			airjson(json, gm, newusr);
 		else
 			sendjson(json, newusr);
 		jsondel(json);
@@ -589,14 +467,14 @@ void joingame(struct game *gm, struct user *newusr) {
 	if(gm->type == GT_LOBBY)
 		sendgamelist(newusr);
 	else {
-		json = getjsongamepars(gm);
+		json = encodegamepars(gm);
 		sendjson(json, newusr);
 		jsondel(json);
 		
 		if(gm->map)
 			sendmap(gm->map, newusr);
 		if(gm->host)
-			tellhost(gm->host, newusr);
+			sendhost(gm->host, newusr);
 	}
 
 	if(gm->type == GT_AUTO && gm->n >= gm->nmin)
@@ -606,7 +484,7 @@ void joingame(struct game *gm, struct user *newusr) {
 	if(gm->n == 1) {
 		json = encodegame(gm);
 		cJSON_AddStringToObject(json, "mode", "newGame");
-		sendjsontogame(json, lobby, newusr);
+		airjson(json, lobby, newusr);
 		jsondel(json);
 		newgamelist();
 	}
@@ -935,7 +813,7 @@ void simuser(struct userpos *state, struct user *usr, char addsegments) {
 		}
 	}
 	
-	if(PRINTPOS) {
+	if(DEBUGPOS) {
 		char s[255];
 		cJSON *j = jsoncreate("debugPos");
 		sprintf(s, "%.*f, %.*f, %.*f, %d", 19 - (int)log10(state->x), state->x, 
@@ -950,36 +828,12 @@ void simuser(struct userpos *state, struct user *usr, char addsegments) {
 	state->tick++;
 }
 
-/* send message to group: this player died */
-void deadplayermsg(struct user *usr, int tick, int reward) {
-	cJSON *json = jsoncreate("playerDied");
-	jsonaddnum(json, "playerId", usr->id);
-	jsonaddnum(json, "reward", reward);
-	jsonaddnum(json, "tick", tick);
-	jsonaddnum(json, "x", usr->state.x);
-	jsonaddnum(json, "y", usr->state.y);
-	sendjsontogame(json, usr->gm, 0);
-	jsondel(json);
-}
-
-void sendsegments(struct game *gm) {
-	if(gm->tosend) {
-		cJSON *json = jsoncreate("segments");
-		cJSON *ar = encodesegments(gm->tosend);
-		freesegments(gm->tosend);
-		gm->tosend = 0;
-		jsonaddjson(json, "segments", ar);
-		sendjsontogame(json, gm, 0);
-		jsondel(json);
-	}
-}
-
 void endgame(struct game *gm, struct user *winner) {
 	struct user *usr;
 	
 	cJSON *json = jsoncreate("endGame");
 	jsonaddnum(json, "winnerId", winner->id);
-	sendjsontogame(json, gm, 0);
+	airjson(json, gm, 0);
 	jsondel(json);
 
 	if(DEBUG_MODE)
@@ -1009,7 +863,7 @@ void endround(struct game *gm) {
 		gm->tick * TICK_LENGTH / 1000, gm->modifieds, gm->timeadjustments);
 
 	if(SEND_SEGMENTS)
-		sendsegments(gm);
+		airsegments(gm);
 
 	for(roundwinner = gm->usr; roundwinner && !roundwinner->state.alive;
 	 roundwinner = roundwinner->nxt);
@@ -1017,7 +871,7 @@ void endround(struct game *gm) {
 	json = jsoncreate("endRound");
 	jsonaddnum(json, "winnerId", roundwinner ? roundwinner->id : -1);
 	jsonaddnum(json, "finalTick", gm->tick);
-	sendjsontogame(json, gm, 0);
+	airjson(json, gm, 0);
 	jsondel(json);
 
 	/* check if there is a winner */
@@ -1060,7 +914,7 @@ void handledeath(struct user *victim) {
 		if(usr->state.alive)
 			usr->points += reward;
 	
-	deadplayermsg(victim, gm->tick, reward);
+	airdeath(victim, gm->tick, reward);
 
 	if(DEBUG_MODE)
 		printf("player %d died\n", victim->id);
@@ -1102,7 +956,7 @@ void simgame(struct game *gm) {
 	}
 
 	if(SEND_SEGMENTS && gm->tick % SEND_SEGMENTS == 0)
-		sendsegments(gm);
+		airsegments(gm);
 	
 	if(gm->alive <= 1 && (gm->n > 1 || gm->alive < 1))
 		endround(gm);
@@ -1125,7 +979,7 @@ void mainloop() {
 			resetspamcounters(gm, serverticks);
 		}
 		
-		broadcastgamelist();
+		airgamelist();
 		resetspamcounters(lobby, serverticks);
 		sleepuntil = ++serverticks * TICK_LENGTH;
 		now = servermsecs();
@@ -1224,7 +1078,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 		}
 	}
 
-	steermsg(usr, tick, turn, delay);
+	sendsteer(usr, tick, turn, delay);
 }
 
 void clearinputs(struct user *usr) {
@@ -1427,7 +1281,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 	}
 	
 	if(!buffer_empty)
-		sendstrtogame(buf.start, buf.at - buf.start, u->gm, 0);
+		airstr(buf.start, buf.at - buf.start, u->gm, 0);
 	
 	free(buf.start);
 }
@@ -1490,7 +1344,7 @@ void inputmechanism_circling(struct user *usr, int tick) {
 		return;
 
 	queueinput(usr, tick, turn);
-	steermsg(usr, tick, turn, 0);
+	sendsteer(usr, tick, turn, 0);
 }
 
 void inputmechanism_random(struct user *usr, int tick) {
@@ -1506,7 +1360,7 @@ void inputmechanism_random(struct user *usr, int tick) {
 		return;
 
 	queueinput(usr, tick, turn);
-	steermsg(usr, tick, turn, 0);
+	sendsteer(usr, tick, turn, 0);
 }
 
 void inputmechanism_leftisallineed(struct user *usr, int tick) {
@@ -1538,7 +1392,7 @@ void inputmechanism_leftisallineed(struct user *usr, int tick) {
 		return;
 
 	queueinput(usr, tick, turn);
-	steermsg(usr, tick, turn, 0);
+	sendsteer(usr, tick, turn, 0);
 }
 
 float marcusai_helper(struct userpos *state, struct user *usr, int depth, int tickstep) {
@@ -1609,7 +1463,7 @@ void inputmechanism_marcusai(struct user *usr, int tick) {
 
 	tick += COMPUTER_DELAY;
 	queueinput(usr, tick, turn);
-	steermsg(usr, tick, turn, 0);
+	sendsteer(usr, tick, turn, 0);
 }
 
 void inputmechanism_checktangent(struct user *usr, int tick) {
@@ -1649,7 +1503,7 @@ void inputmechanism_checktangent(struct user *usr, int tick) {
 		return;
 
 	queueinput(usr, tick, turn);
-	steermsg(usr, tick, turn, 0);
+	sendsteer(usr, tick, turn, 0);
 }	
 
 /* point systems specify how many points the remaining players get when

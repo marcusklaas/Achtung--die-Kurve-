@@ -51,20 +51,133 @@ struct seg *copyseg(const struct seg *a) {
 	return memcpy(b, a, sizeof(struct seg));
 }
 
+void freesegments(struct seg *seg) {
+	struct seg *nxt;
+	for(; seg; seg = nxt) {
+		nxt = seg->nxt;
+		free(seg);
+	}
+}
+
+void freeteleports(struct teleport *tp) {
+	struct teleport *nxt;
+	for(; tp; tp = nxt) {
+		nxt = tp->nxt;
+		free(tp);
+	}
+}
+
+char *duplicatestring(char *orig) {
+	return strcpy(smalloc(strlen(orig) + 1), orig);
+}
+
+struct buffer encodemap(struct map *map) {
+	struct buffer buf;
+	struct seg *seg;
+	struct teleport *tel;
+	
+	buf.start = 0;
+	allocroom(&buf, 200);
+	appendheader(&buf, MODE_SETMAP, 0);
+
+	for(tel = map->teleports; tel; tel = tel->nxt) {
+		allocroom(&buf, 13);
+		*buf.at++ = tel->colorid | 32;
+		seg = &tel->seg;
+		appendpos(&buf, seg->x1, seg->y1);
+		appendpos(&buf, seg->x2, seg->y2);
+		seg = &tel->dest;
+		appendpos(&buf, seg->x1, seg->y1);
+		appendpos(&buf, seg->x2, seg->y2);
+	}
+
+	// this marks start of segments
+	allocroom(&buf, 1);
+	*buf.at++ = 0;
+
+	for(seg = map->seg; seg; seg = seg->nxt) {
+		allocroom(&buf, 6);
+		appendpos(&buf, seg->x1, seg->y1);
+		appendpos(&buf, seg->x2, seg->y2);
+	}
+	return buf;
+}
+
+cJSON *encodesegments(struct seg *seg) {
+	cJSON *ar = cJSON_CreateArray();
+	while(seg) {
+		cJSON *a = cJSON_CreateObject();
+		jsonaddnum(a,"x1", seg->x1);
+		jsonaddnum(a,"y1", seg->y1);
+		jsonaddnum(a,"x2", seg->x2);
+		jsonaddnum(a,"y2", seg->y2);
+		cJSON_AddItemToArray(ar, a);
+		seg = seg->nxt;
+	}
+	return ar;
+}
+
+cJSON *encodegame(struct game *gm) {
+	cJSON *json = cJSON_CreateObject();
+	char buf[20];
+
+	jsonaddnum(json, "id", gm->id);
+	jsonaddnum(json, "n", gm->n);
+	jsonaddnum(json, "nmin", gm->nmin);
+	jsonaddnum(json, "nmax", gm->nmax);
+	if(gm->host)
+		jsonaddstr(json, "host", gm->host->name);
+
+	jsonaddstr(json, "type", gametypetostr(gm->type, buf));
+	jsonaddstr(json, "state", statetostr(gm->state, buf));
+	return json;
+}
+
+cJSON *encodegamelist() {
+	struct game *gm;
+	cJSON *game, *gmArr, *json = jsoncreate("gameList");
+	
+	gmArr = cJSON_CreateArray();
+	cJSON_AddItemToObject(json, "games", gmArr);
+
+	for(gm = headgame; gm; gm = gm->nxt) {
+		game = encodegame(gm);
+		cJSON_AddItemToArray(gmArr, game);
+	}
+
+	return json;
+}
+
+cJSON *encodegamepars(struct game *gm) {
+	cJSON *json = jsoncreate("gameParameters");
+	char buf[20];
+
+	jsonaddnum(json, "countdown", COUNTDOWN);
+	jsonaddnum(json, "hsize", gm->hsize);
+	jsonaddnum(json, "hfreq", gm->hfreq);
+	jsonaddnum(json, "w", gm->w);
+	jsonaddnum(json, "h", gm->h);
+	jsonaddnum(json, "nmin", gm->nmin);
+	jsonaddnum(json, "nmax", gm->nmax);
+	jsonaddnum(json, "v", gm->v);
+	jsonaddnum(json, "ts", gm->ts);
+	jsonaddnum(json, "id", gm->id);
+	jsonaddnum(json, "goal", gm->goal);
+	jsonaddstr(json, "type", gametypetostr(gm->type, buf));
+	jsonaddstr(json, "pencilmode", pencilmodetostr(gm->pencilmode, buf));
+	jsonaddnum(json, "torus", gm->torus);
+	jsonaddnum(json, "inkcap", gm->inkcap);
+	jsonaddnum(json, "inkregen", gm->inkregen);
+	jsonaddnum(json, "inkdelay", gm->inkdelay);
+	jsonaddnum(json, "inkstart", gm->inkstart);
+	jsonaddnum(json, "inkmousedown", gm->inkmousedown);
+	
+	return json;
+}
+
 /******************************************************************
  * JSON HELP FUNCTIONS
  */
-
-#define jsonaddnum cJSON_AddNumberToObject
-#define jsonaddstr cJSON_AddStringToObject
-#define jsonaddfalse cJSON_AddFalseToObject
-#define jsonaddtrue cJSON_AddTrueToObject
-#define jsonaddjson cJSON_AddItemToObject
-#define jsonprint cJSON_PrintUnformatted
-#define jsonaddbool(json, name, value) cJSON_AddItemToObject(json, name, cJSON_CreateBool(value))
-#define jsondel	cJSON_Delete
-#define max(a,b) ((b) > (a) ? (b) : (a))
-#define min(a,b) ((b) > (a) ? (a) : (b))
 
 // returns NULL on error
 char *jsongetstr(cJSON *json, char* obj) {
@@ -111,65 +224,9 @@ cJSON *jsoncheckjson(cJSON *json, char* obj) {
 	return cJSON_GetObjectItem(json, obj);
 }
 
-void jsonsetstr(cJSON *json, char* obj, char* str) {
-	json = cJSON_GetObjectItem(json, obj);
-	if(!json) {
-		if(DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
-		return ;
-	}
-	json->valuestring = str;
-}
-
-
-void jsonsetbool(cJSON *json, char* obj, char value) {
-	json = cJSON_GetObjectItem(json, obj);
-	if(!json) {
-		if(DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
-		return ;
-	}
-	json->type = value ? cJSON_True : cJSON_False;
-}
-
-void jsonsetnum(cJSON *json, char* obj, double val) {
-	json = cJSON_GetObjectItem(json, obj);
-	if(!json) {
-		if(DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
-		return ;
-	}
-	json->valuedouble = val;
-	json->valueint = val;
-}
-
 cJSON *jsoncreate(char *mode) {
 	cJSON *json = cJSON_CreateObject();
 	cJSON_AddStringToObject(json, "mode", mode);
-	return json;
-}
-
-cJSON *getjsongamepars(struct game *gm) {
-	cJSON *json = jsoncreate("gameParameters");
-	char buf[20];
-
-	jsonaddnum(json, "countdown", COUNTDOWN);
-	jsonaddnum(json, "hsize", gm->hsize);
-	jsonaddnum(json, "hfreq", gm->hfreq);
-	jsonaddnum(json, "w", gm->w);
-	jsonaddnum(json, "h", gm->h);
-	jsonaddnum(json, "nmin", gm->nmin);
-	jsonaddnum(json, "nmax", gm->nmax);
-	jsonaddnum(json, "v", gm->v);
-	jsonaddnum(json, "ts", gm->ts);
-	jsonaddnum(json, "id", gm->id);
-	jsonaddnum(json, "goal", gm->goal);
-	jsonaddstr(json, "type", gametypetostr(gm->type, buf));
-	jsonaddstr(json, "pencilmode", pencilmodetostr(gm->pencilmode, buf));
-	jsonaddnum(json, "torus", gm->torus);
-	jsonaddnum(json, "inkcap", gm->inkcap);
-	jsonaddnum(json, "inkregen", gm->inkregen);
-	jsonaddnum(json, "inkdelay", gm->inkdelay);
-	jsonaddnum(json, "inkstart", gm->inkstart);
-	jsonaddnum(json, "inkmousedown", gm->inkmousedown);
-	
 	return json;
 }
 
@@ -219,7 +276,7 @@ void sendjson(cJSON *json, struct user *u) {
 	free(buf);
 }
 
-void sendstrtogame(char *msg, int len, struct game *gm, struct user *outsider) {
+void airstr(char *msg, int len, struct game *gm, struct user *outsider) {
 	struct user *usr;
 
 	for(usr = gm->usr; usr; usr = usr->nxt)
@@ -228,51 +285,15 @@ void sendstrtogame(char *msg, int len, struct game *gm, struct user *outsider) {
 }
 
 /* sends a json object to all in game, except for outsider */
-void sendjsontogame(cJSON *json, struct game *gm, struct user *outsider) {
+void airjson(cJSON *json, struct game *gm, struct user *outsider) {
 	char *buf = jsonprint(json);
-	sendstrtogame(buf, strlen(buf), gm, outsider);
+	airstr(buf, strlen(buf), gm, outsider);
 	free(buf);
 }
 
-char *duplicatestring(char *orig) {
-	return strcpy(smalloc(strlen(orig) + 1), orig);
-}
-
-struct buffer encodemap(struct map *map) {
-	struct buffer buf;
-	struct seg *seg;
-	struct teleport *tel;
-	
-	buf.start = 0;
-	allocroom(&buf, 200);
-	appendheader(&buf, MODE_SETMAP, 0);
-
-	for(tel = map->teleports; tel; tel = tel->nxt) {
-		allocroom(&buf, 13);
-		*buf.at++ = tel->colorid | 32;
-		seg = &tel->seg;
-		appendpos(&buf, seg->x1, seg->y1);
-		appendpos(&buf, seg->x2, seg->y2);
-		seg = &tel->dest;
-		appendpos(&buf, seg->x1, seg->y1);
-		appendpos(&buf, seg->x2, seg->y2);
-	}
-
-	// this marks start of segments
-	allocroom(&buf, 1);
-	*buf.at++ = 0;
-
-	for(seg = map->seg; seg; seg = seg->nxt) {
-		allocroom(&buf, 6);
-		appendpos(&buf, seg->x1, seg->y1);
-		appendpos(&buf, seg->x2, seg->y2);
-	}
-	return buf;
-}
-
-void sendmaptogame(struct map *map, struct game *gm, struct user *outsider) {
+void airmap(struct map *map, struct game *gm, struct user *outsider) {
 	struct buffer buf = encodemap(map);
-	sendstrtogame(buf.start, buf.at - buf.start, gm, outsider);
+	airstr(buf.start, buf.at - buf.start, gm, outsider);
 	free(buf.start);
 }
 
@@ -282,6 +303,66 @@ void sendmap(struct map *map, struct user *usr) {
 	free(buf.start);
 }
 
+void sendgamelist(struct user *usr) {
+	updategamelist();
+
+	if(gamelistage > usr->gamelistage) {
+		usr->gamelistage = gamelistage;
+		sendstr(gamelist, gamelistlen, usr);
+	}
+}
+
+void sendhost(struct user *host, struct user *usr) {
+	cJSON *j = jsoncreate("setHost");
+	jsonaddnum(j, "playerId", host->id);
+	sendjson(j, usr);
+	jsondel(j);
+}
+
+void airhost(struct game *gm) {
+	cJSON *j = jsoncreate("setHost");
+	jsonaddnum(j, "playerId", gm->host->id);
+	airjson(j, gm, 0);
+	jsondel(j);
+}
+
+/* send message to group: this player died */
+void airdeath(struct user *usr, int tick, int reward) {
+	cJSON *json = jsoncreate("playerDied");
+	jsonaddnum(json, "playerId", usr->id);
+	jsonaddnum(json, "reward", reward);
+	jsonaddnum(json, "tick", tick);
+	jsonaddnum(json, "x", usr->state.x);
+	jsonaddnum(json, "y", usr->state.y);
+	airjson(json, usr->gm, 0);
+	jsondel(json);
+}
+
+void airsegments(struct game *gm) {
+	if(gm->tosend) {
+		cJSON *json = jsoncreate("segments");
+		cJSON *ar = encodesegments(gm->tosend);
+		freesegments(gm->tosend);
+		gm->tosend = 0;
+		jsonaddjson(json, "segments", ar);
+		airjson(json, gm, 0);
+		jsondel(json);
+	}
+}
+
+void airgamelist() {
+	struct user *usr;
+	static int updateticks = GAMELIST_UPDATE_INTERVAL/ TICK_LENGTH;
+	int i = 0, maxsends = ceil(lobby->n * (float) (serverticks % updateticks) / updateticks);
+
+	// should be faster?
+	// maxsends = lobby->n * (serverticks % updateticks) / updateticks + 1;
+
+	for(usr = lobby->usr; usr && i++ < maxsends; usr = usr->nxt)
+		if(servermsecs() - GAMELIST_UPDATE_INTERVAL > usr->gamelistage)
+			sendgamelist(usr);
+}
+
 /******************************************************************
  * BYTE MESSAGES
  */
@@ -289,11 +370,11 @@ void sendmap(struct map *map, struct user *usr) {
 /* sends updated tick for the last input of usr in 4 bytes
  * m = mode, j = input index, d = tickdelta
  * layout: xjjjjmmm xjjjjjjj xdddjjjj xddddddd */
-void modifiedmsg(struct user *usr, int tickdelta) {
+void sendmodified(struct user *usr, int tickdelta) {
 	char response[4];
 	int index = usr->inputcount;
 
-	logplayer(usr, "sending modifiedmsg, input = %d, delta = %d\n", index, tickdelta);
+	logplayer(usr, "sending modified msg, input = %d, delta = %d\n", index, tickdelta);
 
 	response[0] = 7 & MODE_MODIFIED;
 	response[0] |= (127 - 7) & (index << 3);
@@ -307,7 +388,7 @@ void modifiedmsg(struct user *usr, int tickdelta) {
 
 /* sends tick update for user to his game in 3 bytes
  * layout: xdiiimmm xddddddd xddddddd */
-void tickupdatemsg(struct user *usr, int tickdelta) {
+void sendtickupdate(struct user *usr, int tickdelta) {
 	char response[3];
 
 	response[0] = 7 & MODE_TICKUPDATE;
@@ -316,7 +397,7 @@ void tickupdatemsg(struct user *usr, int tickdelta) {
 	response[1] = 127 & (tickdelta >> 1);
 	response[2] = 127 & (tickdelta >> 8);
 
-	sendstrtogame(response, 3, usr->gm, usr);
+	airstr(response, 3, usr->gm, usr);
 }
 
 /* encodes index (i), tickdelta (d) and turn (t) in 2 bytes
@@ -328,7 +409,7 @@ void encodesteer(char *target, unsigned short index, unsigned short tickdelta, u
 	target[1] = 127 & (tickdelta >> 3);
 }
 
-char turnchange(char newturn, char oldturn) {
+char getturnchange(char newturn, char oldturn) {
 	if(newturn == 1)
 		return 1;
 
@@ -339,22 +420,22 @@ char turnchange(char newturn, char oldturn) {
 }
 
 /* handles steer message, timeouts and modifications */
-void steermsg(struct user *usr, int tick, int turn, int delay) {
+void sendsteer(struct user *usr, int tick, int turn, int delay) {
 	char response[2];
-	int turndelta = turnchange(turn, usr->lastinputturn);
+	int turndelta = getturnchange(turn, usr->lastinputturn);
 	int tickdelta = tick - usr->lastinputtick;
 
 	/* not enough bits to encode tickdelta, work around this */
 	if(tickdelta >= (1 << 10)) {
-		tickupdatemsg(usr, tickdelta - 1);
+		sendtickupdate(usr, tickdelta - 1);
 		tickdelta = 1;
 	}
 
 	encodesteer(response, usr->index, tickdelta, turndelta);
-	sendstrtogame(response, 2, usr->gm, usr);
+	airstr(response, 2, usr->gm, usr);
 
 	if(delay)
-		modifiedmsg(usr, delay);
+		sendmodified(usr, delay);
 
 	usr->lastinputtick = tick;
 	usr->lastinputturn = turn;
@@ -570,6 +651,31 @@ void logwarningtime() {
 
 		WARNINGMSG("%s", asctime(local));
 		lastwarninglogtime = now;
+	}
+}
+
+void logstartgame(struct game *gm) {
+	loggame(gm, "started! players: %d\n", gm->n);
+
+	if(gm->type == GT_CUSTOM) {
+		char *a;
+		cJSON *j;
+
+		j = encodegamepars(gm);
+		a = cJSON_Print(j);
+		log("%s\n", a);
+
+		free(a);
+		jsondel(j);
+
+		if(gm->map) {
+			j = encodesegments(gm->map->seg);
+			a = cJSON_PrintUnformatted(j);
+			log("%s\n", a);
+
+			free(a);
+			jsondel(j);
+		}
 	}
 }
 
