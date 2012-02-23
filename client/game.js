@@ -1931,8 +1931,7 @@ Pencil.prototype.doTick = function() {
 			this.outbuffer.push(y);
 			this.outbuffer.push(this.game.tick);
 
-			/* i think we can get away with just drawing on baseContext here, because we will receive these
-			 * segs from server not much later and then they'll be drawn on backupContext as well */
+			this.drawSegment(this.game.backupContext, this.x, this.y, x, y, this.game.localPlayer, pencilAlpha);
 			this.drawSegment(this.game.baseContext, this.x, this.y, x, y, this.game.localPlayer, pencilAlpha);
 
 			this.x = x;
