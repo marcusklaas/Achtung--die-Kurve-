@@ -1322,12 +1322,12 @@ GameEngine.prototype.backToGameLobby = function() {
 }
 
 GameEngine.prototype.getGamePos = function(e) {
-	var vec = getPos(e);
-	vec[0] = (vec[0] - this.canvasLeft) / this.scale;
-	vec[1] = (vec[1] - this.canvasTop) / this.scale;
-	vec[0] = Math.round(Math.max(Math.min(this.width, vec[0]), 0));
-	vec[1] = Math.round(Math.max(Math.min(this.height, vec[1]), 0));
-	return vec;
+	var v = getPos(e);
+	v.x = (v.x - this.canvasLeft) / this.scale;
+	v.y = (v.y - this.canvasTop) / this.scale;
+	v.x = Math.round(Math.max(Math.min(this.width, v.x), 0));
+	v.y = Math.round(Math.max(Math.min(this.height, v.y), 0));
+	return v;
 }
 
 /* Player
@@ -1609,8 +1609,8 @@ function InputController(player, left, right) {
 	function mouseMove(e) {
 		if(pencil.drawingAllowed && pencil.down) {
 			var pos = game.getGamePos(e);
-			pencil.curX = pos[0];
-			pencil.curY = pos[1];
+			pencil.curX = pos.x;
+			pencil.curY = pos.y;
 		}
 	}
 
@@ -1629,8 +1629,8 @@ function InputController(player, left, right) {
 	function stopDraw(e) {
 		if(pencil.drawingAllowed && pencil.down) {
 			var pos = game.getGamePos(e);
-			pencil.curX = pos[0];
-			pencil.curY = pos[1];
+			pencil.curX = pos.x;
+			pencil.curY = pos.y;
 
 			pencil.down = false;
 			pencil.upped = true;
@@ -1650,22 +1650,22 @@ function InputController(player, left, right) {
 			var touch = e.changedTouches[i];
 			var pos = game.getGamePos(touch);
 			var totalWidth = game.width;
-			var right = (pos[0] <= totalWidth * steerBoxSize);  // FIXME: dit is precies andersom als hoe t zou moeten -- hoe kan dit?
-			var left = (pos[0] >= (1 - steerBoxSize) * totalWidth);
+			var right = (pos.x <= totalWidth * steerBoxSize);  // FIXME: dit is precies andersom als hoe t zou moeten -- hoe kan dit?
+			var left = (pos.x >= (1 - steerBoxSize) * totalWidth);
 
 			if(self.player.status == 'alive' && left && self.leftTouch === null) {
-				self.leftTouch = new touchEvent(pos[0], pos[1], touch.identifier);
+				self.leftTouch = new touchEvent(pos.x, pos.y, touch.identifier);
 				self.pressLeft();
 			}
 
 			else if(self.player.status == 'alive' && right && self.rightTouch === null) {
-				self.rightTouch = new touchEvent(pos[0], pos[1], touch.identifier);
+				self.rightTouch = new touchEvent(pos.x, pos.y, touch.identifier);
 				self.pressRight();
 			}
 
 			else if(self.pencilTouch == null && !pencil.down &&
 			 pencil.ink > pencil.mousedownInk && pencil.drawingAllowed) {
-				self.pencilTouch = new touchEvent(pos[0], pos[1], touch.identifier);
+				self.pencilTouch = new touchEvent(pos.x, pos.y, touch.identifier);
 				pencil.startDraw(pos);
 			}
 		}
@@ -1718,17 +1718,17 @@ function InputController(player, left, right) {
 			var touch = e.changedTouches[i];
 			var pos = game.getGamePos(touch);
 			var totalWidth = game.width;
-			var right = (pos[0] <= totalWidth * steerBoxSize);
-			var left = (pos[0] >= (1 - steerBoxSize) * totalWidth);
+			var right = (pos.x <= totalWidth * steerBoxSize);
+			var left = (pos.x >= (1 - steerBoxSize) * totalWidth);
 
 			if(self.leftTouch != null && touch.identifier == self.leftTouch.identifier) {
-				var convert = (getLength(pos[0] - self.leftTouch.startX, pos[1] - self.leftTouch.startY) >= pencilTreshold
+				var convert = (getLength(pos.x - self.leftTouch.startX, pos.y - self.leftTouch.startY) >= pencilTreshold
 				 && self.pencilTouch == null && !pencil.down && pencil.ink > pencil.mousedownInk);
 
 				/* convert this touch to pencil touch */
 				if(convert) {
-					self.pencilTouch = new touchEvent(pos[0], pos[1], touch.identifier);
-					pencil.startDraw([self.leftTouch.startX, self.leftTouch.startY]);
+					self.pencilTouch = new touchEvent(pos.x, pos.y, touch.identifier);
+					pencil.startDraw({x: self.leftTouch.startX, y: self.leftTouch.startY});
 				}
 
 				if(convert || !left) {
@@ -1738,12 +1738,12 @@ function InputController(player, left, right) {
 			}
 
 			else if(self.rightTouch != null && touch.identifier == self.rightTouch.identifier) {
-				var convert = (getLength(pos[0] - self.rightTouch.startX, pos[1] - self.rightTouch.startY) >= pencilTreshold
+				var convert = (getLength(pos.x - self.rightTouch.startX, pos.y - self.rightTouch.startY) >= pencilTreshold
 				 && self.pencilTouch == null && !pencil.down && pencil.ink > pencil.mousedownInk);
 
 				if(convert) {
-					self.pencilTouch = new touchEvent(pos[0], pos[1], touch.identifier);
-					pencil.startDraw([self.rightTouch.startX, self.rightTouch.startY]);
+					self.pencilTouch = new touchEvent(pos.x, pos.y, touch.identifier);
+					pencil.startDraw({x: self.rightTouch.startX, y: self.rightTouch.startY});
 				}
 
 				if(convert || !right) {
@@ -1755,8 +1755,8 @@ function InputController(player, left, right) {
 			else if(self.pencilTouch != null && touch.identifier == self.pencilTouch.identifier)
 				if(pencil.drawingAllowed && pencil.down) {
 					var pos = game.getGamePos(touch);
-					pencil.curX = pos[0];
-					pencil.curY = pos[1];
+					pencil.curX = pos.x;
+					pencil.curY = pos.y;
 				}
 		}
 
@@ -1874,8 +1874,8 @@ function Pencil(game) {
 /* pos is scaled location */
 Pencil.prototype.startDraw = function(pos) {
 	this.ink -= this.mousedownInk;
-	this.curX = this.x = pos[0];
-	this.curY = this.y = pos[1];
+	this.curX = this.x = pos.x;
+	this.curY = this.y = pos.y;
 	this.outbuffer.push(1);
 	this.outbuffer.push(this.x);
 	this.outbuffer.push(this.y);
@@ -2122,7 +2122,7 @@ Editor = function(game) {
 			var t = e.changedTouches[i];
 			if(Date.now() - t.time > editorStepTime) {
 				var pos = game.getGamePos(t);
-				var seg = new BasicSegment(t.pos[0], t.pos[1], pos[0], pos[1]);
+				var seg = new BasicSegment(t.pos.x, t.pos.y, pos.x, pos.y);
 				self.segments.push(seg);
 				self.mapChanged = true;
 				self.drawSegment(seg);
@@ -2138,7 +2138,7 @@ Editor = function(game) {
 		for(var i = 0; i < e.changedTouches.length; i++) {
 			var t = e.changedTouches[i];
 			var pos = game.getGamePos(t);
-			var seg = new BasicSegment(t.pos[0], t.pos[1], pos[0], pos[1]);
+			var seg = new BasicSegment(t.pos.x, t.pos.y, pos.x, pos.y);
 			self.segments.push(seg);
 			self.mapChanged = true;
 			self.drawSegment(seg);
@@ -2192,8 +2192,8 @@ Editor.prototype.onmouse = function(type, ev) {
 		ev.preventDefault();
 	}
 	
-	var x = pos[0];
-	var y = pos[1];
+	var x = pos.x;
+	var y = pos.y;
 	var stepTime = this.mode == 'eraser' ? eraserStepTime : editorStepTime;
 	
 	// mouse click event, or cursor back on canvas event while still holding mouse button
@@ -2655,7 +2655,7 @@ function findPos(obj) {
 			curtop += obj.offsetTop;
 		} while (obj = obj.offsetParent);
 	}
-	return [curleft, curtop];
+	return {x: curleft, y: curtop};
 }
 
 function escapeString(str) {
@@ -2679,7 +2679,7 @@ function getPos(e) {
 			+ document.documentElement.scrollTop;
 	}
 
-	return [posx, posy];
+	return {x: posx, y: posy};
 }
 
 function getRGBstring(color) {
