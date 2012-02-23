@@ -289,3 +289,4 @@ void deleteuser(struct user *usr);
 void updategamelist();
 char *statetostr(int gamestate, char *str);
 cJSON *jsoncreate(char *mode);
+static long servermsecs();

@@ -10,15 +10,15 @@ function GameEngine(audioController) {
 	this.canvasContainer = document.getElementById('canvasContainer');
 	this.baseCanvas = document.getElementById('baseCanvas');
 	this.baseContext = this.baseCanvas.getContext('2d');
-	this.setDefaultValues(this.baseContext);
-	this.foregroundCanvas = document.getElementById('foregroundCanvas');
-	this.foregroundContext = this.foregroundCanvas.getContext('2d');
-	this.setDefaultValues(this.foregroundContext);
+	this.initContext(this.baseContext);
+	this.backupCanvas = document.getElementById('backupCanvas');
+	this.backupContext = this.backupCanvas.getContext('2d');
+	this.initContext(this.backupContext);
 
 	// children
 	this.pencil = new Pencil(this);
 	this.localPlayer = new Player(this, true);
-	this.audioController = new AudioController();;
+	this.audioController = new AudioController();
 	this.playerList = document.getElementById('playerList').lastChild;
 	this.gameList = document.getElementById('gameList').lastChild;
 	this.chatBar = document.getElementById('chat');
@@ -32,6 +32,7 @@ function GameEngine(audioController) {
 
 /* this only resets things like canvas, but keeps the player info */
 GameEngine.prototype.reset = function() {
+	this.backupNeeded = false;
 	this.tick = -1;
 	this.tock = 0;
 	this.redraws = 0;
@@ -43,14 +44,11 @@ GameEngine.prototype.reset = function() {
 	this.pencil.reset();
 
 	/* clear canvasses */
-	this.foregroundContext.clearRect(0, 0, this.width, this.height);
+	this.backupContext.clearRect(0, 0, this.width, this.height);
 	this.baseContext.clearRect(0, 0, this.width, this.height);
 }
 
 GameEngine.prototype.resetPlayers = function() {
-	for(var i in this.players)
-		this.players[i].deleteCanvas();
-
 	this.players = [];
 	this.clearPlayerList();
 	this.host = null;
@@ -285,12 +283,11 @@ GameEngine.prototype.parseByteMsg = function(str) {
 		var newTick = this.localPlayer.inputs[input].tick + tickDelta;
 
 		this.localPlayer.inputs[input].tick = newTick;
-		this.localPlayer.steer(newTick, this.tick);
+		this.backupNeeded = true;
 		
 		return true;
 	}
-	
-	
+
 	if(mode == modeTickUpdate) {
 		var b = str.charCodeAt(1);
 		var c = str.charCodeAt(2);
@@ -361,9 +358,8 @@ GameEngine.prototype.parseSteerMsg = function(str) {
 
 	player.inputs.push({tick: tick, turn: newTurn});
 	
-	// only if we have already simulated this tick
 	if(tick < this.tock)
-		player.steer(tick, this.tock);
+		this.backupNeeded = true;
 }
 
 GameEngine.prototype.interpretMsg = function(msg) {
@@ -594,7 +590,6 @@ GameEngine.prototype.removePlayer = function(player) {
 	
 	if(this.state == 'waiting' || this.state == 'lobby' || this.state == 'editing' || player.status == 'left' ||
 	 (this.state == 'ended' && player.status == 'ready')) {
-		player.deleteCanvas();
 		this.playerList.removeChild(player.row);
 		resizeChat();
 	} else {
@@ -733,7 +728,7 @@ GameEngine.prototype.gameMessage = function(msg) {
 }
 
 GameEngine.prototype.handleSegmentsMessage = function(segments) {
-	var ctx = this.foregroundContext;
+	var ctx = this.backupContext;
 	setLineColor(ctx, [0, 0, 0], 1);
 	ctx.lineWidth = 1;
 	ctx.beginPath();
@@ -743,6 +738,7 @@ GameEngine.prototype.handleSegmentsMessage = function(segments) {
 		ctx.lineTo(s.x2, s.y2);
 	}
 	ctx.stroke();
+	ctx.lineWidth = lineWidth;
 }
 
 GameEngine.prototype.handleSyncResponse = function(serverTime) {
@@ -869,7 +865,7 @@ GameEngine.prototype.doTick = function() {
 	if(this.pencilMode != 'off')
 		this.pencil.doTick();
 
-	player.simulate(this.tick, player.context);
+	player.simulate(this.tick, this.baseContext);
 		
 	this.tick++;
 }
@@ -877,7 +873,7 @@ GameEngine.prototype.doTick = function() {
 GameEngine.prototype.doTock = function() {
 	for(var i in this.players) {
 		var player = this.players[i];
-		player.simulate(this.tock, player.context);
+		player.simulate(this.tock, this.baseContext);
 	}
 	this.tock++;
 }
@@ -897,13 +893,6 @@ GameEngine.prototype.addPlayer = function(player) {
 	if(player == this.localPlayer)
 		document.getElementById('ink').style.backgroundColor = 'rgba(' +
 		 player.color[0] + ', ' + player.color[1] + ', ' + player.color[2] + ', 0.5)';
-	
-	if(this.type != 'lobby') {
-		player.canvas = document.createElement('canvas');
-		player.context = player.canvas.getContext('2d');
-		this.setDefaultValues(player.context);
-		this.canvasContainer.appendChild(player.canvas);
-	}
 }
 
 /* sets this.scale, which is canvas size / game size */
@@ -1013,10 +1002,47 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	this.focusChat();
 }
 
-GameEngine.prototype.realStart = function() {
-	// clearing angle indicators from base layer
+GameEngine.prototype.revertBackup = function() {
+	// clear base canvas
 	this.baseContext.clearRect(0, 0, this.width, this.height);
-	this.drawMapSegments();
+
+	// simulate every player up to safe point on backupcanvas
+	for(var i in this.players) {
+		var player = this.players[i];
+		
+		if(player.status == 'ready')
+			continue; // break beter?
+
+		player.loadLocation();
+
+		var localTick = player.isLocal ? this.tick : this.tock;
+		var knownTick = Math.max(Math.min(player.finalTick, localTick - safeTickDifference),
+		 player.inputs.length == 0 ? 0 : player.inputs[player.inputs.length - 1].tick);
+
+		player.simulate(knownTick, this.backupContext);
+		player.saveLocation();
+	}
+
+	// copy backupcanvas to basecanvas
+	this.baseContext.drawImage(this.backupCanvas, 0, 0, this.width, this.height);
+
+	// simulate every player up to tick/ tock
+	for(var i in this.players) {
+		var player = this.players[i];
+
+		if(player.status == 'ready')
+			continue;
+
+		player.simulate(player.isLocal ? this.tick - 1 : this.tock - 1, this.baseContext);
+	}
+
+	this.backupNeeded = false;
+}
+
+GameEngine.prototype.realStart = function() {
+	this.baseContext.clearRect(0, 0, this.width, this.height);
+	this.baseContext.drawImage(this.backupCanvas, 0, 0, this.width, this.height);
+
 	this.audioController.playSound('gameStart');
 	this.setGameState('playing');
 	this.sendMsg('enableInput', {});
@@ -1040,10 +1066,15 @@ GameEngine.prototype.realStart = function() {
 		 		 (Date.now() - self.gameStartTimestamp));
 		 		return;
 		 	}
+
+			if(self.backupNeeded)
+				self.revertBackup();
 			
 			while(self.tick - self.tock >= tickTockDifference)
 				self.doTock();
+
 			self.doTick();
+
 		} while((timeOut = (self.tick + 1) * self.tickLength - (Date.now() - self.gameStartTimestamp)
 		 + (simulateCPUlag && self.tick % 100 == 0 ? 400 : 0)) <= 0);
 
@@ -1056,7 +1087,7 @@ GameEngine.prototype.realStart = function() {
 GameEngine.prototype.drawMapSegments = function() {
 	if(this.mapSegments == undefined)
 		return;
-	var ctx = this.baseContext;
+	var ctx = this.backupContext;
 	ctx.beginPath();
 	setLineColor(ctx, mapSegmentColor, 1);
 	for(var i = 0; i < this.mapSegments.length; i++) {
@@ -1142,30 +1173,24 @@ GameEngine.prototype.resize = function() {
 	this.canvasContainer.style.width = scaledWidth + 'px';
 	this.canvasContainer.style.height = scaledHeight + 'px';
 	
-	var ctx = this.baseContext;
-	var canvas = this.baseCanvas;
+	var ctx = this.backupContext;
+	var canvas = this.backupCanvas;
 	canvas.width = scaledWidth;
 	canvas.height = scaledHeight;
-	this.setDefaultValues(ctx);
-	
-	this.drawMapSegments();
-	
-	ctx = this.foregroundContext;
-	canvas = this.foregroundCanvas;
+	this.initContext(ctx);
+
+	ctx = this.baseContext;
+	canvas = this.baseCanvas;
 	canvas.width = scaledWidth;
 	canvas.height = scaledHeight;
-	this.setDefaultValues(ctx);
-	
+	this.initContext(ctx);
+
 	for(var i in this.players) {
 		var player = this.players[i];
 		
 		if(player.status == 'ready')
-			continue;
-		
-		player.canvas.width = scaledWidth;
-		player.canvas.height = scaledHeight;
-		this.setDefaultValues(player.context);
-		
+			continue; // break beter?
+
 		//TODO: voor alle startvariabelen zelfde methode gebruiken als saveLocation loadLocation
 		player.x = player.startX;
 		player.y = player.startY;
@@ -1176,31 +1201,24 @@ GameEngine.prototype.resize = function() {
 		player.tick = 0;
 		player.turn = 0;
 		player.nextInputIndex = 0;
-		var knownTick;
-		if(!player.isLocal && player.finalTick < this.tock)
-			knownTick = player.finalTick;
-		else {
-			knownTick = this.tock - safeTickDifference;
-			if(player.inputs.length > 0)
-				knownTick = Math.min(knownTick, player.inputs[player.inputs.length - 1].tick);
-		}
-		player.simulate(knownTick, this.baseContext);
 		player.saveLocation();
-		player.simulate(player.isLocal ? this.tick - 1 : this.tock - 1, player.context);
 	}
+	
+	this.drawMapSegments();
+	this.revertBackup();
 
 	if(this.pencilMode != 'off')
 		this.pencil.drawPlayerSegs(true);
 }
 
-GameEngine.prototype.setDefaultValues = function(ctx) {
+GameEngine.prototype.initContext = function(ctx) {
 	ctx.scale(this.scale, this.scale);
 	ctx.lineWidth = lineWidth;
 	ctx.lineCap = lineCapStyle;
-	ctx.drawLine = function(x1, y1, x2, y2) {
-		ctx.beginPath();
-		ctx.moveTo(x1, y1);
-		ctx.lineTo(x2, y2);
+	ctx.drawLine = function(x1, y1, x2, y2) {	// nice idee maar oppassen dat je deze 
+		ctx.beginPath();						// alleen gebruikt als je slechts 1 seg tekent
+		ctx.moveTo(x1, y1);						// anders kun je beter lineTos groeperen in 1 stroke
+		ctx.lineTo(x2, y2);						// das sneller
 		ctx.stroke();
 	};
 }
@@ -1292,6 +1310,7 @@ GameEngine.prototype.backToGameLobby = function() {
 	// remove players who left game & set status for other players
 	for(var i in this.players) {
 		var player = this.players[i];
+
 		if(player.status == 'left')
 			this.removePlayer(player);
 		else {
@@ -1320,13 +1339,6 @@ function Player(game, isLocal) {
 	this.isLocal = isLocal;
 	if(isLocal)
 		this.inputController = new InputController(this, keyCodeLeft, keyCodeRight);
-}
-
-Player.prototype.deleteCanvas = function() {
-	if(this.canvas != undefined) {
-		this.canvas.parentNode.removeChild(this.canvas);
-		this.canvas = undefined;
-	}
 }
 
 Player.prototype.saveLocation = function() {
@@ -1361,40 +1373,17 @@ Player.prototype.changeCourse = function(angle) {
 	this.dy = Math.sin(this.angle) * this.velocity * this.game.tickLength / 1000;
 }
 
-Player.prototype.steer = function(tick, localTick) {
-	this.loadLocation();
-	var endTick = Math.min(tick, localTick - safeTickDifference);
-	this.simulate(endTick, this.game.baseContext);
-	this.saveLocation();
-
-	this.context.clearRect(0, 0, this.game.width, this.game.height);
-	if(!this.isLocal) {
-		this.game.redraws++;
-		this.game.displayDebugStatus();
-	}
-	this.simulate(localTick - 1, this.context);
-}
-
 Player.prototype.finalSteer = function(obj) {
-	var tick = obj.tick
+	var tick = obj.tick;
 	var localTick = this.isLocal ? this.game.tick : this.game.tock;
 	
 	for(var i = this.inputs.length - 1; i >= 0 && this.inputs[i].tick >= tick; i--);
 	this.inputs.length = i + 2;
 	this.inputs[i + 1] = {'tick': tick, 'finalTurn': true, 'x': obj.x, 'y': obj.y};
-	
 	this.finalTick = tick;
 
-	if(tick >= localTick)
-		return;
-	
-	this.loadLocation();
-	if(this.tick > tick)
-		this.game.resize();
-	else {
-		this.simulate(tick, this.game.baseContext);
-		this.context.clearRect(0, 0, this.game.width, this.game.height);
-	}
+	if(tick < localTick)
+		this.game.backupNeeded = true;
 }
 
 Player.prototype.setSegmentStyle = function(ctx) {
@@ -1475,7 +1464,7 @@ Player.prototype.simulate = function(endTick, ctx) {
 
 Player.prototype.simulateDead = function() {	
 	// draw cross
-	var ctx = this.game.foregroundContext;
+	var ctx = this.game.baseContext;
 	setLineColor(ctx, crossColor, 1);
 	ctx.lineWidth = crossLineWidth;
 	ctx.beginPath();
@@ -1518,7 +1507,6 @@ Player.prototype.initialise = function(x, y, angle, holeStart) {
 	this.lastInputTurn = 0;
 	this.finalTick = Infinity;
 	this.updateRow();
-	this.context.clearRect(0, 0, this.game.width, this.game.height);	
 	this.saveLocation();
 
 	if(this.inputController != undefined)
@@ -1558,7 +1546,7 @@ function InputController(player, left, right) {
 	var self = this;
 	var game = player.game;
 	var pencil = player.game.pencil;
-	var canvas = player.game.foregroundCanvas;
+	var canvas = player.game.baseCanvas;
 
 	this.reset();
 
@@ -2749,7 +2737,7 @@ function drawIndicatorArrow(ctx, x, y, angle, color) {
 
 function drawTeleport(ctx, seg) {
 	setLineColor(ctx, seg.color, 1);
-	ctx.lineWidth = 2;
+	ctx.lineWidth = 2; // FIXME: dit moet in config.js yo!
 	var dx = seg.x2 - seg.x1;
 	var dy = seg.y2 - seg.y1;
 	var len = getLength(dx, dy);

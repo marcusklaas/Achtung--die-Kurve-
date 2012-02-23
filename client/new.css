@@ -28,13 +28,15 @@ canvas {
 	position: absolute;
 	left: 0;
 	top: 0;
-	z-index: 1;
 	image-rendering: optimizeSpeed;
 }
 
 #baseCanvas {
 	background-color: #D0D0D0;
-	z-index: 0;
+}
+
+#backupCanvas {
+	display: none;
 }
 
 #editorCanvas {
@@ -43,10 +45,6 @@ canvas {
 	border-top: 0;
 	border-left: 0;
 	position: static;
-}
-
-#foregroundCanvas {
-	z-index: 2;
 }
 
 .reward {
