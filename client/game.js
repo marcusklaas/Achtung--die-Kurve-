@@ -1558,18 +1558,18 @@ function InputController(player, left, right) {
 					game.editor.undo();
 					e.preventDefault();
 				}
-				if(e.keyCode == 83) {
-					simulateClick(game.editor.playerStartButton);
-				}
-				if(e.keyCode == 80) {
+				if(e.keyCode == 80 || e.keyCode == 49) {
 					simulateClick(game.editor.pencilButton);
 					e.preventDefault();
 				}
-				if(e.keyCode == 84) {
+				if(e.keyCode == 83 || e.keyCode == 50) {
+					simulateClick(game.editor.playerStartButton);
+				}
+				if(e.keyCode == 84 || e.keyCode == 51) {
 					simulateClick(game.editor.teleportButton);
 					e.preventDefault();
 				}
-				if(e.keyCode == 69) {
+				if(e.keyCode == 69 || e.keyCode == 52) {
 					simulateClick(game.editor.eraserButton);
 					e.preventDefault();
 				}
@@ -2070,7 +2070,7 @@ Editor = function(game) {
 		
 	this.canvas.addEventListener('mousedown', function(ev) { self.onmouse('down', ev); }, false);
 	this.canvas.addEventListener('mousemove', function(ev) { self.onmouse('move', ev); }, false);
-	document.body.addEventListener('mouseup', function(ev) { self.onmouse('up', ev); }, false);
+	window.addEventListener('mouseup', function(ev) { self.onmouse('up', ev); }, false);
 	this.canvas.addEventListener('mouseout', function(ev) { self.onmouse('out', ev); }, false);
 	this.canvas.addEventListener('mouseover', function(ev) { self.onmouse('over', ev); }, false);
 
@@ -2187,24 +2187,29 @@ Editor.prototype.onmouse = function(type, ev) {
 	var pos;
 	if(ev == undefined)
 		pos = this.curPos;
-	else	
+	else	 {
 		pos = this.curPos = this.game.getGamePos(ev);
+		ev.preventDefault();
+	}
 	
 	var x = pos[0];
 	var y = pos[1];
+	var stepTime = this.mode == 'eraser' ? eraserStepTime : editorStepTime;
 	
-	// mouse click event, or cursor back on canvas event while still holding mouse button in correct mode
-	if(type == 'down' || (this.out && type == 'over' && this.down && (this.mode == 'eraser' || this.mode == 'pencil') )) {
-		this.x = x;
-		this.y = y;
-		this.lastTime = Date.now();
+	// mouse click event, or cursor back on canvas event while still holding mouse button
+	if(type == 'down' || (this.out && type == 'over' && this.down)) {
+		if(type == 'down' || this.mode == 'eraser' || this.mode == 'pencil') {
+			this.x = x;
+			this.y = y;
+			this.lastTime = Date.now();
+		}
 		this.out = false;
 		this.down = true;
 	}
 	
 	// mouse out, up or move event, and for move event only when last event was editorStepTime msec ago
 	else if(this.down && (type == 'out' || type == 'up' || 
-	 (type == 'move' && Date.now() - this.lastTime > editorStepTime))) {
+	 (type == 'move' && Date.now() - this.lastTime > stepTime))) {
 	 
 		var out = this.out;
 		if(type == 'out')
@@ -2212,8 +2217,8 @@ Editor.prototype.onmouse = function(type, ev) {
 		else if(type == 'up')
 			this.down = false;
 			
-		// check if we are on the canvas and in different position from last position, and for playerStart or teleport mode if it is not a move event
-	 	if(!out && (this.x != x || this.y != y) && ((this.mode != 'playerStart' && this.mode != 'teleport') || type != 'move')) {
+		// check if we are on the canvas and in different position from last position, and for playerStart or teleport mode if it is not a move or out event
+	 	if(!out && (this.x != x || this.y != y) && ((this.mode != 'playerStart' && this.mode != 'teleport') || (type != 'move' && type != 'out'))) {
 			var seg = new BasicSegment(this.x, this.y, x, y);
 			
 			if(this.mode == 'pencil' || this.mode == 'playerStart' || this.mode == 'teleport') {
