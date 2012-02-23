@@ -10,10 +10,10 @@ function GameEngine(audioController) {
 	this.canvasContainer = document.getElementById('canvasContainer');
 	this.baseCanvas = document.getElementById('baseCanvas');
 	this.baseContext = this.baseCanvas.getContext('2d');
-	this.setDefaultValues(this.baseContext);
+	this.initContext(this.baseContext);
 	this.backupCanvas = document.getElementById('backupCanvas');
 	this.backupContext = this.backupCanvas.getContext('2d');
-	this.setDefaultValues(this.backupContext);
+	this.initContext(this.backupContext);
 
 	// children
 	this.pencil = new Pencil(this);
@@ -1003,8 +1003,8 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 }
 
 GameEngine.prototype.revertBackup = function() {
-	// clear backupcanvas
-	this.backupContext.clearRect(0, 0, this.width, this.height);
+	// clear base canvas
+	this.baseContext.clearRect(0, 0, this.width, this.height);
 
 	// simulate every player up to safe point on backupcanvas
 	for(var i in this.players) {
@@ -1040,9 +1040,9 @@ GameEngine.prototype.revertBackup = function() {
 }
 
 GameEngine.prototype.realStart = function() {
-	// clearing angle indicators from base layer
 	this.baseContext.clearRect(0, 0, this.width, this.height);
-	this.drawMapSegments();
+	this.baseContext.drawImage(this.backupCanvas, 0, 0, this.width, this.height);
+
 	this.audioController.playSound('gameStart');
 	this.setGameState('playing');
 	this.sendMsg('enableInput', {});
@@ -1168,10 +1168,6 @@ GameEngine.prototype.displayRewards = function(reward) {
 
 GameEngine.prototype.resize = function() {
 	this.calcScale();
-
-	// FOR TESTING!!!
-	this.scale /= 2.1;
-
 	var scaledWidth = Math.round(this.scale * this.width);
 	var scaledHeight = Math.round(this.scale * this.height)
 	this.canvasContainer.style.width = scaledWidth + 'px';
@@ -1181,13 +1177,13 @@ GameEngine.prototype.resize = function() {
 	var canvas = this.backupCanvas;
 	canvas.width = scaledWidth;
 	canvas.height = scaledHeight;
-	this.setDefaultValues(ctx);
+	this.initContext(ctx);
 
 	ctx = this.baseContext;
 	canvas = this.baseCanvas;
 	canvas.width = scaledWidth;
 	canvas.height = scaledHeight;
-	this.setDefaultValues(ctx);
+	this.initContext(ctx);
 
 	for(var i in this.players) {
 		var player = this.players[i];
@@ -1215,14 +1211,14 @@ GameEngine.prototype.resize = function() {
 		this.pencil.drawPlayerSegs(true);
 }
 
-GameEngine.prototype.setDefaultValues = function(ctx) {
+GameEngine.prototype.initContext = function(ctx) {
 	ctx.scale(this.scale, this.scale);
 	ctx.lineWidth = lineWidth;
 	ctx.lineCap = lineCapStyle;
-	ctx.drawLine = function(x1, y1, x2, y2) {
-		ctx.beginPath();
-		ctx.moveTo(x1, y1);
-		ctx.lineTo(x2, y2);
+	ctx.drawLine = function(x1, y1, x2, y2) {	// nice idee maar oppassen dat je deze 
+		ctx.beginPath();						// alleen gebruikt als je slechts 1 seg tekent
+		ctx.moveTo(x1, y1);						// anders kun je beter lineTos groeperen in 1 stroke
+		ctx.lineTo(x2, y2);						// das sneller
 		ctx.stroke();
 	};
 }
@@ -1376,25 +1372,6 @@ Player.prototype.changeCourse = function(angle) {
 	this.dx = Math.cos(this.angle) * this.velocity * this.game.tickLength / 1000;
 	this.dy = Math.sin(this.angle) * this.velocity * this.game.tickLength / 1000;
 }
-
-// DEPRECATED
-/* Player.prototype.steer = function(tick, localTick) {
-	this.loadLocation();
-	var endTick = Math.min(tick, localTick - safeTickDifference);
-	this.simulate(endTick, this.game.baseContext);
-	this.saveLocation();
-
-	// TODO: resimulate all!
-
-	this.game.baseContext.clearRect(0, 0, this.game.width, this.game.height);
-
-	if(!this.isLocal) {
-		this.game.redraws++;
-		this.game.displayDebugStatus();
-	}
-
-	this.simulate(localTick - 1, this.game.baseContext);
-} */
 
 Player.prototype.finalSteer = function(obj) {
 	var tick = obj.tick;

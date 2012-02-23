@@ -25,19 +25,18 @@ table, tr, th, td {
 canvas {
 	display: block;
 	background-color: rgba(0, 0, 0, 0);
-
-	/* for testing! */
-	background-color: #D0D0D0;
-	border: 1px solid #000;
-
-	/* position: absolute;
+	position: absolute;
 	left: 0;
-	top: 0; */
+	top: 0;
 	image-rendering: optimizeSpeed;
 }
 
 #baseCanvas {
 	background-color: #D0D0D0;
+}
+
+#backupCanvas {
+	display: none;
 }
 
 #editorCanvas {
