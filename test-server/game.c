@@ -302,13 +302,14 @@ void remgame(struct game *gm) {
 			deleteuser(usr);
 	}
 
-	/* freeing up segments */
+	/* freeing up a bunch of stuff */
 	for(i = 0; i < num_tiles; i++)
 		freesegments(gm->seg[i]);
 
 	if(gm->map)
 		freemap(gm->map);
 	free(gm->seg);
+	freesegments(gm->tosend);
 	freekicklist(gm->kicklist);
 	free(gm);
 

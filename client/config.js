@@ -23,6 +23,7 @@ var canvasMinimumWidth = 150;
 var crossSize = 12;
 var crossLineWidth = 2;
 var crossColor = [0, 0, 0];
+var teleportLineWidth = 2;
 var rewardShowLength = 1000;
 var rewardMaxTransitionLength = 1000;
 var rewardOffsetY = 8;
@@ -31,11 +32,11 @@ var rewardHeight = 18;
 var maxHiddenRewards = 20;
 var startedGamesDisplay = 'below'; // show, below or hide
 
-var safeTickDifference = 30;
+var maxTickDifference = 300; // how far backupCanvas may trail behind
+var tickSafetyMargin = 10;
 var resizeDelay = 200; // the duration the window should have a constant size before calling resize
 var paramUpdateInterval = 500; // don't send game intervals more often that one per this many msecs
 var paramInputInterval = 2000; // wait for this duration before sending params to server after text edit
-
 
 var customGameWaitMessage = 'Waiting for host to start the game..';
 var autoMatchWaitMessage = 'Waiting for more players..';
@@ -77,6 +78,7 @@ var unlockInterval = 0; // minimum time between last changing settings and games
 var minTeleportSize = 15;
 var maxTeleports = 8;
 var epsilon = 0.0001;
+var serverDalay = 200;
 
 /* indicators */
 var indicatorLength = 15;

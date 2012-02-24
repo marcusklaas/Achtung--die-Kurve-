@@ -33,13 +33,12 @@ function GameEngine(audioController) {
 /* this only resets things like canvas, but keeps the player info */
 GameEngine.prototype.reset = function() {
 	this.backupNeeded = false;
-	this.tick = -1;
+	this.lastRevert = this.tick = -1;
 	this.tock = 0;
 	this.redraws = 0;
-	this.redrawsPrevented = 0;
 	this.adjustGameTimeMessagesReceived = 0;
 	this.modifiedInputs = 0;
-	this.crossQueue = []; // x and y coordinates
+	this.crossQueue = [];
 	document.getElementById('winAnnouncer').style.display = 'none';
 	
 	this.pencil.reset();
@@ -145,8 +144,9 @@ GameEngine.prototype.setGameState = function(newState) {
 			setOptionVisibility('stop');
 			break;
 		case 'ended':
-			this.showSidebar();
-			this.resize();
+			if(this.showSidebar())
+				this.resize();
+
 			this.setKickLinksVisibility();
 
 			if(this.type == 'custom')
@@ -173,22 +173,24 @@ GameEngine.prototype.toggleSidebar = function() {
 
 GameEngine.prototype.hideSidebar = function() {
 	if(this.sidebar.style.display == 'none')
-		return;
+		return false;
 
 	this.canvasLeft = 0;
 	this.sidebar.style.display = 'none';
 	document.getElementById('menuButton').innerHTML = '&gt;';
 	document.getElementById('content').style.paddingLeft = '0px';
+	return true;
 }
 
 GameEngine.prototype.showSidebar = function() {
 	if(this.sidebar.style.display != 'none' && this.sidebar.style.display != '')
-		return;
+		return false;
 
 	this.sidebar.style.display = 'block';
 	document.getElementById('menuButton').innerHTML = '&lt;';
 	document.getElementById('content').style.paddingLeft = '301px';
 	this.canvasLeft = 301;
+	return true;
 }
 
 GameEngine.prototype.joinGame = function(gameId) {
@@ -281,9 +283,7 @@ GameEngine.prototype.parseByteMsg = function(str) {
 		var tickDelta = (c & (16 + 32 + 64)) >> 4;
 		tickDelta |= d << 3;
 
-		var newTick = this.localPlayer.inputs[input].tick + tickDelta;
-
-		this.localPlayer.inputs[input].tick = newTick;
+		this.localPlayer.inputs[input].tick += tickDelta;
 		this.backupNeeded = true;
 		
 		return true;
@@ -459,6 +459,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 				this.ping += obj.forward;
 				this.adjustGameTimeMessagesReceived++;
 				this.displayDebugStatus();
+				this.updateSafeTick();
 			} else
 				this.gameMessage('Game time adjustment of ' + obj.forward + ' msec rejected');
 			break;
@@ -608,7 +609,7 @@ GameEngine.prototype.setKickLinksVisibility = function() {
 	var kickLinks = this.playerList.getElementsByTagName('a');
 
 	for(var i = 0; i < kickLinks.length; i++)
-		kickLinks[i].className = showLinks ? 'kickLink' : 'kickLink hidden';
+		kickLinks[i].className = showLinks ? 'close' : 'close hidden';
 }
 
 GameEngine.prototype.setHost = function(player) {
@@ -772,6 +773,12 @@ GameEngine.prototype.handleSyncResponse = function(serverTime) {
 			this.gameMessage('Synced with maximum error of ' + this.bestSyncPing + ' msec');
 		this.syncTry = undefined;
 	}
+
+	this.updateSafeTick();
+}
+
+GameEngine.prototype.updateSafeTick = function() {
+	this.safeTickDifference = Math.ceil((serverDalay + 2 * this.ping)/ this.tickLength  + tickSafetyMargin);
 }
 
 /* initialises the game */ 
@@ -1005,8 +1012,8 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 }
 
 GameEngine.prototype.revertBackup = function() {
-	// clear base canvas
-	this.baseContext.clearRect(0, 0, this.width, this.height);
+	this.redraws++;
+	this.displayDebugStatus();
 
 	// simulate every player up to safe point on backupcanvas
 	for(var i in this.players) {
@@ -1018,7 +1025,7 @@ GameEngine.prototype.revertBackup = function() {
 		player.loadLocation();
 
 		var localTick = player.isLocal ? this.tick : this.tock;
-		var knownTick = Math.max(Math.min(player.finalTick, localTick - safeTickDifference),
+		var knownTick = Math.max(Math.min(player.finalTick, localTick - this.safeTickDifference),
 		 player.inputs.length == 0 ? 0 : player.inputs[player.inputs.length - 1].tick);
 
 		player.simulate(knownTick, this.backupContext);
@@ -1030,6 +1037,9 @@ GameEngine.prototype.revertBackup = function() {
 		this.drawCross(this.backupContext, this.crossQueue[2 * i], this.crossQueue[2 * i + 1]);
 
 	this.crossQueue = [];
+
+	// clear base canvas
+	this.baseContext.clearRect(0, 0, this.width, this.height);
 
 	// simulate every player up to tick/ tock
 	for(var i in this.players) {
@@ -1046,6 +1056,7 @@ GameEngine.prototype.revertBackup = function() {
 	this.baseContext.drawImage(this.backupCanvas, 0, 0, this.width, this.height);
 
 	this.backupNeeded = false;
+	this.lastRevert = this.tick;
 }
 
 GameEngine.prototype.realStart = function() {
@@ -1076,7 +1087,7 @@ GameEngine.prototype.realStart = function() {
 		 		return;
 		 	}
 
-			if(self.backupNeeded)
+			if(self.backupNeeded || self.tick - self.lastRevert > maxTickDifference)
 				self.revertBackup();
 			
 			while(self.tick - self.tock >= tickTockDifference)
@@ -1237,19 +1248,12 @@ GameEngine.prototype.initContext = function(ctx) {
 	ctx.scale(this.scale, this.scale);
 	ctx.lineWidth = lineWidth;
 	ctx.lineCap = lineCapStyle;
-	ctx.drawLine = function(x1, y1, x2, y2) {	// nice idee maar oppassen dat je deze 
-		ctx.beginPath();						// alleen gebruikt als je slechts 1 seg tekent
-		ctx.moveTo(x1, y1);						// anders kun je beter lineTos groeperen in 1 stroke
-		ctx.lineTo(x2, y2);						// das sneller
-		ctx.stroke();
-	};
 }
 
 GameEngine.prototype.displayDebugStatus = function() {
 	if(displayDebugStatus)
 		document.getElementById('status').innerHTML = 
-		 'redraws: ' + this.redraws + ' (' + this.redrawsPrevented +
-		 ' prevented), modified inputs: ' + this.modifiedInputs +
+		 'redraws: ' + this.redraws + ', modified inputs: ' + this.modifiedInputs +
 		 ', game time adjustments: ' + this.adjustGameTimeMessagesReceived;
 }
 
@@ -1270,7 +1274,7 @@ GameEngine.prototype.appendPlayerList = function(player) {
 	nameSpan.className = 'noverflow';
 	player.row = row;
 
-	kickLink.className = this.host == this.localPlayer ? 'kickLink' : 'kickLink hidden';
+	kickLink.className = this.host == this.localPlayer ? 'close' : 'close hidden';
 	kickLink.innerHTML = 'x';
 	kickLink.addEventListener('click', function() { self.requestKick(parseInt(player.id)); });
 
@@ -1419,19 +1423,28 @@ Player.prototype.simulate = function(endTick, ctx) {
 	
 	var nextInput = this.inputs[this.nextInputIndex];
 	this.setSegmentStyle(ctx);
+
+	ctx.beginPath();
+	ctx.moveTo(this.x, this.y);
 	
 	for(; this.tick <= endTick; this.tick++) {
-	
+
 		var inHole = (this.tick > this.holeStart && (this.tick + this.holeStart)
 		 % (this.holeSize + this.holeFreq) < this.holeSize);
 		if(inHole != this.inHole) {
+			ctx.stroke();
+
 			this.inHole = inHole;
 			this.setSegmentStyle(ctx);
+			ctx.beginPath();
+			ctx.moveTo(this.x, this.y);
 		}
 		
 		if(nextInput != null && nextInput.tick == this.tick) {
 			if(nextInput.finalTurn) {
-				ctx.drawLine(this.x, this.y, nextInput.x, nextInput.y);
+				ctx.lineTo(nextInput.x, nextInput.y);
+				ctx.stroke();
+
 				this.game.crossQueue.push(this.x = nextInput.x);
 				this.game.crossQueue.push(this.y = nextInput.y);
 				this.tick++;
@@ -1451,16 +1464,18 @@ Player.prototype.simulate = function(endTick, ctx) {
 		
 		if(obj != null) {
 			if(obj.isTeleport) {
-				ctx.drawLine(this.x, this.y, obj.collisionX, obj.collisionY);
+				ctx.lineTo(obj.collisionX, obj.collisionY);
 				this.changeCourse(obj.extraAngle);
+				
 				this.x = obj.destX + Math.cos(this.angle) / 10;
 				this.y = obj.destY + Math.sin(this.angle) / 10;
+				ctx.moveTo(this.x, this.y);
 				handled = true;
 			}
 		}
 		
 		if(!handled) {
-			ctx.drawLine(this.x, this.y, this.x += this.dx, this.y += this.dy);
+			ctx.lineTo(this.x += this.dx, this.y += this.dy);
 			
 			/* wrap around */
 			if(this.game.torus && (this.x < 0 || this.x > this.game.width ||
@@ -1481,6 +1496,8 @@ Player.prototype.simulate = function(endTick, ctx) {
 			debugPosA[this.tick] = format(this.x, 21) + ', ' + format(this.y, 21) + ', ' + 
 				format(this.angle, 21) + ', ' + handled;
 	}
+
+	ctx.stroke();
 }
 
 Player.prototype.updateRow = function() {
@@ -2063,12 +2080,18 @@ Editor = function(game) {
 	this.canvas = document.getElementById('editorCanvas');
 	this.context = this.canvas.getContext('2d');
 	this.container = document.getElementById('editor');
-	this.textField = document.getElementById('editorTextField');
 	this.pos = [0, 0];
 	this.segments = [];
 	this.canvas.width = this.canvas.height = 0;
 	this.mode = 'pencil';
 	var self = this;
+
+	/* modal stuff */
+	this.textField = document.getElementById('editorTextField');
+	this.modal = document.getElementById('mapLoader');
+	this.overlay = document.getElementById('overlay');
+	this.modalHeader = document.getElementById('modalHeader');
+	this.modalButton = document.getElementById('modalOk');
 		
 	this.canvas.addEventListener('mousedown', function(ev) { self.onmouse('down', ev); }, false);
 	this.canvas.addEventListener('mousemove', function(ev) { self.onmouse('move', ev); }, false);
@@ -2084,10 +2107,36 @@ Editor = function(game) {
 	}, false);
 
 	var copy = document.getElementById('editorCopy');
-	copy.addEventListener('click', function() { self.copy(); }, false);
+	copy.addEventListener('click', function() {
+		self.modalHeader.innerHTML = 'Store map';
+		self.overlay.style.display = 'block';
+		self.modal.style.display = 'block';
+		self.modalButton.innerHTML = 'Done';
+		self.copy();
+	}, false);
 
 	var load = document.getElementById('editorLoad');
-	load.addEventListener('click', function() { self.load(self.textField.value); }, false);
+	load.addEventListener('click', function() {
+		self.modalHeader.innerHTML = 'Load map';
+		self.overlay.style.display = 'block';
+		self.modal.style.display = 'block';
+		self.modalButton.innerHTML = 'Load Map';
+	}, false);
+
+	function closeModal() {
+		self.overlay.style.display = 'none';
+		self.modal.style.display = 'none';
+	}
+
+	this.modalButton.addEventListener('click', function() {
+		if(self.modalButton.innerHTML == 'Load Map')
+			self.load(self.textField.value);
+
+		closeModal();
+	});
+
+	this.overlay.addEventListener('click', closeModal);
+	document.getElementById('modalClose').addEventListener('click', closeModal);
 
 	var undo = document.getElementById('editorUndo');
 	undo.addEventListener('click', function() { self.undo(); }, false);
@@ -2306,7 +2355,10 @@ Editor.prototype.load = function(str) {
 	catch(ex) {
 		this.game.gameMessage('JSON parse exception!');
 	}
-	
+
+	/* FIXME: hier moet nog iets meer checks op segs komen
+	 * het kan nu van alles zijn en dan krijg je later js errors */	
+
 	this.segments = segs;
 	this.resize();
 	this.mapChanged = true;
@@ -2664,7 +2716,8 @@ function getPos(e) {
 	var posx = 0;
 	var posy = 0;
 
-	if (!e) var e = window.event;
+	if (!e)
+		e = window.event;
 
 	if (e.pageX || e.pageY) {
 		posx = e.pageX;
@@ -2740,7 +2793,7 @@ function drawIndicatorArrow(ctx, x, y, angle, color) {
 
 function drawTeleport(ctx, seg) {
 	setLineColor(ctx, seg.color, 1);
-	ctx.lineWidth = 2; // FIXME: dit moet in config.js yo!
+	ctx.lineWidth = teleportLineWidth;
 	var dx = seg.x2 - seg.x1;
 	var dy = seg.y2 - seg.y1;
 	var len = getLength(dx, dy);
