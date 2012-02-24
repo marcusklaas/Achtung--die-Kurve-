@@ -88,6 +88,7 @@ var indicatorFont = 24;
 
 /* editor */
 var editorStepTime = 125;
+var eraserStepTime = 50;
 var mapSegmentColor = [96, 96, 96];
 
 /* these are the segment RGBs for the players */

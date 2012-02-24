@@ -398,7 +398,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.setGameState((obj.type == 'lobby') ? 'lobby' : 'waiting');
 			this.mapSegments = undefined;
 			this.mapTeleports = [];
-			this.editor.segments = [];
+			this.noMapSent = true;
 			this.indexToPlayer[obj.index] = this.localPlayer;
 			this.localPlayer.index = obj.index;
 			this.addPlayer(this.localPlayer);
@@ -1348,12 +1348,12 @@ GameEngine.prototype.backToGameLobby = function() {
 }
 
 GameEngine.prototype.getGamePos = function(e) {
-	var vec = getPos(e);
-	vec[0] = (vec[0] - this.canvasLeft) / this.scale;
-	vec[1] = (vec[1] - this.canvasTop) / this.scale;
-	vec[0] = Math.round(Math.max(Math.min(this.width, vec[0]), 0));
-	vec[1] = Math.round(Math.max(Math.min(this.height, vec[1]), 0));
-	return vec;
+	var v = getPos(e);
+	v.x = (v.x - this.canvasLeft) / this.scale;
+	v.y = (v.y - this.canvasTop) / this.scale;
+	v.x = Math.round(Math.max(Math.min(this.width, v.x), 0));
+	v.y = Math.round(Math.max(Math.min(this.height, v.y), 0));
+	return v;
 }
 
 /* Player
@@ -1577,9 +1577,24 @@ function InputController(player, left, right) {
 	/* listen for keyboard events */
 	window.addEventListener('keydown', function(e) {
 		if(self.player.status != 'alive' || game.state != 'playing') {
-			if(game.state == 'editing') {
-				if(e.keyCode == 90 && e.ctrlKey) {
+			if(game.state == 'editing' && document.activeElement != game.chatBar) {
+				if(e.keyCode == 85) {
 					game.editor.undo();
+					e.preventDefault();
+				}
+				if(e.keyCode == 80 || e.keyCode == 49) {
+					simulateClick(game.editor.pencilButton);
+					e.preventDefault();
+				}
+				if(e.keyCode == 83 || e.keyCode == 50) {
+					simulateClick(game.editor.playerStartButton);
+				}
+				if(e.keyCode == 84 || e.keyCode == 51) {
+					simulateClick(game.editor.teleportButton);
+					e.preventDefault();
+				}
+				if(e.keyCode == 69 || e.keyCode == 52) {
+					simulateClick(game.editor.eraserButton);
 					e.preventDefault();
 				}
 			}
@@ -1618,8 +1633,8 @@ function InputController(player, left, right) {
 	function mouseMove(e) {
 		if(pencil.drawingAllowed && pencil.down) {
 			var pos = game.getGamePos(e);
-			pencil.curX = pos[0];
-			pencil.curY = pos[1];
+			pencil.curX = pos.x;
+			pencil.curY = pos.y;
 		}
 	}
 
@@ -1638,8 +1653,8 @@ function InputController(player, left, right) {
 	function stopDraw(e) {
 		if(pencil.drawingAllowed && pencil.down) {
 			var pos = game.getGamePos(e);
-			pencil.curX = pos[0];
-			pencil.curY = pos[1];
+			pencil.curX = pos.x;
+			pencil.curY = pos.y;
 
 			pencil.down = false;
 			pencil.upped = true;
@@ -1659,22 +1674,22 @@ function InputController(player, left, right) {
 			var touch = e.changedTouches[i];
 			var pos = game.getGamePos(touch);
 			var totalWidth = game.width;
-			var right = (pos[0] <= totalWidth * steerBoxSize);  // FIXME: dit is precies andersom als hoe t zou moeten -- hoe kan dit?
-			var left = (pos[0] >= (1 - steerBoxSize) * totalWidth);
+			var right = (pos.x <= totalWidth * steerBoxSize);  // FIXME: dit is precies andersom als hoe t zou moeten -- hoe kan dit?
+			var left = (pos.x >= (1 - steerBoxSize) * totalWidth);
 
 			if(self.player.status == 'alive' && left && self.leftTouch === null) {
-				self.leftTouch = new touchEvent(pos[0], pos[1], touch.identifier);
+				self.leftTouch = new touchEvent(pos.x, pos.y, touch.identifier);
 				self.pressLeft();
 			}
 
 			else if(self.player.status == 'alive' && right && self.rightTouch === null) {
-				self.rightTouch = new touchEvent(pos[0], pos[1], touch.identifier);
+				self.rightTouch = new touchEvent(pos.x, pos.y, touch.identifier);
 				self.pressRight();
 			}
 
 			else if(self.pencilTouch == null && !pencil.down &&
 			 pencil.ink > pencil.mousedownInk && pencil.drawingAllowed) {
-				self.pencilTouch = new touchEvent(pos[0], pos[1], touch.identifier);
+				self.pencilTouch = new touchEvent(pos.x, pos.y, touch.identifier);
 				pencil.startDraw(pos);
 			}
 		}
@@ -1727,17 +1742,17 @@ function InputController(player, left, right) {
 			var touch = e.changedTouches[i];
 			var pos = game.getGamePos(touch);
 			var totalWidth = game.width;
-			var right = (pos[0] <= totalWidth * steerBoxSize);
-			var left = (pos[0] >= (1 - steerBoxSize) * totalWidth);
+			var right = (pos.x <= totalWidth * steerBoxSize);
+			var left = (pos.x >= (1 - steerBoxSize) * totalWidth);
 
 			if(self.leftTouch != null && touch.identifier == self.leftTouch.identifier) {
-				var convert = (getLength(pos[0] - self.leftTouch.startX, pos[1] - self.leftTouch.startY) >= pencilTreshold
+				var convert = (getLength(pos.x - self.leftTouch.startX, pos.y - self.leftTouch.startY) >= pencilTreshold
 				 && self.pencilTouch == null && !pencil.down && pencil.ink > pencil.mousedownInk);
 
 				/* convert this touch to pencil touch */
 				if(convert) {
-					self.pencilTouch = new touchEvent(pos[0], pos[1], touch.identifier);
-					pencil.startDraw([self.leftTouch.startX, self.leftTouch.startY]);
+					self.pencilTouch = new touchEvent(pos.x, pos.y, touch.identifier);
+					pencil.startDraw({x: self.leftTouch.startX, y: self.leftTouch.startY});
 				}
 
 				if(convert || !left) {
@@ -1747,12 +1762,12 @@ function InputController(player, left, right) {
 			}
 
 			else if(self.rightTouch != null && touch.identifier == self.rightTouch.identifier) {
-				var convert = (getLength(pos[0] - self.rightTouch.startX, pos[1] - self.rightTouch.startY) >= pencilTreshold
+				var convert = (getLength(pos.x - self.rightTouch.startX, pos.y - self.rightTouch.startY) >= pencilTreshold
 				 && self.pencilTouch == null && !pencil.down && pencil.ink > pencil.mousedownInk);
 
 				if(convert) {
-					self.pencilTouch = new touchEvent(pos[0], pos[1], touch.identifier);
-					pencil.startDraw([self.rightTouch.startX, self.rightTouch.startY]);
+					self.pencilTouch = new touchEvent(pos.x, pos.y, touch.identifier);
+					pencil.startDraw({x: self.rightTouch.startX, y: self.rightTouch.startY});
 				}
 
 				if(convert || !right) {
@@ -1764,8 +1779,8 @@ function InputController(player, left, right) {
 			else if(self.pencilTouch != null && touch.identifier == self.pencilTouch.identifier)
 				if(pencil.drawingAllowed && pencil.down) {
 					var pos = game.getGamePos(touch);
-					pencil.curX = pos[0];
-					pencil.curY = pos[1];
+					pencil.curX = pos.x;
+					pencil.curY = pos.y;
 				}
 		}
 
@@ -1883,8 +1898,8 @@ function Pencil(game) {
 /* pos is scaled location */
 Pencil.prototype.startDraw = function(pos) {
 	this.ink -= this.mousedownInk;
-	this.curX = this.x = pos[0];
-	this.curY = this.y = pos[1];
+	this.curX = this.x = pos.x;
+	this.curY = this.y = pos.y;
 	this.outbuffer.push(1);
 	this.outbuffer.push(this.x);
 	this.outbuffer.push(this.y);
@@ -2076,7 +2091,7 @@ ByteMessage.prototype.readPencilFull = function() {
 /* Map editor */
 Editor = function(game) {
 	this.game = game;
-	this.down = false;
+	this.mouse = {down: false, out: true};
 	this.canvas = document.getElementById('editorCanvas');
 	this.context = this.canvas.getContext('2d');
 	this.container = document.getElementById('editor');
@@ -2092,12 +2107,13 @@ Editor = function(game) {
 	this.overlay = document.getElementById('overlay');
 	this.modalHeader = document.getElementById('modalHeader');
 	this.modalButton = document.getElementById('modalOk');
-		
-	this.canvas.addEventListener('mousedown', function(ev) { self.onmouse('down', ev); }, false);
-	this.canvas.addEventListener('mousemove', function(ev) { self.onmouse('move', ev); }, false);
-	document.body.addEventListener('mouseup', function(ev) { self.onmouse('up', ev); }, false);
-	this.canvas.addEventListener('mouseout', function(ev) { self.onmouse('out', ev); }, false);
-	this.canvas.addEventListener('mouseover', function(ev) { self.onmouse('over', ev); }, false);
+	
+	/********* add event listeners *********/
+	this.canvas.addEventListener('mousedown', function(ev) { self.handleInput('down', ev, self.mouse); }, false);
+	this.canvas.addEventListener('mousemove', function(ev) { self.handleInput('move', ev, self.mouse); }, false);
+	window.addEventListener('mouseup', function(ev) { self.handleInput('up', ev, self.mouse); }, false);
+	this.canvas.addEventListener('mouseout', function(ev) { self.handleInput('out', ev, self.mouse); }, false);
+	this.canvas.addEventListener('mouseover', function(ev) { self.handleInput('over', ev, self.mouse); }, false);
 
 	this.resetButton = document.getElementById('editorReset');
 	this.resetButton.addEventListener('click', function() { 
@@ -2146,7 +2162,11 @@ Editor = function(game) {
 		self.game.setGameState('editing');
 		self.pos = findPos(self.canvas);
 		self.resize();
-		self.interval = window.setInterval(function() { self.onmouse('move'); }, editorStepTime);
+		self.interval = window.setInterval(function() { self.handleInput('move', null, self.mouse); }, editorStepTime);
+		if(self.game.noMapSent && self.segments.length > 0) {
+			self.game.noMapSent = false;
+			self.mapChanged = true;
+		}
 		window.scroll(document.body.offsetWidth, 0);
 	}, false);
 
@@ -2157,51 +2177,6 @@ Editor = function(game) {
 		// freeing memory - is this the right way?
 		self.canvas.height = self.canvas.width = 0;
 	}, false);
-	
-	function touchStart(e) {
-		for(var i = 0; i < e.changedTouches.length; i++) {
-			var t = e.changedTouches[i];
-			t.time = Date.now();
-			t.pos = game.getGamePos(t);
-		}
-		if(e.cancelable)
-			e.preventDefault();
-	}
-	
-	function touchMove(e) {
-		for(var i = 0; i < e.changedTouches.length; i++) {
-			var t = e.changedTouches[i];
-			if(Date.now() - t.time > editorStepTime) {
-				var pos = game.getGamePos(t);
-				var seg = new BasicSegment(t.pos[0], t.pos[1], pos[0], pos[1]);
-				self.segments.push(seg);
-				self.mapChanged = true;
-				self.drawSegment(seg);
-				t.pos = pos;
-				t.time = Date.now();
-			}
-		}
-		if(e.cancelable)
-			e.preventDefault();
-	}
-	
-	function touchEnd(e) {
-		for(var i = 0; i < e.changedTouches.length; i++) {
-			var t = e.changedTouches[i];
-			var pos = game.getGamePos(t);
-			var seg = new BasicSegment(t.pos[0], t.pos[1], pos[0], pos[1]);
-			self.segments.push(seg);
-			self.mapChanged = true;
-			self.drawSegment(seg);
-		}
-		if(e.cancelable)
-			e.preventDefault();
-	}
-	
-	this.canvas.addEventListener('touchstart', touchStart, false);
-	this.canvas.addEventListener('touchmove', touchMove, false);
-	this.canvas.addEventListener('touchend', touchEnd, false);
-	this.canvas.addEventListener('touchcancel', touchEnd, false);
 
 	function activate(node) {
 		var siblings = node.parentNode.getElementsByTagName('a');
@@ -2212,99 +2187,130 @@ Editor = function(game) {
 		node.className = 'btn active';
 	}
 	
-	var pencilButton = document.getElementById('editorPencil');
-	pencilButton.className = 'btn active';
-	pencilButton.addEventListener('click', function(e) {
-		activate(e.target);
-		self.mode = 'pencil';
-	}, false);
-
-	document.getElementById('editorEraser').addEventListener('click', function(e) {
-		activate(e.target);
-		self.mode = 'eraser';
-	}, false);
-
-	document.getElementById('editorPlayerStart').addEventListener('click', function(e) {
-		activate(e.target);
-		self.mode = 'playerStart';
-	}, false);
-
-	document.getElementById('editorTeleport').addEventListener('click', function(e) {
-		activate(e.target);
-		self.mode = 'teleport';
-	}, false);
-}
-
-Editor.prototype.onmouse = function(type, ev) {
-	var pos;
-	if(ev == undefined)
-		pos = this.curPos;
-	else	
-		pos = this.curPos = this.game.getGamePos(ev);
+	this.pencilButton = document.getElementById('editorPencil');
+	this.eraserButton = document.getElementById('editorEraser');
+	this.playerStartButton = document.getElementById('editorPlayerStart');
+	this.teleportButton = document.getElementById('editorTeleport');
 	
-	var x = pos[0];
-	var y = pos[1];
-
-	// mouse click event, or cursor back on canvas event while still holding mouse button in correct mode
-	if(type == 'down' || (this.out && type == 'over' && this.down && (this.mode == 'eraser' || this.mode == 'pencil') )) {
-		this.x = x;
-		this.y = y;
-		this.lastTime = Date.now();
-		this.out = false;
-		this.down = true;
+	this.pencilButton.mode = 'pencil';
+	this.eraserButton.mode = 'eraser';
+	this.playerStartButton.mode = 'playerStart';
+	this.teleportButton.mode = 'teleport';
+	
+	var click = function(e) {
+		activate(e.target);
+		self.mode = e.target.mode;
+	};
+	
+	this.pencilButton.className = 'btn active';
+	this.pencilButton.addEventListener('click', click, false);
+	this.eraserButton.addEventListener('click', click, false);
+	this.playerStartButton.addEventListener('click', click, false);
+	this.teleportButton.addEventListener('click', click, false);
+	
+	/********* touch *********/
+	function getTouchEvent(type) {
+		return function(e) {
+			for(var i = 0; i < e.changedTouches.length; i++) {
+				var t = e.changedTouches[i];
+				self.handleInput(type, t, t);
+			}
+			e.preventDefault();
+		};
 	}
 	
-	// mouse out, up or move event, and for move event only when last event was editorStepTime msec ago
-	else if(this.down && (type == 'out' || type == 'up' || 
-	 (type == 'move' && Date.now() - this.lastTime > editorStepTime))) {
-	 
-		var out = this.out;
-		if(type == 'out')
-			this.out = true;
-		else if(type == 'up')
-			this.down = false;
+	this.canvas.addEventListener('touchstart', getTouchEvent('down'), false);
+	this.canvas.addEventListener('touchmove', getTouchEvent('move'), false);
+	this.canvas.addEventListener('touchend', getTouchEvent('up'), false);
+	this.canvas.addEventListener('touchcancel', getTouchEvent('up'), false);
+}
+
+Editor.prototype.handleInput = function(type, ev,  state) {
+	var stepTime = this.mode == 'eraser' ? eraserStepTime : editorStepTime;
+	var setStart = false;
+	var doAction = false;
+	
+	if(ev != undefined) {
+		state.pos = this.game.getGamePos(ev);
+		if(ev.preventDefault)
+			ev.preventDefault();
+	}
+	
+	switch(type) {
+		case 'down':
+			state.down = true;
+			state.out = false;
+			setStart = true;
+			break;
+		case 'over':
+			state.out = false;
+			if(state.down && this.inMode('eraser', 'pencil'))
+				setStart = true;
+			break;
+		case 'up':
+			if(state.down && !state.out)
+				doAction = true;
+			state.down = false;
+			break;
+		case 'out':
+			state.out = true;
+			if(state.down && this.inMode('eraser', 'pencil'))
+				doAction = true;
+			break;
+		case 'move':
+			if(state.down && this.inMode('eraser', 'pencil') && Date.now() - state.startTime > stepTime)
+				doAction = true;
+			break;
+	}
+		
+	if(doAction) {
+		
+	 	if(state.pos.x != state.start.x || state.pos.y != state.start.y) {
+			var seg = new BasicSegment(state.start.x, state.start.y, state.pos.x, state.pos.y);
 			
-		// check if we are on the canvas and in different position from last position, and for playerStart or teleport mode if it is not a move event
-	 	if(!out && (this.x != x || this.y != y) && ((this.mode != 'playerStart' && this.mode != 'teleport') || type != 'move')) {
-			var seg = new BasicSegment(this.x, this.y, x, y);
-			
-			if(this.mode == 'pencil' || this.mode == 'playerStart' || this.mode == 'teleport') {
-				if(this.mode == 'playerStart') {
+			switch(this.mode) {
+				case 'playerStart':
 					seg.playerStart = true;
 					seg.angle = getAngle(seg.x2 - seg.x1, seg.y2 - seg.y1);
 					seg.x2 = seg.x1 + Math.cos(seg.angle) * (indicatorLength + 2 * indicatorArrowLength);
 					seg.y2 = seg.y1 + Math.sin(seg.angle) * (indicatorLength + 2 * indicatorArrowLength);
-				} else if(this.mode == 'teleport') {
+					break;
+				case 'teleport':
+					//TODO: some visual feedback for these return statements
 					if(getLength(seg.x2 - seg.x1, seg.y2 - seg.y1) < minTeleportSize)
 						return;
 					seg.teleportId = this.getNextTeleportId();
 					if(seg.teleportId == -1)
 						return;
 					seg.color = playerColors[seg.teleportId];
-				}
+					break;
+				case 'eraser':
+					var changed = false;
+					for(var i = 0; i < this.segments.length; i++) {
+						if(segmentCollision(this.segments[i], seg) != -1) {
+							this.segments.splice(i--, 1);
+							changed = true;
+							this.mapChanged = true;
+						}
+					}
+					if(changed)
+						this.resize();
+					break;
+			}
+			
+			if(!this.inMode('eraser')) {
 				this.segments.push(seg);
 				this.mapChanged = true;
 				this.drawSegment(seg);
-			} 
-			
-			else if(this.mode == 'eraser') {
-				var changed = false;
-				for(var i = 0; i < this.segments.length; i++) {
-					if(segmentCollision(this.segments[i], seg) != -1) {
-						this.segments.splice(i, 1);
-						i--;
-						changed = true;
-						this.mapChanged = true;
-					}
-				}
-				if(changed)
-					this.resize();
 			}
 			
-			this.x = x;
-			this.y = y;
-			this.lastTime = Date.now();
+			setStart = true;
 		}
+	}
+	
+	if(setStart) {
+		state.start = state.pos;
+		state.startTime = Date.now();
 	}
 }
 
@@ -2325,6 +2331,13 @@ Editor.prototype.getNextTeleportId = function () {
 			id = i;
 	}
 	return id;
+}
+
+Editor.prototype.inMode = function() {
+	for(var i in arguments)
+		if(this.mode == arguments[i])
+			return true;
+	return false;
 }
 
 Editor.prototype.drawSegment = function(seg) {
@@ -2389,8 +2402,7 @@ Editor.prototype.resize = function() {
 		
 	// stop drawing
 	if(sizeChanged) {
-		this.down = false;
-		this.out = false;
+		this.mouse.down = false;
 	}
 }
 
@@ -2705,7 +2717,7 @@ function findPos(obj) {
 			curtop += obj.offsetTop;
 		} while (obj = obj.offsetParent);
 	}
-	return [curleft, curtop];
+	return {x: curleft, y: curtop};
 }
 
 function escapeString(str) {
@@ -2730,7 +2742,7 @@ function getPos(e) {
 			+ document.documentElement.scrollTop;
 	}
 
-	return [posx, posy];
+	return {x: posx, y: posy};
 }
 
 function getRGBstring(color) {
@@ -2839,4 +2851,11 @@ function printDebugPos() {
 
 function format(s, len) {
 	return (s  +  '0000000000000000000000000000').substr(0, len);
+}
+
+function simulateClick(element) {
+	var evt = document.createEvent("MouseEvents");
+	evt.initMouseEvent("click", true, true, window, 
+		0, 0, 0, 0, 0, false, false, false, false, 0, null);
+	element.dispatchEvent(evt);
 }
