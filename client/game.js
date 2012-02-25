@@ -2171,7 +2171,8 @@ Editor = function(game) {
 	}, false);
 
 	var stop = document.getElementById('editorStop');
-	stop.addEventListener('click', function() { 
+	stop.addEventListener('click', function() {
+		self.game.mapSegments = undefined;
 		self.game.setGameState('waiting'); 
 		window.clearInterval(self.interval);
 		// freeing memory - is this the right way?
