@@ -306,7 +306,7 @@ GameEngine.prototype.parseByteMsg = function(str) {
 		mode = a;
 		switch(mode) {
 			case modeSetMap:
-				var msg = new ByteMessage(str, 1);
+				var msg = new ByteMessage(str, 3);
 				this.mapSegments = [];
 				this.mapTeleports = [];
 				while(true) {
@@ -2170,9 +2170,8 @@ Editor = function(game) {
 		window.scroll(document.body.offsetWidth, 0);
 	}, false);
 
-	var stop = document.getElementById('editorStop');
-	stop.addEventListener('click', function() {
-		self.game.mapSegments = undefined;
+	var done = document.getElementById('editorDone');
+	done.addEventListener('click', function() {
 		self.game.setGameState('waiting'); 
 		window.clearInterval(self.interval);
 		// freeing memory - is this the right way?

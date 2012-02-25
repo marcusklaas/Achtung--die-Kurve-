@@ -79,6 +79,8 @@ struct buffer encodemap(struct map *map) {
 	buf.start = 0;
 	allocroom(&buf, 200);
 	appendheader(&buf, MODE_SETMAP, 0);
+	*buf.at++ = 0; // to make sure msg length at least 3
+	*buf.at++ = 0;
 
 	for(tel = map->teleports; tel; tel = tel->nxt) {
 		allocroom(&buf, 13);
