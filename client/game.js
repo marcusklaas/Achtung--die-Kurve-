@@ -2188,11 +2188,13 @@ Editor = function(game) {
 	}
 	
 	this.pencilButton = document.getElementById('editorPencil');
+	this.lineButton = document.getElementById('editorLine');
 	this.eraserButton = document.getElementById('editorEraser');
 	this.playerStartButton = document.getElementById('editorPlayerStart');
 	this.teleportButton = document.getElementById('editorTeleport');
 	
 	this.pencilButton.mode = 'pencil';
+	this.lineButton.mode = 'line';
 	this.eraserButton.mode = 'eraser';
 	this.playerStartButton.mode = 'playerStart';
 	this.teleportButton.mode = 'teleport';
@@ -2204,6 +2206,7 @@ Editor = function(game) {
 	
 	this.pencilButton.className = 'btn active';
 	this.pencilButton.addEventListener('click', click, false);
+	this.lineButton.addEventListener('click', click, false);
 	this.eraserButton.addEventListener('click', click, false);
 	this.playerStartButton.addEventListener('click', click, false);
 	this.teleportButton.addEventListener('click', click, false);
