@@ -959,7 +959,7 @@ void simgame(struct game *gm) {
 	if(SEND_SEGMENTS && gm->tick % SEND_SEGMENTS == 0)
 		airsegments(gm);
 	
-	if(gm->alive <= 1 && (gm->n > 1 || gm->alive < 1))
+	if(gm->alive == 0 || (gm->n > 1 && gm->alive == 1 && !KEEP_PLAYING_ONE_ALIVE))
 		endround(gm);
 	else
 		gm->tick++;

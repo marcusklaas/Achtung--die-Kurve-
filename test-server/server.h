@@ -25,8 +25,8 @@
 
 /* default game settings */
 #define VELOCITY 70 // pixels per sec
-#define GAME_WIDTH 1024
-#define GAME_HEIGHT 644
+#define GAME_WIDTH 512//1024
+#define GAME_HEIGHT 256//644
 #define TURN_SPEED 2.5 // radians per sec
 #define HOLE_SIZE 5 // in ticks
 #define HOLE_FREQ 150 // number of ticks between holes
@@ -56,6 +56,7 @@
 #define SEND_SEGMENTS 30 // om de hoeveel ticks het moet gebeuren (0=nooit)
 #define SAVE_COLLISION_TO_FILE 0
 #define DEBUGPOS 0
+#define KEEP_PLAYING_ONE_ALIVE 1
 
 /* input control */
 #define MAX_FILE_REQ_LEN 100
