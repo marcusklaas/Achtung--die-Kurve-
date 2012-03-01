@@ -11,9 +11,18 @@ function GameEngine(audioController) {
 	this.baseCanvas = document.getElementById('baseCanvas');
 	this.baseContext = this.baseCanvas.getContext('2d');
 	this.initContext(this.baseContext);
-	this.backupCanvas = document.getElementById('backupCanvas');
-	this.backupContext = this.backupCanvas.getContext('2d');
-	this.initContext(this.backupContext);
+	this.canvases = [];
+	this.contexts = [];
+
+	for(var i = 0; i < backupStates.length - 1; i++) {
+		this.canvases[i] = document.createElement('canvas');
+		this.contexts[i] = this.canvases[i].getContext('2d');
+		this.initContext(this.contexts[i]);
+		this.canvasContainer.appendChild(this.canvases[i]);
+	}
+
+	this.canvases.push(this.baseCanvas);
+	this.contexts.push(this.baseContext);
 
 	// children
 	this.pencil = new Pencil(this);
@@ -32,8 +41,10 @@ function GameEngine(audioController) {
 
 /* this only resets things like canvas, but keeps the player info */
 GameEngine.prototype.reset = function() {
-	this.backupNeeded = false;
-	this.lastRevert = this.tick = -1;
+	// revert to this tick when possible if it is smaller than gameEninge.tick
+	this.correctionTick = 0;
+
+	this.tick = -1;
 	this.tock = 0;
 	this.redraws = 0;
 	this.adjustGameTimeMessagesReceived = 0;
@@ -44,8 +55,10 @@ GameEngine.prototype.reset = function() {
 	this.pencil.reset();
 
 	/* clear canvasses */
-	this.backupContext.clearRect(0, 0, this.width, this.height);
 	this.baseContext.clearRect(0, 0, this.width, this.height);
+
+	for(var i = 0; i < backupStates.length; i++)
+		this.contexts[i].clearRect(0, 0, this.width, this.height);
 }
 
 GameEngine.prototype.resetPlayers = function() {
@@ -283,8 +296,7 @@ GameEngine.prototype.parseByteMsg = function(str) {
 		var tickDelta = (c & (16 + 32 + 64)) >> 4;
 		tickDelta |= d << 3;
 
-		this.localPlayer.inputs[input].tick += tickDelta;
-		this.backupNeeded = true;
+		this.correctionTick = (this.localPlayer.inputs[input].tick += tickDelta);
 		
 		return true;
 	}
@@ -360,7 +372,7 @@ GameEngine.prototype.parseSteerMsg = function(str) {
 	player.inputs.push({tick: tick, turn: newTurn});
 	
 	if(tick < this.tock)
-		this.backupNeeded = true;
+		this.correctionTick = tick;
 }
 
 GameEngine.prototype.interpretMsg = function(msg) {
@@ -459,7 +471,6 @@ GameEngine.prototype.interpretMsg = function(msg) {
 				this.ping += obj.forward;
 				this.adjustGameTimeMessagesReceived++;
 				this.displayDebugStatus();
-				this.updateSafeTick();
 			} else
 				this.gameMessage('Game time adjustment of ' + obj.forward + ' msec rejected');
 			break;
@@ -501,16 +512,14 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;
 		case 'endRound':
 			window.clearTimeout(this.gameloopTimeout);
-			this.revertBackup();
 			document.getElementById('inkIndicator').style.display = 'none';
 			for(var i = this.maxHiddenRewards; i < this.rewardNodes.length; i++)
 				this.canvasContainer.removeChild(this.rewardNodes.pop());
 				
 			// simulate to finalTick
-			while(this.tick <= obj.finalTick)
-				this.doTick();
-			while(this.tock <= obj.finalTick)
-				this.doTock();
+			this.tock = this.tick = Math.max(this.tick, obj.finalTick);
+			this.correctionTick = obj.finalTick;
+			this.revertBackup();
 				
 			if(debugPos) 
 				printDebugPos();
@@ -731,7 +740,7 @@ GameEngine.prototype.gameMessage = function(msg) {
 }
 
 GameEngine.prototype.handleSegmentsMessage = function(segments) {
-	var ctx = this.backupContext;
+	var ctx = this.baseContext; // FIXME: niet juiste context
 	setLineColor(ctx, [0, 0, 0], 1);
 	ctx.lineWidth = 1;
 	ctx.beginPath();
@@ -773,12 +782,6 @@ GameEngine.prototype.handleSyncResponse = function(serverTime) {
 			this.gameMessage('Synced with maximum error of ' + this.bestSyncPing + ' msec');
 		this.syncTry = undefined;
 	}
-
-	this.updateSafeTick();
-}
-
-GameEngine.prototype.updateSafeTick = function() {
-	this.safeTickDifference = Math.ceil((serverDalay + 2 * this.ping)/ this.tickLength  + tickSafetyMargin);
 }
 
 /* initialises the game */ 
@@ -866,25 +869,6 @@ GameEngine.prototype.sendMsg = function(mode, data) {
 GameEngine.prototype.syncWithServer = function() {
 	this.syncSendTime = Date.now();
 	this.sendMsg('getTime', {});
-}
-
-GameEngine.prototype.doTick = function() {
-	var player = this.localPlayer;
-
-	if(this.pencilMode != 'off')
-		this.pencil.doTick();
-
-	player.simulate(this.tick, this.baseContext);
-		
-	this.tick++;
-}
-
-GameEngine.prototype.doTock = function() {
-	for(var i in this.players) {
-		var player = this.players[i];
-		player.simulate(this.tock, this.baseContext);
-	}
-	this.tock++;
 }
 
 GameEngine.prototype.addPlayer = function(player) {
@@ -1012,102 +996,115 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 }
 
 GameEngine.prototype.revertBackup = function() {
+	/* false alarm, no revert required */
+	if(this.correctionTick >= this.tick)
+		return;
+
 	this.redraws++;
 	this.displayDebugStatus();
 
-	// simulate every player up to safe point on backupcanvas
+	/* calculate closest restore point */
+	for(var stateIndex = backupStates.length - 1; this.correctionTick < this.tick - backupStates[stateIndex]; stateIndex--);
+
+	this.gameMessage('reverting! correctionTick = ' + this.correctionTick + ', tick = ' + this.tick +
+	 ', stateIndex = ' + stateIndex + ', backupState = ' + backupStates[stateIndex]);
+
+	/* reset next state to this point */
 	for(var i in this.players) {
 		var player = this.players[i];
-		
-		if(player.status == 'ready')
-			break;
-
-		player.loadLocation();
-
-		var localTick = player.isLocal ? this.tick : this.tock;
-		var knownTick = Math.max(Math.min(player.finalTick, localTick - this.safeTickDifference),
-		 player.inputs.length == 0 ? 0 : player.inputs[player.inputs.length - 1].tick);
-
-		player.simulate(knownTick, this.backupContext);
-		player.saveLocation();
+		player.states[stateIndex + 1].copyState(player.states[stateIndex]);
 	}
 
-	// draw crosses
-	for(var i = 0, len = this.crossQueue.length/ 2; i < len; i++)
-		this.drawCross(this.backupContext, this.crossQueue[2 * i], this.crossQueue[2 * i + 1]);
+	/* clear next canvas */
+	var nextContext = this.contexts[stateIndex + 1];
+	nextContext.clearRect(0, 0, this.width, this.height);
 
-	this.crossQueue = [];
+	/* copy to next canvas */
+	nextContext.drawImage(this.canvases[stateIndex], 0, 0, this.width, this.height);
+	this.correctionTick = this.tick - backupStates[stateIndex + 1];
 
-	// clear base canvas
-	this.baseContext.clearRect(0, 0, this.width, this.height);
+	/* simulate every player up to next backup point */
+	this.updateContext(stateIndex + 1);
 
-	// simulate every player up to tick/ tock
+	/* recurse all the way until we are at baseCanvas */
+	this.revertBackup();
+}
+
+GameEngine.prototype.updateContext = function(stateIndex) {
 	for(var i in this.players) {
 		var player = this.players[i];
 		var tick = player.isLocal ? this.tick - 1 : this.tock - 1;
+		tick -= backupStates[stateIndex];
 
-		if(player.status == 'ready')
-			break;
-
-		player.simulate(tick, this.baseContext);
+		player.simulate(tick, this.contexts[stateIndex], player.states[stateIndex]);
 	}
 
-	// copy backupcanvas to basecanvas
-	this.baseContext.drawImage(this.backupCanvas, 0, 0, this.width, this.height);
+	this.drawCrosses(stateIndex);
+}
 
-	this.backupNeeded = false;
-	this.lastRevert = this.tick;
+GameEngine.prototype.drawCrosses = function(stateIndex) {
+	for(var i = 0, len = this.crossQueue.length/ 2; i < len; i++)
+		this.drawCross(this.contexts[stateIndex], this.crossQueue[2 * i], this.crossQueue[2 * i + 1]); 
+
+	this.crossQueue = [];
+}
+
+GameEngine.prototype.drawCross = function(ctx, x, y) {	
+	setLineColor(ctx, crossColor, 1);
+	ctx.lineWidth = crossLineWidth;
+	ctx.beginPath();
+	ctx.moveTo(x - crossSize / 2, y - crossSize / 2);
+	ctx.lineTo(x + crossSize / 2, y + crossSize / 2);
+	ctx.moveTo(x + crossSize / 2, y - crossSize / 2);
+	ctx.lineTo(x - crossSize / 2, y + crossSize / 2);
+	ctx.stroke();
+	ctx.lineWidth = lineWidth;
+}
+
+/* TODO: CPU lag inbouwen (SIMULATIE ONLY, lol ;p) */
+GameEngine.prototype.gameloop = function() {
+	if(this.state != 'playing' && this.state != 'watching')
+		return;
+
+	requestAnimFrame(function () { self.gameloop(); });
+
+	var endTick =  Math.floor((Date.now() - this.gameStartTimestamp)/ this.tickLength);
+	var self = this;
+	
+	while(this.tick < endTick) {
+		if(debugRewards && this.tick % 60 == 0)
+				this.displayRewards(1);
+
+		this.revertBackup();
+
+		for(var i = 0; i < backupStates.length; i++)
+			this.updateContext(i);
+
+		if(this.pencilMode != 'off')
+			this.pencil.doTick();
+
+		this.correctionTick = ++this.tick;
+		this.tock = Math.max(0, this.tick - tickTockDifference);
+		
+	}
 }
 
 GameEngine.prototype.realStart = function() {
 	this.baseContext.clearRect(0, 0, this.width, this.height);
-	this.baseContext.drawImage(this.backupCanvas, 0, 0, this.width, this.height);
+	this.baseContext.drawImage(this.canvases[0], 0, 0, this.width, this.height);
 
 	this.audioController.playSound('gameStart');
 	this.setGameState('playing');
 	this.sendMsg('enableInput', {});
 	this.tick = 0;
-	
-	var self = this;
-	var gameloop = function() {
-		var timeOut;
-		var tellert = 0;
 
-		do {
-			if(self.state != 'playing' && self.state != 'watching')
-				return;
-				
-			if(debugRewards && self.tick % 60 == 0)
-				self.displayRewards(1);
-
-			if(tellert++ > 100) {
-		 		self.gameMessage('ERROR. stopping gameloop. debug information: next tick time = ' +
-		 		 ((self.tick + 1) * self.tickLength) + ', current game time = ' + 
-		 		 (Date.now() - self.gameStartTimestamp));
-		 		return;
-		 	}
-
-			if(self.backupNeeded || self.tick - self.lastRevert > maxTickDifference)
-				self.revertBackup();
-			
-			while(self.tick - self.tock >= tickTockDifference)
-				self.doTock();
-
-			self.doTick();
-
-		} while((timeOut = (self.tick + 1) * self.tickLength - (Date.now() - self.gameStartTimestamp)
-		 + (simulateCPUlag && self.tick % 100 == 0 ? 400 : 0)) <= 0);
-
-		self.gameloopTimeout = setTimeout(gameloop, timeOut);		
-	}
-
-	gameloop();
+	this.gameloop();
 }
 
-GameEngine.prototype.drawMapSegments = function() {
+GameEngine.prototype.drawMapSegments = function(ctx) {
 	if(this.mapSegments == undefined)
 		return;
-	var ctx = this.backupContext;
+
 	ctx.beginPath();
 	setLineColor(ctx, mapSegmentColor, 1);
 	for(var i = 0; i < this.mapSegments.length; i++) {
@@ -1192,56 +1189,20 @@ GameEngine.prototype.resize = function() {
 	var scaledHeight = Math.round(this.scale * this.height)
 	this.canvasContainer.style.width = scaledWidth + 'px';
 	this.canvasContainer.style.height = scaledHeight + 'px';
-	
-	var ctx = this.backupContext;
-	var canvas = this.backupCanvas;
-	canvas.width = scaledWidth;
-	canvas.height = scaledHeight;
-	this.initContext(ctx);
 
-	ctx = this.baseContext;
-	canvas = this.baseCanvas;
-	canvas.width = scaledWidth;
-	canvas.height = scaledHeight;
-	this.initContext(ctx);
-
-	for(var i in this.players) {
-		var player = this.players[i];
-		
-		if(player.status == 'ready')
-			break;
-
-		//TODO: voor alle startvariabelen zelfde methode gebruiken als saveLocation loadLocation
-		player.x = player.startX;
-		player.y = player.startY;
-		player.angle = player.startAngle;
-		player.changeCourse(0);
-		player.inHole = false;
-		player.velocity = player.startVelocity;
-		player.tick = 0;
-		player.turn = 0;
-		player.nextInputIndex = 0;
-		player.saveLocation();
+	for(var i = 0; i < backupStates.length; i++) {
+		this.canvases[i].width = scaledWidth;
+		this.canvases[i].height = scaledHeight;
+		this.initContext(this.contexts[i]);
 	}
 	
-	this.drawMapSegments();
+	this.drawMapSegments(this.contexts[0]);
 
 	if(this.pencilMode != 'off')
 		this.pencil.drawPlayerSegs(true);
 
+	this.correctionTick = 0;
 	this.revertBackup();
-}
-
-GameEngine.prototype.drawCross = function(ctx, x, y) {	
-	setLineColor(ctx, crossColor, 1);
-	ctx.lineWidth = crossLineWidth;
-	ctx.beginPath();
-	ctx.moveTo(x - crossSize / 2, y - crossSize / 2);
-	ctx.lineTo(x + crossSize / 2, y + crossSize / 2);
-	ctx.moveTo(x + crossSize / 2, y - crossSize / 2);
-	ctx.lineTo(x - crossSize / 2, y + crossSize / 2);
-	ctx.stroke();
-	ctx.lineWidth = lineWidth;
 }
 
 GameEngine.prototype.initContext = function(ctx) {
@@ -1356,6 +1317,42 @@ GameEngine.prototype.getGamePos = function(e) {
 	return v;
 }
 
+/* NEW! playerStates! */
+function PlayerState(player) {
+	this.player = player;
+	this.x = 0;
+	this.y = 0;
+	this.angle = 0;
+	this.turn = 0;
+	this.velocity = 0;
+	this.tick = 0;
+	this.nextInputIndex = 0;
+	this.inHole = 0;
+	this.dx = 0;
+	this.dy = 0;
+}
+
+PlayerState.prototype.copyState = function(orig) {
+	this.x = orig.x;
+	this.y = orig.y;
+	this.angle = orig.angle;
+	this.turn = orig.turn;
+	this.velocity = orig.velocity;
+	this.tick = orig.tick;
+	this.nextInputIndex = orig.nextInputIndex;
+	this.inHole = orig.inHole;
+	this.dx = orig.dx;
+	this.dy = orig.dy;
+}
+
+PlayerState.prototype.changeCourse = function(angle) {
+	var tickLength = this.player.game.tickLength;
+
+	this.angle += angle;
+	this.dx = Math.cos(this.angle) * this.velocity * tickLength / 1000;
+	this.dy = Math.sin(this.angle) * this.velocity * tickLength / 1000;
+}
+
 /* Player
  * properties:
  * - status: ready, host, alive, dead or left
@@ -1365,38 +1362,11 @@ function Player(game, isLocal) {
 	this.isLocal = isLocal;
 	if(isLocal)
 		this.inputController = new InputController(this, keyCodeLeft, keyCodeRight);
-}
 
-Player.prototype.saveLocation = function() {
-	this.lcx = this.x;
-	this.lcy = this.y;
-	this.lca = this.angle;
-	this.lcturn = this.turn;
-	this.lcvelocity = this.velocity;
-	this.lctick = this.tick;
-	this.lcnextInputIndex = this.nextInputIndex;
-	this.lcinHole = this.inHole;
-	this.lcdx = this.dx;
-	this.lcdy = this.dy;
-}
+	this.states = [];
 
-Player.prototype.loadLocation = function() {
-	this.x = this.lcx;
-	this.y = this.lcy;
-	this.angle = this.lca;
-	this.turn = this.lcturn;
-	this.velocity = this.lcvelocity;
-	this.tick = this.lctick;
-	this.nextInputIndex = this.lcnextInputIndex;
-	this.inHole = this.lcinHole;
-	this.dx = this.lcdx;
-	this.dy = this.lcdy;
-}
-
-Player.prototype.changeCourse = function(angle) {
-	this.angle += angle;
-	this.dx = Math.cos(this.angle) * this.velocity * this.game.tickLength / 1000;
-	this.dy = Math.sin(this.angle) * this.velocity * this.game.tickLength / 1000;
+	for(var i = 0; i < backupStates.length; i++)
+		this.states[i] = new PlayerState(this);
 }
 
 Player.prototype.finalSteer = function(obj) {
@@ -1409,92 +1379,92 @@ Player.prototype.finalSteer = function(obj) {
 	this.finalTick = tick;
 
 	if(tick < localTick)
-		this.game.backupNeeded = true;
+		this.game.correctionTick = tick;
 }
 
-Player.prototype.setSegmentStyle = function(ctx) {
-	ctx.strokeStyle = this.inHole ? this.holeColor : this.segColor;
-	ctx.lineCap = this.inHole ? 'butt' : 'round';
+Player.prototype.setSegmentStyle = function(ctx, inHole) {
+	ctx.strokeStyle = inHole ? this.holeColor : this.segColor;
+	ctx.lineCap = inHole ? 'butt' : 'round';
 }
 
-Player.prototype.simulate = function(endTick, ctx) {
-	if(this.tick > endTick || this.tick > this.finalTick)
+Player.prototype.simulate = function(endTick, ctx, state) {
+	if(state.tick > endTick || state.tick > this.finalTick)
 		return;
 	
-	var nextInput = this.inputs[this.nextInputIndex];
-	this.setSegmentStyle(ctx);
+	var nextInput = this.inputs[state.nextInputIndex];
+	this.setSegmentStyle(ctx, state.inHole);
 
 	ctx.beginPath();
-	ctx.moveTo(this.x, this.y);
+	ctx.moveTo(state.x, state.y);
 	
-	for(; this.tick <= endTick; this.tick++) {
+	for(; state.tick <= endTick; state.tick++) {
 
-		var inHole = (this.tick > this.holeStart && (this.tick + this.holeStart)
+		var inHole = (state.tick > this.holeStart && (state.tick + this.holeStart)
 		 % (this.holeSize + this.holeFreq) < this.holeSize);
-		if(inHole != this.inHole) {
+		if(inHole != state.inHole) {
 			ctx.stroke();
 
-			this.inHole = inHole;
-			this.setSegmentStyle(ctx);
+			state.inHole = inHole;
+			this.setSegmentStyle(ctx, inHole);
 			ctx.beginPath();
-			ctx.moveTo(this.x, this.y);
+			ctx.moveTo(state.x, state.y);
 		}
 		
-		if(nextInput != null && nextInput.tick == this.tick) {
+		if(nextInput != null && nextInput.tick == state.tick) {
 			if(nextInput.finalTurn) {
 				ctx.lineTo(nextInput.x, nextInput.y);
 				ctx.stroke();
 
-				this.game.crossQueue.push(this.x = nextInput.x);
-				this.game.crossQueue.push(this.y = nextInput.y);
-				this.tick++;
+				this.game.crossQueue.push(state.x = nextInput.x);
+				this.game.crossQueue.push(state.y = nextInput.y);
+				state.tick++;
 				return;
 			} else {
-				this.turn = nextInput.turn;
-				nextInput = this.inputs[++this.nextInputIndex];
+				state.turn = nextInput.turn;
+				nextInput = this.inputs[++state.nextInputIndex];
 			}
 		}
 
-		if(this.turn != 0) {
-			this.changeCourse(this.turn * this.turnSpeed  * this.game.tickLength / 1000);
+		if(state.turn != 0) {
+			state.changeCourse(state.turn * this.turnSpeed  * this.game.tickLength / 1000);
 		}
 		
-		var obj = this.game.getCollision(this.x, this.y, this.x + this.dx, this.y + this.dy);
+		var obj = this.game.getCollision(state.x, state.y, state.x + state.dx, state.y + state.dy);
 		var handled = false;
 		
 		if(obj != null) {
 			if(obj.isTeleport) {
 				ctx.lineTo(obj.collisionX, obj.collisionY);
-				this.changeCourse(obj.extraAngle);
+				state.changeCourse(obj.extraAngle);
 				
-				this.x = obj.destX + Math.cos(this.angle) / 10;
-				this.y = obj.destY + Math.sin(this.angle) / 10;
-				ctx.moveTo(this.x, this.y);
+				state.x = obj.destX + Math.cos(state.angle) / 10;
+				state.y = obj.destY + Math.sin(state.angle) / 10;
+				ctx.moveTo(state.x, state.y);
 				handled = true;
 			}
 		}
 		
 		if(!handled) {
-			ctx.lineTo(this.x += this.dx, this.y += this.dy);
+			ctx.lineTo(state.x += state.dx, state.y += state.dy);
 			
 			/* wrap around */
-			if(this.game.torus && (this.x < 0 || this.x > this.game.width ||
-				this.y < 0 || this.y > this.game.height)) {
-				if(this.x > this.game.width)
-					this.x = 0;
-				else if(this.x < 0)
-					this.x = this.game.width;
+			if(this.game.torus && (state.x < 0 || state.x > this.game.width ||
+				state.y < 0 || state.y > this.game.height)) {
+				if(state.x > this.game.width)
+					state.x = 0;
+				else if(state.x < 0)
+					state.x = this.game.width;
 
-				if(this.y > this.game.height)
-					this.y = 0;
-				else if(this.y < 0)
-					this.y = this.game.height;
+				if(state.y > this.game.height)
+					state.y = 0;
+				else if(state.y < 0)
+					state.y = this.game.height;
 			}
 		}
 		
-		if(debugPos && debugPosA[this.tick] == null)
-			debugPosA[this.tick] = format(this.x, 21) + ', ' + format(this.y, 21) + ', ' + 
-				format(this.angle, 21) + ', ' + handled;
+		if(debugPos && debugPosA[state.tick] == null)
+			debugPosA[state.tick] = format(state.x, 21) + ', ' + format(state.y, 21) + ', ' + 
+				format(state.angle, 21) + ', ' + handled;
 	}
 
 	ctx.stroke();
@@ -1512,33 +1482,40 @@ Player.prototype.updateRow = function() {
 }
 
 Player.prototype.initialise = function(x, y, angle, holeStart) {
-	this.startVelocity = this.velocity = this.game.velocity;
+	var startState = this.states[0];
+	startState.velocity = this.game.velocity;
+	startState.inHole = false;
+	startState.x = x;
+	startState.y = y;
+	startState.nextInputIndex = 0;
+	startState.angle = angle;
+	startState.changeCourse(0);
+	startState.turn = 0;
+	startState.tick = 0;
+
+	for(var i = 1; i < backupStates.length; i++)
+		this.states[i].copyState(startState);
+
+	this.status = 'alive';
+	this.inputs = [];
+	this.lastInputTick = -1;
+	this.lastInputTurn = 0;
+	this.finalTick = Infinity;
 	this.turnSpeed = this.game.turnSpeed;
 	this.holeStart = holeStart;
 	this.holeSize = this.game.holeSize;
 	this.holeFreq = this.game.holeFreq;
-	this.inHole = false;
-	this.status = 'alive';
-	this.startX = this.x = x;
-	this.startY = this.y = y;
-	this.nextInputIndex = 0;
-	this.startAngle = this.angle = angle;
-	this.changeCourse(0);
-	this.turn = 0;
-	this.inputs = [];
-	this.tick = 0;
-	this.lastInputTick = -1;
-	this.lastInputTurn = 0;
-	this.finalTick = Infinity;
 	this.updateRow();
-	this.saveLocation();
 
 	if(this.inputController != undefined)
 		this.inputController.reset();
 }
 
 Player.prototype.drawIndicator = function() {
-	var ctx = this.game.baseContext, x = this.x, y = this.y, angle = this.angle;
+	var ctx = this.game.baseContext;
+	var x = this.states[0].x;
+	var y = this.states[0].y;
+	var angle = this.states[0].angle;
 
 	drawIndicatorArrow(ctx, x, y, angle, this.color);
 	
@@ -1548,8 +1525,8 @@ Player.prototype.drawIndicator = function() {
 	ctx.font = 'bold ' + indicatorFont + 'px Helvetica, sans-serif';
 	ctx.textBaseline = 'bottom';
 	var w = ctx.measureText(text).width;
-	x = this.x - (Math.cos(this.angle) > 0 && Math.sin(this.angle) < 0 ? w + 2 : 0);
-	y = this.y - 3;
+	x-= Math.cos(this.angle) > 0 && Math.sin(this.angle) < 0 ? w + 2 : 0;
+	y-= 3;
 	ctx.fillText(text, Math.min(this.game.width - w, Math.max(0, x)), y);
 }
 
@@ -1963,8 +1940,7 @@ Pencil.prototype.doTick = function() {
 			this.outbuffer.push(y);
 			this.outbuffer.push(this.game.tick);
 
-			this.drawSegment(this.game.backupContext, this.x, this.y, x, y, this.game.localPlayer, pencilAlpha);
-			this.drawSegment(this.game.baseContext, this.x, this.y, x, y, this.game.localPlayer, pencilAlpha);
+			this.drawGlobal(this.x, this.y, x, y, this.game.localPlayer, pencilAlpha);
 
 			this.x = x;
 			this.y = y;
@@ -1995,17 +1971,17 @@ Pencil.prototype.drawPlayerSegs = function(redraw) {
 			if(!solid && !redraw)
 				break;
 
-			if(!redraw)
-				this.drawSegment(this.game.baseContext, seg.x1, seg.y1,
-				 seg.x2, seg.y2, player, solid ? 1 : pencilAlpha);
-
-			this.drawSegment(this.game.backupContext, seg.x1, seg.y1,
-			 seg.x2, seg.y2, player, solid ? 1 : pencilAlpha);
+			this.drawGlobal(seg.x1, seg.y1, seg.x2, seg.y2, player, solid ? 1 : pencilAlpha);
 		}
 		
 		if(!redraw)
 			player.inbufferIndex = index;
 	}
+}
+
+Pencil.prototype.drawGlobal = function(x1, y1, x2, y2, player, alpha) {
+	for(var i = 0; i < backupStates.length; i++)
+		this.drawSegment(this.game.contexts[i], x1, y1, x2, y2, player, alpha);
 }
 
 Pencil.prototype.drawSegment = function(ctx, x1, y1, x2, y2, player, alpha) {
@@ -2041,10 +2017,9 @@ Pencil.prototype.handleMessage = function(msg, player) {
 			}
 			
 			var seg = {x1: player.pencilX, y1: player.pencilY, x2: pos.x, y2: pos.y, tickSolid: tick};
-			if(player != this.game.localPlayer) {
-				this.drawSegment(this.game.baseContext, seg.x1, seg.y1, seg.x2, seg.y2, player, pencilAlpha);
-				this.drawSegment(this.game.backupContext, seg.x1, seg.y1, seg.x2, seg.y2, player, pencilAlpha);
-			}
+	
+			if(player != this.game.localPlayer)
+				this.drawGlobal(seg.x1, seg.y1, seg.x2, seg.y2, player, pencilAlpha);
 
 			player.inbuffer.push(seg);
 			lastTick = tick;
@@ -2277,7 +2252,7 @@ Editor.prototype.handleInput = function(type, ev,  state) {
 					seg.y2 = seg.y1 + Math.sin(seg.angle) * (indicatorLength + 2 * indicatorArrowLength);
 					break;
 				case 'teleport':
-					//TODO: some visual feedback for these return statements
+					//TODO: some visual feedback for these return statements - wat do u mean?
 					if(getLength(seg.x2 - seg.x1, seg.y2 - seg.y1) < minTeleportSize)
 						return;
 					seg.teleportId = this.getNextTeleportId();
@@ -2612,6 +2587,18 @@ window.onload = function() {
 	// for debug purposes
 	echo = function(msg) { game.gameMessage(msg); };
 	engine = game;
+
+	/* requestAnimationFrame fallback */
+	window.requestAnimFrame = (function() {
+		return  window.requestAnimationFrame       || 
+				window.webkitRequestAnimationFrame || 
+				window.mozRequestAnimationFrame    || 
+				window.oRequestAnimationFrame      || 
+				window.msRequestAnimationFrame     || 
+				function( callback ) {
+					window.setTimeout(callback, 1000 / 60);
+				};
+	})();
 
 	/* add event handlers to schedule paramupdate message when game options are changed */
 	var inputElts = document.getElementById('details').getElementsByTagName('input');
