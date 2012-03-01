@@ -23,23 +23,23 @@ table, tr, th, td {
 }
 
 canvas {
-	display: block;
-	background-color: rgba(0, 0, 0, 0);
-	position: absolute;
-	left: 0;
-	top: 0;
+	display: none;
 	image-rendering: optimizeSpeed;
 }
 
 #baseCanvas {
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
 	background-color: #D0D0D0;
 }
 
-#backupCanvas {
-	display: none;
-}
-
 #editorCanvas {
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
 	background-color: #D0D0D0;
 	border: 1px solid #999;
 	border-top: 0;
