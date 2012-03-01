@@ -25,8 +25,8 @@
 
 /* default game settings */
 #define VELOCITY 70 // pixels per sec
-#define GAME_WIDTH 512//1024
-#define GAME_HEIGHT 256//644
+#define GAME_WIDTH 1024
+#define GAME_HEIGHT 644
 #define TURN_SPEED 2.5 // radians per sec
 #define HOLE_SIZE 5 // in ticks
 #define HOLE_FREQ 150 // number of ticks between holes

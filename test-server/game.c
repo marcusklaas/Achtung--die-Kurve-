@@ -96,10 +96,18 @@ void updategamelist() {
 void startgame(struct game *gm) {
 	struct user *usr;
 	cJSON *root, *start_locations;
-	int laterround;
+	int laterround = gm->round++;
 
 	if(DEBUG_MODE)
 		printf("starting game %p!\n", (void*)gm);
+		
+	if(!laterround) {
+		double seglen = gm->v * TICK_LENGTH / 1000.0;
+		gm->tilew = gm->tileh = ceil(TILE_SIZE_MULTIPLIER * seglen);
+		gm->htiles = ceil(1.0 * gm->w / gm->tilew);
+		gm->vtiles = ceil(1.0 * gm->h / gm->tileh);
+		gm->seg = scalloc(gm->htiles * gm->vtiles, sizeof(struct seg*));
+	}
 	
 	if(gm->map) {
 		struct seg *seg;
@@ -134,7 +142,6 @@ void startgame(struct game *gm) {
 	gm->rsn = gm->n;
 	randomizeplayerstarts(gm);
 
-	laterround = gm->round++ != 0;
 	gm->start = serverticks * TICK_LENGTH + laterround * COOLDOWN + COUNTDOWN;
 	gm->tick = -(COUNTDOWN + SERVER_DELAY + laterround * COOLDOWN)/ TICK_LENGTH;
 	gm->state = GS_STARTED;
@@ -303,12 +310,8 @@ void remgame(struct game *gm) {
 	}
 
 	/* freeing up a bunch of stuff */
-	for(i = 0; i < num_tiles; i++)
-		freesegments(gm->seg[i]);
-
 	if(gm->map)
 		freemap(gm->map);
-	free(gm->seg);
 	freesegments(gm->tosend);
 	freekicklist(gm->kicklist);
 	free(gm);
@@ -500,7 +503,6 @@ void joingame(struct game *gm, struct user *newusr) {
 
 struct game *creategame(int gametype, int nmin, int nmax) {
 	struct game *gm = scalloc(1, sizeof(struct game));
-	double seglen;
 	
 	if(DEBUG_MODE)
 		printf("creating game %p\n", (void*)gm);
@@ -527,13 +529,6 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	gm->hsize = HOLE_SIZE;
 	gm->hfreq = HOLE_FREQ;
 	headgame = gm;
-
-	/* how big we should choose our tiles depends only on segment length */
-	seglen = gm->v * TICK_LENGTH / 1000.0;
-	gm->tilew = gm->tileh = ceil(TILE_SIZE_MULTIPLIER * seglen);
-	gm->htiles = ceil(1.0 * gm->w / gm->tilew);
-	gm->vtiles = ceil(1.0 * gm->h / gm->tileh);
-	gm->seg = scalloc(gm->htiles * gm->vtiles, sizeof(struct seg*));
 
 	return gm;
 }
@@ -889,8 +884,8 @@ void endround(struct game *gm) {
 	/* freeing up segments */
 	for(i = 0; i < num_tiles; i++) {
 		freesegments(gm->seg[i]);
-		gm->seg[i] = 0;
 	}
+	free(gm->seg);
 
 	if((maxpoints >= gm->goal && maxpoints >= secondpoints + MIN_WIN_DIFF) || gm->n == 1) {
 		endgame(gm, winner);

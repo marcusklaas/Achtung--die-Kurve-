@@ -63,8 +63,8 @@ var displayDebugStatus = false;
 var debugRewards = false;
 var alwaysHideSidebar = false;
 var debugPos = false;
-var debugComputers = 1;
-var debugMap = '[{"x1":1,"y1":1,"x2":510,"y2":2},{"x1":508,"y1":0,"x2":508,"y2":254},{"x1":508,"y1":254,"x2":1,"y2":252},{"x1":1,"y1":252,"x2":1,"y2":1},{"x1":1,"y1":104,"x2":95,"y2":43},{"x1":61,"y1":63,"x2":184,"y2":142},{"x1":75,"y1":151,"x2":36,"y2":191},{"x1":163,"y1":187,"x2":231,"y2":194},{"x1":126,"y1":134,"x2":116,"y2":195},{"x1":90,"y1":220,"x2":83,"y2":252},{"x1":287,"y1":1,"x2":284,"y2":59},{"x1":282,"y1":82,"x2":284,"y2":252},{"x1":207,"y1":1,"x2":195,"y2":21},{"x1":191,"y1":35,"x2":178,"y2":105}]';
+var debugComputers = 0;
+var debugMap = '';
 
 /* server.h copy */
 var maxNameLength = 20;
