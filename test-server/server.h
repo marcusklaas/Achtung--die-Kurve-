@@ -22,6 +22,7 @@
 #define KICK_REJOIN_TIME 15000
 #define MAX_TELEPORTS 8
 #define HACKS 0
+#define SEG_ALLOC_BLOCKS 1000
 
 /* default game settings */
 #define VELOCITY 70 // pixels per sec

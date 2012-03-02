@@ -285,7 +285,9 @@ void freemap(struct map *map) {
 
 void remgame(struct game *gm) {
 	struct user *usr, *nxt;
-	int i, num_tiles = gm->htiles * gm->vtiles;
+	int i, num_tiles;
+
+	num_tiles = gm->htiles * gm->vtiles;
 	
 	if(DEBUG_MODE)
 		printf("deleting game %p\n", (void *) gm);
@@ -310,10 +312,15 @@ void remgame(struct game *gm) {
 	}
 
 	/* freeing up a bunch of stuff */
+	for(i = 0; i < num_tiles; i++)
+		freesegments(gm->seg[i]);
+
 	if(gm->map)
 		freemap(gm->map);
+
 	freesegments(gm->tosend);
 	freekicklist(gm->kicklist);
+	free(gm->seg);
 	free(gm);
 
 	gamelistcurrent = 0;
@@ -884,8 +891,8 @@ void endround(struct game *gm) {
 	/* freeing up segments */
 	for(i = 0; i < num_tiles; i++) {
 		freesegments(gm->seg[i]);
+		gm->seg[i] = 0;
 	}
-	free(gm->seg);
 
 	if((maxpoints >= gm->goal && maxpoints >= secondpoints + MIN_WIN_DIFF) || gm->n == 1) {
 		endgame(gm, winner);

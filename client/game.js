@@ -18,7 +18,6 @@ function GameEngine(audioController) {
 		this.canvases[i] = document.createElement('canvas');
 		this.contexts[i] = this.canvases[i].getContext('2d');
 		this.initContext(this.contexts[i]);
-		this.canvasContainer.appendChild(this.canvases[i]);
 	}
 
 	this.canvases.push(this.baseCanvas);
@@ -41,9 +40,7 @@ function GameEngine(audioController) {
 
 /* this only resets things like canvas, but keeps the player info */
 GameEngine.prototype.reset = function() {
-	// revert to this tick when possible if it is smaller than gameEninge.tick
 	this.correctionTick = 0;
-
 	this.tick = -1;
 	this.tock = 0;
 	this.redraws = 0;
@@ -53,12 +50,6 @@ GameEngine.prototype.reset = function() {
 	document.getElementById('winAnnouncer').style.display = 'none';
 	
 	this.pencil.reset();
-
-	/* clear canvasses */
-	this.baseContext.clearRect(0, 0, this.width, this.height);
-
-	for(var i = 0; i < backupStates.length; i++)
-		this.contexts[i].clearRect(0, 0, this.width, this.height);
 }
 
 GameEngine.prototype.resetPlayers = function() {
@@ -986,6 +977,10 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 
 	this.resize();
 
+	/* set up map segments on all contexts */
+	for(var i = 1; i < backupStates.length; i++)
+		this.contexts[i].drawImage(this.canvases[0], 0, 0, this.width, this.height);
+
 	/* draw angle indicators */
 	for(var i = 0; i < startPositions.length; i++)
 		this.getPlayer(startPositions[i].playerId).drawIndicator();
@@ -1012,11 +1007,8 @@ GameEngine.prototype.revertBackup = function() {
 		player.states[stateIndex + 1].copyState(player.states[stateIndex]);
 	}
 
-	/* clear next canvas */
-	var nextContext = this.contexts[stateIndex + 1];
-	nextContext.clearRect(0, 0, this.width, this.height);
-
 	/* copy to next canvas */
+	var nextContext = this.contexts[stateIndex + 1];
 	nextContext.drawImage(this.canvases[stateIndex], 0, 0, this.width, this.height);
 	this.correctionTick = this.tick - backupStates[stateIndex + 1];
 
@@ -1086,7 +1078,6 @@ GameEngine.prototype.gameloop = function() {
 }
 
 GameEngine.prototype.realStart = function() {
-	this.baseContext.clearRect(0, 0, this.width, this.height);
 	this.baseContext.drawImage(this.canvases[0], 0, 0, this.width, this.height);
 
 	this.audioController.playSound('gameStart');
@@ -1098,6 +1089,9 @@ GameEngine.prototype.realStart = function() {
 }
 
 GameEngine.prototype.drawMapSegments = function(ctx) {
+	ctx.fillStyle = canvasColor;
+ 	ctx.fillRect(0, 0, this.width, this.height);
+
 	if(this.mapSegments == undefined)
 		return;
 
