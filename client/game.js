@@ -1055,26 +1055,32 @@ GameEngine.prototype.gameloop = function() {
 	if(this.state != 'playing' && this.state != 'watching')
 		return;
 
-	requestAnimFrame(function () { self.gameloop(); });
-
-	var endTick = Math.floor((Date.now() - this.gameStartTimestamp)/ this.tickLength);
-	var self = this;
+	/* uitgesteld totdat we inter-tick interpolatie hebben
+	 * requestAnimFrame(function () { self.gameloop(); });
+	 * var endTick = Math.floor((Date.now() - this.gameStartTimestamp)/ this.tickLength);
+	 */
 	
-	while(this.tick < endTick) {
-		if(debugRewards && this.tick % 60 == 0)
-				this.displayRewards(1);
+	if(debugRewards && this.tick % 60 == 0)
+		this.displayRewards(1);
 
-		this.revertBackup();
+	this.revertBackup();
 
-		for(var i = 0; i < backupStates.length; i++)
-			this.updateContext(i);
+	for(var i = 0; i < backupStates.length; i++)
+		this.updateContext(i);
 
-		if(this.pencilMode != 'off')
-			this.pencil.doTick();
+	if(this.pencilMode != 'off')
+		this.pencil.doTick();
 
-		this.correctionTick = ++this.tick;
-		this.tock = Math.max(0, this.tick - tickTockDifference);
-	}
+	this.correctionTick = ++this.tick;
+	this.tock = Math.max(0, this.tick - tickTockDifference);
+
+	var self = this;
+	var delay = this.tickLength * (this.tick + 1) + this.gameStartTimestamp - Date.now();
+
+	if(delay <= 0)
+		this.gameloop();
+	else
+		this.gameloopTimeout = window.setTimeout(function() { self.gameloop(); }, delay);
 }
 
 GameEngine.prototype.realStart = function() {
