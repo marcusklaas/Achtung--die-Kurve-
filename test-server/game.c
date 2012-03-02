@@ -283,12 +283,26 @@ void freemap(struct map *map) {
 	free(map);
 }
 
+void cleargame(struct game *gm) {
+	int i, num_tiles = gm->htiles * gm->vtiles;
+
+	if(gm->seg) {
+		for(i = 0; i < num_tiles; i++) {
+			freesegments(gm->seg[i]);
+			gm->seg[i] = 0;
+		}
+
+		free(gm->seg);
+		gm->seg = 0;
+	}
+
+	freesegments(gm->tosend);
+	gm->tosend = 0;
+}
+
 void remgame(struct game *gm) {
 	struct user *usr, *nxt;
-	int i, num_tiles;
 
-	num_tiles = gm->htiles * gm->vtiles;
-	
 	if(DEBUG_MODE)
 		printf("deleting game %p\n", (void *) gm);
 		
@@ -311,16 +325,12 @@ void remgame(struct game *gm) {
 			deleteuser(usr);
 	}
 
-	/* freeing up a bunch of stuff */
-	for(i = 0; i < num_tiles; i++)
-		freesegments(gm->seg[i]);
 
 	if(gm->map)
 		freemap(gm->map);
 
-	freesegments(gm->tosend);
+	cleargame(gm);
 	freekicklist(gm->kicklist);
-	free(gm->seg);
 	free(gm);
 
 	gamelistcurrent = 0;
@@ -567,35 +577,6 @@ double segcollision(struct seg *seg1, struct seg *seg2) {
 	b = numer_b/ denom;
 
 	return (b >= 0 && b <= 1) ? b : -1;
-}
-
-/* variant of segcollision which might be faster. XPERIMENTAL: needs benchmark */
-float fastcollision(struct seg *seg1, struct seg *seg2) {
-	float denom, numer_a, numer_b, seg1dx, seg1dy, seg2dx, seg2dy, dx1, dy1;
-	
-	if(seg1->x2 == seg2->x1 && seg1->y2 == seg2->y1)
-		return -1;
-
-	seg1dx = seg1->x1 - seg1->x2;
-	seg1dy = seg1->y1 - seg1->y2;
-	seg2dx = seg2->x1 - seg2->x2;
-	seg2dy = seg2->y1 - seg2->y2;
-	denom = seg1dx * seg2dy - seg1dy * seg2dx;
-
-	/* segments are parallel */
-	if(fabs(denom) < EPS)
-		return -1;
-
-	dx1 = seg1->x1 - seg2->x1;
-	dy1 = seg1->y1 - seg2->y1;
-	numer_a = seg2dy * dx1 - seg2dx * dy1;
-
-	if(denom >= 0 ? (numer_a < 0 || numer_a > denom) : (numer_a > 0 || numer_a < denom))
-		return -1;
-
-	numer_b = seg1dy * dx1 - seg1dx * dy1;
-
-	return (denom >= 0 ? (numer_b < 0 || numer_b > denom) : (numer_b > 0 || numer_b < denom)) ? -1 : numer_b/ denom;
 }
 
 /* returns -1 in case no collision, else between 0 and -1 */
@@ -851,6 +832,8 @@ void endgame(struct game *gm, struct user *winner) {
 		for(usr = gm->usr; usr; usr = usr->nxt)
 			usr->points = 0;
 	}
+
+	cleargame(gm);
 }
 
 void endround(struct game *gm) {

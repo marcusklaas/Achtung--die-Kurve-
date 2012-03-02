@@ -46,35 +46,8 @@ void *srealloc(void *ptr, size_t size) {
 	return a;
 }
 
-/* this should be WAY faster than mallocing every seg seperately */
-static struct seg *segstack = 0;
-
-static struct seg *allocseg() {
-	struct seg *seg;
-	int i;
-
-	if(!segstack) {
-		seg = segstack = smalloc(sizeof(struct seg) * SEG_ALLOC_BLOCKS);
-
-		for(i = 0; i < SEG_ALLOC_BLOCKS - 1; i++, seg++)
-			seg->nxt = seg + 1;
-
-		seg->nxt = 0;
-	}
-
-	seg = segstack;
-	segstack = segstack->nxt;
-	return seg;
-}
-
-void freeseg(struct seg *seg) {
-	seg->nxt = segstack;
-	segstack = seg;
-}
-
 struct seg *copyseg(const struct seg *a) {
-	struct seg *b = smalloc(sizeof(struct seg));
-	return memcpy(b, a, sizeof(struct seg));
+	return memcpy(smalloc(sizeof(struct seg)), a, sizeof(struct seg));
 }
 
 void freesegments(struct seg *seg) {

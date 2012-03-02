@@ -22,7 +22,6 @@
 #define KICK_REJOIN_TIME 15000
 #define MAX_TELEPORTS 8
 #define HACKS 0
-#define SEG_ALLOC_BLOCKS 1000
 
 /* default game settings */
 #define VELOCITY 70 // pixels per sec
@@ -38,7 +37,7 @@
 #define COMPUTER_DELAY (SERVER_DELAY/ TICK_LENGTH)
 #define COMPUTER_SEARCH_DEPTH 2 // for marcusai
 #define COMPUTER_SEARCH_ANGLE 3.141592
-#define COMPUTER_SEARCH_CAREFULNESS 1 // how long we go straight in seconds
+#define COMPUTER_SEARCH_CAREFULNESS 2 // how long we go straight in seconds
 
 /* byte messages */
 #define MODE_MODIFIED 0
@@ -57,7 +56,7 @@
 #define SEND_SEGMENTS 30 // om de hoeveel ticks het moet gebeuren (0=nooit)
 #define SAVE_COLLISION_TO_FILE 0
 #define DEBUGPOS 0
-#define KEEP_PLAYING_ONE_ALIVE 1
+#define KEEP_PLAYING_ONE_ALIVE 0
 
 /* input control */
 #define MAX_FILE_REQ_LEN 100
