@@ -740,7 +740,7 @@ GameEngine.prototype.gameMessage = function(msg) {
 }
 
 GameEngine.prototype.handleSegmentsMessage = function(segments) {
-	var ctx = this.baseContext; // FIXME: niet juiste context
+	var ctx = this.baseContext;
 	setLineColor(ctx, [0, 0, 0], 1);
 	ctx.lineWidth = 1;
 	ctx.beginPath();
@@ -1006,9 +1006,6 @@ GameEngine.prototype.revertBackup = function() {
 	/* calculate closest restore point */
 	for(var stateIndex = backupStates.length - 1; this.correctionTick < this.tick - backupStates[stateIndex]; stateIndex--);
 
-	this.gameMessage('reverting! correctionTick = ' + this.correctionTick + ', tick = ' + this.tick +
-	 ', stateIndex = ' + stateIndex + ', backupState = ' + backupStates[stateIndex]);
-
 	/* reset next state to this point */
 	for(var i in this.players) {
 		var player = this.players[i];
@@ -1068,7 +1065,7 @@ GameEngine.prototype.gameloop = function() {
 
 	requestAnimFrame(function () { self.gameloop(); });
 
-	var endTick =  Math.floor((Date.now() - this.gameStartTimestamp)/ this.tickLength);
+	var endTick = Math.floor((Date.now() - this.gameStartTimestamp)/ this.tickLength);
 	var self = this;
 	
 	while(this.tick < endTick) {
@@ -1085,7 +1082,6 @@ GameEngine.prototype.gameloop = function() {
 
 		this.correctionTick = ++this.tick;
 		this.tock = Math.max(0, this.tick - tickTockDifference);
-		
 	}
 }
 
@@ -1125,6 +1121,7 @@ GameEngine.prototype.createRewardNode = function(player, reward) {
 	var recycle = this.rewardNodes.length > 0;
 	var w = rewardWidth;
 	var h = rewardHeight;
+	var playerState = player.states[backupStates.length - 1];
 
 	if(recycle) {
 		node = this.rewardNodes.pop();
@@ -1134,9 +1131,9 @@ GameEngine.prototype.createRewardNode = function(player, reward) {
 	}
 	
 	node.innerHTML = '+' + reward;
-	var left = player.x * this.scale - w / 2;
+	var left = playerState.x * this.scale - w / 2;
 	left = Math.min(this.width * this.scale - w, Math.max(0, left));
-	var top = player.y * this.scale - h - rewardOffsetY;
+	var top = playerState.y * this.scale - h - rewardOffsetY;
 	if(top < 0)
 		top += rewardOffsetY * 2 + h;
 	node.style.left = left + 'px';
