@@ -1544,30 +1544,40 @@ function InputController(player, left, right) {
 
 	/* listen for keyboard events */
 	window.addEventListener('keydown', function(e) {
-		if(self.player.status != 'alive' || game.state != 'playing') {
-			if(game.state == 'editing' && document.activeElement != game.chatBar) {
-				if(e.keyCode == 85) {
+		if(game.state == 'editing' && document.activeElement != game.chatBar) {
+			switch(e.keyCode) {
+				case 85:
 					game.editor.undo();
-					e.preventDefault();
-				}
-				if(e.keyCode == 80 || e.keyCode == 49) {
+					break;
+
+				case 80: case 49:
 					simulateClick(game.editor.pencilButton);
-					e.preventDefault();
-				}
-				if(e.keyCode == 83 || e.keyCode == 50) {
+					break;
+
+				case 76: case 50:
+					simulateClick(game.editor.lineButton);
+					break;
+
+				case 83: case 51:
 					simulateClick(game.editor.playerStartButton);
-				}
-				if(e.keyCode == 84 || e.keyCode == 51) {
+					break;
+
+				case 84: case 52:
 					simulateClick(game.editor.teleportButton);
-					e.preventDefault();
-				}
-				if(e.keyCode == 69 || e.keyCode == 52) {
+					break;
+
+				case 69: case 53:
 					simulateClick(game.editor.eraserButton);
-					e.preventDefault();
-				}
+
+				default:;
 			}
+
+			e.preventDefault();
 			return;
 		}
+
+		if(self.player.status != 'alive' || game.state != 'playing')
+			return;
 
 		if(e.keyCode == self.leftKeyCode) {
 			self.pressLeft();

@@ -96,7 +96,7 @@ void updategamelist() {
 void startgame(struct game *gm) {
 	struct user *usr;
 	cJSON *root, *start_locations;
-	int laterround = gm->round++;
+	int laterround =gm->round++!=0;
 
 	if(DEBUG_MODE)
 		printf("starting game %p!\n", (void*)gm);
@@ -745,7 +745,6 @@ void simuser(struct userpos *state, struct user *usr, char addsegments) {
 	outside = state->x < 0 || state->x > usr->gm->w
 	 || state->y < 0 || state->y > usr->gm->h;
 
-	
 	/* check for collisions and add segment to map if needed */
 	cut = checkcollision(usr->gm, &seg);
 	if(cut != -1.0) {
@@ -770,6 +769,7 @@ void simuser(struct userpos *state, struct user *usr, char addsegments) {
 			handled = 1;
 		}
 	}
+
 	if(addsegments && !inhole) {
 		addsegment(usr->gm, &seg);
 			

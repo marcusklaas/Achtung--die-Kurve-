@@ -16,14 +16,14 @@
 #define MIN_WIN_DIFF 1 // minimum point lead required to win a game
 #define AUTO_ROUNDS 7 // number of expected rounds in automatch
 #define MAX_PLAYERSTART_TRIES 100
-#define TORUS_MODE 0
 #define GAMELIST_UPDATE_INTERVAL 10000
 #define MAX_USERS_IN_GAME 8
 #define KICK_REJOIN_TIME 15000
 #define MAX_TELEPORTS 8
-#define HACKS 0
+#define HACKS 1
 
 /* default game settings */
+#define TORUS_MODE 0
 #define VELOCITY 70 // pixels per sec
 #define GAME_WIDTH 1024
 #define GAME_HEIGHT 644
@@ -53,7 +53,7 @@
 #define ULTRA_VERBOSE 0
 #define SHOW_WARNING 0
 #define GOD_MODE 0
-#define SEND_SEGMENTS 30 // om de hoeveel ticks het moet gebeuren (0=nooit)
+#define SEND_SEGMENTS 0 // om de hoeveel ticks het moet gebeuren (0=nooit)
 #define SAVE_COLLISION_TO_FILE 0
 #define DEBUGPOS 0
 #define KEEP_PLAYING_ONE_ALIVE 0
