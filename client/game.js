@@ -2313,7 +2313,7 @@ Editor.prototype.getNextTeleportId = function () {
 }
 
 Editor.prototype.inMode = function() {
-	for(var i in arguments)
+	for(var i = 0; i < arguments.length; i++)
 		if(this.mode == arguments[i])
 			return true;
 	return false;
