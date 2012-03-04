@@ -1922,9 +1922,6 @@ Pencil.prototype.doTick = function(tick) {
 	if(this.drawingAllowed) {
 		var dt = tick - this.lastTick;
 		this.setInk(this.ink + this.inkPerSec / 1000 * dt * this.game.tickLength);
-
-		// FIXME: OMFG this totally works!! server complains, but still lets u draw zomg
-		this.setInk(1000);
 	}
 
 	this.lastTick = tick;
@@ -1964,7 +1961,7 @@ Pencil.prototype.doTick = function(tick) {
 		}
 	}
 
-	if(this.game.tick % inkBufferTicks == 0 && this.outbuffer.length > 0) {
+	if(Math.floor(this.game.tick) % inkBufferTicks == 0 && this.outbuffer.length > 0) {
 		this.game.sendMsg('pencil', {'data' : this.outbuffer});
 		this.outbuffer = [];
 	}
