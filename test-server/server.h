@@ -3,7 +3,7 @@
 #define MAX_GAME_WIDTH 2047
 #define MAX_GAME_HEIGHT 1023
 #define TILE_SIZE_MULTIPLIER 3 // tilesize/ segmentlength
-#define TICK_LENGTH 50 // in msecs
+#define TICK_LENGTH 40 // in msecs
 #define SERVER_DELAY 200 // in msecs
 #define COUNTDOWN 2000 // in msecs
 #define COOLDOWN 3500 // time between end of round and countdown of next in msecs
@@ -28,8 +28,8 @@
 #define GAME_WIDTH 1024
 #define GAME_HEIGHT 644
 #define TURN_SPEED 2.5 // radians per sec
-#define HOLE_SIZE 5 // in ticks
-#define HOLE_FREQ 150 // number of ticks between holes
+#define HOLE_SIZE 3 // in ticks
+#define HOLE_FREQ 115 // number of ticks between holes
 
 /* artificial intelligence */
 #define COMPUTER_NAME "COMPUTER"
@@ -53,7 +53,7 @@
 #define ULTRA_VERBOSE 0
 #define SHOW_WARNING 0
 #define GOD_MODE 0
-#define SEND_SEGMENTS 10 // om de hoeveel ticks het moet gebeuren (0=nooit)
+#define SEND_SEGMENTS 0 // om de hoeveel ticks het moet gebeuren (0=nooit)
 #define SAVE_COLLISION_TO_FILE 0
 #define DEBUGPOS 0
 #define KEEP_PLAYING_ONE_ALIVE 0

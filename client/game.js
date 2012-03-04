@@ -1349,6 +1349,7 @@ PlayerState.prototype.copyState = function(orig) {
 	this.inHole = orig.inHole;
 	this.dx = orig.dx;
 	this.dy = orig.dy;
+	this.tped = orig.tped;
 }
 
 PlayerState.prototype.changeCourse = function(angle) {
@@ -1403,12 +1404,21 @@ Player.prototype.simulate = function(endTick, ctx, state) {
 	while(state.tick < endTick) {
 		var wholeTick = (state.tick == Math.floor(state.tick));
 
-		var inHole = (state.tick > this.holeStart && (state.tick + this.holeStart)
-		 % (this.holeSize + this.holeFreq) < this.holeSize);
+		if(wholeTick) {
+			var inHole = (state.tick > this.holeStart && (state.tick + this.holeStart)
+			 % (this.holeSize + this.holeFreq) < this.holeSize);
 
-		if(wholeTick && inHole != state.inHole) {
-			state.inHole = inHole;
-			this.setSegmentStyle(ctx, inHole);
+			if(inHole != state.inHole) {
+				state.inHole = inHole;
+				this.setSegmentStyle(ctx, inHole);
+			}
+
+			state.tped = false;
+		}
+
+		if(state.tped) {
+			state.tick = Math.min(Math.floor(state.tick + 1), endTick);
+			continue;
 		}
 		
 		if(wholeTick && nextInput != null && nextInput.tick == state.tick) {
@@ -1439,6 +1449,7 @@ Player.prototype.simulate = function(endTick, ctx, state) {
 			
 			state.x = obj.destX + Math.cos(state.angle) / 10;
 			state.y = obj.destY + Math.sin(state.angle) / 10;
+			state.tped = true;
 			handled = true;
 		}
 		
@@ -1490,6 +1501,7 @@ Player.prototype.initialise = function(x, y, angle, holeStart) {
 	startState.changeCourse(0);
 	startState.turn = 0;
 	startState.tick = 0;
+	startState.tped = false;
 
 	for(var i = 1; i < backupStates.length; i++)
 		this.states[i].copyState(startState);
@@ -1523,8 +1535,8 @@ Player.prototype.drawIndicator = function() {
 	ctx.font = 'bold ' + indicatorFont + 'px Helvetica, sans-serif';
 	ctx.textBaseline = 'bottom';
 	var w = ctx.measureText(text).width;
-	x-= Math.cos(this.angle) > 0 && Math.sin(this.angle) < 0 ? w + 2 : 0;
-	y-= 3;
+	x -= (Math.cos(angle) > 0 && Math.sin(angle) < 0 ? w + 2 : 0);
+	y -= 3;
 	ctx.fillText(text, Math.min(this.game.width - w, Math.max(0, x)), y);
 }
 
