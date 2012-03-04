@@ -1022,7 +1022,7 @@ GameEngine.prototype.revertBackup = function() {
 GameEngine.prototype.updateContext = function(stateIndex) {
 	for(var i in this.players) {
 		var player = this.players[i];
-		var tick = player.isLocal ? this.tick - 1 : this.tock - 1;
+		var tick = player.isLocal ? this.tick : this.tock;
 		tick -= backupStates[stateIndex];
 
 		player.simulate(tick, this.contexts[stateIndex], player.states[stateIndex]);
@@ -1055,32 +1055,34 @@ GameEngine.prototype.gameloop = function() {
 	if(this.state != 'playing' && this.state != 'watching')
 		return;
 
-	/* uitgesteld totdat we inter-tick interpolatie hebben
-	 * requestAnimFrame(function () { self.gameloop(); });
-	 * var endTick = Math.floor((Date.now() - this.gameStartTimestamp)/ this.tickLength);
-	 */
-	
-	if(debugRewards && this.tick % 60 == 0)
-		this.displayRewards(1);
-
-	this.revertBackup();
-
-	for(var i = 0; i < backupStates.length; i++)
-		this.updateContext(i);
-
-	if(this.pencilMode != 'off')
-		this.pencil.doTick();
-
-	this.correctionTick = ++this.tick;
-	this.tock = Math.max(0, this.tick - tickTockDifference);
-
 	var self = this;
-	var delay = this.tickLength * (this.tick + 1) + this.gameStartTimestamp - Date.now();
+	requestAnimFrame(function () { self.gameloop(); });
+	var endTick = (Date.now() - this.gameStartTimestamp)/ this.tickLength;
+	var stateCount = backupStates.length - 1;
 
-	if(delay <= 0)
-		this.gameloop();
-	else
-		this.gameloopTimeout = window.setTimeout(function() { self.gameloop(); }, delay);
+	while(this.tick < endTick) {
+		var nextIntegerTick = Math.floor(this.tick + 1);
+		var realTick = this.tick;
+
+		this.revertBackup();
+
+		/* only update the baseCanvas every loop, the rest we can do
+		 * once every so much loops its fine. fake tick to be integer for the
+		 * backups 
+		this.tick = nextIntegerTick - ;
+		this.updateContext(nextIntegerTick % stateCount);
+		this.tick = realTick; */
+		//FIXME: dat werkt nog niet
+
+		this.updateContext(stateCount);
+
+		if(this.pencilMode != 'off')
+			this.pencil.doTick();
+
+		this.tick = Math.min(nextIntegerTick, endTick);	
+		this.correctionTick = this.tick;
+		this.tock = Math.max(0, this.tick - tickTockDifference);
+	}
 }
 
 GameEngine.prototype.realStart = function() {
@@ -1206,6 +1208,12 @@ GameEngine.prototype.initContext = function(ctx) {
 	ctx.scale(this.scale, this.scale);
 	ctx.lineWidth = lineWidth;
 	ctx.lineCap = lineCapStyle;
+	ctx.drawLine = function(x1, y1, x2, y2) {
+		ctx.beginPath();
+		ctx.moveTo(x1, y1);
+		ctx.lineTo(x2, y2);
+		ctx.stroke();
+	};
 }
 
 GameEngine.prototype.displayDebugStatus = function() {
@@ -1314,7 +1322,6 @@ GameEngine.prototype.getGamePos = function(e) {
 	return v;
 }
 
-/* NEW! playerStates! */
 function PlayerState(player) {
 	this.player = player;
 	this.x = 0;
@@ -1391,27 +1398,20 @@ Player.prototype.simulate = function(endTick, ctx, state) {
 	var nextInput = this.inputs[state.nextInputIndex];
 	this.setSegmentStyle(ctx, state.inHole);
 
-	ctx.beginPath();
-	ctx.moveTo(state.x, state.y);
-	
-	for(; state.tick <= endTick; state.tick++) {
+	while(state.tick < endTick) {
+		var wholeTick = (state.tick == Math.floor(state.tick));
 
 		var inHole = (state.tick > this.holeStart && (state.tick + this.holeStart)
 		 % (this.holeSize + this.holeFreq) < this.holeSize);
-		if(inHole != state.inHole) {
-			ctx.stroke();
 
+		if(wholeTick && inHole != state.inHole) {
 			state.inHole = inHole;
 			this.setSegmentStyle(ctx, inHole);
-			ctx.beginPath();
-			ctx.moveTo(state.x, state.y);
 		}
 		
-		if(nextInput != null && nextInput.tick == state.tick) {
+		if(wholeTick && nextInput != null && nextInput.tick == state.tick) {
 			if(nextInput.finalTurn) {
-				ctx.lineTo(nextInput.x, nextInput.y);
-				ctx.stroke();
-
+				ctx.drawLine(state.x, state.y, nextInput.x, nextInput.y);
 				this.game.crossQueue.push(state.x = nextInput.x);
 				this.game.crossQueue.push(state.y = nextInput.y);
 				state.tick++;
@@ -1422,27 +1422,26 @@ Player.prototype.simulate = function(endTick, ctx, state) {
 			}
 		}
 
-		if(state.turn != 0) {
+		if(wholeTick && state.turn != 0)
 			state.changeCourse(state.turn * this.turnSpeed  * this.game.tickLength / 1000);
-		}
 		
-		var obj = this.game.getCollision(state.x, state.y, state.x + state.dx, state.y + state.dy);
+		var stepSize = Math.min(1, endTick - state.tick);
+		var nextX = state.x + state.dx * stepSize;
+		var nextY = state.y + state.dy * stepSize;
+		var obj = this.game.getCollision(state.x, state.y, nextX, nextY);
 		var handled = false;
 		
-		if(obj != null) {
-			if(obj.isTeleport) {
-				ctx.lineTo(obj.collisionX, obj.collisionY);
-				state.changeCourse(obj.extraAngle);
-				
-				state.x = obj.destX + Math.cos(state.angle) / 10;
-				state.y = obj.destY + Math.sin(state.angle) / 10;
-				ctx.moveTo(state.x, state.y);
-				handled = true;
-			}
+		if(obj != null && obj.isTeleport) {
+			ctx.drawLine(state.x, state.y, obj.collisionX, obj.collisionY);
+			state.changeCourse(obj.extraAngle);
+			
+			state.x = obj.destX + Math.cos(state.angle) / 10;
+			state.y = obj.destY + Math.sin(state.angle) / 10;
+			handled = true;
 		}
 		
 		if(!handled) {
-			ctx.lineTo(state.x += state.dx, state.y += state.dy);
+			ctx.drawLine(state.x, state.y, state.x = nextX, state.y = nextY);
 			
 			/* wrap around */
 			if(this.game.torus && (state.x < 0 || state.x > this.game.width ||
@@ -1461,10 +1460,10 @@ Player.prototype.simulate = function(endTick, ctx, state) {
 		
 		if(debugPos && debugPosA[state.tick] == null)
 			debugPosA[state.tick] = format(state.x, 21) + ', ' + format(state.y, 21) + ', ' + 
-				format(state.angle, 21) + ', ' + handled;
-	}
+			 format(state.angle, 21) + ', ' + handled;
 
-	ctx.stroke();
+		state.tick = Math.min(Math.floor(state.tick + 1), endTick);
+	}
 }
 
 Player.prototype.updateRow = function() {
@@ -1838,7 +1837,7 @@ InputController.prototype.steerLocal = function(turn) {
 		return;
 
 	var game = this.player.game;
-	var obj = {'turn': turn, 'tick': game.tick};
+	var obj = {'turn': turn, 'tick': Math.ceil(game.tick)};
 
 	if(this.lastSteerTick == obj.tick)
 		obj.tick = ++this.lastSteerTick;
