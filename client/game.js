@@ -478,7 +478,6 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'playerDied':
 			var player = this.getPlayer(obj.playerId);
 			player.finalSteer(obj);
-
 			player.status = 'dead';
 			player.updateRow();
 	
@@ -509,7 +508,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 				
 			// simulate to finalTick
 			this.tock = this.tick = Math.max(this.tick, obj.finalTick);
-			this.correctionTick = obj.finalTick;
+			this.correctionTick = obj.finalTick - 1;
 			this.revertBackup();
 				
 			if(debugPos) 
@@ -1025,6 +1024,9 @@ GameEngine.prototype.updateContext = function(stateIndex) {
 		var tick = player.isLocal ? this.tick : this.tock;
 		tick -= backupStates[stateIndex];
 
+		if(stateIndex < backupStates.length - 1)
+			tick = Math.floor(tick);
+
 		player.simulate(tick, this.contexts[stateIndex], player.states[stateIndex]);
 	}
 
@@ -1050,7 +1052,6 @@ GameEngine.prototype.drawCross = function(ctx, x, y) {
 	ctx.lineWidth = lineWidth;
 }
 
-/* TODO: CPU lag inbouwen (SIMULATIE ONLY, lol ;p) */
 GameEngine.prototype.gameloop = function() {
 	if(this.state != 'playing' && this.state != 'watching')
 		return;
@@ -1062,25 +1063,26 @@ GameEngine.prototype.gameloop = function() {
 
 	while(this.tick < endTick) {
 		var nextIntegerTick = Math.floor(this.tick + 1);
-		var realTick = this.tick;
+		var wholeTick = (this.tick == Math.floor(this.tick));
+
+		/* SIMULATE CPU LAG */
+		if(wholeTick && simulateCPUlag && (this.tick % 200 == 199))
+			for(var waitStart = Date.now(); Date.now() - waitStart < 4E2;);
 
 		this.revertBackup();
 
 		/* only update the baseCanvas every loop, the rest we can do
-		 * once every so much loops its fine. fake tick to be integer for the
-		 * backups 
-		this.tick = nextIntegerTick - ;
-		this.updateContext(nextIntegerTick % stateCount);
-		this.tick = realTick; */
-		//FIXME: dat werkt nog niet
+		 * on integer ticks */
+		if(wholeTick)
+			for(var i = 0; i < stateCount; i++)
+				this.updateContext(i);
 
 		this.updateContext(stateCount);
 
 		if(this.pencilMode != 'off')
-			this.pencil.doTick();
+			this.pencil.doTick(this.tick);
 
-		this.tick = Math.min(nextIntegerTick, endTick);	
-		this.correctionTick = this.tick;
+		this.correctionTick = this.tick = Math.min(nextIntegerTick, endTick);
 		this.tock = Math.max(0, this.tick - tickTockDifference);
 	}
 }
@@ -1897,6 +1899,7 @@ Pencil.prototype.enable = function(tick) {
 }
 
 Pencil.prototype.reset = function() {
+	this.lastTick = 0;
 	this.outbuffer = [];
 	this.down = false;
 	this.upped = false;
@@ -1915,9 +1918,16 @@ Pencil.prototype.setInk = function(ink) {
 	this.inkDiv.style.height = ( 100 * Math.max(0, this.ink) / this.maxInk ) + '%';
 }
 
-Pencil.prototype.doTick = function() {
-	if(this.drawingAllowed)
-		this.setInk(this.ink + this.inkPerSec / 1000 * this.game.tickLength);
+Pencil.prototype.doTick = function(tick) {
+	if(this.drawingAllowed) {
+		var dt = tick - this.lastTick;
+		this.setInk(this.ink + this.inkPerSec / 1000 * dt * this.game.tickLength);
+
+		// FIXME: OMFG this totally works!! server complains, but still lets u draw zomg
+		this.setInk(1000);
+	}
+
+	this.lastTick = tick;
 
 	if(this.drawingAllowed && (this.down || this.upped)) {
 		var x = this.curX;
@@ -2067,7 +2077,6 @@ ByteMessage.prototype.readPencilFull = function() {
 	
 	return {down: a & 1, tick: a >> 1 | b << 6 | c << 13};
 }
-
 
 /* Map editor */
 Editor = function(game) {
