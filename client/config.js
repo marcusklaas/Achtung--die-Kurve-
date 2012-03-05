@@ -16,9 +16,6 @@ else if(location.href.indexOf('C:/Dropbox') != -1)
 var holeAlpha = 0.2;
 var lineWidth = 3; // only visual, does not influence collisions
 var lineCapStyle = 'round';
-var syncTries = 2;
-var syncDelays = 50;
-var tickTockDifference = 2; // desired difference between tock and tick
 var canvasMinimumWidth = 150;
 var crossSize = 12;
 var crossLineWidth = 2;
@@ -31,8 +28,15 @@ var rewardWidth = 23; // TODO: should be read from document
 var rewardHeight = 18;
 var maxHiddenRewards = 20;
 var startedGamesDisplay = 'below'; // show, below or hide
+var indicatorLength = 15;
+var indicatorArrowLength = 8;
+var indicatorArrowOffset = 2;
+var indicatorFont = 24;
 
 /* general settings */
+var syncTries = 2;
+var syncDelays = 50;
+var tickTockDifference = 2; // desired difference between tock and tick
 var backupStates = [Infinity, 40, 10, 0]; // how many ticks the different backup states should trail
 var resizeDelay = 200; // the duration the window should have a constant size before calling resize
 var paramUpdateInterval = 500; // don't send game intervals more often that one per this many msecs
@@ -58,7 +62,8 @@ var extraGameStartTimeDifference = 0;
 var acceptGameTimeAdjustments = true;
 var jsProfiling = false;
 var simulateCPUlag = false;
-var displayDebugStatus = false;
+var displayDebugStatus = true;
+var fpsInterval = 5000; // in msecs
 var debugRewards = false;
 var alwaysHideSidebar = false;
 var debugPos = false;
@@ -78,12 +83,6 @@ var minTeleportSize = 15;
 var maxTeleports = 8;
 var epsilon = 0.0001;
 var serverDalay = 200;
-
-/* indicators */
-var indicatorLength = 15;
-var indicatorArrowLength = 8;
-var indicatorArrowOffset = 2;
-var indicatorFont = 24;
 
 /* editor */
 var editorStepTime = 125;

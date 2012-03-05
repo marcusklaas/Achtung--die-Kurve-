@@ -32,10 +32,13 @@ function GameEngine(audioController) {
 	this.chatBar = document.getElementById('chat');
 	this.editor = new Editor(this);
 	this.sidebar = document.getElementById('sidebar');
+	this.debugBox = document.getElementById('status');
 	this.rewardNodes = [];
-	
 	this.canvasTop = 0;
 	this.canvasLeft = this.sidebar.offsetWidth;
+
+	if(displayDebugStatus)
+		this.debugBox.style.display = 'block';
 }
 
 /* this only resets things like canvas, but keeps the player info */
@@ -46,6 +49,12 @@ GameEngine.prototype.reset = function() {
 	this.redraws = 0;
 	this.adjustGameTimeMessagesReceived = 0;
 	this.modifiedInputs = 0;
+
+	/* these vars are for fps measuring purposes */
+	this.fpsMeasureTick = 0; // start of interval
+	this.frameCount = 0;
+	this.fps = 0;
+
 	this.crossQueue = [];
 	document.getElementById('winAnnouncer').style.display = 'none';
 	
@@ -508,7 +517,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 				
 			// simulate to finalTick
 			this.tock = this.tick = Math.max(this.tick, obj.finalTick);
-			this.correctionTick = obj.finalTick - 1;
+			this.correctionTick = obj.finalTick;
 			this.revertBackup();
 				
 			if(debugPos) 
@@ -990,15 +999,17 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 }
 
 GameEngine.prototype.revertBackup = function() {
+	var flooredTick = Math.floor(this.tick);
+
 	/* false alarm, no revert required */
-	if(this.correctionTick >= this.tick)
+	if(this.correctionTick >= flooredTick)
 		return;
 
 	this.redraws++;
 	this.displayDebugStatus();
 
 	/* calculate closest restore point */
-	for(var stateIndex = backupStates.length - 1; this.correctionTick < this.tick - backupStates[stateIndex]; stateIndex--);
+	for(var stateIndex = backupStates.length - 1; this.correctionTick < flooredTick - backupStates[stateIndex]; stateIndex--);
 
 	/* reset next state to this point */
 	for(var i in this.players) {
@@ -1009,22 +1020,22 @@ GameEngine.prototype.revertBackup = function() {
 	/* copy to next canvas */
 	var nextContext = this.contexts[stateIndex + 1];
 	nextContext.drawImage(this.canvases[stateIndex], 0, 0, this.width, this.height);
-	this.correctionTick = this.tick - backupStates[stateIndex + 1];
+	this.correctionTick = flooredTick - backupStates[stateIndex + 1];
 
 	/* simulate every player up to next backup point */
-	this.updateContext(stateIndex + 1);
+	this.updateContext(stateIndex + 1, true);
 
 	/* recurse all the way until we are at baseCanvas */
 	this.revertBackup();
 }
 
-GameEngine.prototype.updateContext = function(stateIndex) {
+GameEngine.prototype.updateContext = function(stateIndex, floorTick) {
 	for(var i in this.players) {
 		var player = this.players[i];
 		var tick = player.isLocal ? this.tick : this.tock;
 		tick -= backupStates[stateIndex];
 
-		if(stateIndex < backupStates.length - 1)
+		if(floorTick)
 			tick = Math.floor(tick);
 
 		player.simulate(tick, this.contexts[stateIndex], player.states[stateIndex]);
@@ -1052,6 +1063,19 @@ GameEngine.prototype.drawCross = function(ctx, x, y) {
 	ctx.lineWidth = lineWidth;
 }
 
+GameEngine.prototype.measureFPS = function() {
+	var dt = this.tickLength * (this.tick - this.fpsMeasureTick);
+
+	if(dt >= fpsInterval) {
+		this.fps = 1000 * this.frameCount/ dt;
+		this.fpsMeasureTick = this.tick;
+		this.frameCount = 0;
+		this.displayDebugStatus();
+	}
+
+	this.frameCount++;
+}
+
 GameEngine.prototype.gameloop = function() {
 	if(this.state != 'playing' && this.state != 'watching')
 		return;
@@ -1060,6 +1084,9 @@ GameEngine.prototype.gameloop = function() {
 	requestAnimFrame(function () { self.gameloop(); });
 	var endTick = (Date.now() - this.gameStartTimestamp)/ this.tickLength;
 	var stateCount = backupStates.length - 1;
+
+	if(displayDebugStatus)
+		this.measureFPS();
 
 	while(this.tick < endTick) {
 		var nextIntegerTick = Math.floor(this.tick + 1);
@@ -1075,9 +1102,9 @@ GameEngine.prototype.gameloop = function() {
 		 * on integer ticks */
 		if(wholeTick)
 			for(var i = 0; i < stateCount; i++)
-				this.updateContext(i);
+				this.updateContext(i, true);
 
-		this.updateContext(stateCount);
+		this.updateContext(stateCount, false);
 
 		if(this.pencilMode != 'off')
 			this.pencil.doTick(this.tick);
@@ -1220,9 +1247,10 @@ GameEngine.prototype.initContext = function(ctx) {
 
 GameEngine.prototype.displayDebugStatus = function() {
 	if(displayDebugStatus)
-		document.getElementById('status').innerHTML = 
-		 'redraws: ' + this.redraws + ', modified inputs: ' + this.modifiedInputs +
-		 ', game time adjustments: ' + this.adjustGameTimeMessagesReceived;
+		this.debugBox.innerHTML = 'FPS: + ' + this.fps +
+		 '<br/>Reverts: ' + this.redraws +
+		 '<br/>Modified inputs: ' + this.modifiedInputs + '<br/>Time adjustments: ' +
+		 this.adjustGameTimeMessagesReceived;
 }
 
 GameEngine.prototype.requestKick = function(id) {
@@ -1385,8 +1413,8 @@ Player.prototype.finalSteer = function(obj) {
 	this.inputs[i + 1] = {'tick': tick, 'finalTurn': true, 'x': obj.x, 'y': obj.y};
 	this.finalTick = tick;
 
-	if(tick < localTick)
-		this.game.correctionTick = tick;
+	if(tick <= localTick)
+		this.game.correctionTick = tick - 1;
 }
 
 Player.prototype.setSegmentStyle = function(ctx, inHole) {
