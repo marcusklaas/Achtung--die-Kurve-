@@ -7,7 +7,7 @@ function GameEngine(audioController) {
 	this.type = null;
 
 	// canvas related
-	this.gameContainer = document.getElementById('gameContainer');
+	this.canvasContainer = document.getElementById('canvasContainer');
 	this.baseCanvas = document.getElementById('baseCanvas');
 	this.baseContext = this.baseCanvas.getContext('2d');
 	this.initContext(this.baseContext);
@@ -176,18 +176,22 @@ GameEngine.prototype.setGameState = function(newState) {
 }
 
 GameEngine.prototype.setSidebarVisibility = function(visible) {
-	if(visible == (this.sidebar.className == 'visible'))
+	if(visible == (this.sidebar.classList.contains('visible')))
 		return false;
 
-	this.sidebar.className = visible ? 'visible' : '';
+	this.sidebar.classList.toggle('visible');
 	document.getElementById('menuButton').innerHTML = visible ? '&lt;' : '&gt;';
 	this.canvasLeft = visible ? sidebarWidth : 0;
-	document.body.className = visible ? 'translated' : '';
+
+	var articles = document.getElementsByTagName('article');
+	for(var i = 0; i < articles.length; i++)
+		articles[i].classList.toggle('translated');
+
 	return true;
 }
 
 GameEngine.prototype.toggleSidebar = function() {
-	this.setSidebarVisibility(this.sidebar.className != 'visible');
+	this.setSidebarVisibility(!this.sidebar.classList.contains('visible'));
 	this.resize();
 }
 
@@ -498,7 +502,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			window.clearTimeout(this.gameloopTimeout);
 			document.getElementById('inkIndicator').style.display = 'none';
 			for(var i = this.maxHiddenRewards; i < this.rewardNodes.length; i++)
-				this.gameContainer.removeChild(this.rewardNodes.pop());
+				this.canvasContainer.removeChild(this.rewardNodes.pop());
 				
 			// simulate to finalTick
 			this.tock = this.tick = Math.max(this.tick, obj.finalTick);
@@ -874,7 +878,7 @@ GameEngine.prototype.addPlayer = function(player) {
 
 /* sets this.scale, which is canvas size / game size */
 GameEngine.prototype.calcScale = function(extraVerticalSpace) {
-	var compensation = (this.sidebar.className == 'visible') ? sidebarWidth : 0;
+	var compensation = this.sidebar.classList.contains('visible') ? sidebarWidth : 0;
 	var targetWidth = Math.max(document.body.clientWidth - compensation - 1,
 	 canvasMinimumWidth);
 	var targetHeight = document.body.clientHeight - 1;
@@ -1160,7 +1164,7 @@ GameEngine.prototype.createRewardNode = function(player, reward) {
 	if(recycle) {
 		node.style.display = 'block';
 	} else {
-		this.gameContainer.appendChild(node);
+		this.canvasContainer.appendChild(node);
 	}
 	
 	return node;
@@ -1190,7 +1194,7 @@ GameEngine.prototype.displayRewards = function(reward) {
 	
 	function startHidingRewards() { 
 		for(var i = 0; i < nodes.length; i++) {
-			nodes[i].className += ' reward-hidden';
+			nodes[i].classList.add('reward-hidden');
 		}
 	}
 	
@@ -1202,8 +1206,8 @@ GameEngine.prototype.resize = function() {
 	this.calcScale();
 	var scaledWidth = Math.round(this.scale * this.width);
 	var scaledHeight = Math.round(this.scale * this.height)
-	this.gameContainer.style.width = scaledWidth + 'px';
-	this.gameContainer.style.height = scaledHeight + 'px';
+	this.canvasContainer.style.width = scaledWidth + 'px';
+	this.canvasContainer.style.height = scaledHeight + 'px';
 
 	for(var i = 0; i < backupStates.length; i++) {
 		this.canvases[i].width = scaledWidth;
@@ -2692,7 +2696,11 @@ function setContentVisibility(target) {
 
 	for(var i = 0; i < sections.length; i++) {
 		var elt = document.getElementById(sections[i]);
-		elt.className = (target == sections[i]) ? 'contentVisible' : '';
+
+		if(target == sections[i])
+			elt.classList.add('contentVisible');
+		else
+			elt.classList.remove('contentVisible');
 	}
 }
 

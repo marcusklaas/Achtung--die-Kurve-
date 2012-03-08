@@ -27,7 +27,6 @@ canvas {
 }
 
 body {
-	position: relative;
 	margin: 0;
 	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 	font-size: 13px;
@@ -36,14 +35,6 @@ body {
 	background-color: #f0f0f0;
 	padding: 0;
 	height: 100%;
-	transition: padding-left 1s ease-in-out;
-	-moz-transition: padding-left 1s ease-in-out;
-}
-
-body.translated {
-	transition: padding-left 1s ease-in-out;
-	-moz-transition: padding-left 1s ease-in-out;
-	padding-left: 301px;
 }
 
 a {
@@ -67,7 +58,7 @@ input[type=number] {
 }
 
 /* game related */
-#gameContainer {
+#canvasContainer {
 	position: relative;
 	border-bottom: 1px solid #999;
 	border-right: 1px solid #999;
@@ -214,20 +205,34 @@ article {
 	display: block;
 	height: 100%;
 	width: 100%;
-	padding-left: 301px;
+	padding: 0;
+	margin-left: -20px;
 	-moz-box-sizing: border-box;
 	box-sizing: border-box;
+	opacity: 0;
+	z-index: 0;
+	overflow: hidden;
+	transition: margin 150ms, opacity 150ms;
+	-moz-transition: margin 150ms, opacity 150ms;
+	-webkit-transition: margin 150ms, opacity 150ms;
 }
 
-section {
-	display: none;
+article.translated {
+	padding-left: 301px;
 }
 
-section.contentVisible {
-	display: block;
+/* animaties gestolen van google chrome >:D */
+article.contentVisible {
+	margin-left: 0;
+	transition: margin 300ms, opacity 300ms;
+	-moz-transition: margin 300ms, opacity 300ms;
+	-webkit-transition: margin 300ms, opacity 300ms;
+	opacity: 1;
+	z-index: 1;
+	overflow: auto;
 }
 
-#gameListContainer, #waitContainer, #connectionContainer {
+#gameListContainer > section, #waitContainer > section, #connectionContainer > section {
 	-moz-box-sizing: border-box;
 	box-sizing: border-box;
 	padding: 0 10px 0 10px;
@@ -236,9 +241,18 @@ section.contentVisible {
 	max-width: 600px;
 }
 
-#waitContainer {
+#waitContainer > section {
 	max-width: 450px;
 	text-align: right;
+}
+
+#connectionContainer > section {
+	text-align: justify;
+}
+
+#gameListContainer > section {
+	text-align: right;
+	height: 100%;
 }
 
 #friendInviter {
@@ -256,10 +270,6 @@ h1 {
 	line-height: 40px;
 }
 
-#connectionContainer {
-	text-align: justify;
-}
-
 #introduction {
 	background-color: #FFF;
 	border: 1px solid #ddd;
@@ -271,6 +281,7 @@ h1 {
 	margin: 0;
 }
 
+/* TODO: hier moet ff een knopje voor komen oid om em te tonen */
 #guide {
 	display: none;
 }
@@ -286,11 +297,6 @@ h1 {
 	text-align: center;
 }
 
-#gameListContainer {
-	text-align: right;
-	height: 100%;
-}
-
 #playername {
 	width: 200px;
 }
@@ -303,9 +309,9 @@ h1 {
 	text-align: right;
 }
 
-h2.contentHeader {
+section > h2 {
 	margin: 0;
-	padding: 12px 0 5px 0;
+	padding: 15px 0 10px 0;
 }
 
 #nonhostContainer {
@@ -321,14 +327,14 @@ h2.contentHeader {
 	border-right: 1px solid #999;
 	background: #FEFEFE;
 	overflow: hidden;
-	transition: left 1s ease-in-out;
-	-moz-transition: left 1s ease-in-out;
+	z-index: 2;
 }
 
 #sidebar.visible {
 	left: 0;
-	transition: left 1s ease-in-out;
-	-moz-transition: left 1s ease-in-out;
+	transition: left 500ms ease-in-out;
+	-webkit-transition: left 500ms ease-in-out;
+	-moz-transition: left 500ms ease-in-out;
 }
 
 #sidebar > * {
@@ -737,10 +743,6 @@ button.danger, button.error, .btn.danger, .btn.error {
 	-ms-transition: 0.1s linear all;
 	-o-transition: 0.1s linear all;
 	transition: 0.1s linear all;
-
-	/* TODO: we should totally add a margin-top like this but we need 2 compensate on a bunch of places
-	margin-top: 3px;
-	*/
 }
 
 .btn:hover, button:hover {

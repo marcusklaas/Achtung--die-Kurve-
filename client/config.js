@@ -66,7 +66,7 @@ var simulateCPUlag = false;
 var displayDebugStatus = true;
 var fpsInterval = 500; // in msecs
 var debugRewards = false;
-var alwaysHideSidebar = true;
+var alwaysHideSidebar = false;
 var debugPos = false;
 var debugComputers = 0;
 var debugMap = '';
@@ -86,7 +86,7 @@ var epsilon = 0.0001;
 var serverDalay = 200;
 
 /* editor */
-var editorStepTime = 125;
+var editorStepTime = 75;
 var eraserStepTime = 50;
 var mapSegmentColor = [96, 96, 96];
 
