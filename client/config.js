@@ -32,6 +32,7 @@ var indicatorLength = 15;
 var indicatorArrowLength = 8;
 var indicatorArrowOffset = 2;
 var indicatorFont = 24;
+var sidebarWidth = 301;
 
 /* general settings */
 var syncTries = 2;
@@ -63,9 +64,9 @@ var acceptGameTimeAdjustments = true;
 var jsProfiling = false;
 var simulateCPUlag = false;
 var displayDebugStatus = true;
-var fpsInterval = 5000; // in msecs
+var fpsInterval = 500; // in msecs
 var debugRewards = false;
-var alwaysHideSidebar = false;
+var alwaysHideSidebar = true;
 var debugPos = false;
 var debugComputers = 0;
 var debugMap = '';

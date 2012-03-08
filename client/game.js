@@ -7,7 +7,7 @@ function GameEngine(audioController) {
 	this.type = null;
 
 	// canvas related
-	this.canvasContainer = document.getElementById('canvasContainer');
+	this.gameContainer = document.getElementById('gameContainer');
 	this.baseCanvas = document.getElementById('baseCanvas');
 	this.baseContext = this.baseCanvas.getContext('2d');
 	this.initContext(this.baseContext);
@@ -157,7 +157,7 @@ GameEngine.prototype.setGameState = function(newState) {
 			setOptionVisibility('stop');
 			break;
 		case 'ended':
-			if(this.showSidebar())
+			if(this.setSidebarVisibility(true))
 				this.resize();
 
 			this.setKickLinksVisibility();
@@ -170,40 +170,25 @@ GameEngine.prototype.setGameState = function(newState) {
 			setContentVisibility('connectionContainer');
 			setOptionVisibility('nothing');
 			this.connectButton.disabled = false;
-			this.connectButton.innerHTML = 'Connect to Server';
+			this.connectButton.innerHTML = 'Connect';
 			break;
 	}
 }
 
+GameEngine.prototype.setSidebarVisibility = function(visible) {
+	if(visible == (this.sidebar.className == 'visible'))
+		return false;
+
+	this.sidebar.className = visible ? 'visible' : '';
+	document.getElementById('menuButton').innerHTML = visible ? '&lt;' : '&gt;';
+	this.canvasLeft = visible ? sidebarWidth : 0;
+	document.body.className = visible ? 'translated' : '';
+	return true;
+}
+
 GameEngine.prototype.toggleSidebar = function() {
-	if(this.sidebar.style.display == 'none')
-		this.showSidebar();
-	else
-		this.hideSidebar();
-
+	this.setSidebarVisibility(this.sidebar.className != 'visible');
 	this.resize();
-}
-
-GameEngine.prototype.hideSidebar = function() {
-	if(this.sidebar.style.display == 'none')
-		return false;
-
-	this.canvasLeft = 0;
-	this.sidebar.style.display = 'none';
-	document.getElementById('menuButton').innerHTML = '&gt;';
-	document.getElementById('content').style.paddingLeft = '0px';
-	return true;
-}
-
-GameEngine.prototype.showSidebar = function() {
-	if(this.sidebar.style.display != 'none' && this.sidebar.style.display != '')
-		return false;
-
-	this.sidebar.style.display = 'block';
-	document.getElementById('menuButton').innerHTML = '&lt;';
-	document.getElementById('content').style.paddingLeft = '301px';
-	this.canvasLeft = 301;
-	return true;
 }
 
 GameEngine.prototype.joinGame = function(gameId) {
@@ -513,7 +498,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			window.clearTimeout(this.gameloopTimeout);
 			document.getElementById('inkIndicator').style.display = 'none';
 			for(var i = this.maxHiddenRewards; i < this.rewardNodes.length; i++)
-				this.canvasContainer.removeChild(this.rewardNodes.pop());
+				this.gameContainer.removeChild(this.rewardNodes.pop());
 				
 			// simulate to finalTick
 			this.tock = this.tick = Math.max(this.tick, obj.finalTick);
@@ -889,7 +874,8 @@ GameEngine.prototype.addPlayer = function(player) {
 
 /* sets this.scale, which is canvas size / game size */
 GameEngine.prototype.calcScale = function(extraVerticalSpace) {
-	var targetWidth = Math.max(document.body.clientWidth - this.sidebar.offsetWidth - 1,
+	var compensation = (this.sidebar.className == 'visible') ? sidebarWidth : 0;
+	var targetWidth = Math.max(document.body.clientWidth - compensation - 1,
 	 canvasMinimumWidth);
 	var targetHeight = document.body.clientHeight - 1;
 	if(extraVerticalSpace != undefined)
@@ -981,7 +967,7 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	}
 
 	if(alwaysHideSidebar || touchDevice)
-		this.hideSidebar();
+		this.setSidebarVisibility(false);
 
 	this.resize();
 
@@ -1081,7 +1067,6 @@ GameEngine.prototype.gameloop = function() {
 		return;
 
 	var self = this;
-	requestAnimFrame(function () { self.gameloop(); });
 	var endTick = (Date.now() - this.gameStartTimestamp)/ this.tickLength;
 	var stateCount = backupStates.length - 1;
 
@@ -1112,6 +1097,8 @@ GameEngine.prototype.gameloop = function() {
 		this.correctionTick = this.tick = Math.min(nextIntegerTick, endTick);
 		this.tock = Math.max(0, this.tick - tickTockDifference);
 	}
+
+	requestAnimFrame(function () { self.gameloop(); });
 }
 
 GameEngine.prototype.realStart = function() {
@@ -1173,7 +1160,7 @@ GameEngine.prototype.createRewardNode = function(player, reward) {
 	if(recycle) {
 		node.style.display = 'block';
 	} else {
-		this.canvasContainer.appendChild(node);
+		this.gameContainer.appendChild(node);
 	}
 	
 	return node;
@@ -1215,8 +1202,8 @@ GameEngine.prototype.resize = function() {
 	this.calcScale();
 	var scaledWidth = Math.round(this.scale * this.width);
 	var scaledHeight = Math.round(this.scale * this.height)
-	this.canvasContainer.style.width = scaledWidth + 'px';
-	this.canvasContainer.style.height = scaledHeight + 'px';
+	this.gameContainer.style.width = scaledWidth + 'px';
+	this.gameContainer.style.height = scaledHeight + 'px';
 
 	for(var i = 0; i < backupStates.length; i++) {
 		this.canvases[i].width = scaledWidth;
@@ -2416,7 +2403,7 @@ Editor.prototype.undo = function() {
 
 Editor.prototype.resize = function() {
 	var game = this.game;
-	game.calcScale(this.resetButton.offsetHeight + 10);
+	game.calcScale(document.getElementById('editorControls').offsetHeight);
 	var w = Math.round(game.scale * game.width);
 	var h = Math.round(game.scale * game.height);
 	var sizeChanged = w != this.canvas.width;
@@ -2489,7 +2476,7 @@ window.onload = function() {
 	function connect() {
 		var playerName = document.getElementById('playername').value;
 
-		game.showSidebar();
+		game.setSidebarVisibility(true);
 
 		if(typeof playerName != 'string' || playerName.length < 1 || playerName.length > maxNameLength) {
 			game.gameMessage('Enter a cool nickname please (no longer than ' + maxNameLength + ' chars)');
@@ -2591,10 +2578,10 @@ window.onload = function() {
 		resizeChat();
 	}
 
-	/* moving sidebar for horizontal scroll */
+	/* moving sidebar for horizontal scroll 
 	window.onscroll = function() {
 		game.sidebar.style.left = -window.scrollX + 'px';
-	}
+	} */
 
 	/* way to see sidebar for touch screens */
 	if(touchDevice || alwaysHideSidebar) {
@@ -2705,7 +2692,7 @@ function setContentVisibility(target) {
 
 	for(var i = 0; i < sections.length; i++) {
 		var elt = document.getElementById(sections[i]);
-		elt.style.display = (target == sections[i]) ? 'block' : 'none';
+		elt.className = (target == sections[i]) ? 'contentVisible' : '';
 	}
 }
 

@@ -2,16 +2,16 @@
 <html>
 	<head>
 		<meta charset="utf-8">
-		<!-- for fancy touch devices -->
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 		<title>Achtung, die Kurve!</title>
-		<link rel="stylesheet" type="text/css" href="new.css" />
+		<link rel="stylesheet" type="text/css" href="base.css" />
+		<link href='http://fonts.googleapis.com/css?family=Lustria' rel='stylesheet' type='text/css' />
 		<script src="config.js"></script>
 		<script src="buzz.js"></script>
 		<script src="game.js"></script>
 	</head>
 	<body>
-		<div id="sidebar">
+		<aside id="sidebar">
 			<h2 id="gameTitle"></h2><div id="goalDisplay"></div>
 			<div id="playerListContainer">
 				<table id="playerList">
@@ -24,7 +24,6 @@
 			<div id="messagingContainer">
 				<form id="chatForm">
 					<input type="text" id="chat" placeholder="insults go here" />
-					<!-- for submitting on android -->
 					<input type="submit" id="formSubmit" value="ushouldntcme" />
 				</form>
 				<div id="chatContainer">
@@ -39,37 +38,38 @@
 
 				<label class="option" id="soundOption">sound: <input type="checkbox" id="sound" checked></label>
 			</div>
-		</div>
+		</aside>
 
-		<div id="content">
-			<div id="gameContainer">
-				<div id="canvasContainer">
-					<div id="menuButton">&lt;</div>
-					
-					<canvas id="baseCanvas"></canvas>
-					<canvas id="backupCanvas"></canvas>
+		<section id="gameContainer">
+			<div id="menuButton">&lt;</div>
+			<canvas id="baseCanvas"></canvas>
+			<div id="winAnnouncer"></div>
+			<div id="status"></div>
+			<div id="inkIndicator">
+				<div id="inkWrap">
+					<div id="ink"></div>
+				</div>
+			</div>
+		</section>
 
-					<div id="winAnnouncer">test</div>
+		<section id="connectionContainer">
+			<h1>Achtung, die Kurve!</h1>
 
-					<div id="inkIndicator">
-						<div id="inkWrap">
-							<div id="ink"></div>
-						</div>
-					</div>
+			<div id="introduction">
+				<p id="welcome">Welcome to our online remake of the classic Achtung die Kurve! Instead of running on a single computer, this version works over the internet. If you are unfamiliar with the game, check out the quick-start guide below. Otherwise, enter your nickname and have fun!</p>
+
+				<div id="noWebsocket" class="alert alert-error">
+					It seems like your browser does not support websockets! This is required to play the game. Please consider trying a websocket compliant browser like Firefox, Chrome or Safari.
 				</div>
 
-				<div id="status"></div>
-			</div>
-
-			<div id="connectionContainer">
-				<h1>Achtung, die Kurve!</h1>
-				<p id="welcome">Welcome to our online remake of the classic Achtung die Kurve! Instead of running on a single computer, this version works over the internet. This means you can play your friends as well as total strangers! Have fun!</p>
-				<div id="noWebsocket" class="alert alert-error">It seems like your browser does not support websockets! This is required to play the game. Please consider trying a websocket compliant browser like Firefox, Chrome or Safari.</div>
 				<div id="connectForm">
 					<input type="text" id="playername" placeholder="playername" />
-					<button id="connect" class="primary">Connect&nbsp;to&nbsp;Server</button>
+					<button id="connect" class="primary">Connect</button>
 				</div>
-				<h2>First time? Here's what you should know</h2>
+			</div>
+
+			<div id="guide">
+				<h2>Quick start guide</h2>
 				<h3>The goal</h3>
 				<p>In this game you are a snake which you can steer in two directions. The ultimate goal of the game has always been to survive as long as possible. You do this by avoiding collision with yourself, other players, the edges of the map and other obstacles. Every time an opponent fails to do this, you receive some points. The first player to reach a set point limit wins the game! Simple enough, right? When you die, you do not have to sit and wait until the next round: you can then draw obstacles on the map to sabotage the players that are still alive. <strong>Pro-tip:</strong> go for the player that is leading in points!</p>
 				<h3>The basic controls</h3>
@@ -78,167 +78,156 @@
 				<p>There are two types of games. Automatches and custom games. Automatches are the easiest way to find a game. You specify with how many people you'd like to play and press the automatch button. You automatically join a game which fits your requirements, or a new game is created if such a game cannot be found. The game automatically starts when there are enough players. These automatches always use the default settings.</p>
 				<h3>Custom games</h3>
 				<p>Custom games on the other hand have a host, who desides when the game starts and has the authority to kick people from the game. The host can also set the game parameters to values of his or her liking (within reason). In addition, it is possible to add computer players to the game. Finally, you can also build your own map. Create obstacles, fixed starting positions and even teleporters! There are incredibly many different ways to make the game even more crazy!</p>
-				<h3>About the game</h3>
-				<p>This game is made by Marcus and Rik as a holiday project. The code is hosted at <a href="https://github.com/marcusklaas/Achtung--die-Kurve-">github</a>, which you are free to fork. If you have any suggestions or complaints, or if you just want to tell us what you think about the game, send us an email at <a href="mailto:devnull@diekurve.net">devnull@diekurve.net</a>!</p>
 			</div>
 
-			<div id="gameListContainer">
-				<h2 class="contentHeader">Game List</h2>
-				<table id="gameListHeader" class="bordered-table">
-					<colgroup>
-							<col class="col1" />
-							<col class="col2" />
-							<col class="col3" />
-							<col class="col4" />
-							<col class="col5" />
-							<col class="col6" />
-					</colgroup>
-					<thead>
-						<tr><th>#</th><th>Type</th><th>Host</th><th>State</th><th>Players</th><th></th></tr>
-					</thead>
-				</table>
+			<div id="credits">
+				This game is made by Marcus and Rik as a holiday project. The code is hosted at <a href="https://github.com/marcusklaas/Achtung--die-Kurve-">github</a>, which you are free to fork. If you have any suggestions or complaints, or if you just want to tell us what you think about the game, send us an email at <a href="mailto:devnull@diekurve.net">devnull@diekurve.net</a>!
+			</div>
+		</section>
 
-				<div id="listWrapper">
-					<table id="gameList" class="zebra-striped bordered-table">
-						<colgroup>
-							<col class="col1" />
-							<col class="col2" />
-							<col class="col3" />
-							<col class="col4" />
-							<col class="col5" />
-							<col class="col6" />
-						</colgroup>
-					<tbody></tbody></table>
-					<div id="noGames">No games active!</div>
-				</div>
-
-				<div id="automatchContainer">
-					<span class="add-on">Minimum players</span><input type="number" min="1" max="8" steps="1" value="2" id="minplayers" /><span class="add-on">Maximum players</span><input type="number" min="1" max="8" steps="1" value="2" id="maxplayers" /><a id="automatch" class="btn primary">Automatch</a>
-				</div>
-
-				<a id="createGame" class="btn primary">Create Game</a>
+		<section id="gameListContainer">
+			<h2 class="contentHeader">Game List</h2>
+			<div id="listWrapper">
+				<table id="gameList" class="zebra-striped bordered-table">
+				<thead><tr><th>#</th><th>Type</th><th>Host</th><th>State</th><th>Players</th><th></th></tr></thead>
+				<tbody></tbody></table>
+				<div id="noGames">No games active!</div>
 			</div>
 
-			<div id="editor">
-				<div class="modal" id="mapLoader">
-					<div class="modal-header">
-						<a class="close" id="modalClose" href="#">x</a>
-						<h3 id="modalHeader">Modal header</h3>
-					</div>
-					<div class="modal-body">
-						<textarea id="editorTextField"></textarea>
-					</div>
-					<div class="modal-footer">
-						<button class="primary" id="modalOk">Load Map</button>
-					</div>
-					
-				</div>
-				<div id="overlay"></div>
-
-				<canvas id="editorCanvas"></canvas>
-				<div id="editorControls" class="btn-toolbar">
-					<div class="btn-group" id="editorMode">
-						<a class="btn" id="editorPencil">Pencil</a>
-						<a class="btn" id="editorLine">Line</a>
-						<a class="btn" id="editorPlayerStart">Start Location</a>
-						<a class="btn" id="editorTeleport">Teleport</a>
-						<a class="btn" id="editorEraser">Eraser</a>
-					</div>
-
-					<div class="btn-group">
-						<a id="editorCopy" class="btn">Save Map</a>
-						<a id="editorLoad" class="btn">Load Map</a>
-					</div>
-
-					<div class="btn-group">
-						<a id="editorUndo" class="btn">Undo</a>
-					</div>
-
-					<div class="btn-group">
-						<a id="editorReset" class="btn danger">Reset</a>
-					</div>
-
-					<div class="btn-group">
-						<a id="editorDone" class="btn primary">Done</a>
-					</div>
-				</div>		
+			<div id="automatchContainer">
+				<span class="add-on">Minimum players</span><input type="number" min="1" max="8" steps="1" value="2" id="minplayers" /><span class="add-on">Maximum players</span><input type="number" min="1" max="8" steps="1" value="2" id="maxplayers" /><a id="automatch" class="btn primary">Automatch</a>
 			</div>
 
-			<div id="waitContainer">
-				<h2 class="contentHeader">Game Settings</h2>
-				<table id="details">
-					<tr>
-						<td>Minimum players</td>
-						<td><input id="nmin" type="number" disabled /></td>
-					</tr>
-					<tr>
-						<td>Maximum players</td>
-						<td><input id="nmax" type="number" disabled /></td>
-					</tr>
-					<tr>
-						<td>Game width</td>
-						<td><input id="width" type="number" disabled /></td>
-					</tr>
-					<tr>
-						<td>Game height</td>
-						<td><input id="height" type="number" disabled /></td>
-					</tr>
-					<tr>
-						<td>Point limit</td>
-						<td><input id="goal" type="number" disabled /></td>
-					</tr>
-					<tr>
-						<td>Velocity</td>
-						<td><input id="velocity" type="number" disabled /></td>
-					</tr>
-					<tr>
-						<td>Turn speed</td>
-						<td><input id="turnSpeed" type="number" disabled /></td>
-					</tr>
-					<tr>
-						<td>Hole size</td>
-						<td><input id="holeSize" type="number" disabled /></td>
-					</tr>
-					<tr>
-						<td>Hole spacing</td>
-						<td><input id="holeFreq" type="number" disabled /></td>
-					</tr>
-					<tr>
-						<td>Permeable borders</td>
-						<td><input type="checkbox" id="torus" disabled /></td>
-					</tr>
-					<tr>
-						<td>Draw mode</td>
-						<td>
-							<label id="pencilOn">On <input type="radio" name="pencilMode" disabled /></label>
-							<label id="pencilOff">Off <input type="radio" name="pencilMode" disabled /></label>
-							<label id="pencilOnDeath">On death <input type="radio" name="pencilMode" disabled /></label>
-						</td>
-					</tr>
-					<tr>
-						<td>Maximum ink</td>
-						<td><input id="inkCapacity" type="number" disabled /></td>
-					</tr>
-					<tr>
-						<td>Ink regeneration</td>
-						<td><input id="inkRegen" type="number" disabled /></td>
-					</tr>
-					<tr>
-						<td>Ink harden time</td>
-						<td><input id="inkDelay" type="number" disabled /></td>
-					</tr>
-				</table>
+			<a id="createGame" class="btn primary">Create Game</a>
+		</section>
 
-				<div id="hostContainer">
-					<button id="addComputer">Add Computer</button>
-					<button id="editorStart">Draw Custom Map</button>
-					<button id="startGame" class="primary">Start Game</button>
+		<section id="editor">
+			<div class="modal" id="mapLoader">
+				<div class="modal-header">
+					<a class="close" id="modalClose" href="#">x</a>
+					<h3 id="modalHeader">Modal header</h3>
+				</div>
+				<div class="modal-body">
+					<textarea id="editorTextField"></textarea>
+				</div>
+				<div class="modal-footer">
+					<button class="primary" id="modalOk">Load Map</button>
+				</div>
+			
+			</div>
+			<div id="overlay"></div>
+
+			<canvas id="editorCanvas"></canvas>
+			<div id="editorControls" class="btn-toolbar">
+				<div class="btn-group" id="editorMode">
+					<a class="btn" id="editorPencil">Pencil</a>
+					<a class="btn" id="editorLine">Line</a>
+					<a class="btn" id="editorPlayerStart">Start Location</a>
+					<a class="btn" id="editorTeleport">Teleport</a>
+					<a class="btn" id="editorEraser">Eraser</a>
+				</div>
+
+				<div class="btn-group">
+					<a id="editorCopy" class="btn">Save Map</a>
+					<a id="editorLoad" class="btn">Load Map</a>
+				</div>
+
+				<div class="btn-group">
+					<a id="editorUndo" class="btn">Undo</a>
+				</div>
+
+				<div class="btn-group">
+					<a id="editorReset" class="btn danger">Reset</a>
+				</div>
+
+				<div class="btn-group">
+					<a id="editorDone" class="btn primary">Done</a>
+				</div>
+			</div>		
+		</section>
+
+		<section id="waitContainer">
+			<h2 class="contentHeader">Game Settings</h2>
+			<table id="details">
+				<tr>
+					<td>Minimum players</td>
+					<td><input id="nmin" type="number" disabled /></td>
+				</tr>
+				<tr>
+					<td>Maximum players</td>
+					<td><input id="nmax" type="number" disabled /></td>
+				</tr>
+				<tr>
+					<td>Game width</td>
+					<td><input id="width" type="number" disabled /></td>
+				</tr>
+				<tr>
+					<td>Game height</td>
+					<td><input id="height" type="number" disabled /></td>
+				</tr>
+				<tr>
+					<td>Point limit</td>
+					<td><input id="goal" type="number" disabled /></td>
+				</tr>
+				<tr>
+					<td>Velocity</td>
+					<td><input id="velocity" type="number" disabled /></td>
+				</tr>
+				<tr>
+					<td>Turn speed</td>
+					<td><input id="turnSpeed" type="number" disabled /></td>
+				</tr>
+				<tr>
+					<td>Hole size</td>
+					<td><input id="holeSize" type="number" disabled /></td>
+				</tr>
+				<tr>
+					<td>Hole spacing</td>
+					<td><input id="holeFreq" type="number" disabled /></td>
+				</tr>
+				<tr>
+					<td>Permeable borders</td>
+					<td><input type="checkbox" id="torus" disabled /></td>
+				</tr>
+				<tr>
+					<td>Draw mode</td>
+					<td>
+						<label id="pencilOn">On <input type="radio" name="pencilMode" disabled /></label>
+						<label id="pencilOff">Off <input type="radio" name="pencilMode" disabled /></label>
+						<label id="pencilOnDeath">On death <input type="radio" name="pencilMode" disabled /></label>
+					</td>
+				</tr>
+				<tr>
+					<td>Maximum ink</td>
+					<td><input id="inkCapacity" type="number" disabled /></td>
+				</tr>
+				<tr>
+					<td>Ink regeneration</td>
+					<td><input id="inkRegen" type="number" disabled /></td>
+				</tr>
+				<tr>
+					<td>Ink harden time</td>
+					<td><input id="inkDelay" type="number" disabled /></td>
+				</tr>
+			</table>
+
+			<div id="hostContainer">
+				<div class="btn-group">
+					<a id="addComputer" class="btn">Add Computer</a>
 				</div>
 				
-				<div id="nonhostContainer"></div>
-
-				<div id="friendInviter" class="alert alert-info">Don't play alone, invite your friends!</div>
+				<div class="btn-group">
+					<a id="editorStart" class="btn">Draw Custom Map</a>
+				</div>
+				
+				<div class="btn-group">
+					<a id="startGame" class="btn primary">Start Game</a>
+				</div>
 			</div>
-		</div>
+		
+			<div id="nonhostContainer"></div>
+
+			<div id="friendInviter" class="alert alert-info">Don't play alone, invite your friends!</div>
+		</section>
 	</body>
 </html>
