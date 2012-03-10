@@ -13,6 +13,7 @@ else if(location.href.indexOf('C:/Dropbox') != -1)
 	serverURL = "ws://localhost:7681";
 
 /* visual stuff */
+var maxCanvasStretch = 1.2; // max 20% stretch in either direction
 var holeAlpha = 0.2;
 var lineWidth = 3; // only visual, does not influence collisions
 var lineCapStyle = 'round';

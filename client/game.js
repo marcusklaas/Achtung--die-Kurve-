@@ -887,7 +887,13 @@ GameEngine.prototype.calcScale = function(extraVerticalSpace) {
 	
 	var scaleX = targetWidth/ this.width;
 	var scaleY = targetHeight/ this.height;
-	this.scale = Math.min(scaleX, scaleY);
+	this.scaleY = this.scaleX = Math.min(scaleX, scaleY);
+
+	if(Math.max(this.scaleX/ scaleX, scaleX/ this.scaleX,
+	 this.scaleY/ scaleY, scaleY/ this.scaleY) <= maxCanvasStretch) {
+		this.scaleX = scaleX;
+		this.scaleY = scaleY;
+	}
 }
 
 GameEngine.prototype.unlockStart = function() {
@@ -1154,9 +1160,9 @@ GameEngine.prototype.createRewardNode = function(player, reward) {
 	}
 	
 	node.innerHTML = '+' + reward;
-	var left = playerState.x * this.scale - w / 2;
-	left = Math.min(this.width * this.scale - w, Math.max(0, left));
-	var top = playerState.y * this.scale - h - rewardOffsetY;
+	var left = playerState.x * this.scaleX - w / 2;
+	left = Math.min(this.width * this.scaleX - w, Math.max(0, left));
+	var top = playerState.y * this.scaleY - h - rewardOffsetY;
 	if(top < 0)
 		top += rewardOffsetY * 2 + h;
 	node.style.left = left + 'px';
@@ -1205,8 +1211,8 @@ GameEngine.prototype.displayRewards = function(reward) {
 
 GameEngine.prototype.resize = function() {
 	this.calcScale();
-	var scaledWidth = Math.round(this.scale * this.width);
-	var scaledHeight = Math.round(this.scale * this.height)
+	var scaledWidth = Math.round(this.scaleX * this.width);
+	var scaledHeight = Math.round(this.scaleY * this.height)
 	this.canvasContainer.style.width = scaledWidth + 'px';
 	this.canvasContainer.style.height = scaledHeight + 'px';
 
@@ -1226,7 +1232,7 @@ GameEngine.prototype.resize = function() {
 }
 
 GameEngine.prototype.initContext = function(ctx) {
-	ctx.scale(this.scale, this.scale);
+	ctx.scale(this.scaleX, this.scaleY);
 	ctx.lineWidth = lineWidth;
 	ctx.lineCap = lineCapStyle;
 	ctx.drawLine = function(x1, y1, x2, y2) {
@@ -1337,8 +1343,8 @@ GameEngine.prototype.backToGameLobby = function() {
 
 GameEngine.prototype.getGamePos = function(e) {
 	var v = getPos(e);
-	v.x = (v.x - this.canvasLeft) / this.scale;
-	v.y = (v.y - this.canvasTop) / this.scale;
+	v.x = (v.x - this.canvasLeft) / this.scaleX;
+	v.y = (v.y - this.canvasTop) / this.scaleY;
 	v.x = Math.round(Math.max(Math.min(this.width, v.x), 0));
 	v.y = Math.round(Math.max(Math.min(this.height, v.y), 0));
 	return v;
