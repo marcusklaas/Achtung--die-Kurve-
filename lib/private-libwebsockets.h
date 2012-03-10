@@ -106,6 +106,7 @@ void debug(const char *format, ...)
 
 #define FD_HASHTABLE_MODULUS 32
 #define MAX_CLIENTS 100
+#define ACCEPT_EXTENSIONS 0
 #define LWS_MAX_HEADER_NAME_LENGTH 64
 #define LWS_MAX_HEADER_LEN 4096
 #define LWS_INITIAL_HDR_ALLOC 256

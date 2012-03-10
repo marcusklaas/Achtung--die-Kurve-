@@ -880,9 +880,8 @@ GameEngine.prototype.addPlayer = function(player) {
 /* sets this.scale, which is canvas size / game size */
 GameEngine.prototype.calcScale = function(extraVerticalSpace) {
 	var compensation = this.sidebar.classList.contains('visible') ? sidebarWidth : 0;
-	var targetWidth = Math.max(document.body.clientWidth - compensation - 1,
-	 canvasMinimumWidth);
-	var targetHeight = document.body.clientHeight - 1;
+	var targetWidth = Math.max(document.body.clientWidth - compensation, canvasMinimumWidth);
+	var targetHeight = document.body.clientHeight;
 	if(extraVerticalSpace != undefined)
 		targetHeight -= extraVerticalSpace;
 	

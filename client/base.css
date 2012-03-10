@@ -58,6 +58,10 @@ input[type=number] {
 }
 
 /* game related */
+#gameContainer {
+	overflow: hidden;
+}
+
 #canvasContainer {
 	position: relative;
 	border-bottom: 1px solid #999;
@@ -205,7 +209,7 @@ input[type=number] {
 #overlay {
 	background-color: rgba(0, 0, 0, 0.6);
 	position: fixed;
-	z-index: 1;
+	z-index: 5;
 	width: 100%;
 	height: 100%;
 	top: 0;
@@ -228,23 +232,27 @@ article {
 	opacity: 0;
 	z-index: 0;
 	overflow: hidden;
-	transition: margin 150ms, opacity 150ms;
-	-moz-transition: margin 150ms, opacity 150ms;
-	-webkit-transition: margin 150ms, opacity 150ms;
-	-o-transition: margin 150ms, opacity 150ms;
+	transition: padding-left 500ms ease-in-out, margin 150ms, opacity 150ms;
+	-moz-transition: padding-left 500ms ease-in-out, margin 150ms, opacity 150ms;
+	-webkit-transition: padding-left 500ms ease-in-out, margin 150ms, opacity 150ms;
+	-o-transition: padding-left 500ms ease-in-out, margin 150ms, opacity 150ms;
 }
 
 article.translated {
 	padding-left: 301px;
+	transition: padding-left 500ms ease-in-out;
+	-webkit-transition: padding-left 500ms ease-in-out;
+	-moz-transition: padding-left 500ms ease-in-out;
+	-o-transition: padding-left 500ms ease-in-out;
 }
 
 /* animaties gestolen van google chrome >:D */
 article.contentVisible {
 	margin-left: 0;
-	transition: margin 300ms, opacity 300ms;
-	-moz-transition: margin 300ms, opacity 300ms;
-	-webkit-transition: margin 300ms, opacity 300ms;
-	-o-transition: margin 300ms, opacity 300ms;
+	transition: padding-left 500ms ease-in-out, margin 300ms, opacity 300ms;
+	-moz-transition: padding-left 500ms ease-in-out, margin 300ms, opacity 300ms;
+	-webkit-transition: padding-left 500ms ease-in-out, margin 300ms, opacity 300ms;
+	-o-transition: padding-left 500ms ease-in-out, margin 300ms, opacity 300ms;
 	opacity: 1;
 	z-index: 1;
 	overflow: auto;
@@ -346,6 +354,11 @@ section > h2 {
 	background: #FEFEFE;
 	overflow: hidden;
 	z-index: 2;
+	box-shadow: 0 0px 10px rgba(0, 0, 0, 0.3);
+	transition: left 500ms ease-in-out;
+	-webkit-transition: left 500ms ease-in-out;
+	-moz-transition: left 500ms ease-in-out;
+	-o-transition: left 500ms ease-in-out;
 }
 
 #sidebar.visible {
@@ -629,7 +642,7 @@ textarea:disabled {
 
 #automatchContainer input {
 	display: inline-block;	
-	padding: 5px 0px 6px 10px;
+	padding: 5px 0px 6px 0px;
 	-webkit-border-radius: 0;
 	-moz-border-radius: 0;
 	border-radius: 0;
@@ -637,7 +650,8 @@ textarea:disabled {
 	line-height: 18px;
 	border-right: 0;
 	margin: 0;
-	width: 20px;
+	text-align: center;
+	width: 35px;
 }
 
 #automatch {

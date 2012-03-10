@@ -106,23 +106,23 @@
 			</section>
 		</article>
 
+		<div class="modal" id="mapLoader">
+			<div class="modal-header">
+				<a class="close" id="modalClose">x</a>
+				<h3 id="modalHeader">Modal header</h3>
+			</div>
+			<div class="modal-body">
+				<textarea id="editorTextField"></textarea>
+			</div>
+			<div class="modal-footer">
+				<button class="primary" id="modalOk">Load Map</button>
+			</div>
+	
+		</div>
+		<div id="overlay"></div>
+
 		<article id="editor">
 			<section>
-				<div class="modal" id="mapLoader">
-					<div class="modal-header">
-						<a class="close" id="modalClose" href="#">x</a>
-						<h3 id="modalHeader">Modal header</h3>
-					</div>
-					<div class="modal-body">
-						<textarea id="editorTextField"></textarea>
-					</div>
-					<div class="modal-footer">
-						<button class="primary" id="modalOk">Load Map</button>
-					</div>
-			
-				</div>
-				<div id="overlay"></div>
-
 				<canvas id="editorCanvas"></canvas>
 				<div id="editorControls" class="btn-toolbar">
 					<div class="btn-group" id="editorMode">

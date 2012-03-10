@@ -357,7 +357,7 @@ handshake_0405(struct libwebsocket_context *context, struct libwebsocket *wsi)
 	 * enable on this connection, and give him back the list
 	 */
 
-	if (wsi->utf8_token[WSI_TOKEN_EXTENSIONS].token_len) {
+	if (wsi->utf8_token[WSI_TOKEN_EXTENSIONS].token_len && ACCEPT_EXTENSIONS) {
 		strcpy(p,   "\x0d\x0aSec-WebSocket-Extensions: ");
 		p += strlen("\x0d\x0aSec-WebSocket-Extensions: ");
 
