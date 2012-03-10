@@ -285,7 +285,8 @@ GameEngine.prototype.parseByteMsg = function(str) {
 		var tickDelta = (c & (16 + 32 + 64)) >> 4;
 		tickDelta |= d << 3;
 
-		this.correctionTick = (this.localPlayer.inputs[input].tick += tickDelta);
+		this.correctionTick = Math.min((this.localPlayer.inputs[input].tick += tickDelta),
+		 this.correctionTick);
 		
 		return true;
 	}
@@ -360,8 +361,8 @@ GameEngine.prototype.parseSteerMsg = function(str) {
 
 	player.inputs.push({tick: tick, turn: newTurn});
 	
-	if(tick < this.tock)
-		this.correctionTick = tick;
+	if(tick <= Math.floor(this.tock))
+		this.correctionTick = Math.min(this.correctionTick, tick);
 }
 
 GameEngine.prototype.interpretMsg = function(msg) {
@@ -506,7 +507,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 				
 			// simulate to finalTick
 			this.tock = this.tick = Math.max(this.tick, obj.finalTick);
-			this.correctionTick = obj.finalTick;
+			this.correctionTick = Math.min(this.correctionTick, obj.finalTick);
 			this.revertBackup();
 				
 			if(debugPos) 
@@ -989,17 +990,17 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 }
 
 GameEngine.prototype.revertBackup = function() {
-	var flooredTick = Math.floor(this.tick);
+	var ceiledTick = Math.ceil(this.tick);
 
 	/* false alarm, no revert required */
-	if(this.correctionTick >= flooredTick)
+	if(this.correctionTick >= ceiledTick)
 		return;
 
 	this.redraws++;
 	this.displayDebugStatus();
 
 	/* calculate closest restore point */
-	for(var stateIndex = backupStates.length - 1; this.correctionTick < flooredTick - backupStates[stateIndex]; stateIndex--);
+	for(var stateIndex = backupStates.length - 1; this.correctionTick < ceiledTick - backupStates[stateIndex]; stateIndex--);
 
 	/* reset next state to this point */
 	for(var i in this.players) {
@@ -1010,7 +1011,7 @@ GameEngine.prototype.revertBackup = function() {
 	/* copy to next canvas */
 	var nextContext = this.contexts[stateIndex + 1];
 	nextContext.drawImage(this.canvases[stateIndex], 0, 0, this.width, this.height);
-	this.correctionTick = flooredTick - backupStates[stateIndex + 1];
+	this.correctionTick = ceiledTick - backupStates[stateIndex + 1];
 
 	/* simulate every player up to next backup point */
 	this.updateContext(stateIndex + 1, true);
@@ -1098,7 +1099,8 @@ GameEngine.prototype.gameloop = function() {
 		if(this.pencilMode != 'off')
 			this.pencil.doTick(this.tick);
 
-		this.correctionTick = this.tick = Math.min(nextIntegerTick, endTick);
+		this.tick = Math.min(nextIntegerTick, endTick);
+		this.correctionTick = Math.ceil(this.tick);
 		this.tock = Math.max(0, this.tick - tickTockDifference);
 	}
 
@@ -1404,8 +1406,8 @@ Player.prototype.finalSteer = function(obj) {
 	this.inputs[i + 1] = {'tick': tick, 'finalTurn': true, 'x': obj.x, 'y': obj.y};
 	this.finalTick = tick;
 
-	if(tick <= localTick)
-		this.game.correctionTick = tick - 1;
+	if(tick <= Math.floor(localTick))
+		this.game.correctionTick = Math.min(this.game.correctionTick, tick);
 }
 
 Player.prototype.setSegmentStyle = function(ctx, inHole) {

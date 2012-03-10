@@ -144,6 +144,14 @@ input[type=number] {
 	z-index: 3;
 	font-size: large;
 	font-weight: bold;
+	-webkit-touch-callout: none;
+	-webkit-user-select: none;
+	-khtml-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	-o-user-select: none;
+	user-select: none;
+	pointer-events: none;
 }
 
 .reward-hidden {
@@ -163,10 +171,18 @@ input[type=number] {
 
 #status {
 	position: absolute;
-	top: 5px;
-	left: 7px;
+	top: 15px;
+	left: 25px;
 	font-weight: bold;
 	text-align: left;
+	-webkit-touch-callout: none;
+	-webkit-user-select: none;
+	-khtml-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	-o-user-select: none;
+	user-select: none;
+	pointer-events: none;
 }
 
 /* editor */
@@ -215,6 +231,7 @@ article {
 	transition: margin 150ms, opacity 150ms;
 	-moz-transition: margin 150ms, opacity 150ms;
 	-webkit-transition: margin 150ms, opacity 150ms;
+	-o-transition: margin 150ms, opacity 150ms;
 }
 
 article.translated {
@@ -227,6 +244,7 @@ article.contentVisible {
 	transition: margin 300ms, opacity 300ms;
 	-moz-transition: margin 300ms, opacity 300ms;
 	-webkit-transition: margin 300ms, opacity 300ms;
+	-o-transition: margin 300ms, opacity 300ms;
 	opacity: 1;
 	z-index: 1;
 	overflow: auto;
@@ -335,6 +353,7 @@ section > h2 {
 	transition: left 500ms ease-in-out;
 	-webkit-transition: left 500ms ease-in-out;
 	-moz-transition: left 500ms ease-in-out;
+	-o-transition: left 500ms ease-in-out;
 }
 
 #sidebar > * {
