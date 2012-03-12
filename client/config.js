@@ -13,7 +13,7 @@ else if(location.href.indexOf('C:/Dropbox') != -1)
 	serverURL = "ws://localhost:7681";
 
 /* visual stuff */
-var maxCanvasStretch = 1.2; // max 20% stretch in either direction
+var maxCanvasStretch = 1.10; // max 20% stretch in either direction
 var holeAlpha = 0.2;
 var lineWidth = 3; // only visual, does not influence collisions
 var lineCapStyle = 'round';
@@ -33,7 +33,7 @@ var indicatorLength = 15;
 var indicatorArrowLength = 8;
 var indicatorArrowOffset = 2;
 var indicatorFont = 24;
-var sidebarWidth = 301;
+var sidebarWidth = 301; // TODO: should be read from document
 
 /* general settings */
 var syncTries = 2;
@@ -64,7 +64,7 @@ var extraGameStartTimeDifference = 0;
 var acceptGameTimeAdjustments = true;
 var jsProfiling = false;
 var simulateCPUlag = false;
-var displayDebugStatus = true;
+var displayDebugStatus = false;
 var fpsInterval = 500; // in msecs
 var debugRewards = false;
 var alwaysHideSidebar = true;

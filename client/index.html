@@ -5,7 +5,6 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 		<title>Achtung, die Kurve!</title>
 		<link rel="stylesheet" type="text/css" href="base.css" />
-		<link href='http://fonts.googleapis.com/css?family=Lustria' rel='stylesheet' type='text/css' />
 		<script src="config.js"></script>
 		<script src="buzz.js"></script>
 		<script src="game.js"></script>
@@ -70,8 +69,13 @@
 					</div>
 				</div>
 
+				<input type="checkbox" id="readMore" />
+				<label for="readMore">
+					<span>Expand quick start guide &darr;</span>
+					<span>Collapse quick start guide &uarr;</span>
+				</label>
+
 				<div id="guide">
-					<h2>Quick start guide</h2>
 					<h3>The goal</h3>
 					<p>In this game you are a snake which you can steer in two directions. The ultimate goal of the game has always been to survive as long as possible. You do this by avoiding collision with yourself, other players, the edges of the map and other obstacles. Every time an opponent fails to do this, you receive some points. The first player to reach a set point limit wins the game! Simple enough, right? When you die, you do not have to sit and wait until the next round: you can then draw obstacles on the map to sabotage the players that are still alive. <strong>Pro-tip:</strong> go for the player that is leading in points!</p>
 					<h3>The basic controls</h3>
@@ -117,8 +121,8 @@
 			<div class="modal-footer">
 				<button class="primary" id="modalOk">Load Map</button>
 			</div>
-	
 		</div>
+
 		<div id="overlay"></div>
 
 		<article id="editor">

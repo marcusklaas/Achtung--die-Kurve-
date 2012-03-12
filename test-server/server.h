@@ -53,7 +53,7 @@
 #define ULTRA_VERBOSE 0
 #define SHOW_WARNING 0
 #define GOD_MODE 0
-#define SEND_SEGMENTS 5 // om de hoeveel ticks het moet gebeuren (0=nooit)
+#define SEND_SEGMENTS 0 // om de hoeveel ticks het moet gebeuren (0=nooit)
 #define SAVE_COLLISION_TO_FILE 0
 #define DEBUGPOS 0
 #define KEEP_PLAYING_ONE_ALIVE 0

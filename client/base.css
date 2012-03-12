@@ -201,6 +201,10 @@ input[type=number] {
 	position: static;
 }
 
+#editor {
+	overflow: hidden;
+}
+
 #editorControls {
 	padding: 3px 5px 0 5px;
 	text-align: right;
@@ -233,26 +237,27 @@ article {
 	z-index: 0;
 	overflow: hidden;
 	transition: padding-left 500ms ease-in-out, margin 150ms, opacity 150ms;
-	-moz-transition: padding-left 500ms ease-in-out, margin 150ms, opacity 150ms;
 	-webkit-transition: padding-left 500ms ease-in-out, margin 150ms, opacity 150ms;
 	-o-transition: padding-left 500ms ease-in-out, margin 150ms, opacity 150ms;
+	/* no mozilla transitions for page transition, it is not as smooth as webkit */
+	-moz-transition: padding-left 500ms ease-in-out; /* , margin 150ms, opacity 150ms; */
 }
 
 article.translated {
 	padding-left: 301px;
 	transition: padding-left 500ms ease-in-out;
 	-webkit-transition: padding-left 500ms ease-in-out;
-	-moz-transition: padding-left 500ms ease-in-out;
 	-o-transition: padding-left 500ms ease-in-out;
+	-moz-transition: padding-left 500ms ease-in-out;
 }
 
 /* animaties gestolen van google chrome >:D */
 article.contentVisible {
 	margin-left: 0;
 	transition: padding-left 500ms ease-in-out, margin 300ms, opacity 300ms;
-	-moz-transition: padding-left 500ms ease-in-out, margin 300ms, opacity 300ms;
 	-webkit-transition: padding-left 500ms ease-in-out, margin 300ms, opacity 300ms;
 	-o-transition: padding-left 500ms ease-in-out, margin 300ms, opacity 300ms;
+	-moz-transition: padding-left 500ms ease-in-out; /* , margin 300ms, opacity 300ms; */
 	opacity: 1;
 	z-index: 1;
 	overflow: auto;
@@ -286,46 +291,6 @@ article.contentVisible {
 	margin-top: 12px;
 }
 
-h1 {
-	padding-top: 20px;
-	padding-bottom: 10px;
-	margin: 0;
-	text-align: center;
-	font-family: 'Lustria', serif;
-	font-size: 40px;
-	line-height: 40px;
-}
-
-#introduction {
-	background-color: #FFF;
-	border: 1px solid #ddd;
-	border-radius: 4px;
-	padding: 9px 15px;
-}
-
-#welcome {
-	margin: 0;
-}
-
-/* TODO: hier moet ff een knopje voor komen oid om em te tonen */
-#guide {
-	display: none;
-}
-
-#credits {
-	margin-top: 20px;
-	color: #777;
-}
-
-#connectForm {
-	margin-top: 15px;
-	margin-bottom: 5px;
-	text-align: center;
-}
-
-#playername {
-	width: 200px;
-}
 
 #details td:first-child {
 	text-align: left;
@@ -344,6 +309,90 @@ section > h2 {
 	text-align: left;
 }
 
+/* connection page */
+h1 {
+	padding-top: 20px;
+	padding-bottom: 10px;
+	margin: 0;
+	text-align: center;
+	/* font-family: 'Lustria', serif; */
+	font-size: 40px;
+	line-height: 40px;
+}
+
+#introduction {
+	background-color: #FFF;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	padding: 9px 15px;
+}
+
+#welcome {
+	margin: 0;
+}
+
+#readMore {
+	clip: rect(0, 0, 0, 0);
+	border: 0;
+	overflow: hidden;
+	position: absolute;
+	padding: 0;
+}
+
+label[for="readMore"] {
+	display: block;
+	margin: 10px 0 5px 0;
+	padding: 5px 0 5px 0;
+	cursor: pointer;
+	border: 1px solid rgba(0, 0, 0, .1);
+	background: rgba(0, 0, 0, .03);
+	text-align: center;
+}
+
+label[for="readMore"] > span {
+	font-size: 20px;
+	font-weight: bold;
+	line-height: 20px;
+}
+
+#guide {
+	max-height: 0;
+	overflow: hidden;
+	transition: max-height 1s ease-out;
+	-moz-transition: max-height 1s ease-out;
+	-webkit-transition: max-height 1s ease-out;
+}
+
+#readMore:checked ~ #guide {
+	max-height: 1000px;
+	transition: max-height 1s ease-out;
+	-moz-transition: max-height 1s ease-out;
+	-webkit-transition: max-height 1s ease-out;
+}
+
+#readMore:checked ~ label span:first-child, label span:last-child {
+	display: none;
+}
+
+#readMore:checked ~ label span:last-child {
+	display: inline;
+}
+
+#credits {
+	margin-top: 20px;
+	color: #777;
+}
+
+#connectForm {
+	margin-top: 15px;
+	margin-bottom: 5px;
+	text-align: center;
+}
+
+#playername {
+	width: 200px;
+}
+
 /* sidebar related */
 #sidebar {
 	position: fixed;
@@ -357,16 +406,16 @@ section > h2 {
 	box-shadow: 0 0px 10px rgba(0, 0, 0, 0.3);
 	transition: left 500ms ease-in-out;
 	-webkit-transition: left 500ms ease-in-out;
-	-moz-transition: left 500ms ease-in-out;
 	-o-transition: left 500ms ease-in-out;
+	-moz-transition: left 500ms ease-in-out;
 }
 
 #sidebar.visible {
 	left: 0;
 	transition: left 500ms ease-in-out;
 	-webkit-transition: left 500ms ease-in-out;
-	-moz-transition: left 500ms ease-in-out;
 	-o-transition: left 500ms ease-in-out;
+	-moz-transition: left 500ms ease-in-out;
 }
 
 #sidebar > * {

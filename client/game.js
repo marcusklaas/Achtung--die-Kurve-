@@ -1227,7 +1227,7 @@ GameEngine.prototype.resize = function() {
 	if(this.pencilMode != 'off')
 		this.pencil.drawPlayerSegs(true);
 
-	this.correctionTick = 0;
+	this.correctionTick = -backupStates[1] - 1;
 	this.revertBackup();
 }
 
@@ -1404,14 +1404,13 @@ function Player(game, isLocal) {
 
 Player.prototype.finalSteer = function(obj) {
 	var tick = obj.tick;
-	var localTick = this.isLocal ? this.game.tick : this.game.tock;
 	
 	for(var i = this.inputs.length - 1; i >= 0 && this.inputs[i].tick >= tick; i--);
 	this.inputs.length = i + 2;
 	this.inputs[i + 1] = {'tick': tick, 'finalTurn': true, 'x': obj.x, 'y': obj.y};
 	this.finalTick = tick;
 
-	if(tick <= Math.floor(localTick))
+	if(tick <= Math.floor(this.states[backupStates.length - 1].tick))
 		this.game.correctionTick = Math.min(this.game.correctionTick, tick);
 }
 
@@ -2414,13 +2413,13 @@ Editor.prototype.undo = function() {
 
 Editor.prototype.resize = function() {
 	var game = this.game;
-	game.calcScale(document.getElementById('editorControls').offsetHeight);
-	var w = Math.round(game.scale * game.width);
-	var h = Math.round(game.scale * game.height);
+	game.calcScale(document.getElementById('editorControls').offsetHeight + 1);
+	var w = Math.round(game.scaleX * game.width);
+	var h = Math.round(game.scaleY * game.height);
 	var sizeChanged = w != this.canvas.width;
 	this.canvas.width = w;
 	this.canvas.height = h;
-	this.context.scale(game.scale, game.scale);
+	this.context.scale(game.scaleX, game.scaleY);
 	this.context.lineWidth = 3;
 	setLineColor(this.context, mapSegmentColor, 1);
 	this.context.lineCap = 'round';
@@ -2588,11 +2587,6 @@ window.onload = function() {
 
 		resizeChat();
 	}
-
-	/* moving sidebar for horizontal scroll 
-	window.onscroll = function() {
-		game.sidebar.style.left = -window.scrollX + 'px';
-	} */
 
 	/* way to see sidebar for touch screens */
 	if(touchDevice || alwaysHideSidebar) {
