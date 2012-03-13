@@ -71,6 +71,7 @@ var alwaysHideSidebar = false;
 var debugPos = false;
 var debugComputers = 0;
 var debugMap = '';
+var autoStart = false;
 
 /* server.h copy */
 var maxNameLength = 20;
@@ -92,6 +93,6 @@ var eraserStepTime = 50;
 var mapSegmentColor = [96, 96, 96];
 
 /* these are the segment RGBs for the players */
-var canvasColor = '#D0D0D0'; // wil dit lezen uit document met getComputedStyle, maar vindt chrome niet leuk
+var canvasColor = '#E0E0E0'; // wil dit lezen uit document met getComputedStyle, maar vindt chrome niet leuk
 var playerColors = [[237, 28, 36], [63, 72, 204], [43, 177, 76],
  [0, 0, 0], [185, 122, 87], [163, 73, 164], [0, 162, 232], [136, 0, 21]];

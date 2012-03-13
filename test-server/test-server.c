@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <time.h>
+#include <limits.h>
 
 #include "../lib/libwebsockets.h"
 #include "../cjson/cJSON.c"
@@ -447,6 +448,8 @@ int main(int argc, char **argv) {
 	char interface_name[128] = "";
 	const char * interface = NULL;
 
+	srand(6);
+	
 	while (n >= 0) {
 		n = getopt_long(argc, argv, "ci:khsp:", options, NULL);
 		if (n < 0)
