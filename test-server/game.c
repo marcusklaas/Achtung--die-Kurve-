@@ -913,6 +913,7 @@ void simuserfull(struct userpos *state, struct user *usr, char addsegments, char
 		cut = checkaimapcollision(usr, &seg, state->tick, solid, addsegments);
 	else
 		cut = checkcollision(usr->gm, &seg);
+
 	if(cut != -1.0) {
 		if(collidingseg->t) {
 			struct teleport *t = collidingseg->t;
