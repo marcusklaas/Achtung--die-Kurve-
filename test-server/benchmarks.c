@@ -38,10 +38,12 @@ int main(int cn, char *crs[]) {
 	lobby = scalloc(1, sizeof(struct game)); // for silly reasons
 	lobby->type = GT_LOBBY;
 
-	srand(1);
+	srand(start);
 
 	while(computers--)
 		addcomputer(gm);
+
+	gm->usr->inputmechanism = inputmechanism_marcusai;
 
 	while(games--)
 		for(startgame(gm); gm->state == GS_STARTED; serverticks++)

@@ -49,10 +49,12 @@
 #define AI_MAX_COMPUTATION 500
 #define AI_MAX_DEPTH 10
 #define AI_NUM_DODGE 6
+
 struct dodge {
 	float length;
 	int depth, ticks;
 };
+
 struct dodge AI_DODGE[] = {
 	{PI,			3, 0}, 
 	{PI,			3, 0}, 
@@ -380,6 +382,7 @@ void updategamelist();
 char *statetostr(int gamestate, char *str);
 cJSON *jsoncreate(char *mode);
 static long servermsecs();
+int getnewbranch(struct game *gm);
 void simuserfull(struct userpos *state, struct user *usr, char addsegments, char aimap, char solid, int branch);
 void addsegmentfull(struct game *gm, struct seg *seg, char aimap, struct user *usr, int tick, int branch);
 

@@ -986,8 +986,7 @@ void endgame(struct game *gm, struct user *winner) {
 	airjson(json, gm, 0);
 	jsondel(json);
 
-	if(DEBUG_MODE)
-		printf("game %p ended. winner = %d\n", (void*) gm, winner->id);
+	loggame(gm, "ended. winner = %d\n", winner->id);
 
 	gamelistcurrent = 0;
 	gm->state = (gm->type == GT_AUTO) ? GS_ENDED : GS_LOBBY;
@@ -1010,7 +1009,7 @@ void endround(struct game *gm) {
 	if(DEBUG_MODE)
 		printf("ending round of game %p\n", (void *) gm);
 
-	loggame(gm, "ended. duration: %3d sec, modifieds: %3d, timeadjustments: %3d\n", 
+	loggame(gm, "round ended. duration: %3d sec, modifieds: %3d, timeadjustments: %3d\n", 
 		gm->tick * TICK_LENGTH / 1000, gm->modifieds, gm->timeadjustments);
 
 	if(SEND_SEGMENTS)
@@ -1100,7 +1099,6 @@ void simgame(struct game *gm) {
 				no_collision_usr = 0;
 			}
 			if(gm->aigame && usr->human && gm->tick % USER_PREDICTION_INTERVAL == 0) {
-				int i;
 				struct userpos pos = usr->aimapstate;
 				int endtick = gm->tick + SERVER_DELAY / TICK_LENGTH + USER_PREDICTION_LENGTH;
 				
@@ -1111,9 +1109,9 @@ void simgame(struct game *gm) {
 				usr->branch = getnewbranch(gm);
 				usr->branchtick = pos.tick;
 				pos.turn = 0;
+
 				while(pos.tick < endtick && pos.alive)
 					simuserfull(&pos, usr, 1, 1, 1, usr->branch);
-				
 			}
 			if(!usr->state.alive) {
 				if(GOD_MODE)
@@ -1734,8 +1732,6 @@ void allocinputroom(struct mapaidata *data, int tick) {
 		data->input = smalloc(data->inputcap);
 	}
 	if(data->inputcap < tick) {
-		int cap = data->inputcap;
-		
 		data->inputcap = max(data->inputcap * 2, tick);
 		data->input = srealloc(data->input, data->inputcap);
 	}
@@ -1762,7 +1758,8 @@ int recpath(struct user *usr, struct recdata *rd, int depth, int *computation) {
 		b->newbest = 0;
 	}
 	
-	for(; *i < 3; *i++, pos->turn = (pos->turn + 2 + r) % 3 - 1) {
+	for(; *i < 3; *i = *i + 1,
+	 pos->turn = (pos->turn + 2 + r) % 3 - 1) {
 	
 		if(rd->stopdepth == -1) {
 			*newpos = *pos;
@@ -1870,7 +1867,7 @@ void copyinputs(struct mapaidata *data, struct recdata *rd, int endtick) {
 
 int setupdodge(struct user *usr, struct mapaidata *data, struct game *gm, struct recdata *rd) {
 	int padding;
-	struct dodge dodge = data->dodge[data->nxtdodge];
+	struct dodge dodge = data->dodge[(int) data->nxtdodge];
 	struct userpos pos = usr->aimapstate;
 
 	/* get start position */
@@ -1966,7 +1963,7 @@ void trynextdodge(struct user *usr, struct mapaidata *data, struct game *gm) {
 void extendpath(struct user *usr, struct mapaidata *data, struct game *gm) {
 	struct userpos pos = data->extendpos;
 	struct recdata *rd = &data->rd;
-	int i, depth = data->dodge[0].depth, ticks = data->dodge[0].ticks;
+	int depth = data->dodge[0].depth, ticks = data->dodge[0].ticks;
 	int endtick;
 
 	if(DEBUG_MAPAI_VERBOSE)
@@ -1974,7 +1971,7 @@ void extendpath(struct user *usr, struct mapaidata *data, struct game *gm) {
 
 	inirecdata(rd, &pos, depth);
 	
-	/* do small steer with certain probability */
+	/* do small steer with certain probability (1/ 4) */
 	if((rand() & 3) == 0) {
 		int steerticks = rand() % (data->maxsteer_ticks - data->minsteer_ticks) + data->minsteer_ticks;
 		
