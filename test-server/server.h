@@ -33,11 +33,34 @@
 
 /* artificial intelligence */
 #define COMPUTER_NAME "COMPUTER"
-#define COMPUTER_AI inputmechanism_marcusai
+#define COMPUTER_AI inputmechanism_mapai
 #define COMPUTER_DELAY (SERVER_DELAY/ TICK_LENGTH)
 #define COMPUTER_SEARCH_DEPTH 2 // for marcusai
 #define COMPUTER_SEARCH_ANGLE 3.141592
 #define COMPUTER_SEARCH_CAREFULNESS 2 // how long we go straight in seconds
+#define AI_MAX_TICKS 100
+#define AI_MIN_STEER 0
+#define AI_MAX_STEER (PI / 4)
+#define AI_PREDICTION_LENGTH (PI * 5)
+#define AI_PADDING_FRACTION	0.9
+#define AIMAP_STARTCAP 5
+#define USER_PREDICTION_INTERVAL (500 / TICK_LENGTH)
+#define USER_PREDICTION_LENGTH (1000 / TICK_LENGTH)
+#define AI_MAX_COMPUTATION 500
+#define AI_MAX_DEPTH 10
+#define AI_NUM_DODGE 6
+struct dodge {
+	float length;
+	int depth, ticks;
+};
+struct dodge AI_DODGE[] = {
+	{PI,			3, 0}, 
+	{PI,			3, 0}, 
+	{2 * PI,		3, 0},
+	{PI / 2,		4, 0}, 
+	{PI * 3 / 2,	5, 0}, 
+	{PI * 2,		6, 0}
+};
 
 /* byte messages */
 #define MODE_MODIFIED 0
@@ -53,10 +76,13 @@
 #define ULTRA_VERBOSE 0
 #define SHOW_WARNING 0
 #define GOD_MODE 0
-#define SEND_SEGMENTS 5 // om de hoeveel ticks het moet gebeuren (0=nooit)
+#define SEND_SEGMENTS 0
 #define SAVE_COLLISION_TO_FILE 0
 #define DEBUGPOS 0
 #define KEEP_PLAYING_ONE_ALIVE 0
+#define SEND_AIMAP_SEGMENTS 0
+#define DEBUG_MAPAI 0
+#define DEBUG_MAPAI_VERBOSE 0
 
 /* input control */
 #define MAX_FILE_REQ_LEN 100
@@ -131,8 +157,9 @@ struct seg {
 
 struct teleport {
 	struct seg seg, dest;
-	double dx, dy, anglediff, tall;
+	double dx, dy, anglediff;
 	int colorid;
+	char tall;
 	struct teleport *nxt;
 };
 
@@ -179,6 +206,11 @@ struct game {
 	char pencilmode, torus;	// see PM_*, torus enabled y/n
 	struct map *map;
 	struct kicknode *kicklist; // for remembering who was kicked so that they dont rejoin too soon
+	struct aimap *aimap;
+	char aigame;
+	
+	struct branch *branch;
+	int branchlen, branchcap;
 };
 
 struct pencilseg {
@@ -222,7 +254,7 @@ struct user {
 	int sbat;			// sendbuffer at
 	
 	struct userpos state;	// used in simulation (these are thus SERVER_DELAY behind)
-	struct userpos aistate;	
+	struct userpos aistate, aimapstate;	
 	int points, lastinputtick, lastinputturn, inputcount, gamelistage;
 	char ignoreinput;
 	
@@ -236,6 +268,60 @@ struct user {
 	int deltaat, delta[DELTA_COUNT];
 	char deltaon;
 	struct pencil pencil;
+	
+	int branch, branchtick, dietick;
+	struct seg dieseg;
+	void *aidata;
+};
+
+struct aimap {
+	struct aitile *tile;
+};
+
+struct aitile {
+	struct aiseg *seg;
+	int len, cap;
+};
+
+struct aiseg {
+	struct seg seg;
+	struct user *usr;
+	int tick, branch;
+};
+
+struct branch {
+	int tick;
+	char closed;
+};
+
+struct linkedbranch {
+	struct linkedbranch *nxt;
+	int branch;
+};
+
+struct recentry {
+	int ticks, turn, bestturn, i;
+	char newbest;
+	struct userpos pos;
+};
+
+struct recdata {
+	int stopdepth, maxdepth, randnum;
+	char allowpause;
+	struct recentry entry[AI_MAX_DEPTH + 1];
+	struct userpos bestpos;
+	struct seg dieseg;
+};
+
+struct mapaidata {
+	struct userpos extendpos;
+	char nxtdodge, *input;
+	int dietick, inputcap, computation;
+	struct linkedbranch *headbranch;
+	struct seg dieseg;
+	struct recdata rd;
+	struct dodge dodge[AI_NUM_DODGE];
+	int minsteer_ticks, maxsteer_ticks, prediction_ticks;
 };
 
 struct buffer {
@@ -286,12 +372,14 @@ void freekicklist(struct kicknode *kick);
 void inputmechanism_human(struct user *usr, int tick);
 void inputmechanism_circling(struct user *usr, int tick);
 void inputmechanism_marcusai(struct user *usr, int tick);
-void inputmechanism_straightahead(struct user *usr, int tick);
 void inputmechanism_random(struct user *usr, int tick);
-void inputmechanism_leftisallineed(struct user *usr, int tick);
 void inputmechanism_checktangent(struct user *usr, int tick);
+void inputmechanism_mapai(struct user *usr, int tick);
 void deleteuser(struct user *usr);
 void updategamelist();
 char *statetostr(int gamestate, char *str);
 cJSON *jsoncreate(char *mode);
 static long servermsecs();
+void simuserfull(struct userpos *state, struct user *usr, char addsegments, char aimap, char solid, int branch);
+void addsegmentfull(struct game *gm, struct seg *seg, char aimap, struct user *usr, int tick, int branch);
+

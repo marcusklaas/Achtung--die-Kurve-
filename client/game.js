@@ -390,6 +390,8 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.localPlayer.id = obj.playerId.toString();
 			this.tickLength = obj.tickLength;
 			this.pencil.inkMinimumDistance = obj.inkMinimumDistance;
+			if(autoStart)
+				this.createGame();
 			break;
 		case 'kickNotification':
 			this.gameMessage('You were kicked from the game');
@@ -548,6 +550,11 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;
 		case 'segments':
 			this.handleSegmentsMessage(obj.segments);
+			
+			if(!this.debugSegments)
+				this.debugSegments = [];
+			this.debugSegments = this.debugSegments.concat(obj.segments);
+			
 			break;
 		case 'pencil':
 			this.pencil.handleMessage(obj.data);
@@ -557,6 +564,8 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;
 		case 'setHost':
 			this.setHost(this.getPlayer(obj.playerId));
+			if(autoStart)
+				this.sendStartGame();
 			break;
 		case 'joinFailed':
 			var msg = 'game already started';
@@ -735,8 +744,13 @@ GameEngine.prototype.handleSegmentsMessage = function(segments) {
 	ctx.beginPath();
 	for(var i = 0; i < segments.length; i++) {
 		var s = segments[i];
-		ctx.moveTo(s.x1, s.y1);
-		ctx.lineTo(s.x2, s.y2);
+		if(s.x1 == s.x2 && s.y1 == s.y2) {
+			ctx.moveTo(s.x1, s.y1);
+			ctx.arc(s.x1, s.y1, 5, 0, Math.PI * 2, false);
+		} else {
+			ctx.moveTo(s.x1, s.y1);
+			ctx.lineTo(s.x2, s.y2);
+		}
 	}
 	ctx.stroke();
 	ctx.lineWidth = lineWidth;
@@ -952,6 +966,7 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 		debugPosA = [];
 		debugPosB = [];
 	}
+	this.debugSegments = null;
 	
 	if(jsProfiling)
 		console.profile('canvas performance');
@@ -994,6 +1009,7 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	this.focusChat();
 }
 
+
 GameEngine.prototype.revertBackup = function() {
 	var ceiledTick = Math.ceil(this.tick);
 
@@ -1020,6 +1036,10 @@ GameEngine.prototype.revertBackup = function() {
 
 	/* simulate every player up to next backup point */
 	this.updateContext(stateIndex + 1, true);
+	
+	/* not the right place i guess */
+	if(this.debugSegments)
+		this.handleSegmentsMessage(this.debugSegments);
 
 	/* recurse all the way until we are at baseCanvas */
 	this.revertBackup();

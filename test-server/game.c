@@ -93,32 +93,30 @@ void updategamelist() {
 	}
 }
 
-void startgame(struct game *gm) {
+void addmapsegments(struct game *gm) {
+	struct seg *seg;
+	struct teleport *t;
+		
+	for(seg = gm->map->seg; seg; seg = seg->nxt) {
+		addsegment(gm, seg);
+		if(gm->aigame)
+			addsegmentfull(gm, seg, 1, 0, -1, 0);
+	}
+		
+	for(t = gm->map->teleports; t; t = t->nxt) {
+		addsegment(gm, &t->seg);
+		if(gm->aigame)
+			addsegmentfull(gm, &t->seg, 1, 0, -1, 0);
+	}
+}
+
+void startround(struct game *gm) {
 	struct user *usr;
 	cJSON *root, *start_locations;
-	int laterround =gm->round++!=0;
-
-	if(DEBUG_MODE)
-		printf("starting game %p!\n", (void*)gm);
-		
-	if(!laterround) {
-		double seglen = gm->v * TICK_LENGTH / 1000.0;
-		gm->tilew = gm->tileh = ceil(TILE_SIZE_MULTIPLIER * seglen);
-		gm->htiles = ceil(1.0 * gm->w / gm->tilew);
-		gm->vtiles = ceil(1.0 * gm->h / gm->tileh);
-		gm->seg = scalloc(gm->htiles * gm->vtiles, sizeof(struct seg*));
-	}
+	int laterround = gm->round++ != 0;
 	
-	if(gm->map) {
-		struct seg *seg;
-		struct teleport *t;
-		for(seg = gm->map->seg; seg; seg = seg->nxt)
-			addsegment(gm, seg);
-		
-		for(t = gm->map->teleports; t; t = t->nxt)
-			addsegment(gm, &t->seg);
-	}
-		
+	gm->aigame = 0;
+	
 	/* reset users */
 	for(usr = gm->usr; usr; usr = usr->nxt){
 		usr->state.turn = 0;
@@ -134,13 +132,27 @@ void startgame(struct game *gm) {
 		usr->lastinputtick = -1;
 		usr->ignoreinput = 1;
 		clearinputs(usr);
+		usr->dietick = INT_MAX;
 
 		if(gm->pencilmode != PM_OFF)
 			resetpencil(&usr->pencil, usr);
+			
+		if(!usr->human)
+			gm->aigame = 1;
 	}
+
+	if(gm->aigame)
+		createaimap(gm);
+	if(gm->map)
+		addmapsegments(gm);
 	
 	gm->rsn = gm->n;
 	randomizeplayerstarts(gm);
+	
+	if(gm->aigame) {
+		for(usr = gm->usr; usr; usr = usr->nxt)
+			usr->aimapstate = usr->state;
+	}
 
 	gm->start = serverticks * TICK_LENGTH + laterround * COOLDOWN + COUNTDOWN;
 	gm->tick = -(COUNTDOWN + SERVER_DELAY + laterround * COOLDOWN)/ TICK_LENGTH;
@@ -148,12 +160,6 @@ void startgame(struct game *gm) {
 	gm->alive = gm->n;
 	gm->modifieds = 0;
 	gm->timeadjustments = 0;
-	
-	if(!laterround) {
-		gamelistcurrent = 0;
-
-		logstartgame(gm);
-	}
 
 	root = jsoncreate("startGame");
 	start_locations = cJSON_CreateArray();
@@ -175,6 +181,22 @@ void startgame(struct game *gm) {
 	cJSON_AddItemToObject(root, "startPositions", start_locations);
 	airjson(root, gm, 0);
 	jsondel(root);
+}
+
+void startgame(struct game *gm) {
+	double seglen = gm->v * TICK_LENGTH / 1000.0;
+
+	if(DEBUG_MODE)
+		printf("starting game %p!\n", (void*)gm);
+	
+	gm->tilew = gm->tileh = ceil(TILE_SIZE_MULTIPLIER * seglen);
+	gm->htiles = ceil(1.0 * gm->w / gm->tilew);
+	gm->vtiles = ceil(1.0 * gm->h / gm->tileh);
+	gm->seg = scalloc(gm->htiles * gm->vtiles, sizeof(struct seg*));
+	
+	startround(gm);
+	gamelistcurrent = 0;
+	logstartgame(gm);
 }
 
 struct teleport *createteleport(struct seg *seg, struct seg *dest, int id) {
@@ -283,15 +305,40 @@ void freemap(struct map *map) {
 	free(map);
 }
 
-void cleargame(struct game *gm) {
-	int i, num_tiles = gm->htiles * gm->vtiles;
+void userclearstartround(struct user *usr) {
+	if(usr->aidata) {
+		freemapaidata(usr->aidata);
+		free(usr->aidata);
+		usr->aidata = 0;
+	}
+	usr->branch = 0;
+}
 
+void clearstartround(struct game *gm) {
+	int i, num_tiles = gm->htiles * gm->vtiles;
+	struct user *usr;
+	
 	if(gm->seg) {
 		for(i = 0; i < num_tiles; i++) {
 			freesegments(gm->seg[i]);
 			gm->seg[i] = 0;
 		}
+	}
+	
+	if(gm->aimap)
+		freeaimap(gm);
+	
+	if(gm->branch) {
+		free(gm->branch);
+		gm->branch = 0;
+	}
+	
+	for(usr = gm->usr; usr; usr = usr->nxt)
+		userclearstartround(usr);
+}
 
+void clearstartgame(struct game *gm) {
+	if(gm->seg) {
 		free(gm->seg);
 		gm->seg = 0;
 	}
@@ -329,7 +376,8 @@ void remgame(struct game *gm) {
 	if(gm->map)
 		freemap(gm->map);
 
-	cleargame(gm);
+	clearstartround(gm);
+	clearstartgame(gm);
 	freekicklist(gm->kicklist);
 	free(gm);
 
@@ -413,6 +461,8 @@ void leavegame(struct user *usr, int reason) {
 	gm->n--;
 	usr->nxt = 0;
 	usr->gm = 0;
+	
+	userclearstartround(usr);
 
 	/* send message to group: this player left */
 	json = jsoncreate("playerLeft");
@@ -614,6 +664,63 @@ double checktilecollision(struct seg *tile, struct seg *seg, struct seg **collid
 	return mincut;
 }
 
+struct user *no_collision_usr;
+int no_collision_tick;
+
+/* returns -1 in case no collision, else between 0 and -1 */
+double checkaitilecollision(struct game *gm, struct aitile *tile, struct seg *seg, int tick, char solid, char setdietick, struct aiseg **collidingseg) {
+	struct aiseg *current, *end;
+	double cut, mincut = -1;
+	
+	for(current = tile->seg, end = tile->seg + tile->len; current < end; current++) {
+
+		if(!solid && !current->seg.t)
+			continue;
+		
+		if(no_collision_usr && no_collision_usr == current->usr && current->tick >= no_collision_tick)
+			continue;
+			
+		if(current->branch) {
+		
+			if(current->tick >= gm->branch[current->branch].tick){
+			
+				/* remove segment */
+				tile->len--;
+				end--;
+				if(current < end) {
+					*current = *end;
+					current--;
+				}
+				
+				continue;
+			}
+			
+			if(gm->branch[current->branch].closed)
+				current->branch = 0;
+		}
+		
+		cut = segcollision(&current->seg, seg);
+
+		if(cut != -1.0) {
+				
+			if(current->tick > tick && setdietick && current->usr) {
+				if(current->tick < current->usr->dietick) {
+					current->usr->dieseg = current->seg;
+					current->usr->dietick = current->tick;
+				}
+				continue;
+			}
+			
+			if(mincut == -1.0 || cut < mincut) {
+				mincut = cut;
+				*collidingseg = current;
+			}
+		}
+	}
+
+	return mincut;
+}
+
 /* returns 1 in case the segment intersects the box */
 int lineboxcollision(struct seg *seg, int top, int right, int bottom, int left) {
 	struct seg edge;
@@ -668,7 +775,8 @@ void gettiles(struct game *gm, struct seg *seg, int *pa, int *pb, int *pc, int *
 	*pd = min(max(c, d), gm->vtiles - 1);
 }
 
-struct seg *collidingseg = 0; // maybe instead as parameter to checkcollision
+struct seg dieseg, *collidingseg = 0; // maybe instead as parameter to checkcollision
+struct aiseg *collidingaiseg = 0;
 
 /* returns -1 in case of no collision, between 0 and 1 else */
 double checkcollision(struct game *gm, struct seg *seg) {
@@ -694,8 +802,36 @@ double checkcollision(struct game *gm, struct seg *seg) {
 	return mincut;
 }
 
-/* adds segment to the game. does not check for collision */
+/* returns -1 in case of no collision, between 0 and 1 else */
+double checkaimapcollision(struct user *usr, struct seg *seg, int tick, char solid, char setdietick) {
+	int i, j, a, b, c, d, index, dx;
+	double cut, mincut = -1;
+	struct aiseg *collider = 0;
+	
+	gettiles(usr->gm, seg, &a, &b, &c, &d);
+	index = usr->gm->htiles * c + a;
+	dx = usr->gm->htiles + a - b - 1;
+
+	for(j = c; j <= d; j++, index += dx) {
+		for(i = a; i <= b; i++, index++) {
+			cut = checkaitilecollision(usr->gm, usr->gm->aimap->tile + index, seg, tick, solid, setdietick, &collider);
+
+			if(cut != -1.0 && (mincut == -1.0 || cut < mincut)) {
+				mincut = cut;
+				collidingaiseg = collider;
+				collidingseg = &collider->seg;
+			}
+		}
+	}
+
+	return mincut;
+}
+
 void addsegment(struct game *gm, struct seg *seg) {
+	addsegmentfull(gm, seg, 0, 0, 0, 0);
+}
+
+void addsegmentfull(struct game *gm, struct seg *seg, char aimap, struct user *usr, int tick, int branch) {
 	int i, j, a, b, c, d, index, dx;
 	struct seg *copy;
 	
@@ -709,9 +845,29 @@ void addsegment(struct game *gm, struct seg *seg) {
 				(j + 1) * gm->tileh, i * gm->tilew))
 				continue;
 
-			copy = copyseg(seg);
-			copy->nxt = gm->seg[index];
-			gm->seg[index] = copy;
+			if(aimap) {
+				struct aiseg aiseg;
+				struct aitile *tile = gm->aimap->tile + index;
+				
+				aiseg.seg = *seg;
+				aiseg.usr = usr;
+				aiseg.tick = tick;
+				aiseg.branch = branch;
+				
+				if(!tile->seg) {
+					tile->cap = AIMAP_STARTCAP;
+					tile->seg = smalloc(sizeof(struct aiseg) * tile->cap);
+				} else if(tile->cap == tile->len) {
+					tile->cap *= 2;
+					tile->seg = srealloc(tile->seg, sizeof(struct aiseg) * tile->cap);
+				}
+				tile->seg[tile->len++] = aiseg;
+				
+			} else {
+				copy = copyseg(seg);
+				copy->nxt = gm->seg[index];
+				gm->seg[index] = copy;
+			}
 		}
 	}
 }
@@ -724,10 +880,17 @@ void queueseg(struct game *gm, struct seg *seg) {
 }
 
 void simuser(struct userpos *state, struct user *usr, char addsegments) {
+	simuserfull(state, usr, addsegments, 0, 0, 0);
+}
+
+void simuserfull(struct userpos *state, struct user *usr, char addsegments, char aimap, char solid, int branch) {
 	double cut;
 	int inhole, outside;
 	struct seg seg;
 	char handled = 0;
+	
+	if(!state->alive)
+		return;
 	
 	seg.t = 0;
 	seg.x1 = state->x;
@@ -746,7 +909,10 @@ void simuser(struct userpos *state, struct user *usr, char addsegments) {
 	 || state->y < 0 || state->y > usr->gm->h;
 
 	/* check for collisions and add segment to map if needed */
-	cut = checkcollision(usr->gm, &seg);
+	if(aimap)
+		cut = checkaimapcollision(usr, &seg, state->tick, solid, addsegments);
+	else
+		cut = checkcollision(usr->gm, &seg);
 	if(cut != -1.0) {
 		if(collidingseg->t) {
 			struct teleport *t = collidingseg->t;
@@ -763,6 +929,7 @@ void simuser(struct userpos *state, struct user *usr, char addsegments) {
 			state->y = t->dest.y1 + t->dy * r + sin(state->angle) / 10;
 			handled = 1; 
 		} else if(!inhole || !HACKS) {
+			dieseg = seg;
 			state->x = seg.x2 = (1 - cut) * seg.x1 + cut * seg.x2;
 			state->y = seg.y2 = (1 - cut) * seg.y1 + cut * seg.y2;
 			state->alive = 0;
@@ -771,9 +938,9 @@ void simuser(struct userpos *state, struct user *usr, char addsegments) {
 	}
 
 	if(addsegments && !inhole) {
-		addsegment(usr->gm, &seg);
+		addsegmentfull(usr->gm, &seg, aimap, usr, state->tick, branch);
 			
-		if(SEND_SEGMENTS)
+		if((SEND_SEGMENTS && !aimap) || (SEND_AIMAP_SEGMENTS && aimap))
 			queueseg(usr->gm, &seg);
 	}
 
@@ -792,7 +959,6 @@ void simuser(struct userpos *state, struct user *usr, char addsegments) {
 				state->y = usr->gm->h;
 
 		} else {
-		
 			state->alive = 0;
 		}
 	}
@@ -833,14 +999,13 @@ void endgame(struct game *gm, struct user *winner) {
 			usr->points = 0;
 	}
 
-	cleargame(gm);
+	clearstartgame(gm);
 }
 
 void endround(struct game *gm) {
 	struct user *usr, *roundwinner, *winner = gm->usr; /* winner until proven otherwise */
 	int maxpoints = 0, secondpoints = 0;
 	cJSON *json;
-	int i, num_tiles = gm->htiles * gm->vtiles;
 
 	if(DEBUG_MODE)
 		printf("ending round of game %p\n", (void *) gm);
@@ -870,12 +1035,8 @@ void endround(struct game *gm) {
 		else if(usr->points > secondpoints)
 			secondpoints = usr->points;
 	}
-	 
-	/* freeing up segments */
-	for(i = 0; i < num_tiles; i++) {
-		freesegments(gm->seg[i]);
-		gm->seg[i] = 0;
-	}
+	
+	clearstartround(gm);
 
 	if((maxpoints >= gm->goal && maxpoints >= secondpoints + MIN_WIN_DIFF) || gm->n == 1) {
 		endgame(gm, winner);
@@ -883,7 +1044,7 @@ void endround(struct game *gm) {
 	else {
 		if(DEBUG_MODE)
 			printf("round of game %p ended. round winner = %d\n", (void*) gm, roundwinner ? roundwinner->id : -1);
-		startgame(gm);
+		startround(gm);
 	}
 }
 
@@ -932,6 +1093,28 @@ void simgame(struct game *gm) {
 			}
 			
 			simuser(&usr->state, usr, 1);
+			if(gm->aigame && usr->human && usr->aimapstate.tick == gm->tick) {
+				no_collision_usr = usr;
+				no_collision_tick = usr->branchtick;
+				simuserfull(&usr->aimapstate, usr, 1, 1, 1, 0);
+				no_collision_usr = 0;
+			}
+			if(gm->aigame && usr->human && gm->tick % USER_PREDICTION_INTERVAL == 0) {
+				int i;
+				struct userpos pos = usr->aimapstate;
+				int endtick = gm->tick + SERVER_DELAY / TICK_LENGTH + USER_PREDICTION_LENGTH;
+				
+				if(usr->branch) {
+					gm->branch[usr->branch].tick = 0;
+					gm->branch[usr->branch].closed = 1;
+				}
+				usr->branch = getnewbranch(gm);
+				usr->branchtick = pos.tick;
+				pos.turn = 0;
+				while(pos.tick < endtick && pos.alive)
+					simuserfull(&pos, usr, 1, 1, 1, usr->branch);
+				
+			}
 			if(!usr->state.alive) {
 				if(GOD_MODE)
 					usr->state.alive = 1;
@@ -941,7 +1124,7 @@ void simgame(struct game *gm) {
 		}
 	}
 
-	if(SEND_SEGMENTS && gm->tick % SEND_SEGMENTS == 0)
+	if((SEND_SEGMENTS || SEND_AIMAP_SEGMENTS) && gm->tick % 1 == 0)
 		airsegments(gm);
 	
 	if(gm->alive == 0 || (gm->n > 1 && gm->alive == 1 && !KEEP_PLAYING_ONE_ALIVE))
@@ -990,6 +1173,17 @@ void queueinput(struct user *usr, int tick, int turn) {
 		usr->inputhead = usr->inputtail = input;
 	else
 		usr->inputtail = usr->inputtail->nxt = input;
+	
+	if(usr->gm->aigame && usr->human) {
+		no_collision_usr = usr;
+		no_collision_tick = usr->branchtick;
+		while(usr->aimapstate.tick < tick && usr->aimapstate.alive) {
+			simuserfull(&usr->aimapstate, usr, 1, 1, 1, 0);
+		}
+		usr->aimapstate.turn = turn;
+		simuserfull(&usr->aimapstate, usr, 1, 1, 1, 0);
+		no_collision_usr = 0;
+	}
 }
 
 void interpretinput(cJSON *json, struct user *usr) {
@@ -1156,8 +1350,8 @@ void addcomputer(struct game *gm) {
 }
 
 /* pencil game. FIXME: deze functie is echt terror! nog steeds!!! */
-void handlepencilmsg(cJSON *json, struct user *u) {
-	struct pencil *p = &u->pencil;
+void handlepencilmsg(cJSON *json, struct user *usr) {
+	struct pencil *p = &usr->pencil;
 	struct buffer buf;
 	int lasttick = -1;
 	char buffer_empty = 1;
@@ -1169,7 +1363,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 	
 	buf.start = 0;
 	allocroom(&buf, 200);
-	appendheader(&buf, MODE_PENCIL, u->index);
+	appendheader(&buf, MODE_PENCIL, usr->index);
 	
 	while(json) {
 		int x, y;
@@ -1189,8 +1383,8 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 		if(PENCIL_DEBUG)
 			printf("pencilmsg type = %d, tick = %d, x = %d, y = %d\n", type, tick, x, y);
 		
-		if(tick < p->tick || x < 0 || y < 0 || x > u->gm->w || y > u->gm->h) {
-			warningplayer(u, "error: wrong pencil location or tick\n");
+		if(tick < p->tick || x < 0 || y < 0 || x > usr->gm->w || y > usr->gm->h) {
+			warningplayer(usr, "error: wrong pencil location or tick\n");
 			break;
 		}
 
@@ -1223,22 +1417,22 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 				printf("distance = %f, ink left = %f\n", d, p->ink);
 
 			if(!p->down) {
-				warningplayer(u, "error: pencil move: pencil not down\n");
+				warningplayer(usr, "error: pencil move: pencil not down\n");
 				break;
 			}
 
 			if(p->ink < d - EPS) {
-				warningplayer(u, "error: pencil move: not enough ink. %f required, %f left\n", d, p->ink);
+				warningplayer(usr, "error: pencil move: not enough ink. %f required, %f left\n", d, p->ink);
 				break;
 			}
 
 			if(d < INK_MIN_DISTANCE && type != -1) {
-				warningplayer(u, "error: too short distance for pencil move: %f\n", d);
+				warningplayer(usr, "error: too short distance for pencil move: %f\n", d);
 				break;
 			}
 
 			p->ink -= d;
-			tickSolid = max(tick, u->gm->tick) + u->gm->inkdelay / TICK_LENGTH; // FIXME: should be non-decreasing
+			tickSolid = max(tick, usr->gm->tick) + usr->gm->inkdelay / TICK_LENGTH; // FIXME: should be non-decreasing
 			pseg = smalloc(sizeof(struct pencilseg));
 			seg = &pseg->seg;
 
@@ -1248,7 +1442,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 				appendpencil_full(&buf, 0, tickSolid);
 			} else {
 				if(tickSolid - lasttick > 63) {
-					warningplayer(u, "error: pencil move: too large tick gap of %d\n", tickSolid - lasttick);
+					warningplayer(usr, "error: pencil move: too large tick gap of %d\n", tickSolid - lasttick);
 					buf.at -= 3;
 					break;
 				}
@@ -1272,6 +1466,10 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 			p->pseghead = pseg;
 			if(!p->psegtail)
 				p->psegtail = pseg;
+				
+			if(usr->gm->aigame) {
+				addsegmentfull(usr->gm, seg, 1, usr, tickSolid, 0);
+			}
 			
 			p->x = x;
 			p->y = y;
@@ -1281,7 +1479,7 @@ void handlepencilmsg(cJSON *json, struct user *u) {
 	}
 	
 	if(!buffer_empty)
-		airstr(buf.start, buf.at - buf.start, u->gm, 0);
+		airstr(buf.start, buf.at - buf.start, usr->gm, 0);
 	
 	free(buf.start);
 }
@@ -1305,11 +1503,11 @@ void simpencil(struct pencil *p) {
 	}
 }
 
-/* to be called at startgame */
-void resetpencil(struct pencil *p, struct user *u) {
+/* to be called at startround */
+void resetpencil(struct pencil *p, struct user *usr) {
 	p->ink = START_INK;
 	cleanpencil(p);
-	p->usr = u;
+	p->usr = usr;
 	p->tick = 0;
 	p->down = 0;
 }
@@ -1367,38 +1565,6 @@ void inputmechanism_random(struct user *usr, int tick) {
 	sendsteer(usr, tick, turn, 0);
 }
 
-void inputmechanism_leftisallineed(struct user *usr, int tick) {
-	int turn, i;
-	struct seg seg;
-	double visionlength;
-	struct userpos *pos = &usr->aistate;
-
-	if(tick == 0) {
-		memcpy(pos, &usr->state, sizeof(struct userpos));
-
-		for(i = 0; i < COMPUTER_DELAY; i++)
-			simuser(pos, usr, 0);
-	}
-	
-	visionlength = pos->ts != 0 ? 3.14 / pos->ts * pos->v : 9999;
-
-	seg.t = 0;
-	seg.x1 = pos->x;
-	seg.y1 = pos->y;
-	seg.x2 = seg.x1 + cos(pos->angle) * visionlength;
-	seg.y2 = seg.y1 + sin(pos->angle) * visionlength;
-	turn = -1 * (checkcollision(usr->gm, &seg) != -1.0);
-	
-	pos->turn = turn;
-	simuser(pos, usr, 0);
-
-	if(turn == usr->lastinputturn)
-		return;
-
-	queueinput(usr, tick, turn);
-	sendsteer(usr, tick, turn, 0);
-}
-
 float marcusai_helper(struct userpos *state, struct user *usr, int depth, int tickstep) {
 	struct seg megaseg;
 	struct userpos newstate;
@@ -1415,8 +1581,8 @@ float marcusai_helper(struct userpos *state, struct user *usr, int depth, int ti
 	}
 
 	/* simulate a bit ahead */
-	memcpy(&newstate, state, sizeof(struct userpos));
-
+	newstate = *state; //memcpy(&newstate, state, sizeof(struct userpos)); 
+	
 	for(i = 0; i < tickstep; i++) {
 		simuser(&newstate, usr, 0);
 
@@ -1439,7 +1605,7 @@ void inputmechanism_marcusai(struct user *usr, int tick) {
 	struct userpos *pos = &usr->aistate;
 
 	if(0 == tick) {
-		memcpy(pos, &usr->state, sizeof(struct userpos));
+		*pos = usr->state;
 
 		for(i = 0; i < COMPUTER_DELAY; i++)
 			simuser(pos, usr, 0);
@@ -1477,7 +1643,7 @@ void inputmechanism_checktangent(struct user *usr, int tick) {
 	struct userpos *pos = &usr->aistate;
 
 	if(tick == 0) {
-		memcpy(pos, &usr->state, sizeof(struct userpos));
+		*pos = usr->state;
 	}
 	
 	visionlength = pos->ts != 0 ? 3.14 / pos->ts * pos->v : 9999;
@@ -1508,7 +1674,416 @@ void inputmechanism_checktangent(struct user *usr, int tick) {
 
 	queueinput(usr, tick, turn);
 	sendsteer(usr, tick, turn, 0);
-}	
+}
+
+void truncatebranch(struct mapaidata *data, int tick, struct user *usr) {
+	struct branch *branch;
+	struct linkedbranch *nxt, *cur, *prev = 0;
+	char once = 1;
+	
+	cur = data->headbranch;
+	while(cur) {
+		branch = usr->gm->branch + cur->branch;
+		
+		branch->tick = min(branch->tick, tick);
+		nxt = cur->nxt;
+		
+		if(branch->tick <= usr->aimapstate.tick) {
+			branch->closed = 1;
+			free(cur);
+			if(once) {
+				once = 0;
+				if(prev)
+					prev->nxt = 0;
+				else
+					data->headbranch = 0;
+			}
+		}
+		
+		prev = cur;
+		cur = nxt;
+	}
+}
+
+int getnewbranch(struct game *gm) {
+	if(!gm->branch) {
+		gm->branchcap = 10;
+		gm->branch = smalloc(sizeof(struct branch) * gm->branchcap);
+		gm->branchlen = 1;
+	} else if(gm->branchlen == gm->branchcap) {
+		gm->branchcap *= 2;
+		gm->branch = srealloc(gm->branch, sizeof(struct branch) * gm->branchcap);
+	}
+	
+	gm->branch[gm->branchlen].closed = 0;
+	gm->branch[gm->branchlen].tick = INT_MAX;
+	return gm->branchlen++;
+}
+
+void newheadbranch(struct mapaidata *data, struct game *gm) {
+	struct linkedbranch *lb = smalloc(sizeof(struct linkedbranch));
+	
+	lb->branch = getnewbranch(gm);
+	lb->nxt = data->headbranch;
+	data->headbranch = lb;
+}
+
+void allocinputroom(struct mapaidata *data, int tick) {
+	if(!data->input) {
+		data->inputcap = 1024;
+		data->input = smalloc(data->inputcap);
+	}
+	if(data->inputcap < tick) {
+		int cap = data->inputcap;
+		
+		data->inputcap = max(data->inputcap * 2, tick);
+		data->input = srealloc(data->input, data->inputcap);
+	}
+}
+
+int recpath(struct user *usr, struct recdata *rd, int depth, int *computation) {
+	struct recentry *b = rd->entry + depth, *c = rd->entry + depth + 1;
+	int j, r,  *i = &b->i;
+	struct userpos *pos = &b->pos, *newpos = &c->pos;
+	
+	if(rd->allowpause && *computation > AI_MAX_COMPUTATION * 5) {
+		rd->stopdepth = depth;
+		return 0;
+	}
+	
+	r = !!(rd->randnum & (1 << depth));
+	
+	if(depth == rd->stopdepth)
+		rd->stopdepth = -1;
+	
+	if(rd->stopdepth == -1) {
+		*i = 0;
+		pos->turn = b->turn;
+		b->newbest = 0;
+	}
+	
+	for(; *i < 3; *i++, pos->turn = (pos->turn + 2 + r) % 3 - 1) {
+	
+		if(rd->stopdepth == -1) {
+			*newpos = *pos;
+			
+			dieseg.x1 = -1;
+			for(j = 0; j < b->ticks; j++) {
+				simuserfull(newpos, usr, 0, 1, 1, 0);
+			}
+			*computation += newpos->tick - pos->tick;
+		}
+		
+		if(newpos->alive && depth < rd->maxdepth) {
+			if(!recpath(usr, rd, depth + 1, computation)) {
+				return 0;
+			}
+		}
+		else {
+			c->newbest = newpos->alive || newpos->tick > rd->bestpos.tick;
+			
+			if(c->newbest) {
+				rd->bestpos = *newpos;
+				rd->dieseg = dieseg;
+			}
+		}
+		
+		if(c->newbest) {
+			b->bestturn = pos->turn;
+			b->newbest = 1;
+		}
+		
+		if(rd->bestpos.alive)
+			break;
+	}
+	
+	return 1;
+}
+
+void setupaidata(struct user *usr) {
+	float x;
+	struct mapaidata *data;
+	struct game *gm = usr->gm;
+	int i;
+		
+	data = usr->aidata = scalloc(sizeof(struct mapaidata), 1);
+	data->dietick = INT_MAX;
+	newheadbranch(data, gm);
+	
+	for(i = 0; i < AI_NUM_DODGE; i++) {
+		x = AI_DODGE[i].length / max(TURN_SPEED, gm->ts) * 1000 / TICK_LENGTH;
+		data->dodge[i].ticks = min(AI_MAX_TICKS, ceil(x));
+		data->dodge[i].depth = AI_DODGE[i].depth;
+	}
+	
+	x = AI_MIN_STEER / max(TURN_SPEED, gm->ts) * 1000 / TICK_LENGTH;
+	data->minsteer_ticks = max(1, x);
+	
+	x = AI_MAX_STEER / max(TURN_SPEED, gm->ts) * 1000 / TICK_LENGTH;
+	data->maxsteer_ticks = max(data->minsteer_ticks + 1, x);
+	
+	x = AI_PREDICTION_LENGTH / max(TURN_SPEED, gm->ts) * 1000 / TICK_LENGTH;
+	data->prediction_ticks = x;
+
+	for(x = 0; x < COMPUTER_DELAY; x++)
+		simuserfull(&usr->aimapstate, usr, 1, 1, 1, 0);
+		
+	data->extendpos = usr->aimapstate;
+	data->rd.stopdepth = -1;
+}
+
+void inirecdata(struct recdata *rd, struct userpos *pos, int depth) {
+	memset(rd, 0, sizeof(struct recdata));
+	rd->stopdepth = -1;
+	rd->randnum = rand();
+	rd->bestpos.tick = -1;
+	rd->maxdepth = depth - 1;
+	rd->entry[0].pos = *pos;
+}
+
+void scrambleticks(struct recentry *re, int num, int ticks) {
+	if(num == 1)
+		re->ticks = ticks;
+	else {
+		int b = ticks / num;
+		int a = b / 2;
+		int c = a + b;
+		if(c - a > 0)
+			b = rand() % (c - a) + a;
+		else
+			b = 1;
+		
+		re->ticks = b;
+		scrambleticks(re + 1, num - 1, ticks - b);
+	}
+}
+
+void copyinputs(struct mapaidata *data, struct recdata *rd, int endtick) {
+	int tick, i;
+	struct userpos *pos = &rd->entry[0].pos;
+
+	allocinputroom(data, endtick);
+	memset(data->input + pos->tick, 0, endtick - pos->tick);
+	for(i = 0, tick = pos->tick; tick < endtick; tick += rd->entry[i++].ticks)
+		data->input[tick] = rd->entry[i].bestturn + 2;
+}
+
+int setupdodge(struct user *usr, struct mapaidata *data, struct game *gm, struct recdata *rd) {
+	int padding;
+	struct dodge dodge = data->dodge[data->nxtdodge];
+	struct userpos pos = usr->aimapstate;
+
+	/* get start position */
+	dieseg.x1 = -1;
+	padding = dodge.ticks * AI_PADDING_FRACTION;
+	while(pos.tick < data->dietick - padding && pos.alive) {
+		if(data->input[pos.tick])
+			pos.turn = data->input[pos.tick] - 2;
+		simuserfull(&pos, usr, 0, 1, 0, 0);
+	}
+	
+	/* this should not happen */
+	if(!pos.alive) {
+		usr->dieseg = dieseg;
+		usr->dietick = pos.tick;
+		return 0;
+	}
+	
+	inirecdata(rd, &pos, dodge.depth);
+	rd->allowpause = 1;
+	scrambleticks(rd->entry, dodge.depth, dodge.ticks);
+	
+	return 1;
+}
+
+void trynextdodge(struct user *usr, struct mapaidata *data, struct game *gm) {
+	struct userpos pos;
+	struct recdata *rd = &data->rd;
+	int endtick;
+	
+	if(DEBUG_MAPAI_VERBOSE)
+		printf("trying dodge %d\n", data->nxtdodge);
+
+	/* check if we need to start or resume computation */
+	if(rd->stopdepth == -1) {
+		
+		if(!setupdodge(usr, data, gm, rd))
+			return;
+	}
+	else {
+	
+		if(rd->entry[0].pos.tick < usr->aimapstate.tick) {
+			
+			if(DEBUG_MAPAI)
+				printf("aborting computation\n");
+			data->nxtdodge = 1;
+			rd->stopdepth = -1;
+			return;
+		}
+		if(DEBUG_MAPAI_VERBOSE)
+			printf("resuming computation\n");
+	}
+		
+	no_collision_usr = usr;
+	no_collision_tick = rd->entry[0].pos.tick;
+	recpath(usr, rd, 0, &data->computation);
+	no_collision_usr = 0;
+
+	/* check if we finished computation */
+	if(rd->stopdepth == -1) {
+		
+		/* check if we found better path */
+		if(rd->bestpos.tick > data->dietick || rd->bestpos.alive) {
+		
+			pos = rd->entry[0].pos;
+			truncatebranch(data, pos.tick, usr);
+			newheadbranch(data, gm);
+			endtick = rd->bestpos.tick - !rd->bestpos.alive;
+			copyinputs(data, rd, endtick);
+			
+			/* add segments to aimap */
+			data->computation += endtick - pos.tick;
+			while(pos.tick < endtick && pos.alive) {
+				if(data->input[pos.tick])
+					pos.turn = data->input[pos.tick] - 2;
+				simuserfull(&pos, usr, 1, 1, 0, data->headbranch->branch);
+			}
+			
+			if(rd->bestpos.alive) {
+				data->dietick = INT_MAX;
+				data->extendpos = pos;
+				data->nxtdodge = 0;
+			} else {
+				data->dieseg = rd->dieseg;
+				data->dietick = rd->bestpos.tick;
+				data->nxtdodge = (data->nxtdodge + 1) % AI_NUM_DODGE;
+			}
+		} else
+			data->nxtdodge = (data->nxtdodge + 1) % AI_NUM_DODGE;
+	}
+}
+
+void extendpath(struct user *usr, struct mapaidata *data, struct game *gm) {
+	struct userpos pos = data->extendpos;
+	struct recdata *rd = &data->rd;
+	int i, depth = data->dodge[0].depth, ticks = data->dodge[0].ticks;
+	int endtick;
+
+	if(DEBUG_MAPAI_VERBOSE)
+		printf("extending path\n");
+
+	inirecdata(rd, &pos, depth);
+	
+	/* do small steer with certain probability */
+	if((rand() & 3) == 0) {
+		int steerticks = rand() % (data->maxsteer_ticks - data->minsteer_ticks) + data->minsteer_ticks;
+		
+		if(depth == 1)
+			steerticks = ticks;
+		else {
+			steerticks = min(steerticks, ticks - depth);
+			scrambleticks(rd->entry + 1, depth - 1, ticks - steerticks);
+		}
+		
+		rd->entry[0].turn = (rand() & 2) - 1;
+		rd->entry[0].ticks = steerticks;
+	}
+	else
+		scrambleticks(rd->entry, depth, ticks);
+	
+	recpath(usr, rd, 0, &data->computation);
+	endtick = rd->bestpos.tick - !rd->bestpos.alive;
+	copyinputs(data, rd, endtick);
+	
+	if(SEND_AIMAP_SEGMENTS) {
+		struct seg seg;
+		seg.x1 = seg.x2 = pos.x;
+		seg.y1 = seg.y2 = pos.y;
+		queueseg(gm, &seg);
+	}
+	
+	/* add segments to aimap */
+	data->computation += endtick - pos.tick;
+	while(pos.tick < endtick && pos.alive) {
+		if(data->input[pos.tick])
+			pos.turn = data->input[pos.tick] - 2;
+		simuserfull(&pos, usr, 1, 1, 0, data->headbranch->branch);
+	}
+	
+	if(!rd->bestpos.alive) {
+		data->dietick = rd->bestpos.tick;
+		data->dieseg = rd->dieseg;
+		data->nxtdodge = 1;
+
+		if(DEBUG_MAPAI)
+			printf("couldnt extend collision free!\n");
+	}
+	else
+		data->extendpos = pos;
+}
+
+void inputmechanism_mapai(struct user *usr, int tick) {
+	struct mapaidata *data = (struct mapaidata *)usr->aidata;
+	struct game *gm = usr->gm;
+
+	if(!tick) {
+		setupaidata(usr);
+		data = (struct mapaidata *)usr->aidata;
+	}
+	
+	tick += COMPUTER_DELAY;
+	
+	/* check if our future path suddenly collides with something */
+	if(usr->dietick < INT_MAX) {
+	
+		data->dietick = usr->dietick;
+		data->dieseg = usr->dieseg;
+		data->nxtdodge = 1;
+		usr->dietick = INT_MAX;
+		truncatebranch(data, data->dietick, usr);
+	}
+	else if(data->dietick < INT_MAX && !data->nxtdodge) {
+	
+		/* check if danger has passed */
+		if(data->dieseg.x1 != -1 && checkaimapcollision(usr, &data->dieseg, data->dietick - 1, 1, 0) == -1) {
+			data->dietick = INT_MAX;
+			data->nxtdodge = 0;
+			data->rd.stopdepth = -1;
+			if(DEBUG_MAPAI)
+				printf("danger has passed\n");
+		}
+	}
+	
+	if(data->computation > 0) {
+	
+		/* we did too many computations and now should wait */
+		if(DEBUG_MAPAI)
+			printf("computation excess %d\n", data->computation);
+	} 
+	else if(data->nxtdodge) {
+		
+		trynextdodge(usr, data, gm);
+	}
+	else if(data->extendpos.tick - tick < data->prediction_ticks && data->dietick == INT_MAX) {
+		
+		extendpath(usr, data, gm);
+	}
+	
+	/* tell everyone about our input */
+	if(data->inputcap > tick && data->input[tick]) {
+		int turn = data->input[tick] - 2;
+
+		if(turn != usr->lastinputturn) {
+			usr->aimapstate.turn = turn;
+			queueinput(usr, tick, usr->aimapstate.turn);
+			sendsteer(usr, tick, usr->aimapstate.turn, 0);
+		}
+	}
+
+	if(data->computation > 0)
+		data->computation -= AI_MAX_COMPUTATION;
+	simuserfull(&usr->aimapstate, usr, 0, 1, 0, 0);
+}
 
 /* point systems specify how many points the remaining players get when
  * someone dies */

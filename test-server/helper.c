@@ -66,6 +66,37 @@ void freeteleports(struct teleport *tp) {
 	}
 }
 
+void createaimap(struct game *gm) {
+	gm->aimap = scalloc(1, sizeof(struct aimap));
+	gm->aimap->tile = scalloc(gm->htiles * gm->vtiles, sizeof(struct aitile));
+}
+
+void freeaimap(struct game *gm) {
+	int i;
+	for(i = 0; i < gm->htiles * gm->vtiles; i++) {
+		struct aitile *tile = gm->aimap->tile + i;
+		if(tile->seg)
+			free(tile->seg);
+	}
+	free(gm->aimap);
+	gm->aimap = 0;
+}
+
+void freemapaidata(struct mapaidata *data) {
+	struct linkedbranch *lb = data->headbranch, *nxt;
+	
+	while(lb) {
+		nxt = lb->nxt;
+		free(lb);
+		lb = nxt;
+	}
+	
+	if(data->input) {
+		free(data->input);
+		data->input = 0;
+	}
+}
+
 char *duplicatestring(char *orig) {
 	return strcpy(smalloc(strlen(orig) + 1), orig);
 }
