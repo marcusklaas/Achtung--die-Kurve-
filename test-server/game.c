@@ -1468,6 +1468,7 @@ void handlepencilmsg(cJSON *json, struct user *usr) {
 				p->psegtail = pseg;
 				
 			if(usr->gm->aigame) {
+				checkaimapcollision(usr, seg, tickSolid, 1, 1);
 				addsegmentfull(usr->gm, seg, 1, usr, tickSolid, 0);
 			}
 			
@@ -1931,7 +1932,6 @@ void trynextdodge(struct user *usr, struct mapaidata *data, struct game *gm) {
 
 	/* check if we finished computation */
 	if(rd->stopdepth == -1) {
-		
 		/* check if we found better path */
 		if(rd->bestpos.tick > data->dietick || rd->bestpos.alive) {
 		
