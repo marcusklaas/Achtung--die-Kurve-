@@ -78,6 +78,8 @@ void freeaimap(struct game *gm) {
 		if(tile->seg)
 			free(tile->seg);
 	}
+	
+	free(gm->aimap->tile);
 	free(gm->aimap);
 	gm->aimap = 0;
 }
