@@ -1731,12 +1731,10 @@ void newheadbranch(struct mapaidata *data, struct game *gm) {
 
 void allocinputroom(struct mapaidata *data, int tick) {
 	if(!data->input) {
-		data->inputcap = 1024;
+		data->inputcap = max(1024, tick);
 		data->input = smalloc(data->inputcap);
 	}
 	if(data->inputcap < tick) {
-		int cap = data->inputcap;
-		
 		data->inputcap = max(data->inputcap * 2, tick);
 		data->input = srealloc(data->input, data->inputcap);
 	}
@@ -1845,7 +1843,7 @@ void inirecdata(struct recdata *rd, struct userpos *pos, int depth) {
 void scrambleticks(struct recentry *re, int num, int ticks) {
 	if(num == 1)
 		re->ticks = ticks;
-	else {
+	else if (num > 1){
 		int b = ticks / num;
 		int a = b / 2;
 		int c = a + b;
@@ -1862,9 +1860,10 @@ void scrambleticks(struct recentry *re, int num, int ticks) {
 void copyinputs(struct mapaidata *data, struct recdata *rd, int endtick) {
 	int tick, i;
 	struct userpos *pos = &rd->entry[0].pos;
-
+	
 	allocinputroom(data, endtick);
-	memset(data->input + pos->tick, 0, endtick - pos->tick);
+	if(endtick > pos->tick)
+		memset(data->input + pos->tick, 0, endtick - pos->tick);
 	for(i = 0, tick = pos->tick; tick < endtick; tick += rd->entry[i++].ticks)
 		data->input[tick] = rd->entry[i].bestturn + 2;
 }
@@ -1924,6 +1923,17 @@ void trynextdodge(struct user *usr, struct mapaidata *data, struct game *gm) {
 		if(DEBUG_MAPAI_VERBOSE)
 			printf("resuming computation\n");
 	}
+	
+	/* special dodge */
+	if(rd->maxdepth == -1) {
+		truncatebranch(data, rd->entry[0].pos.tick, usr);
+		newheadbranch(data, gm);
+		data->extendpos = rd->entry[0].pos;
+		data->nxtdodge = 0;
+		data->dietick = INT_MAX;
+		extendpath(usr, data, gm);
+		return;
+	}
 		
 	no_collision_usr = usr;
 	no_collision_tick = rd->entry[0].pos.tick;
@@ -1956,10 +1966,11 @@ void trynextdodge(struct user *usr, struct mapaidata *data, struct game *gm) {
 			} else {
 				data->dieseg = rd->dieseg;
 				data->dietick = rd->bestpos.tick;
-				data->nxtdodge = (data->nxtdodge + 1) % AI_NUM_DODGE;
 			}
-		} else
+		}
+		if(data->dietick < INT_MAX) {
 			data->nxtdodge = (data->nxtdodge + 1) % AI_NUM_DODGE;
+		}
 	}
 }
 
