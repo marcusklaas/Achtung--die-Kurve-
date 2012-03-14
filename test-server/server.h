@@ -41,14 +41,14 @@
 #define AI_MAX_TICKS 100
 #define AI_MIN_STEER 0
 #define AI_MAX_STEER (PI / 4)
-#define AI_PREDICTION_LENGTH (PI * 5)
+#define AI_PREDICTION_LENGTH (PI * 10)
 #define AI_PADDING_FRACTION	0.9
 #define AIMAP_STARTCAP 5
 #define USER_PREDICTION_INTERVAL (500 / TICK_LENGTH)
 #define USER_PREDICTION_LENGTH (1000 / TICK_LENGTH)
 #define AI_MAX_COMPUTATION 500
 #define AI_MAX_DEPTH 10
-#define AI_NUM_DODGE 6
+#define AI_NUM_DODGE 7
 
 struct dodge {
 	float length;
@@ -61,7 +61,8 @@ struct dodge AI_DODGE[] = {
 	{2 * PI,		3, 0},
 	{PI / 2,		4, 0}, 
 	{PI * 3 / 2,	5, 0}, 
-	{PI * 2,		6, 0}
+	{PI * 2,		6, 0}, 
+	{PI * 4, 		0, 0}
 };
 
 /* byte messages */
@@ -385,4 +386,4 @@ static long servermsecs();
 int getnewbranch(struct game *gm);
 void simuserfull(struct userpos *state, struct user *usr, char addsegments, char aimap, char solid, int branch);
 void addsegmentfull(struct game *gm, struct seg *seg, char aimap, struct user *usr, int tick, int branch);
-
+void extendpath(struct user *usr, struct mapaidata *data, struct game *gm);
