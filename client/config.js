@@ -71,6 +71,7 @@ var alwaysHideSidebar = false;
 var debugPos = false;
 var debugComputers = 0;
 var debugMap = '';
+var debugZeroLengthSegs = false;
 var autoStart = false;
 
 /* server.h copy */

@@ -742,16 +742,20 @@ GameEngine.prototype.handleSegmentsMessage = function(segments) {
 	setLineColor(ctx, [0, 0, 0], 1);
 	ctx.lineWidth = 1;
 	ctx.beginPath();
+
 	for(var i = 0; i < segments.length; i++) {
 		var s = segments[i];
-		if(s.x1 == s.x2 && s.y1 == s.y2) {
-			ctx.moveTo(s.x1, s.y1);
-			ctx.arc(s.x1, s.y1, 5, 0, Math.PI * 2, false);
-		} else {
+
+		if(s.x1 != s.x2 || s.y1 != s.y2) {
 			ctx.moveTo(s.x1, s.y1);
 			ctx.lineTo(s.x2, s.y2);
 		}
+		else if(debugZeroLengthSegs) {
+			ctx.moveTo(s.x1, s.y1);
+			ctx.arc(s.x1, s.y1, 5, 0, Math.PI * 2, false);
+		}
 	}
+
 	ctx.stroke();
 	ctx.lineWidth = lineWidth;
 }
