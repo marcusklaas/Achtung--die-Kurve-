@@ -351,7 +351,7 @@ callback_game(struct libwebsocket_context * context,
 			u->gm->pencilmode = strtopencilmode(jsongetstr(json, "pencilMode"));
 			u->gm->inkcap = min(1000, max(0, jsongetint(json, "inkcap")));
 			u->gm->inkregen = min(1000, max(0, jsongetint(json, "inkregen")));
-			u->gm->inkdelay = min(20000, max(1000, jsongetint(json, "inkdelay")));
+			u->gm->inkdelay = min(20000, max(0, jsongetint(json, "inkdelay")));
 			u->gm->torus = (0 != jsongetint(json, "torus"));
 
 			j = encodegamepars(u->gm);
