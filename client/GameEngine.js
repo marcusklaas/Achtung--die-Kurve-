@@ -29,12 +29,10 @@ function GameEngine(audioController) {
 	this.contexts[backupStates.length - 1] = this.baseContext;
 
 	/* children */
-	this.pencil = new Pencil(this);
 	this.localPlayer = new Player(this, true);
 	this.audioController = new AudioController();
 	this.editor = new Editor(this);
-	this.canvasTop = 0;
-	this.canvasLeft = sidebarWidth;
+	this.canvasPos = new Vector(sidebarWidth, 0);
 
 	/* DOM elements */
 	this.playerList = document.getElementById('playerList').lastChild;
@@ -83,7 +81,8 @@ GameEngine.prototype.reset = function() {
 	this.crossQueue.length = 0;
 	document.getElementById('winAnnouncer').style.display = 'none';
 	
-	this.pencil.reset();
+	pencil.reset();
+	pencilReceiver.reset();
 }
 
 GameEngine.prototype.resetPlayers = function() {
@@ -206,7 +205,7 @@ GameEngine.prototype.setSidebarVisibility = function(visible) {
 
 	this.sidebar.classList.toggle('visible');
 	document.getElementById('menuButton').innerHTML = visible ? '&lt;' : '&gt;';
-	this.canvasLeft = visible ? sidebarWidth : 0;
+	this.canvasPos.x = visible ? sidebarWidth : 0;
 
 	var articles = document.getElementsByTagName('article');
 	for(var i = 0; i < articles.length; i++)
@@ -237,7 +236,7 @@ GameEngine.prototype.updateTitle = function(title) {
 }
 
 GameEngine.prototype.getCollision = function(x1, y1, x2, y2) {
-	var seg = new BasicSegment(x1, y1, x2, y2);
+	var seg = new Segment(x1, y1, x2, y2);
 	var cut, mincut = 1;
 	var other = null;
 	
@@ -347,7 +346,7 @@ GameEngine.prototype.parseByteMsg = function(str) {
 				while(msg.at < msg.data.length) {
 					var a1 = msg.readPos();
 					var a2 = msg.readPos();
-					this.mapSegments.push(new BasicSegment(a1.x, a1.y, a2.x, a2.y));
+					this.mapSegments.push(new Segment(a1.x, a1.y, a2.x, a2.y));
 				}
 
 			return true;
@@ -358,7 +357,7 @@ GameEngine.prototype.parseByteMsg = function(str) {
 		case modePencil:
 			var msg = new ByteMessage(str, 1);
 			var player = this.indexToPlayer[(a & (8 + 16 + 32)) >> 3];
-			this.pencil.handleMessage(msg, player);
+			pencilReceiver.handleMessage(msg, player);
 			return true;
 	}
 }
@@ -415,7 +414,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			/* cool, we are accepted. lets adopt the server constants */
 			this.localPlayer.id = obj.playerId;
 			this.tickLength = obj.tickLength;
-			this.pencil.inkMinimumDistance = obj.inkMinimumDistance;
+			pencil.setParameters(obj);
 			if(autoStart)
 				this.createGame();
 			break;
@@ -510,7 +509,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 	
 			if(player == this.localPlayer) {
 				if(this.pencilMode == 'ondeath') 
-					this.pencil.enable(obj.tick);
+					pencil.enable(obj.tick);
 				else
 					this.setGameState('watching');
 				this.audioController.playSound('localDeath');
@@ -574,9 +573,6 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		case 'segments':
 			this.handleSegmentsMessage(obj.segments);
 			this.debugSegments = this.debugSegments.concat(obj.segments);
-			break;
-		case 'pencil':
-			this.pencil.handleMessage(obj.data);
 			break;
 		case 'stopSpamming':
 			this.gameMessage('You are flooding the chat. Your latest message has been blocked');
@@ -820,10 +816,7 @@ GameEngine.prototype.setParams = function(obj) {
 	this.torus = (obj.torus != 0);
 
 	if(this.pencilMode != 'off') {
-		this.pencil.inkPerSec = obj.inkregen;
-		this.pencil.maxInk = obj.inkcap;
-		this.pencil.startInk = obj.inkstart;
-		this.pencil.mousedownInk = obj.inkmousedown;
+		pencil.setParameters(obj);
 	}
 	
 	if(this.state == 'editing')
@@ -905,8 +898,7 @@ GameEngine.prototype.addPlayer = function(player) {
 	this.appendPlayerList(player);
 
 	if(player == this.localPlayer)
-		document.getElementById('ink').style.backgroundColor =
-		 this.pencil.inkDiv.style.backgroundColor = getRGBAstring(player.color, 0.5);
+		pencil.updateColor();
 }
 
 /* sets this.scale, which is canvas size / game size */
@@ -993,7 +985,7 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	}
 	
 	if(this.pencilMode == 'on')
-		this.pencil.enable(0);
+		pencil.enable(0);
 	
 	for(var i in this.players) {
 		var player = this.players[i];
@@ -1129,8 +1121,8 @@ GameEngine.prototype.gameloop = function() {
 
 		this.updateContext(stateCount, false);
 
-		if(this.pencilMode != 'off')
-			this.pencil.doTick(this.tick);
+		pencil.doTick();
+		pencilReceiver.doTick();
 
 		this.tick = Math.min(nextIntegerTick, endTick);
 		this.correctionTick = Math.ceil(this.tick);
@@ -1257,9 +1249,6 @@ GameEngine.prototype.resize = function() {
 	
 	this.drawMapSegments(this.contexts[0]);
 
-	if(this.pencilMode != 'off')
-		this.pencil.drawPlayerSegs(true);
-
 	this.correctionTick = -backupStates[1] - 1;
 	this.revertBackup();
 }
@@ -1374,11 +1363,18 @@ GameEngine.prototype.backToGameLobby = function() {
 	}
 }
 
+GameEngine.prototype.copyGamePos = function(e, pos) {
+	pos.x = e.pageX;
+	pos.y = e.pageY;
+	pos.subtract(this.canvasPos);
+	pos.x = Math.round(Math.max(Math.min(this.width, pos.x), 0))
+	pos.y = Math.round(Math.max(Math.min(this.height, pos.y), 0));
+	
+	return pos;
+}
+
 GameEngine.prototype.getGamePos = function(e) {
-	var v = getPos(e);
-	v.x = (v.x - this.canvasLeft) / this.scaleX;
-	v.y = (v.y - this.canvasTop) / this.scaleY;
-	v.x = Math.round(Math.max(Math.min(this.width, v.x), 0));
-	v.y = Math.round(Math.max(Math.min(this.height, v.y), 0));
-	return v;
+	var pos = new Vector(0, 0);
+	this.copyGamePos(e, pos);
+	return pos;
 }

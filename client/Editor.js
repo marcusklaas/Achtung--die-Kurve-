@@ -191,7 +191,7 @@ Editor.prototype.handleInput = function(type, ev,  state) {
 	if(doAction) {
 		
 	 	if(state.pos.x != state.start.x || state.pos.y != state.start.y) {
-			var seg = new BasicSegment(state.start.x, state.start.y, state.pos.x, state.pos.y);
+			var seg = new Segment(state.start.x, state.start.y, state.pos.x, state.pos.y);
 			
 			switch(this.mode) {
 				case 'playerStart':

@@ -19,7 +19,6 @@ function InputController(player, left, right) {
 
 	var self = this;
 	var game = player.game;
-	var pencil = player.game.pencil;
 	var canvas = player.game.baseCanvas;
 
 	/* listen for keyboard events */
@@ -92,35 +91,20 @@ function InputController(player, left, right) {
 	}
 
 	function mouseMove(e) {
-		if(pencil.drawingAllowed && pencil.down) {
-			var pos = game.getGamePos(e);
-			pencil.curX = pos.x;
-			pencil.curY = pos.y;
-		}
+		game.copyGamePos(e, mouse);
 	}
 
 	function mouseDown(e) {
-		if(pencil.drawingAllowed && !pencil.down && pencil.ink > pencil.mousedownInk)
-			pencil.startDraw(game.getGamePos(e));
+		game.copyGamePos(e, mouse);
+		pencil.lower();
 	}
 
 	function mouseEnd(e) {
+		game.copyGamePos(e, mouse);
 		if(emulateTouch)
 			touchEnd(convertMouseToTouch(e));
 		else
-			stopDraw(e);
-	}
-	
-	function stopDraw(e) {
-		if(pencil.drawingAllowed && pencil.down) {
-			var pos = game.getGamePos(e);
-			pencil.curX = pos.x;
-			pencil.curY = pos.y;
-			pencil.down = false;
-			pencil.upped = true;
-
-			pencil.game.focusChat();
-		}
+			pencil.raise();
 	}
 
 	function touchStart(e) {
@@ -147,10 +131,10 @@ function InputController(player, left, right) {
 				self.pressRight();
 			}
 
-			else if(self.pencilTouch == null && !pencil.down &&
-			 pencil.ink > pencil.mousedownInk && pencil.drawingAllowed) {
+			else if(self.pencilTouch == null && pencil.isLowerable()) {
 				self.pencilTouch = new touchEvent(pos.x, pos.y, touch.identifier);
-				pencil.startDraw(pos);
+				pos.copyTo(mouse);
+				pencil.lower();
 			}
 		}
 
@@ -207,12 +191,13 @@ function InputController(player, left, right) {
 
 			if(self.leftTouch != null && touch.identifier == self.leftTouch.identifier) {
 				var convert = (getLength(pos.x - self.leftTouch.startX, pos.y - self.leftTouch.startY) >= pencilTreshold
-				 && self.pencilTouch == null && !pencil.down && pencil.ink > pencil.mousedownInk);
+				 && self.pencilTouch == null && pencil.isLowerable());
 
 				/* convert this touch to pencil touch */
 				if(convert) {
 					self.pencilTouch = new touchEvent(pos.x, pos.y, touch.identifier);
-					pencil.startDraw({x: self.leftTouch.startX, y: self.leftTouch.startY});
+					pos.copyTo(mouse);
+					pencil.lower();
 				}
 
 				if(convert || !left) {
@@ -223,11 +208,12 @@ function InputController(player, left, right) {
 
 			else if(self.rightTouch != null && touch.identifier == self.rightTouch.identifier) {
 				var convert = (getLength(pos.x - self.rightTouch.startX, pos.y - self.rightTouch.startY) >= pencilTreshold
-				 && self.pencilTouch == null && !pencil.down && pencil.ink > pencil.mousedownInk);
+				 && self.pencilTouch == null && pencil.isLowerable());
 
 				if(convert) {
 					self.pencilTouch = new touchEvent(pos.x, pos.y, touch.identifier);
-					pencil.startDraw({x: self.rightTouch.startX, y: self.rightTouch.startY});
+					pos.copyTo(mouse);
+					pencil.lower();
 				}
 
 				if(convert || !right) {
@@ -237,11 +223,8 @@ function InputController(player, left, right) {
 			}
 
 			else if(self.pencilTouch != null &&
-			 touch.identifier == self.pencilTouch.identifier &&
-			 pencil.drawingAllowed && pencil.down) {
-					var pos = game.getGamePos(touch);
-					pencil.curX = pos.x;
-					pencil.curY = pos.y;
+			 touch.identifier == self.pencilTouch.identifier) {
+					pos.copyTo(mouse);
 			}
 		}
 

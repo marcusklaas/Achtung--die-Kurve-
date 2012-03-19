@@ -98,4 +98,4 @@ var mapSegmentColor = [96, 96, 96];
 /* these are the segment RGBs for the players */
 var canvasColor = '#E0E0E0'; // wil dit lezen uit document met getComputedStyle, maar vindt chrome niet leuk
 var playerColors = [[237, 28, 36], [63, 72, 204], [43, 177, 76],
- [0, 0, 0], [185, 122, 87], [163, 73, 164], [0, 162, 232], [136, 0, 21]];
+	[0, 0, 0], [185, 122, 87], [163, 73, 164], [0, 162, 232], [136, 0, 21]];

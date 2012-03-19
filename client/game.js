@@ -1,5 +1,7 @@
 window.onload = function() {
-	var game = new GameEngine();
+	game = new GameEngine();
+	mouse = new Vector(0, 0);
+	pencil.onload();
 	var localPlayer = game.localPlayer;
 	var audioController = game.audioController;
 

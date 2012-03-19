@@ -32,29 +32,27 @@ ByteMessage.prototype.readPos = function() {
 	x = a | (b & 15) << 7;
 	y = b >> 4 | c << 3;
 	
-	return new BasicPoint(x, y);
-}
-
-ByteMessage.prototype.readPencil = function() {
-	var a = this.data.charCodeAt(this.at++);
-	
-	return {down: a & 1, tickDifference: a >> 1};
-}
-
-ByteMessage.prototype.readPencilFull = function() {
-	var a = this.data.charCodeAt(this.at++);
-	var b = this.data.charCodeAt(this.at++);
-	var c = this.data.charCodeAt(this.at++);
-	
-	return {down: a & 1, tick: a >> 1 | b << 6 | c << 13};
+	return new Vector(x, y);
 }
 
 /* Segments */
-BasicSegment = function(x1, y1, x2, y2) {
+Segment = function(x1, y1, x2, y2) {
 	this.x1 = x1;
 	this.y1 = y1;
 	this.x2 = x2;
 	this.y2 = y2;
+}
+
+Segment.prototype.getLength = function() {
+	return Math.sqrt(Math.pow(x2 - x1, 2) +
+		Math.pow(y2 - y1, 2));
+}
+
+Segment.prototype.setEnd = function(pos) {
+	this.x2 = pos.x;
+	this.y2 = pos.y;
+	
+	return this;
 }
 
 TimedSegment = function(x1, y1, x2, y2, tick) {
@@ -65,10 +63,55 @@ TimedSegment = function(x1, y1, x2, y2, tick) {
 	this.tickSolid = tick;
 }
 
-/* Point */
-BasicPoint = function(x, y) {
+/* Vector */
+Vector = function(x, y) {
 	this.x = x;
 	this.y = y;
+}
+
+Vector.prototype.add = function(v) {
+	this.x += v.x;
+	this.y += v.y;
+	
+	return this;
+}
+
+Vector.prototype.subtract = function(v) {
+	this.x -= v.x;
+	this.y -= v.y;
+	
+	return this;
+}
+
+Vector.prototype.scale = function(r) {
+	this.x *= r;
+	this.y *= r;
+	
+	return this;
+}
+
+Vector.prototype.floor = function() {
+	this.x = Math.floor(this.x);
+	this.y = Math.floor(this.y);
+	
+	return this;
+}
+
+Vector.prototype.getLength = function() {
+	return Math.sqrt(this.x * this.x + this.y * this.y);
+}
+
+Vector.prototype.clone = function() {
+	return new Vector(this.x, this.y);
+}
+
+Vector.prototype.copyTo = function(v) {
+	v.x = x;
+	v.y = y;
+}
+
+Vector.prototype.link = function(pos) {
+	return new Segment(x, y, pos.x, pos.y);
 }
 
 /* Teleporter */
@@ -121,7 +164,7 @@ function getAngle(x, y) {
 }
 
 function rotateVector(x, y, angle) {
-	return new BasicPoint(Math.cos(angle) * x - Math.sin(angle) * y,
+	return new Vector(Math.cos(angle) * x - Math.sin(angle) * y,
 	 Math.sin(angle) * x + Math.cos(angle) * y);
 }
 
@@ -147,6 +190,28 @@ function segmentCollision(a, b) {
 }
 
 /* Canvas functions */
+var canvas = {
+
+	drawSegment: function(seg, color, alpha) {
+		for(var i = 0; i < backupStates.length; i++)
+			canvas.drawSegmentContext(game.contexts[i], seg, color, alpha);
+	}, 
+	
+	drawSegmentContext: function(ctx, seg, color, alpha) {
+		if(seg.getLength() == 0)
+			return;
+		
+		ctx.beginPath();
+		setLineColor(ctx, color, alpha);
+		var tmp = ctx.lineCap;
+		ctx.lineCap = alpha == 1 ? lineCapStyle : 'butt';
+		ctx.moveTo(x1, y1);
+		ctx.lineTo(x2, y2);
+		ctx.stroke();
+		ctx.lineCap = tmp;
+	}
+};
+
 function setLineColor(ctx, color, alpha) {
 	ctx.strokeStyle = 'rgba(' + color[0] + ', ' + color[1] + ', '
 	 + color[2] + ', ' + alpha + ')';
@@ -306,32 +371,11 @@ function findPos(obj) {
 		} while (obj = obj.offsetParent);
 	}
 
-	return new BasicPoint(curleft, curtop);
+	return new Vector(curleft, curtop);
 }
 
 function escapeString(str) {
 	return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function getPos(e) {
-	var posx = 0;
-	var posy = 0;
-
-	if (!e)
-		e = window.event;
-
-	if (e.pageX || e.pageY) {
-		posx = e.pageX;
-		posy = e.pageY;
-	}
-	else if (e.clientX || e.clientY) {
-		posx = e.clientX + document.body.scrollLeft
-			+ document.documentElement.scrollLeft;
-		posy = e.clientY + document.body.scrollTop
-			+ document.documentElement.scrollTop;
-	}
-
-	return new BasicPoint(posx, posy);
 }
 
 function getRGBstring(color) {

@@ -1,177 +1,179 @@
-/* we set all properties in the constructor so the compiler does not have to add
- * properties later (and you can see what properties an object has by looking
- * at its constructor) */
-function Pencil(game) {
-	this.game = game;
-	this.inkDiv = document.getElementById('ink');
-	this.indicator = document.getElementById('inkIndicator');
-	this.outbuffer = new Array();
-
-	// just initializing, set dummy value to hint type to compiler
-	this.lastTick = this.curY = this.y = this.curX = this.x = this.ink = 0;
-	this.mousedownInk = this.startInk = this.maxInk = this.inkPerSec = 0;
-	this.drawingAllowed = this.down = this.upped = true;
-}
-
-/* pos is scaled location */
-Pencil.prototype.startDraw = function(pos) {
-	this.ink -= this.mousedownInk;
-	this.curX = this.x = pos.x;
-	this.curY = this.y = pos.y;
-	this.outbuffer.push(1);
-	this.outbuffer.push(this.x);
-	this.outbuffer.push(this.y);
-	this.outbuffer.push(this.game.tick);
-	this.down = true;
-}
-
-Pencil.prototype.enable = function(tick) {
-	this.indicator.style.display = 'block';
-	this.drawingAllowed = true;
-	this.setInk(this.startInk + this.inkPerSec / 1000 * this.game.tickLength * (this.game.tick - tick));
-}
-
-Pencil.prototype.reset = function() {
-	this.lastTick = 0;
-	this.outbuffer.length = 0;
-	this.down = false;
-	this.upped = false;
-	this.drawingAllowed = false;
-	this.indicator.style.display = 'none';
-
-	for(var i in this.game.players) {
-		var player = this.game.players[i];
-		player.inbuffer.length = 0;
-		player.inbufferIndex = 0;
+var pencil = (function() {
+	var inkDiv, indicator;
+	var pos = new Vector(0, 0);
+	var ink, outbuffer, down, enabled;
+	var mouseDownInk, inkRegen, startInk, inkMinDistance, maxInk;
+	
+	function sendBuffer() {
+		game.sendMsg('pencil', {'data' : outbuffer});
+		outbuffer = [];
 	}
-}
-
-Pencil.prototype.setInk = function(ink) {
-	this.ink = Math.min(this.maxInk, ink);
-	this.inkDiv.style.height = ( 100 * Math.max(0, this.ink) / this.maxInk ) + '%';
-}
-
-Pencil.prototype.doTick = function(tick) {
-	if(this.drawingAllowed) {
-		var dt = tick - this.lastTick;
-		this.setInk(this.ink + this.inkPerSec / 1000 * dt * this.game.tickLength);
+	
+	function move() {
+		var seg = pos.link(mouse);
+		var d = seg.getLength();
+		
+		if(ink < d + epsilon) {
+			var v = mouse.clone().subtract(pos);
+			
+			pos.add(v.scale((ink - epsilon) / d).floor());
+		}
+		else
+			mouse.copyTo(pos);
+		
+		appendpos();
+		seg.setEnd(pos);
+		canvas.drawSegment(seg, game.localPlayer.color, pencilAlpha);
 	}
-
-	this.lastTick = tick;
-
-	if(this.drawingAllowed && (this.down || this.upped)) {
-		var x = this.curX;
-		var y = this.curY;
-		var d = getLength(x - this.x, y - this.y);
-
-		if(this.upped || d >= this.inkMinimumDistance) {
-			if(this.ink < d) {
-				// shorten move
-				var a = x - this.x;
-				var b = y - this.y;
-				a *= this.ink / d;
-				b *= this.ink / d;
-				x = this.x + a;
-				y = this.y + b;
-				d = this.ink;
+	
+	function appendpos() {
+		outbuffer.push(pos.x);
+		outbuffer.push(pos.y);
+		outbuffer.push(game.tick);
+	}
+	
+	return {
+		isLowerable: function() {
+			return enabled && !down && ink > mouseDownInk + epsilon;
+		}, 
+		
+		lower: function() {
+			if(!pencil.isLowerable())
+				return;
 				
-				this.down = false;
-				this.upped = true;
-
-				this.game.focusChat();
-			}
-			this.setInk(this.ink - d);
-			this.outbuffer.push(this.upped ? -1 : 0);
-			this.outbuffer.push(x);
-			this.outbuffer.push(y);
-			this.outbuffer.push(this.game.tick);
-
-			this.drawGlobal(this.x, this.y, x, y, this.game.localPlayer, pencilAlpha);
-
-			this.x = x;
-			this.y = y;
-			this.upped = false;
-		}
-	}
-
-	if(Math.floor(this.game.tick) % inkBufferTicks == 0 && this.outbuffer.length > 0) {
-		this.game.sendMsg('pencil', {'data' : this.outbuffer});
-		this.outbuffer.length = 0;
-	}
-
-	this.drawPlayerSegs(false);
-}
-
-Pencil.prototype.drawPlayerSegs = function(redraw) {
-	for(var i in this.game.players) {
-		var player = this.game.players[i];
+			mouse.copyTo(pos);
+			if(outbuffer.length > 0)
+				send();
+			outbuffer.push(-1);
+			appendpos();
+			down = true;
+		}, 
 		
-		if(player.status == 'ready')
+		raise: function() {
+			if(!down)
+				return;
+				
+			move();
+			down = false;
+		}, 
+		
+		enable: function(tick) {
+			indicator.style.display = 'block';
+			enabled = true;
+			ink = startInk + inkRegen * (game.tick - tick);
+		}, 
+		
+		reset: function() {
+			outbuffer = [];
+			down = false;
+			enabled = false;
+			indicator.style.display = 'none';
+		}, 
+		
+		doTick: function() {
+			if(!enabled)
+				return;
+			
+			if(down && pos.getDistanceTo(mouse) > inkMinimumDistance + epsilon) {
+				move();
+			}
+			
+			ink = Math.min(maxInk, ink + inkRegen);
+
+			if(outbuffer.length > 0 && Math.floor(game.tick) % inkBufferTicks == 0) {
+				sendBuffer();
+			}
+		}, 
+		
+		setParameters: function(obj) {
+			if(obj.inkMinimumDistance)
+				inkMinDistance = obj.inkMinimumDistance;
+			else {
+				mouseDownInk = obj.inkmousedown;
+				inkRegen = obj.inkregen * 1000 / game.tickLength;
+				startInk = obj.inkstart;
+				maxInk = obj.inkcap;
+			}
+		}, 
+		
+		updateColor: function() {
+			inkDiv.style.backgroundColor = getRGBAstring(game.localPlayer.color, 0.5);
+		}, 
+		
+		onload: function() {
+			inkDiv = document.getElementById('ink');
+			indicator = document.getElementById('inkIndicator');
+		}
+	};
+}());
+
+
+var pencilReceiver = (function() {
+	return {
+		reset: function() {
+			for(var i in game.players) {
+				var player = game.players[i];
+				player.inbuffer = [];
+				player.inbufferIndex = 0;
+			}
+		}, 
+		
+		doTick: function() {
 			return;
-		
-		var buffer = player.inbuffer;
-		
-		for(var index = redraw ? 0 : player.inbufferIndex; index < buffer.length; index++) {
-			var seg = buffer[index];
-			var solid = seg.tickSolid <= this.game.tick;
-			if(!solid && !redraw)
-				break;
-
-			this.drawGlobal(seg.x1, seg.y1, seg.x2, seg.y2, player, solid ? 1 : pencilAlpha);
-		}
-		
-		if(!redraw)
-			player.inbufferIndex = index;
-	}
-}
-
-Pencil.prototype.drawGlobal = function(x1, y1, x2, y2, player, alpha) {
-	for(var i = 0; i < backupStates.length; i++)
-		this.drawSegment(this.game.contexts[i], x1, y1, x2, y2, player, alpha);
-}
-
-Pencil.prototype.drawSegment = function(ctx, x1, y1, x2, y2, player, alpha) {
-	if(x1 == x2 && y1 == y2)
-		return;
-
-	ctx.beginPath();
-	setLineColor(ctx, player.color, alpha);
-	var tmp = ctx.lineCap;
-	ctx.lineCap = alpha == 1 ? lineCapStyle : 'butt';
-	ctx.moveTo(x1, y1);
-	ctx.lineTo(x2, y2);
-	ctx.stroke();
-	ctx.lineCap = tmp;
-}
-
-Pencil.prototype.handleMessage = function(msg, player) {
-	var lastTick = -1;
-	
-	while(msg.at < msg.data.length) {
-		var pos = msg.readPos();
-		var pen = msg.readPencil();
-		
-		if(!pen.down) {
-			var tick;
 			
-			if(lastTick == -1) {
-				msg.at--;
-				pen = msg.readPencilFull();
-				tick = pen.tick;
-			} else {
-				tick = lastTick + pen.tickDifference;
+			for(var i in this.game.players) {
+				var player = this.game.players[i];
+				
+				if(player.status == 'ready')
+					return;
+				
+				var buffer = player.inbuffer;
+				
+				for(var index = redraw ? 0 : player.inbufferIndex; index < buffer.length; index++) {
+					var seg = buffer[index];
+					var solid = seg.tickSolid <= this.game.tick;
+					if(!solid && !redraw)
+						break;
+
+					this.drawGlobal(seg.x1, seg.y1, seg.x2, seg.y2, player, solid ? 1 : pencilAlpha);
+				}
+				
+				if(!redraw)
+					player.inbufferIndex = index;
 			}
-			
-			var seg = new TimedSegment(player.pencilX, player.pencilY, pos.x, pos.y, tick);
-	
-			if(player != this.game.localPlayer)
-				this.drawGlobal(seg.x1, seg.y1, seg.x2, seg.y2, player, pencilAlpha);
-
-			player.inbuffer.push(seg);
-			lastTick = tick;
-		}
+		}, 
 		
-		player.pencilX = pos.x;
-		player.pencilY = pos.y;
-	}
-}
+		handleMessage: function(msg, player) {
+			return;
+			
+			var tickSolid = msg.readTick();
+			
+			while(msg.at < msg.data.length) {
+				var pos = msg.readPos();
+								
+				if(!pen.down) {
+					var tick;
+					
+					if(lastTick == -1) {
+						msg.at--;
+						pen = msg.readPencilFull();
+						tick = pen.tick;
+					} else {
+						tick = lastTick + pen.tickDifference;
+					}
+					
+					var seg = {x1: player.pencilX, y1: player.pencilY, x2: pos.x, y2: pos.y, tickSolid: tick};
+			
+					if(player != this.game.localPlayer)
+						this.drawGlobal(seg.x1, seg.y1, seg.x2, seg.y2, player, pencilAlpha);
+
+					player.inbuffer.push(seg);
+					lastTick = tick;
+				}
+				
+				player.pencilX = pos.x;
+				player.pencilY = pos.y;
+			}
+		}
+	};
+}());
