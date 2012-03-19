@@ -105,6 +105,13 @@ window.onload = function() {
 	if(maxPlayers != null)
 		document.getElementById('maxplayers').value = maxPlayers;
 	var playerName = getCookie('playerName');
+
+	/* for debug purposes */
+	if(window.location.href.indexOf('C:/Dropbox') != -1) {
+		playerName = 'piet';
+		document.getElementById('minplayers').value = '1';
+		enableSound = false;
+	}
 		
 	/* auto connect if name is known */
 	if(playerName != null && playerName != '') {
