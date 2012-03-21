@@ -40,16 +40,15 @@ Player = function(game, isLocal) {
 	this.isLocal = isLocal;
 	this.inputController = (isLocal) ? new InputController(this, keyCodeLeft, keyCodeRight) : null;
 	this.states = new Array(backupStates.length);
+	this.pen = new Pen(this);
 
 	/* inits */
 	this.status = this.holeColor = this.segColor = '#FFF';
 	this.status = 'ready'; // ready, host, alive, dead or left
-	this.inbuffer = new Array();
 	this.inputs = new Array();
 	this.color = new Array();
 	this.lastInputTick = this.lastInputTurn = this.finalTick = this.turnSpeed = 0;
 	this.points = this.holeStart = this.holeSize = this.holeFreq = 0;
-	this.pencilX = this.pencilY = 0;
 	this.isHost = false;
 
 	for(var i = 0; i < backupStates.length; i++)
@@ -190,6 +189,7 @@ Player.prototype.initialise = function(x, y, angle, holeStart) {
 	this.holeStart = holeStart;
 	this.holeSize = this.game.holeSize;
 	this.holeFreq = this.game.holeFreq;
+	this.pen.reset();
 	this.updateRow();
 
 	if(this.inputController != null)

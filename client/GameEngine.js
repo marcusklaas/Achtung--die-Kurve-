@@ -62,6 +62,7 @@ function GameEngine(audioController) {
 	this.host = this.gameloopTimeout = null;
 	this.ping = this.bestSyncPing = this.worstSyncPing = 0;		
 	this.serverTimeDifference = this.syncTry = -1;
+	this.scaleX = this.scaleY = 0;
 }
 
 /* this only resets things like canvas, but keeps the player info */
@@ -72,6 +73,7 @@ GameEngine.prototype.reset = function() {
 	this.redraws = 0;
 	this.adjustGameTimeMessagesReceived = 0;
 	this.modifiedInputs = 0;
+	this.debugSegments.length = 0;
 
 	/* these vars are for fps measuring purposes */
 	this.fpsMeasureTick = 0; // start of interval
@@ -82,7 +84,6 @@ GameEngine.prototype.reset = function() {
 	document.getElementById('winAnnouncer').style.display = 'none';
 	
 	pencil.reset();
-	pencilReceiver.reset();
 }
 
 GameEngine.prototype.resetPlayers = function() {
@@ -357,7 +358,7 @@ GameEngine.prototype.parseByteMsg = function(str) {
 		case modePencil:
 			var msg = new ByteMessage(str, 1);
 			var player = this.indexToPlayer[(a & (8 + 16 + 32)) >> 3];
-			pencilReceiver.handleMessage(msg, player);
+			receiver.handlePencilMessage(msg, player);
 			return true;
 	}
 }
@@ -968,7 +969,6 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 	var delay = this.gameStartTimestamp - Date.now();
 
 	this.reset();
-	this.debugSegments.length = 0;
 	
 	if(jsProfiling)
 		console.profile('canvas performance');
@@ -1121,8 +1121,15 @@ GameEngine.prototype.gameloop = function() {
 
 		this.updateContext(stateCount, false);
 
-		pencil.doTick();
-		pencilReceiver.doTick();
+		if(wholeTick) {
+			pencil.doTick();
+			
+			for(var i in this.players) {
+				var player = this.players[i];
+				
+				player.pen.doTick();
+			}
+		}
 
 		this.tick = Math.min(nextIntegerTick, endTick);
 		this.correctionTick = Math.ceil(this.tick);
@@ -1147,27 +1154,6 @@ GameEngine.prototype.realStart = function() {
 	this.tick = 0;
 
 	this.gameloop();
-}
-
-GameEngine.prototype.drawMapSegments = function(ctx) {
-	ctx.fillStyle = canvasColor;
- 	ctx.fillRect(0, 0, this.width, this.height);
-
-	if(this.mapSegments.length > 0) {
-		ctx.beginPath();
-		setLineColor(ctx, mapSegmentColor, 1);
-
-		for(var i = 0; i < this.mapSegments.length; i++) {
-			var seg = this.mapSegments[i];
-			ctx.moveTo(seg.x1, seg.y1);
-			ctx.lineTo(seg.x2, seg.y2);
-		}
-
-		ctx.stroke();
-	}
-	
-	for(var i in this.mapTeleports)
-		drawTeleport(ctx, this.mapTeleports[i]);
 }
 
 GameEngine.prototype.createRewardNode = function(player, reward) {
@@ -1247,7 +1233,8 @@ GameEngine.prototype.resize = function() {
 		this.initContext(this.contexts[i]);
 	}
 	
-	this.drawMapSegments(this.contexts[0]);
+	canvas.drawMapSegments(this.contexts[0]);
+	canvas.drawPencilSegments(this.contexts[0]);
 
 	this.correctionTick = -backupStates[1] - 1;
 	this.revertBackup();
@@ -1367,8 +1354,8 @@ GameEngine.prototype.copyGamePos = function(e, pos) {
 	pos.x = e.pageX;
 	pos.y = e.pageY;
 	pos.subtract(this.canvasPos);
-	pos.x = Math.round(Math.max(Math.min(this.width, pos.x), 0))
-	pos.y = Math.round(Math.max(Math.min(this.height, pos.y), 0));
+	pos.x = Math.round(Math.max(Math.min(this.width, pos.x / this.scaleX), 0))
+	pos.y = Math.round(Math.max(Math.min(this.height, pos.y / this.scaleY), 0));
 	
 	return pos;
 }

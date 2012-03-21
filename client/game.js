@@ -114,6 +114,7 @@ window.onload = function() {
 		document.getElementById('minplayers').value = '1';
 		enableSound = false;
 	}
+	echo = function(msg) {game.gameMessage(msg);}
 		
 	/* auto connect if name is known */
 	if(playerName != null && playerName != '') {

@@ -17,6 +17,30 @@ AudioController.prototype.playSound = function(name) {
 	this.sounds[name][Math.floor(Math.random() * this.sounds[name].length)].play();
 }
 
+/* Receiver */
+var receiver = (function() {
+	return {
+	
+		handlePencilMessage: function(msg, player) {
+			var tickSolid = msg.readTick();
+			var reset = msg.readBool();
+			var pen = player.pen;
+			
+			if(reset)
+				pen.pos = msg.readPos();
+			
+			while(msg.at < msg.data.length) {
+				var pos = msg.readPos();
+				var seg = new TimedSegment(pen.pos.x, pen.pos.y, pos.x, pos.y, tickSolid);
+				
+				pen.seg.push(seg);
+				tickSolid++;
+				pen.pos = pos;
+			}
+		}
+	};
+}());
+
 /* Byte Message */
 ByteMessage = function(data, at) {
 	this.data = data;
@@ -33,6 +57,18 @@ ByteMessage.prototype.readPos = function() {
 	y = b >> 4 | c << 3;
 	
 	return new Vector(x, y);
+}
+
+ByteMessage.prototype.readTick = function() {
+	var a = this.data.charCodeAt(this.at++);
+	var b = this.data.charCodeAt(this.at++);
+	var c = this.data.charCodeAt(this.at++);
+	
+	return a | b << 7 | c << 14;
+}
+
+ByteMessage.prototype.readBool = function() {
+	return this.data.charCodeAt(this.at++);
 }
 
 /* Segments */
@@ -55,12 +91,26 @@ Segment.prototype.setEnd = function(pos) {
 	return this;
 }
 
+Segment.prototype.draw = function(ctx) {
+	ctx.moveTo(this.x1, this.y1);
+	ctx.lineTo(this.x2, this.y2);
+}
+
+Segment.prototype.stroke = function(ctx, color, alpha) {
+	ctx.beginPath();
+	setLineColor(ctx, color, alpha);
+	ctx.lineCap = alpha == 1 ? lineCapStyle : 'butt';
+	this.draw();
+	ctx.stroke();
+	ctx.lineCap = lineCapStyle;
+}
+
 TimedSegment = function(x1, y1, x2, y2, tick) {
 	this.x1 = x1;
 	this.y1 = y1;
 	this.x2 = x2;
 	this.y2 = y2;
-	this.tickSolid = tick;
+	this.tick = tick;
 }
 
 /* Vector */
@@ -106,8 +156,8 @@ Vector.prototype.clone = function() {
 }
 
 Vector.prototype.copyTo = function(v) {
-	v.x = x;
-	v.y = y;
+	v.x = this.x;
+	v.y = this.y;
 }
 
 Vector.prototype.link = function(pos) {
@@ -190,27 +240,62 @@ function segmentCollision(a, b) {
 }
 
 /* Canvas functions */
-var canvas = {
 
-	drawSegment: function(seg, color, alpha) {
-		for(var i = 0; i < backupStates.length; i++)
-			canvas.drawSegmentContext(game.contexts[i], seg, color, alpha);
-	}, 
+/* object that handles all drawing (deel van gameengine kan hier dan in) */
+var canvas = (function() {
 	
-	drawSegmentContext: function(ctx, seg, color, alpha) {
-		if(seg.getLength() == 0)
-			return;
+	return {
+		drawSegment: function(seg, color, alpha) {
+			for(var i = 0; i < backupStates.length; i++)
+				seg.stroke(game.contexts[i], color, alpha);
+		}, 
 		
-		ctx.beginPath();
-		setLineColor(ctx, color, alpha);
-		var tmp = ctx.lineCap;
-		ctx.lineCap = alpha == 1 ? lineCapStyle : 'butt';
-		ctx.moveTo(x1, y1);
-		ctx.lineTo(x2, y2);
-		ctx.stroke();
-		ctx.lineCap = tmp;
-	}
-};
+		drawMapSegments: function(ctx) {
+			ctx.fillStyle = canvasColor;
+			ctx.fillRect(0, 0, game.width, game.height);
+
+			if(game.mapSegments.length > 0) {
+				ctx.beginPath();
+				setLineColor(ctx, mapSegmentColor, 1);
+
+				for(var i = 0; i < game.mapSegments.length; i++) {
+					var seg = game.mapSegments[i];
+					ctx.moveTo(seg.x1, seg.y1);
+					ctx.lineTo(seg.x2, seg.y2);
+				}
+
+				ctx.stroke();
+			}
+			
+			for(var i in game.mapTeleports)
+				drawTeleport(ctx, game.mapTeleports[i]);
+		}, 
+		
+		drawPencilSegments: function(ctx) {
+			for(var i in game.players) {
+				var player = game.players[i];
+				var pen = player.pen;
+				var switched = false;
+				
+				setLineColor(ctx, player.color, 1);
+				ctx.beginPath();
+				for(var j = 0; j < pen.seg.length; j++) {
+					var seg = pen.seg[j];
+					
+					if(seg.tick > game.tick && !switched) {
+						ctx.stroke();
+						setLineColor(ctx, player.color, pencilAlpha);
+						ctx.beginPath();
+						switched = true;
+					}
+					
+					seg.draw(ctx);
+				}
+				ctx.stroke();
+			}
+		}
+	};
+}());
 
 function setLineColor(ctx, color, alpha) {
 	ctx.strokeStyle = 'rgba(' + color[0] + ', ' + color[1] + ', '

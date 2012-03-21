@@ -1,3 +1,4 @@
+/* pencil of local player */
 var pencil = (function() {
 	var inkDiv, indicator;
 	var pos = new Vector(0, 0);
@@ -32,6 +33,10 @@ var pencil = (function() {
 		outbuffer.push(game.tick);
 	}
 	
+	function updateDiv() {
+		inkDiv.style.height = ( 100 * Math.max(0, ink) / maxInk ) + '%';
+	}
+	
 	return {
 		isLowerable: function() {
 			return enabled && !down && ink > mouseDownInk + epsilon;
@@ -61,6 +66,7 @@ var pencil = (function() {
 			indicator.style.display = 'block';
 			enabled = true;
 			ink = startInk + inkRegen * (game.tick - tick);
+			updateDiv();
 		}, 
 		
 		reset: function() {
@@ -79,6 +85,7 @@ var pencil = (function() {
 			}
 			
 			ink = Math.min(maxInk, ink + inkRegen);
+			updateDiv();
 
 			if(outbuffer.length > 0 && Math.floor(game.tick) % inkBufferTicks == 0) {
 				sendBuffer();
@@ -107,73 +114,27 @@ var pencil = (function() {
 	};
 }());
 
+/* pencil that is controlled by server */
+var Pen = function(player) {
+	this.seg = [];
+	this.pos = new Vector(0, 0);
+	this.solidIndex = 0;
+	this.visibleIndex = 0;
+	this.player = player;
+};
 
-var pencilReceiver = (function() {
-	return {
-		reset: function() {
-			for(var i in game.players) {
-				var player = game.players[i];
-				player.inbuffer = [];
-				player.inbufferIndex = 0;
-			}
-		}, 
-		
-		doTick: function() {
-			return;
-			
-			for(var i in this.game.players) {
-				var player = this.game.players[i];
-				
-				if(player.status == 'ready')
-					return;
-				
-				var buffer = player.inbuffer;
-				
-				for(var index = redraw ? 0 : player.inbufferIndex; index < buffer.length; index++) {
-					var seg = buffer[index];
-					var solid = seg.tickSolid <= this.game.tick;
-					if(!solid && !redraw)
-						break;
+Pen.prototype.reset = function() {
+	this.seg = [];
+	this.pos = new Vector(0, 0);
+	this.solidIndex = 0;
+	this.visibleIndex = 0;
+}
 
-					this.drawGlobal(seg.x1, seg.y1, seg.x2, seg.y2, player, solid ? 1 : pencilAlpha);
-				}
-				
-				if(!redraw)
-					player.inbufferIndex = index;
-			}
-		}, 
-		
-		handleMessage: function(msg, player) {
-			return;
-			
-			var tickSolid = msg.readTick();
-			
-			while(msg.at < msg.data.length) {
-				var pos = msg.readPos();
-								
-				if(!pen.down) {
-					var tick;
-					
-					if(lastTick == -1) {
-						msg.at--;
-						pen = msg.readPencilFull();
-						tick = pen.tick;
-					} else {
-						tick = lastTick + pen.tickDifference;
-					}
-					
-					var seg = {x1: player.pencilX, y1: player.pencilY, x2: pos.x, y2: pos.y, tickSolid: tick};
-			
-					if(player != this.game.localPlayer)
-						this.drawGlobal(seg.x1, seg.y1, seg.x2, seg.y2, player, pencilAlpha);
-
-					player.inbuffer.push(seg);
-					lastTick = tick;
-				}
-				
-				player.pencilX = pos.x;
-				player.pencilY = pos.y;
-			}
-		}
-	};
-}());
+Pen.prototype.doTick = function() {
+	if(!this.player.isLocal)
+		while(this.visibleIndex < this.seg.length)
+			canvas.drawSegment(this.seg[this.visibleIndex++], this.player.color, pencilAlpha);
+	
+	while(this.solidIndex < this.seg.length && this.seg[this.solidIndex].tick <= game.tick)
+		canvas.drawSegment(this.seg[this.solidIndex++], this.player.color, 1);
+}
