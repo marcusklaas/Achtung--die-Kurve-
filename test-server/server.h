@@ -126,6 +126,7 @@ struct dodge AI_DODGE[] = {
 #define MOUSEDOWN_INK 20
 #define INK_MIN_DISTANCE 5
 #define INK_SOLID 5000
+#define MAX_LAG_SPIKE 5000
 
 #define PENCIL_MSG_DOWN 1
 #define PENCIL_MSG_DRAG 0

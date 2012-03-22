@@ -511,7 +511,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			if(player == this.localPlayer) {
 				if(this.pencilMode == 'ondeath') 
 					pencil.enable(obj.tick);
-				else
+				else if(this.pencilMode == 'off')
 					this.setGameState('watching');
 				this.audioController.playSound('localDeath');
 			}

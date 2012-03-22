@@ -58,7 +58,7 @@ var pencil = (function() {
 				
 			mouse.copyTo(pos);
 			if(outbuffer.length > 0)
-				send();
+				sendBuffer();
 			outbuffer.push(-1);
 			appendpos();
 			down = true;

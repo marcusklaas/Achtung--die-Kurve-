@@ -1388,6 +1388,8 @@ void queuepencilseg(struct pencil *p, int x, int y) {
 		checkaimapcollision(p->usr, seg, p->ticksolid, 1, 1);
 		addsegmentfull(p->usr->gm, seg, 1, p->usr, p->ticksolid, 0);
 	}
+	
+	p->ticksolid++;
 }
 
 void handlepencilmsg(cJSON *json, struct user *usr) {
@@ -1395,7 +1397,6 @@ void handlepencilmsg(cJSON *json, struct user *usr) {
 	struct buffer buf;
 	char buffer_empty = 1;
 	char mousedown;
-	int ticksolid;
 	
 	json = jsongetjson(json, "data");
 	if(!json)
@@ -1422,12 +1423,17 @@ void handlepencilmsg(cJSON *json, struct user *usr) {
 		
 		if(tick < p->tick || x < 0 || y < 0 || x > usr->gm->w || y > usr->gm->h)
 			break;
+			
+		if(abs(usr->gm->tick + SERVER_DELAY / TICK_LENGTH - tick) > MAX_LAG_SPIKE / TICK_LENGTH) {
+			warningplayer(usr, "error: tick of pencil msg not valid\n");
+			break;
+		}
 
 		regenink(p, tick);
 
 		if(mousedown) {
 			if(p->ink < MOUSEDOWN_INK) {
-				warning("error: not enough ink for pencil down. %d required, %f left\n", MOUSEDOWN_INK, p->ink);
+				warningplayer(usr, "error: not enough ink for pencil down. %d required, %f left\n", MOUSEDOWN_INK, p->ink);
 				break;
 			}
 
@@ -1468,9 +1474,9 @@ void handlepencilmsg(cJSON *json, struct user *usr) {
 }
 
 void simpencil(struct pencil *p) {
-	struct pencilseg *tail;
+	struct pencilseg *tail = p->psegtail;
 	
-	while((tail = p->psegtail) && tail->tick <= p->usr->gm->tick) { // <= should not be necessary
+	if(tail && tail->tick == p->usr->gm->tick) {
 		addsegment(p->usr->gm, &tail->seg);
 		if(SEND_SEGMENTS)
 			queueseg(p->usr->gm, &tail->seg);

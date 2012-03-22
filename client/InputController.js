@@ -168,7 +168,7 @@ function InputController(player, left, right) {
 
 			else if(self.pencilTouch != null &&
 			 touch.identifier == self.pencilTouch.identifier) {
-				stopDraw(touch);
+				pencil.raise();
 				self.pencilTouch = null;
 			}
 		}

@@ -1,26 +1,13 @@
 = messages sent by client =
 
-mode: pencil
-data: [array with every four consecutive elements corresponding to a pencil action]
-every action is encoded by four elements: int type, int x, int y, int tick. a type of 1 corresponds to pencilDown, type = 0 is pencilMove and type = -1 is pencilUp.
-all actions cost ink. the cost of pencilMove or pencilUp is the length over which the pencil is moved, the cost of pencilDown is pencilDownInk.
-things to note:
-- always send actions in chronological order. however, strictly increasing ticks are not necessary.
-- a pencilMove message should always move the pencil at least inkMinDistance
-- never move the pencil outside the map
-- it is not specified what happens when you send actions which can not be executed (e.g. there is not enough ink, the message has not the right format, ...).
-
 mode: input
 steer: -1 for right steer key down, 0 for current steer key up, 1 for left steer key down
 tick: tick in which this input will be simulated
 - inputs should be sent with strictly increasing tick value.
 - server will modify tick value when simulation is ahead of tick
 
-= messages sent by server =
-
 mode: pencil
-data: [array of objects]
-every object has members x1, x2, y1, y2, tickSolid, playerId. this corresponds to a segment of player playerId which is going to spawn at tick tickSolid.
+data: array of which every three consecutive elements correspond to a pencil position: int x, int y, int tick. one exception: the first element of the array can be -1, which denotes that the first position is a pencil down position
 
 = server byte messages =
 to save on bandwidth, the server sends some common messages in binary instead of in JSON. the data is encoded in characters. these so-called byte messages are in bigEndian format (but platform independant, both server as client!).
@@ -43,19 +30,5 @@ layout: xjjjjmmm xjjjjjjj xdddjjjj xddddddd
 tick update message
 layout: xdiiimmm xddddddd xddddddd
 
-pencil message
-variable length message. consists of header and one or more pencil actions. header contains message type and player index. every pencil action starts with 3 bytes for pencil position. then one byte with information about the pencil action. this byte contains the tick difference and action type (pencil down or pencil move). for a pencil down action the tick difference is not used. moreover, the first pencil move action in a message is 6 bytes long, where the two extra bytes are used for an absolute tick instead of a tick difference. the first tick difference is then with respect to this absolute tick.
-header: x.iiimmm
-pencil action information byte: xddddddp (p for pencil action type: 1 = pencil down, 0 = pencil move)
-extra 2 bytes: xddddddd xddddddd
-
 position on the map is encoded in 3 bytes
 layout: xxxxxxx yyyxxxx yyyyyyy (x for x position, y for y position, and only first 7 bits of each byte are shown)
- 
-
-= more info =
-
-- pencil -
-you start with startInk ink
-every tick you get inkPerSec * tickLength ink, taking maxInk into account.
-you have three actions: pencilDown, pencilMove and pencilUp. all are sent through the pencil message. you will receive drawings from other players also through a pencil message.
