@@ -97,6 +97,8 @@ function InputController(player, left, right) {
 	function mouseDown(e) {
 		game.copyGamePos(e, mouse);
 		pencil.lower();
+		if(e.cancelable)
+			e.preventDefault();
 	}
 
 	function mouseEnd(e) {

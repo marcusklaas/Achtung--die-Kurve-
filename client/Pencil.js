@@ -15,12 +15,22 @@ var pencil = (function() {
 		var d = seg.getLength();
 		
 		if(ink < d + epsilon) {
-			var v = mouse.clone().subtract(pos);
+			down = false;
 			
-			pos.add(v.scale((ink - epsilon) / d).floor());
+			if(ink < epsilon)
+				return;
+			
+			var v = mouse.clone().subtract(pos);
+			v.scale((ink - epsilon) / d);
+			v.x = v.x < 0 ? Math.ceil(v.x) : Math.floor(v.x);
+			v.y = v.y < 0 ? Math.ceil(v.y) : Math.floor(v.y);
+			pos.add(v);
+			ink -= v.getLength();
 		}
-		else
+		else {
 			mouse.copyTo(pos);
+			ink -= d;
+		}
 		
 		appendpos();
 		seg.setEnd(pos);
@@ -30,7 +40,7 @@ var pencil = (function() {
 	function appendpos() {
 		outbuffer.push(pos.x);
 		outbuffer.push(pos.y);
-		outbuffer.push(game.tick);
+		outbuffer.push(Math.floor(game.tick));
 	}
 	
 	function updateDiv() {
@@ -39,7 +49,7 @@ var pencil = (function() {
 	
 	return {
 		isLowerable: function() {
-			return enabled && !down && ink > mouseDownInk + epsilon;
+			return enabled && !down && ink > mouseDownInk + epsilon + inkMinDistance;
 		}, 
 		
 		lower: function() {
@@ -52,6 +62,7 @@ var pencil = (function() {
 			outbuffer.push(-1);
 			appendpos();
 			down = true;
+			ink -= mouseDownInk;
 		}, 
 		
 		raise: function() {
@@ -65,7 +76,7 @@ var pencil = (function() {
 		enable: function(tick) {
 			indicator.style.display = 'block';
 			enabled = true;
-			ink = startInk + inkRegen * (game.tick - tick);
+			ink = startInk + inkRegen * (Math.floor(game.tick) - tick);
 			updateDiv();
 		}, 
 		
@@ -80,7 +91,7 @@ var pencil = (function() {
 			if(!enabled)
 				return;
 			
-			if(down && pos.getDistanceTo(mouse) > inkMinimumDistance + epsilon) {
+			if(down && pos.getDistanceTo(mouse) > inkMinDistance + epsilon) {
 				move();
 			}
 			
@@ -97,7 +108,7 @@ var pencil = (function() {
 				inkMinDistance = obj.inkMinimumDistance;
 			else {
 				mouseDownInk = obj.inkmousedown;
-				inkRegen = obj.inkregen * 1000 / game.tickLength;
+				inkRegen = obj.inkregen / 1000 * game.tickLength;
 				startInk = obj.inkstart;
 				maxInk = obj.inkcap;
 			}

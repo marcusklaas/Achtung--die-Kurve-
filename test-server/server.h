@@ -224,7 +224,7 @@ struct pencilseg {
 
 struct pencil {
 	double ink;
-	int x, y, tick;
+	int x, y, tick, ticksolid;
 	char down;
 	struct pencilseg *pseghead, *psegtail;
 	struct user *usr;
@@ -348,7 +348,7 @@ cJSON *encodegamepars(struct game *gm);
 void resetpencil(struct pencil *p, struct user *u);
 void cleanpencil(struct pencil *p);
 void simpencil(struct pencil *p);
-void gototick(struct pencil *p, int tick);
+void regenink(struct pencil *p, int tick);
 struct game *creategame(int gametype, int nmin, int nmax);
 void endgame(struct game *gm, struct user *winner);
 void joingame(struct game *gm, struct user *newusr);
@@ -387,3 +387,4 @@ int getnewbranch(struct game *gm);
 void simuserfull(struct userpos *state, struct user *usr, char addsegments, char aimap, char solid, int branch);
 void addsegmentfull(struct game *gm, struct seg *seg, char aimap, struct user *usr, int tick, int branch);
 void extendpath(struct user *usr, struct mapaidata *data, struct game *gm);
+void appendchar(struct buffer *buf, char c);

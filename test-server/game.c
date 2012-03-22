@@ -1348,134 +1348,117 @@ void addcomputer(struct game *gm) {
 	joingame(gm, comp);
 }
 
-/* pencil game. FIXME: deze functie is echt terror! nog steeds!!! */
+int readpencilmsg(struct cJSON **j, int *x, int *y, int *tick) {
+	struct cJSON *json = *j;
+	
+	*x = json->valueint;
+	if(!(json = json->next))
+		return 0;
+	*y = json->valueint;
+	if(!(json = json->next))
+		return 0;
+	*tick = json->valueint;
+	*j = json->next;
+	return 1;
+}
+
+void queuepencilseg(struct pencil *p, int x, int y) {
+	struct pencilseg *pseg;
+	struct seg *seg;
+	
+	pseg = smalloc(sizeof(struct pencilseg));
+	seg = &pseg->seg;
+	seg->x1 = p->x;
+	seg->y1 = p->y;
+	seg->x2 = x;
+	seg->y2 = y;
+	seg->t = 0;
+	
+	pseg->tick = p->ticksolid;
+	pseg->nxt = p->pseghead;
+	
+	if(p->pseghead)
+		p->pseghead->prev = pseg;
+	pseg->prev = 0;
+	p->pseghead = pseg;
+	if(!p->psegtail)
+		p->psegtail = pseg;
+		
+	if(p->usr->gm->aigame) {
+		checkaimapcollision(p->usr, seg, p->ticksolid, 1, 1);
+		addsegmentfull(p->usr->gm, seg, 1, p->usr, p->ticksolid, 0);
+	}
+}
+
 void handlepencilmsg(cJSON *json, struct user *usr) {
 	struct pencil *p = &usr->pencil;
 	struct buffer buf;
-	int lasttick = -1;
 	char buffer_empty = 1;
+	char mousedown;
+	int ticksolid;
 	
 	json = jsongetjson(json, "data");
 	if(!json)
 		return;
 	json = json->child;
 	
+	p->ticksolid = max(p->ticksolid + 1, usr->gm->tick + SERVER_DELAY / TICK_LENGTH + usr->gm->inkdelay / TICK_LENGTH);
+	
+	/* this will be sent to other players */
 	buf.start = 0;
-	allocroom(&buf, 200);
 	appendheader(&buf, MODE_PENCIL, usr->index);
+	appendtick(&buf, p->ticksolid);
+	
+	if(mousedown = json->valueint == -1) {
+		json = json->next;
+	}
+	appendchar(&buf, mousedown);
 	
 	while(json) {
-		int x, y;
-		int tick;
-		char type;
+		int x, y, tick;
 		
-		/* read next block */
-		type = json->valueint;
-		if(!(json = json->next)) break;
-		x = json->valueint;
-		if(!(json = json->next)) break;
-		y = json->valueint;
-		if(!(json = json->next)) break;
-		tick = json->valueint;
-		json = json->next;
-
-		if(PENCIL_DEBUG)
-			printf("pencilmsg type = %d, tick = %d, x = %d, y = %d\n", type, tick, x, y);
-		
-		if(tick < p->tick || x < 0 || y < 0 || x > usr->gm->w || y > usr->gm->h) {
-			warningplayer(usr, "error: wrong pencil location or tick\n");
+		if(!readpencilmsg(&json, &x, &y, &tick))
 			break;
-		}
+		
+		if(tick < p->tick || x < 0 || y < 0 || x > usr->gm->w || y > usr->gm->h)
+			break;
 
-		gototick(p, tick);
+		regenink(p, tick);
 
-		if(type == PENCIL_MSG_DOWN) {
-			if(p->ink <= MOUSEDOWN_INK - EPS) {
-				warning("error: not enough ink for pencil down\n");
+		if(mousedown) {
+			if(p->ink < MOUSEDOWN_INK) {
+				warning("error: not enough ink for pencil down. %d required, %f left\n", MOUSEDOWN_INK, p->ink);
 				break;
 			}
 
-			p->x = x;
-			p->y = y;
 			p->ink -= MOUSEDOWN_INK;
 			p->down = 1;
-			
-			allocroom(&buf, 4);
-			appendpos(&buf, x, y);
-			appendpencil(&buf, 1, 0);
-			
-			buffer_empty = 0;
+			mousedown = 0;
 		}
 		else {
-			double d = getlength(p->x - x, p->y - y); // dubbel-D ? ;-)
-			int tickSolid;
-			struct pencilseg *pseg;
-			struct seg *seg;
-
-			if(PENCIL_DEBUG)
-				printf("distance = %f, ink left = %f\n", d, p->ink);
+			double d = getlength(p->x - x, p->y - y); // dubbel-D ? ;-) => whaha
 
 			if(!p->down) {
 				warningplayer(usr, "error: pencil move: pencil not down\n");
 				break;
 			}
 
-			if(p->ink < d - EPS) {
+			if(p->ink < d) {
 				warningplayer(usr, "error: pencil move: not enough ink. %f required, %f left\n", d, p->ink);
 				break;
 			}
-
-			if(d < INK_MIN_DISTANCE && type != -1) {
-				warningplayer(usr, "error: too short distance for pencil move: %f\n", d);
-				break;
-			}
-
-			p->ink -= d;
-			tickSolid = max(tick, usr->gm->tick) + usr->gm->inkdelay / TICK_LENGTH; // FIXME: should be non-decreasing
-			pseg = smalloc(sizeof(struct pencilseg));
-			seg = &pseg->seg;
-
-			allocroom(&buf, 6);
-			appendpos(&buf, x, y);
-			if(lasttick == -1) {
-				appendpencil_full(&buf, 0, tickSolid);
-			} else {
-				if(tickSolid - lasttick > 63) {
-					warningplayer(usr, "error: pencil move: too large tick gap of %d\n", tickSolid - lasttick);
-					buf.at -= 3;
-					break;
-				}
-				appendpencil(&buf, 0, tickSolid - lasttick);
-			}
-			lasttick = tickSolid;
-			buffer_empty = 0;
 			
-			/* queue pencil segment for simulation */
-			seg->x1 = p->x;
-			seg->y1 = p->y;
-			seg->x2 = x;
-			seg->y2 = y;
-			seg->t = 0;
-
-			pseg->tick = tickSolid;
-			pseg->nxt = p->pseghead;
-			if(p->pseghead)
-				p->pseghead->prev = pseg;
-			pseg->prev = 0;
-			p->pseghead = pseg;
-			if(!p->psegtail)
-				p->psegtail = pseg;
-				
-			if(usr->gm->aigame) {
-				checkaimapcollision(usr, seg, tickSolid, 1, 1);
-				addsegmentfull(usr->gm, seg, 1, usr, tickSolid, 0);
-			}
-			
-			p->x = x;
-			p->y = y;
-			if(type == PENCIL_MSG_UP)
+			if(d < INK_MIN_DISTANCE)
 				p->down = 0;
+			
+			p->ink -= d;
+			queuepencilseg(p, x, y);
 		}
+		
+		appendpos(&buf, x, y);
+		p->x = x;
+		p->y = y;
+		buffer_empty = 0;
 	}
 	
 	if(!buffer_empty)
@@ -1506,6 +1489,7 @@ void simpencil(struct pencil *p) {
 /* to be called at startround */
 void resetpencil(struct pencil *p, struct user *usr) {
 	p->ink = START_INK;
+	p->ticksolid = 0;
 	cleanpencil(p);
 	p->usr = usr;
 	p->tick = 0;
@@ -1523,12 +1507,9 @@ void cleanpencil(struct pencil *pen) {
 	pen->pseghead = pen->psegtail = 0;
 }
 
-void gototick(struct pencil *p, int tick) {
+void regenink(struct pencil *p, int tick) {
 	int ticks = tick - p->tick;
 	double inc = ticks * TICK_LENGTH / 1000.0 * p->usr->gm->inkregen;
-
-	if(PENCIL_DEBUG)
-		printf("ticks = %d, oldink = %f, inc = %f, newink = %f\n", ticks, p->ink, inc, min(p->ink + inc, p->usr->gm->inkcap));
 
 	p->tick = tick;
 	p->ink = min(p->ink + inc, p->usr->gm->inkcap);

@@ -72,7 +72,7 @@ ByteMessage.prototype.readBool = function() {
 }
 
 /* Segments */
-Segment = function(x1, y1, x2, y2) {
+function Segment(x1, y1, x2, y2) {
 	this.x1 = x1;
 	this.y1 = y1;
 	this.x2 = x2;
@@ -80,8 +80,8 @@ Segment = function(x1, y1, x2, y2) {
 }
 
 Segment.prototype.getLength = function() {
-	return Math.sqrt(Math.pow(x2 - x1, 2) +
-		Math.pow(y2 - y1, 2));
+	return Math.sqrt(Math.pow(this.x2 - this.x1, 2) +
+		Math.pow(this.y2 - this.y1, 2));
 }
 
 Segment.prototype.setEnd = function(pos) {
@@ -100,17 +100,21 @@ Segment.prototype.stroke = function(ctx, color, alpha) {
 	ctx.beginPath();
 	setLineColor(ctx, color, alpha);
 	ctx.lineCap = alpha == 1 ? lineCapStyle : 'butt';
-	this.draw();
+	this.draw(ctx);
 	ctx.stroke();
 	ctx.lineCap = lineCapStyle;
 }
 
-TimedSegment = function(x1, y1, x2, y2, tick) {
-	this.x1 = x1;
-	this.y1 = y1;
-	this.x2 = x2;
-	this.y2 = y2;
+function TimedSegment(x1, y1, x2, y2, tick) {
+	Segment.call(this, x1, y1, x2, y2);
 	this.tick = tick;
+}
+
+TimedSegment.prototype = new Segment();
+TimedSegment.prototype.constructor = TimedSegment;
+
+TimedSegment.prototype.print = function() {
+	game.gameMessage('seg: ' + [this.x1, this.y1, this.x2, this.y2, this.tick].join(', '));
 }
 
 /* Vector */
@@ -151,6 +155,11 @@ Vector.prototype.getLength = function() {
 	return Math.sqrt(this.x * this.x + this.y * this.y);
 }
 
+Vector.prototype.getDistanceTo = function(pos) {
+	return Math.sqrt(Math.pow(pos.x - this.x, 2) +
+		Math.pow(pos.y - this.y, 2));
+}
+
 Vector.prototype.clone = function() {
 	return new Vector(this.x, this.y);
 }
@@ -161,7 +170,7 @@ Vector.prototype.copyTo = function(v) {
 }
 
 Vector.prototype.link = function(pos) {
-	return new Segment(x, y, pos.x, pos.y);
+	return new Segment(this.x, this.y, pos.x, pos.y);
 }
 
 /* Teleporter */

@@ -109,14 +109,12 @@ struct buffer encodemap(struct map *map) {
 	struct teleport *tel;
 	
 	buf.start = 0;
-	allocroom(&buf, 200);
 	appendheader(&buf, MODE_SETMAP, 0);
 	*buf.at++ = 0; // to make sure msg length at least 3
 	*buf.at++ = 0;
 
 	for(tel = map->teleports; tel; tel = tel->nxt) {
-		allocroom(&buf, 13);
-		*buf.at++ = tel->colorid | 32;
+		appendchar(&buf, tel->colorid | 32);
 		seg = &tel->seg;
 		appendpos(&buf, seg->x1, seg->y1);
 		appendpos(&buf, seg->x2, seg->y2);
@@ -126,11 +124,9 @@ struct buffer encodemap(struct map *map) {
 	}
 
 	// this marks start of segments
-	allocroom(&buf, 1);
-	*buf.at++ = 0;
+	appendchar(&buf, 0);
 
 	for(seg = map->seg; seg; seg = seg->nxt) {
-		allocroom(&buf, 6);
 		appendpos(&buf, seg->x1, seg->y1);
 		appendpos(&buf, seg->x2, seg->y2);
 	}
@@ -495,23 +491,27 @@ void allocroom(struct buffer *buf, int size) {
 }
 
 void appendheader(struct buffer *buf, char type, char player) {
+	allocroom(buf, 20);
 	*buf->at++ = type | player << 3;
 }
 
 void appendpos(struct buffer *buf, int x, int y) {
+	allocroom(buf, 3);
 	*buf->at++ = x & 127;
 	*buf->at++ = (x >> 7 & 15) | (y << 4 & (16 + 32 + 64));
 	*buf->at++ = y >> 3 & 127;
 }
 
-void appendpencil(struct buffer *buf, char down, int tick) {
-	*buf->at++ = down | (tick << 1 & 127);
+void appendchar(struct buffer *buf, char c) {
+	allocroom(buf, 1);
+	*buf->at++ = c & 127;
 }
 
-void appendpencil_full(struct buffer *buf, char down, int tick) {
-	appendpencil(buf, down, tick);
-	*buf->at++ = tick >> 6 & 127;
-	*buf->at++ = tick >> 13 & 127;
+void appendtick(struct buffer *buf, int tick) {
+	allocroom(buf, 3);
+	*buf->at++ = tick & 127;
+	*buf->at++ = (tick >> 7) & 127;
+	*buf->at++ = (tick >> 14) & 127;
 }
 
 /******************************************************************
