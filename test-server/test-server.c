@@ -27,7 +27,11 @@ static int spam_intervals[SPAM_CAT_COUNT] = {SPAM_JOINLEAVE_INTERVAL, SPAM_CHAT_
  SPAM_SETTINGS_INTERVAL, SPAM_STEERING_INTERVAL};
 
 #include "helper.c"
+#include "collision-detection.c"
 #include "game.c"
+#include "ai.c"
+#include "game-system.c"
+#include "pencil.c"
 
 /* this protocol server (always the first one) just knows how to do HTTP */
 static int callback_http(struct libwebsocket_context * context,

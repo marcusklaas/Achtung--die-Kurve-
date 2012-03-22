@@ -99,6 +99,13 @@ void freemapaidata(struct mapaidata *data) {
 	}
 }
 
+void freemap(struct map *map) {
+	freesegments(map->seg);
+	freesegments(map->playerstarts);
+	freeteleports(map->teleports);
+	free(map);
+}
+
 char *duplicatestring(char *orig) {
 	return strcpy(smalloc(strlen(orig) + 1), orig);
 }
@@ -622,6 +629,28 @@ double getsegangle(struct seg *seg) {
 char seginside(struct seg *seg, int w, int h) {
 	return min(seg->x1, seg->x2) >= 0 && min(seg->y1, seg->y2) >= 0 &&
 	 max(seg->x1, seg->x2) <= w && max(seg->y1, seg->y2) <= h;
+}
+
+/* point systems specify how many points the remaining players get when
+ * someone dies */
+int pointsystem_trivial(int players, int alive) {
+	return 1;
+}
+
+int pointsystem_wta(int players, int alive) {
+	return alive == 1;
+}
+
+int pointsystem_rik(int players, int alive) {
+	int points[] = {
+		6,0,0,0,0,0,0,0,
+		6,2,0,0,0,0,0,0,
+		6,3,1,0,0,0,0,0,
+		6,4,2,1,0,0,0,0
+	};
+	int map[] = {-1, 0,0, 1, 2,2,2, 3,3};
+	
+	return points[map[players] * 8 + alive - 1] - points[map[players] * 8 + alive];
 }
 
 /******************************************************************
