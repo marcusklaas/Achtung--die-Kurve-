@@ -1,4 +1,4 @@
-function GameEngine(audioController) {
+function GameEngine() {
 	/* game variables */
 	this.state = 'new'; // new, lobby, editing, waiting, countdown, playing, watching, ended
 	this.rewardNodes = new Array();

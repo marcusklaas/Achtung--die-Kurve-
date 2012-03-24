@@ -20,7 +20,6 @@ AudioController.prototype.playSound = function(name) {
 /* Receiver */
 var receiver = (function() {
 	return {
-	
 		handlePencilMessage: function(msg, player) {
 			var tickSolid = msg.readTick();
 			var reset = msg.readBool();

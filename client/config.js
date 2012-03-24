@@ -44,7 +44,7 @@ var syncDelays = 50;
 var tickTockDifference = 2; // desired difference between tock and tick
 var backupStates = [Infinity, 40, 10, 0]; // how many ticks the different backup states should trail
 var resizeDelay = 200; // the duration the window should have a constant size before calling resize
-var paramUpdateInterval = 500; // don't send game intervals more often that one per this many msecs
+var paramUpdateInterval = 500; // don't send game intervals more often than one per this many msecs
 var paramInputInterval = 2000; // wait for this duration before sending params to server after text edit
 
 var customGameWaitMessage = 'Waiting for host to start the game..';

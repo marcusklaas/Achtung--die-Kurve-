@@ -2,6 +2,7 @@ window.onload = function() {
 	game = new GameEngine();
 	mouse = new Vector(0, 0);
 	pencil.onload();
+	editor.onload(); 	
 	var localPlayer = game.localPlayer;
 	var audioController = game.audioController;
 

@@ -1,335 +1,340 @@
-MouseState = function() {
+function MouseState() {
 	this.down = false;
 	this.out = true;
 }
 
-Editor = function(game) {
-	this.game = game;
-	this.mouse = new MouseState();
-	this.canvas = document.getElementById('editorCanvas');
-	this.context = this.canvas.getContext('2d');
-	this.container = document.getElementById('editor');
-	this.pos = [0, 0];
-	this.segments = new Array();
-	this.canvas.width = this.canvas.height = 0;
-	this.mode = 'pencil';
-	var self = this;
-
-	/* extra inits */
+function Editor(game) {
 	this.mapChanged = false;
-
-	/* modal stuff */
-	this.textField = document.getElementById('editorTextField');
-	this.modal = document.getElementById('mapLoader');
-	this.overlay = document.getElementById('overlay');
-	this.modalHeader = document.getElementById('modalHeader');
-	this.modalButton = document.getElementById('modalOk');
-
-	/* buttons */
-	this.pencilButton = document.getElementById('editorPencil');
-	this.lineButton = document.getElementById('editorLine');
-	this.eraserButton = document.getElementById('editorEraser');
-	this.playerStartButton = document.getElementById('editorPlayerStart');
-	this.teleportButton = document.getElementById('editorTeleport');
+	this.segments = new Array();
 	
-	this.pencilButton.mode = 'pencil';
-	this.lineButton.mode = 'line';
-	this.eraserButton.mode = 'eraser';
-	this.playerStartButton.mode = 'playerStart';
-	this.teleportButton.mode = 'teleport';
+	this.resize = function() {
+		game.calcScale(document.getElementById('editorControls').offsetHeight + 1);
+		var w = Math.round(game.scaleX * game.width);
+		var h = Math.round(game.scaleY * game.height);
+		var sizeChanged = w != canvas.width;
+		canvas.width = w;
+		canvas.height = h;
+		context.scale(game.scaleX, game.scaleY);
+		context.lineWidth = 3;
+		setLineColor(context, mapSegmentColor, 1);
+		context.lineCap = 'round';
 	
-	/********* add event listeners *********/
-	this.canvas.addEventListener('mousedown', function(ev) { self.handleInput('down', ev, self.mouse); }, false);
-	this.canvas.addEventListener('mousemove', function(ev) { self.handleInput('move', ev, self.mouse); }, false);
-	window.addEventListener('mouseup', function(ev) { self.handleInput('up', ev, self.mouse); }, false);
-	this.canvas.addEventListener('mouseout', function(ev) { self.handleInput('out', ev, self.mouse); }, false);
-	this.canvas.addEventListener('mouseover', function(ev) { self.handleInput('over', ev, self.mouse); }, false);
-
-	this.resetButton = document.getElementById('editorReset');
-	this.resetButton.addEventListener('click', function() { 
-		self.segments = [];
-		self.mapChanged = true;
-		self.resize();	
-	}, false);
-
-	var copy = document.getElementById('editorCopy');
-	copy.addEventListener('click', function() {
-		self.modalHeader.innerHTML = 'Store map';
-		self.overlay.style.display = 'block';
-		self.modal.style.display = 'block';
-		self.modalButton.innerHTML = 'Done';
-		self.copy();
-	}, false);
-
-	var load = document.getElementById('editorLoad');
-	load.addEventListener('click', function() {
-		self.modalHeader.innerHTML = 'Load map';
-		self.overlay.style.display = 'block';
-		self.modal.style.display = 'block';
-		self.modalButton.innerHTML = 'Load Map';
-	}, false);
-
-	function closeModal() {
-		self.overlay.style.display = 'none';
-		self.modal.style.display = 'none';
-	}
-
-	this.modalButton.addEventListener('click', function() {
-		if(self.modalButton.innerHTML == 'Load Map')
-			self.load(self.textField.value);
-
-		closeModal();
-	});
-
-	this.overlay.addEventListener('click', closeModal);
-	document.getElementById('modalClose').addEventListener('click', closeModal);
-
-	var undo = document.getElementById('editorUndo');
-	undo.addEventListener('click', function() { self.undo(); }, false);
-
-	var start = document.getElementById('editorStart');
-	start.addEventListener('click', function() {
-		self.game.setGameState('editing');
-		self.pos = findPos(self.canvas);
-		self.resize();
-
-		self.interval = window.setInterval(function() {
-			self.handleInput('move', null, self.mouse);
-		}, editorStepTime);
-
-		if(self.game.noMapSent && self.segments.length > 0) {
-			self.game.noMapSent = false;
-			self.mapChanged = true;
-		}
-		window.scroll(document.body.offsetWidth, 0);
-	}, false);
-
-	var done = document.getElementById('editorDone');
-	done.addEventListener('click', function() {
-		self.game.setGameState('waiting'); 
-		window.clearInterval(self.interval);
-		// freeing memory - is this the right way?
-		self.canvas.height = self.canvas.width = 0;
-	}, false);
-
-	function activate(node) {
-		var siblings = node.parentNode.getElementsByTagName('a');
-
-		for(var i = 0; i < siblings.length; i++)
-			siblings[i].className = 'btn';
-
-		node.className = 'btn active';
-	}
-	
-	function click(e) {
-		activate(e.target);
-		self.mode = e.target.mode;
-	}
-	
-	this.pencilButton.className = 'btn active';
-	this.pencilButton.addEventListener('click', click, false);
-	this.lineButton.addEventListener('click', click, false);
-	this.eraserButton.addEventListener('click', click, false);
-	this.playerStartButton.addEventListener('click', click, false);
-	this.teleportButton.addEventListener('click', click, false);
-	
-	/********* touch *********/
-	function getTouchEvent(type) {
-		return function(e) {
-			for(var i = 0; i < e.changedTouches.length; i++) {
-				var t = e.changedTouches[i];
-				self.handleInput(type, t, t);
-			}
-			e.preventDefault();
-		};
-	}
-	
-	this.canvas.addEventListener('touchstart', getTouchEvent('down'), false);
-	this.canvas.addEventListener('touchmove', getTouchEvent('move'), false);
-	this.canvas.addEventListener('touchend', getTouchEvent('up'), false);
-	this.canvas.addEventListener('touchcancel', getTouchEvent('up'), false);
-}
-
-Editor.prototype.handleInput = function(type, ev,  state) {
-	var stepTime = this.mode == 'eraser' ? eraserStepTime : editorStepTime;
-	var setStart = false;
-	var doAction = false;
-	
-	if(ev != undefined) {
-		state.pos = this.game.getGamePos(ev);
-		if(ev.preventDefault)
-			ev.preventDefault();
-	}
-	
-	switch(type) {
-		case 'down':
-			state.down = true;
-			state.out = false;
-			setStart = true;
-			break;
-		case 'over':
-			state.out = false;
-			if(state.down && this.inMode('eraser', 'pencil'))
-				setStart = true;
-			break;
-		case 'up':
-			if(state.down && !state.out)
-				doAction = true;
-			state.down = false;
-			break;
-		case 'out':
-			state.out = true;
-			if(state.down && this.inMode('eraser', 'pencil'))
-				doAction = true;
-			break;
-		case 'move':
-			if(state.down && this.inMode('eraser', 'pencil') && Date.now() - state.startTime > stepTime)
-				doAction = true;
-			break;
-	}
+		for(var i = 0; i < this.segments.length; i++)
+			drawSegment(this.segments[i]);
 		
-	if(doAction) {
-		
-	 	if(state.pos.x != state.start.x || state.pos.y != state.start.y) {
-			var seg = new Segment(state.start.x, state.start.y, state.pos.x, state.pos.y);
-			
-			switch(this.mode) {
-				case 'playerStart':
-					seg.playerStart = true;
-					seg.angle = getAngle(seg.x2 - seg.x1, seg.y2 - seg.y1);
-					seg.x2 = seg.x1 + Math.cos(seg.angle) * (indicatorLength + 2 * indicatorArrowLength);
-					seg.y2 = seg.y1 + Math.sin(seg.angle) * (indicatorLength + 2 * indicatorArrowLength);
-					break;
-				case 'teleport':
-					//TODO: some visual feedback for these return statements - wat do u mean?
-					if(getLength(seg.x2 - seg.x1, seg.y2 - seg.y1) < minTeleportSize)
-						return;
-					seg.teleportId = this.getNextTeleportId();
-					if(seg.teleportId == -1)
-						return;
-					seg.color = playerColors[seg.teleportId];
-					break;
-				case 'eraser':
-					var changed = false;
-					for(var i = 0; i < this.segments.length; i++) {
-						if(segmentCollision(this.segments[i], seg) != -1) {
-							this.segments.splice(i--, 1);
-							changed = true;
-							this.mapChanged = true;
-						}
-					}
-					if(changed)
-						this.resize();
-					break;
-			}
-			
-			if(!this.inMode('eraser')) {
-				this.segments.push(seg);
-				this.mapChanged = true;
-				this.drawSegment(seg);
-			}
-			
-			setStart = true;
+		// stop drawing
+		if(sizeChanged) {
+			mouse.down = false;
 		}
 	}
-	
-	if(setStart) {
-		state.start = state.pos;
-		state.startTime = Date.now();
-	}
-}
 
-Editor.prototype.getNextTeleportId = function () {
-	var ar = new Array(maxTeleports);
-	for(var i = 0; i < maxTeleports; i++)
-		ar[i] = 0;
-	for(var i in this.segments) {
-		var seg = this.segments[i];
-		if(seg.teleportId != undefined)
-			ar[seg.teleportId]++;
-	}
-	var id = -1;
-	for(var i = 0; i < maxTeleports; i++) {
-		if(ar[i] == 1)
-			return i;
-		else if(ar[i] == 0 && id == -1)
-			id = i;
-	}
-	return id;
-}
+	this.load = function(str) {
+		try {
+			var segs = JSON.parse(str);
+		}
+		catch(ex) {
+			game.gameMessage('JSON parse exception!');
+		}
 
-Editor.prototype.inMode = function() {
-	for(var i = 0; i < arguments.length; i++)
-		if(this.mode == arguments[i])
-			return true;
-	return false;
-}
+		/* FIXME: hier moet nog iets meer checks op segs komen
+		 * het kan nu van alles zijn en dan krijg je later js errors */	
 
-Editor.prototype.drawSegment = function(seg) {
-	if(seg.x1 == seg.x2 && seg.y1 == seg.y2)
-		return;
-
-	if(seg.playerStart != undefined) {
-		drawIndicatorArrow(this.context, seg.x1, seg.y1, seg.angle, playerColors[0]);
-		setLineColor(this.context, mapSegmentColor, 1);
-	}
-	else if(seg.teleportId != undefined) { // FIXME: niet werken met undefined
-		drawTeleport(this.context, seg);
-		setLineColor(this.context, mapSegmentColor, 1);
-	}
-	else {
-		this.context.beginPath();
-		this.context.moveTo(seg.x1, seg.y1);
-		this.context.lineTo(seg.x2, seg.y2);
-		this.context.stroke();
-	}
-}
-
-Editor.prototype.copy = function() {
-	this.textField.value = JSON.stringify(this.segments);
-}
-
-Editor.prototype.load = function(str) {
-	try {
-		var segs = JSON.parse(str);
-	}
-	catch(ex) {
-		this.game.gameMessage('JSON parse exception!');
-	}
-
-	/* FIXME: hier moet nog iets meer checks op segs komen
-	 * het kan nu van alles zijn en dan krijg je later js errors */	
-
-	this.segments = segs;
-	this.resize();
-	this.mapChanged = true;
-}
-
-Editor.prototype.undo = function() {
-	if(this.segments.length > 0) {
-		this.segments.pop();
+		this.segments = segs;
 		this.resize();
+		this.mapChanged = true;
+	}
+
+	this.onload = function() {
+		var modal = document.getElementById('mapLoader');
+		var overlay = document.getElementById('overlay');
+		var modalHeader = document.getElementById('modalHeader');
+		var pencilButton = document.getElementById('editorPencil');
+		var lineButton = document.getElementById('editorLine');
+		var eraserButton = document.getElementById('editorEraser');
+		var playerStartButton = document.getElementById('editorPlayerStart');
+		var teleportButton = document.getElementById('editorTeleport');
+		var resetButton = document.getElementById('editorReset');
+		var copyButton = document.getElementById('editorCopy');
+		var loadButton = document.getElementById('editorLoad');
+		var undoButton = document.getElementById('editorUndo');
+		var startButton = document.getElementById('editorStart');
+		var doneButton = document.getElementById('editorDone');
+		var closeButton = document.getElementById('modalClose');
+		var modalButton = document.getElementById('modalOk');
+
+		canvas = document.getElementById('editorCanvas');
+		context = canvas.getContext('2d');
+		container = document.getElementById('editor');
+		textField = document.getElementById('editorTextField');
+		canvas.width = canvas.height = 0;
+		pencilButton.className = 'btn active';
+		pencilButton.mode = 'pencil';
+		lineButton.mode = 'line';
+		eraserButton.mode = 'eraser';
+		playerStartButton.mode = 'playerStart';
+		teleportButton.mode = 'teleport';
+
+		function closeModal() {
+			overlay.style.display = 'none';
+			modal.style.display = 'none';
+		}
+
+		function activate(node) {
+			var siblings = node.parentNode.getElementsByTagName('a');
+
+			for(var i = 0; i < siblings.length; i++)
+				siblings[i].className = 'btn';
+
+			node.className = 'btn active';
+		}
+	
+		function click(e) {
+			activate(e.target);
+			mode = e.target.mode;
+		}
+
+		function getTouchEvent(type) {
+			return function(e) {
+				for(var i = 0; i < e.changedTouches.length; i++) {
+					var t = e.changedTouches[i];
+					handleInput(type, t, t);
+				}
+
+				e.preventDefault();
+			};
+		}
+	
+		/* adding event listeners */
+		canvas.addEventListener('mousedown', function(ev) { handleInput('down', ev, mouse); }, false);
+		canvas.addEventListener('mousemove', function(ev) { handleInput('move', ev, mouse); }, false);
+		window.addEventListener('mouseup', function(ev) { handleInput('up', ev, mouse); }, false);
+		canvas.addEventListener('mouseout', function(ev) { handleInput('out', ev, mouse); }, false);
+		canvas.addEventListener('mouseover', function(ev) { handleInput('over', ev, mouse); }, false);
+
+		resetButton.addEventListener('click', function() { 
+			self.segments = [];
+			self.mapChanged = true;
+			self.resize();	
+		}, false);
+
+		copyButton.addEventListener('click', function() {
+			modalHeader.innerHTML = 'Store map';
+			overlay.style.display = 'block';
+			modal.style.display = 'block';
+			modalButton.innerHTML = 'Done';
+			copy();
+		}, false);
+
+		loadButton.addEventListener('click', function() {
+			modalHeader.innerHTML = 'Load map';
+			overlay.style.display = 'block';
+			modal.style.display = 'block';
+			modalButton.innerHTML = 'Load Map';
+		}, false);
+
+		modalButton.addEventListener('click', function() {
+			if(modalButton.innerHTML == 'Load Map')
+				self.load(textField.value);
+
+			closeModal();
+		});
+
+		undoButton.addEventListener('click', function() {
+			if(self.segments.length > 0) {
+				self.segments.pop();
+				self.resize();
+			}
+		}, false);
+
+		startButton.addEventListener('click', function() {
+			game.setGameState('editing');
+			pos = findPos(canvas);
+			self.resize();
+
+			interval = window.setInterval(function() {
+				handleInput('move', null, mouse);
+			}, editorStepTime);
+
+			if(game.noMapSent && self.segments.length > 0) {
+				game.noMapSent = false;
+				self.mapChanged = true;
+			}
+			window.scroll(document.body.offsetWidth, 0);
+		}, false);
+
+		doneButton.addEventListener('click', function() {
+			game.setGameState('waiting'); 
+			window.clearInterval(interval);
+			canvas.height = canvas.width = 0;
+		}, false);
+
+		overlay.addEventListener('click', closeModal, false);
+		closeButton.addEventListener('click', closeModal, false);
+	
+		pencilButton.addEventListener('click', click, false);
+		lineButton.addEventListener('click', click, false);
+		eraserButton.addEventListener('click', click, false);
+		playerStartButton.addEventListener('click', click, false);
+		teleportButton.addEventListener('click', click, false);
+	
+		canvas.addEventListener('touchstart', getTouchEvent('down'), false);
+		canvas.addEventListener('touchmove', getTouchEvent('move'), false);
+		canvas.addEventListener('touchend', getTouchEvent('up'), false);
+		canvas.addEventListener('touchcancel', getTouchEvent('up'), false);
 	}
 }
 
-Editor.prototype.resize = function() {
-	var game = this.game;
-	game.calcScale(document.getElementById('editorControls').offsetHeight + 1);
-	var w = Math.round(game.scaleX * game.width);
-	var h = Math.round(game.scaleY * game.height);
-	var sizeChanged = w != this.canvas.width;
-	this.canvas.width = w;
-	this.canvas.height = h;
-	this.context.scale(game.scaleX, game.scaleY);
-	this.context.lineWidth = 3;
-	setLineColor(this.context, mapSegmentColor, 1);
-	this.context.lineCap = 'round';
+var editor = (function() {
+	var self = new Editor();
+	var mouse = new MouseState();
+	var pos = [0, 0];
+	var mode = 'pencil';
+	var textField, canvas, context, container, interval;
+
+	function handleInput(type, ev, state) {
+		var stepTime = mode == 'eraser' ? eraserStepTime : editorStepTime;
+		var setStart = false;
+		var doAction = false;
 	
-	for(var i = 0; i < this.segments.length; i++)
-		this.drawSegment(this.segments[i]);
+		if(ev != undefined) {
+			state.pos = game.getGamePos(ev);
+			if(ev.preventDefault)
+				ev.preventDefault();
+		}
+	
+		switch(type) {
+			case 'down':
+				state.down = true;
+				state.out = false;
+				setStart = true;
+				break;
+			case 'over':
+				state.out = false;
+				if(state.down && inMode('eraser', 'pencil'))
+					setStart = true;
+				break;
+			case 'up':
+				if(state.down && !state.out)
+					doAction = true;
+				state.down = false;
+				break;
+			case 'out':
+				state.out = true;
+				if(state.down && inMode('eraser', 'pencil'))
+					doAction = true;
+				break;
+			case 'move':
+				if(state.down && inMode('eraser', 'pencil') && Date.now() - state.startTime > stepTime)
+					doAction = true;
+				break;
+		}
 		
-	// stop drawing
-	if(sizeChanged) {
-		this.mouse.down = false;
+		if(doAction) {
+		 	if(state.pos.x != state.start.x || state.pos.y != state.start.y) {
+				var seg = new Segment(state.start.x, state.start.y, state.pos.x, state.pos.y);
+			
+				switch(mode) {
+					case 'playerStart':
+						seg.playerStart = true;
+						seg.angle = getAngle(seg.x2 - seg.x1, seg.y2 - seg.y1);
+						seg.x2 = seg.x1 + Math.cos(seg.angle) * (indicatorLength + 2 * indicatorArrowLength);
+						seg.y2 = seg.y1 + Math.sin(seg.angle) * (indicatorLength + 2 * indicatorArrowLength);
+						break;
+					case 'teleport':
+						//TODO: some visual feedback for these return statements - wat do u mean?
+						if(getLength(seg.x2 - seg.x1, seg.y2 - seg.y1) < minTeleportSize)
+							return;
+
+						if((seg.teleportId = getNextTeleportId()) == -1)
+							return;
+
+						seg.color = playerColors[seg.teleportId];
+						break;
+					case 'eraser':
+						var changed = false;
+						for(var i = 0; i < self.segments.length; i++) {
+							if(segmentCollision(self.segments[i], seg) != -1) {
+								self.segments.splice(i--, 1);
+								changed = true;
+								self.mapChanged = true;
+							}
+						}
+
+						if(changed)
+							self.resize();
+				}
+			
+				if(!inMode('eraser')) {
+					this.segments.push(seg);
+					self.mapChanged = true;
+					drawSegment(seg);
+				}
+			
+				setStart = true;
+			}
+		}
+	
+		if(setStart) {
+			state.start = state.pos;
+			state.startTime = Date.now();
+		}
 	}
-}
+
+	function getNextTeleportId() {
+		var ar = new Array(maxTeleports);
+		var id = -1;
+
+		for(var i = 0; i < maxTeleports; i++)
+			ar[i] = 0;
+
+		for(var i in self.segments) {
+			var seg = self.segments[i];
+			if(seg.teleportId != undefined)
+				ar[seg.teleportId]++;
+		}
+
+		for(var i = 0; i < maxTeleports; i++) {
+			if(ar[i] == 1)
+				return i;
+			else if(ar[i] == 0 && id == -1)
+				id = i;
+		}
+
+		return id;
+	}
+
+	function copy() {
+		textField.value = JSON.stringify(self.segments);
+	}
+
+	function inMode(arguments) {
+		for(var i = 0; i < arguments.length; i++)
+			if(mode == arguments[i])
+				return true;
+
+		return false;
+	}
+
+	function drawSegment(seg) {
+		if(seg.x1 == seg.x2 && seg.y1 == seg.y2)
+			return;
+
+		if(seg.playerStart != undefined) {
+			drawIndicatorArrow(context, seg.x1, seg.y1, seg.angle, playerColors[0]);
+			setLineColor(context, mapSegmentColor, 1);
+		}
+		else if(seg.teleportId != undefined) { // FIXME: niet werken met undefined
+			drawTeleport(context, seg);
+			setLineColor(context, mapSegmentColor, 1);
+		}
+		else {
+			context.beginPath();
+			context.moveTo(seg.x1, seg.y1);
+			context.lineTo(seg.x2, seg.y2);
+			context.stroke();
+		}
+	}
+
+	/* return public object */
+	return self;
+})();
