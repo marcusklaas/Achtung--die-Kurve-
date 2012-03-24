@@ -60,9 +60,9 @@ void handlepencilmsg(cJSON *json, struct user *usr) {
 	appendheader(&buf, MODE_PENCIL, usr->index);
 	appendtick(&buf, p->ticksolid);
 	
-	if(mousedown = json->valueint == -1) {
+	if((mousedown = json->valueint == -1))
 		json = json->next;
-	}
+
 	appendchar(&buf, mousedown);
 	
 	while(json) {
@@ -170,4 +170,3 @@ void regenink(struct pencil *p, int tick) {
 	p->tick = tick;
 	p->ink = min(p->ink + inc, p->usr->gm->inkcap);
 }
-

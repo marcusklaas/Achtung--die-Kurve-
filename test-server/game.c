@@ -211,14 +211,12 @@ struct map *createmap(cJSON *j) {
 		seg->x2 = jsongetint(j, "x2");
 		seg->y2 = jsongetint(j, "y2");
 
-		if(jsoncheckjson(j, "playerStart")) {
-
+		if(!strcmp(jsongetstr(j, "mode"), "playerStart")) {
 			seg->x2 = jsongetdouble(j, "angle");
 			seg->nxt = map->playerstarts;
 			map->playerstarts = seg;
-
-		} else {
-
+		}
+		else {
 			if(!seginside(seg, MAX_GAME_WIDTH, MAX_GAME_HEIGHT) || 
 					(seg->x1 == seg->x2 && seg->y1 == seg->y2)) {
 				warning("createmap segment out of boundaries or zero-length error\n");
@@ -227,12 +225,11 @@ struct map *createmap(cJSON *j) {
 				continue;
 			}
 
-			if(jsoncheckjson(j, "teleportId")) {
-				int id;
-				
-				id = jsongetint(j, "teleportId");
+			if(!strcmp(jsongetstr(j, "mode"), "teleport")) {
+				int id = jsongetint(j, "teleportId");
+
 				if(id < 0 || id >= MAX_TELEPORTS) {
-					warning("createmap teleport error 1\n");
+					warning("invalid teleporter id\n");
 					free(seg);
 					j = j->next;
 					continue;
@@ -241,7 +238,7 @@ struct map *createmap(cJSON *j) {
 				if(!telbuffer[id]) {
 					telbuffer[id] = seg;
 				} else if(telbuffer[id] == &taken) {
-					warning("createmap teleport error 2\n");
+					warning("createmap teleport error\n");
 					free(seg);
 					j = j->next;
 					continue;

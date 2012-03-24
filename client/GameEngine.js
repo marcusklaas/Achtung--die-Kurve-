@@ -31,7 +31,6 @@ function GameEngine() {
 	/* children */
 	this.localPlayer = new Player(this, true);
 	this.audioController = new AudioController();
-	this.editor = new Editor(this);
 	this.canvasPos = new Vector(sidebarWidth, 0);
 
 	/* DOM elements */
@@ -266,24 +265,19 @@ GameEngine.prototype.getCollision = function(x1, y1, x2, y2) {
 	return null;
 }
 
-GameEngine.prototype.getTeleport = function(colorId, a, b, c, d) {
+GameEngine.prototype.getTeleport = function(teleporterId, a, b, c, d) {
 	var vx = b.x - a.x;
 	var vy = b.y - a.y;
 	var wx = d.x - c.x;
 	var wy = d.y - c.y;
 	
-	var t = new Teleporter(a.x, a.y, b.x, b.y);
+	var t = new Teleporter(a.x, a.y, b.x, b.y, teleporterId);
 	t.tall = Math.abs(vy) > Math.abs(vx);
-	t.color = playerColors[colorId];
 	t.dx = wx / (t.tall ? vy : vx);
 	t.dy = wy / (t.tall ? vy : vx);
 	t.extraAngle = getAngle(wx, wy) - getAngle(vx, vy);
 	t.destX = c.x;
 	t.destY = c.y;
-	t.left = Math.min(a.x, b.x);
-	t.right = Math.max(a.x, b.x);
-	t.top = Math.min(a.y, b.y);
-	t.bottom = Math.max(a.y, b.y);
 
 	return t;
 }
@@ -821,7 +815,7 @@ GameEngine.prototype.setParams = function(obj) {
 	}
 	
 	if(this.state == 'editing')
-		this.editor.resize();
+		editor.resize();
 	
 	if(obj.type != 'lobby') {
 		document.getElementById('nmin').value = obj.nmin;
@@ -947,11 +941,11 @@ GameEngine.prototype.sendStartGame = function() {
 	var obj = {};
 
 	if(debugMap != null && debugMap != '')
-		this.editor.load(debugMap);
+		editor.load(debugMap);
 	
-	if(this.editor.mapChanged) {
-		obj.segments = this.editor.segments;
-		this.editor.mapChanged = false;
+	if(editor.mapChanged) {
+		obj.segments = editor.segments;
+		editor.mapChanged = false;
 	}
 	
 	if(debugComputers > 0)

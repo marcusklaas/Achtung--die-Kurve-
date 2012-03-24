@@ -2,12 +2,13 @@
 var pencil = (function() {
 	var inkDiv, indicator;
 	var pos = new Vector(0, 0);
-	var ink, outbuffer, down, enabled;
+	var outbuffer = new Array()
+	var ink, down, enabled;
 	var mouseDownInk, inkRegen, startInk, inkMinDistance, maxInk;
 	
 	function sendBuffer() {
 		game.sendMsg('pencil', {'data' : outbuffer});
-		outbuffer = [];
+		outbuffer.length = 0;
 	}
 	
 	function move() {
@@ -81,7 +82,7 @@ var pencil = (function() {
 		}, 
 		
 		reset: function() {
-			outbuffer = [];
+			outbuffer.length = 0;
 			down = false;
 			enabled = false;
 			indicator.style.display = 'none';

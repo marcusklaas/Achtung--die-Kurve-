@@ -110,11 +110,21 @@ function TimedSegment(x1, y1, x2, y2, tick) {
 }
 
 TimedSegment.prototype = new Segment();
+
 TimedSegment.prototype.constructor = TimedSegment;
 
 TimedSegment.prototype.print = function() {
 	game.gameMessage('seg: ' + [this.x1, this.y1, this.x2, this.y2, this.tick].join(', '));
 }
+
+function EditorSegment(x1, y1, x2, y2, mode) {
+	Segment.call(this, x1, y1, x2, y2);
+	this.mode = mode;
+	this.angle = 0;
+	this.teleportId = -5000;
+}
+
+EditorSegment.constructor = EditorSegment;
 
 /* Vector */
 Vector = function(x, y) {
@@ -173,23 +183,24 @@ Vector.prototype.link = function(pos) {
 }
 
 /* Teleporter */
-Teleporter = function(x1, y1, x2, y2) {
+Teleporter = function(x1, y1, x2, y2, teleportId) {
 	this.x1 = x1;
 	this.y1 = y1;
 	this.x2 = x2;
 	this.y2 = y2;
+	this.teleportId = teleportId;
+	this.left = Math.min(x1, x2);
+	this.right = Math.max(x1, x2);
+	this.top = Math.min(y1, y2);
+	this.bottom = Math.max(y1, y2);
+
+	/* these variables are set manually */
 	this.tall = false;
-	this.color = new Array();
 	this.destY = 0;
 	this.destX = 0;
 	this.extraAngle = 0;
 	this.dx = 0;
 	this.dy = 1;
-	this.left = 0;
-	this.right = 0;
-	this.top = 0;
-	this.bottom = 0;
-	// TODO: hier moet wss nog een teleportid bij
 }
 
 /* Collision */
@@ -247,63 +258,58 @@ function segmentCollision(a, b) {
 	return (s >= 0 && s <= 1) ? s : -1;
 }
 
-/* Canvas functions */
-
 /* object that handles all drawing (deel van gameengine kan hier dan in) */
-var canvas = (function() {
+var canvas = {
+	drawSegment: function(seg, color, alpha) {
+		for(var i = 0; i < backupStates.length; i++)
+			seg.stroke(game.contexts[i], color, alpha);
+	}, 
 	
-	return {
-		drawSegment: function(seg, color, alpha) {
-			for(var i = 0; i < backupStates.length; i++)
-				seg.stroke(game.contexts[i], color, alpha);
-		}, 
-		
-		drawMapSegments: function(ctx) {
-			ctx.fillStyle = canvasColor;
-			ctx.fillRect(0, 0, game.width, game.height);
+	drawMapSegments: function(ctx) {
+		ctx.fillStyle = canvasColor;
+		ctx.fillRect(0, 0, game.width, game.height);
 
-			if(game.mapSegments.length > 0) {
-				ctx.beginPath();
-				setLineColor(ctx, mapSegmentColor, 1);
+		if(game.mapSegments.length > 0) {
+			ctx.beginPath();
+			setLineColor(ctx, mapSegmentColor, 1);
 
-				for(var i = 0; i < game.mapSegments.length; i++) {
-					var seg = game.mapSegments[i];
-					ctx.moveTo(seg.x1, seg.y1);
-					ctx.lineTo(seg.x2, seg.y2);
-				}
-
-				ctx.stroke();
+			for(var i = 0; i < game.mapSegments.length; i++) {
+				var seg = game.mapSegments[i];
+				ctx.moveTo(seg.x1, seg.y1);
+				ctx.lineTo(seg.x2, seg.y2);
 			}
-			
-			for(var i in game.mapTeleports)
-				drawTeleport(ctx, game.mapTeleports[i]);
-		}, 
-		
-		drawPencilSegments: function(ctx) {
-			for(var i in game.players) {
-				var player = game.players[i];
-				var pen = player.pen;
-				var switched = false;
-				
-				setLineColor(ctx, player.color, 1);
-				ctx.beginPath();
-				for(var j = 0; j < pen.seg.length; j++) {
-					var seg = pen.seg[j];
-					
-					if(seg.tick > game.tick && !switched) {
-						ctx.stroke();
-						setLineColor(ctx, player.color, pencilAlpha);
-						ctx.beginPath();
-						switched = true;
-					}
-					
-					seg.draw(ctx);
-				}
-				ctx.stroke();
-			}
+
+			ctx.stroke();
 		}
-	};
-}());
+		
+		for(var i in game.mapTeleports)
+			drawTeleport(ctx, game.mapTeleports[i]);
+	}, 
+	
+	drawPencilSegments: function(ctx) {
+		for(var i in game.players) {
+			var player = game.players[i];
+			var pen = player.pen;
+			var switched = false;
+			
+			setLineColor(ctx, player.color, 1);
+			ctx.beginPath();
+			for(var j = 0; j < pen.seg.length; j++) {
+				var seg = pen.seg[j];
+				
+				if(seg.tick > game.tick && !switched) {
+					ctx.stroke();
+					setLineColor(ctx, player.color, pencilAlpha);
+					ctx.beginPath();
+					switched = true;
+				}
+				
+				seg.draw(ctx);
+			}
+			ctx.stroke();
+		}
+	}
+};
 
 function setLineColor(ctx, color, alpha) {
 	ctx.strokeStyle = 'rgba(' + color[0] + ', ' + color[1] + ', '
@@ -338,7 +344,7 @@ function drawIndicatorArrow(ctx, x, y, angle, color) {
 }
 
 function drawTeleport(ctx, seg) {
-	setLineColor(ctx, seg.color, 1);
+	setLineColor(ctx, playerColors[seg.teleportId], 1);
 	ctx.lineWidth = teleportLineWidth;
 	var dx = seg.x2 - seg.x1;
 	var dy = seg.y2 - seg.y1;

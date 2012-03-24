@@ -23,38 +23,8 @@ function InputController(player, left, right) {
 
 	/* listen for keyboard events */
 	window.addEventListener('keydown', function(e) {
-		if(game.state == 'editing' && document.activeElement != game.chatBar
-			&& game.editor.modal.style.display != "block") {
-			switch(String.fromCharCode(e.keyCode)) {
-				case 'U':
-					game.editor.undo();
-					break;
-
-				case 'P': case '1':
-					simulateClick(game.editor.pencilButton);
-					break;
-
-				case 'L': case '2':
-					simulateClick(game.editor.lineButton);
-					break;
-
-				case 'S': case '3':
-					simulateClick(game.editor.playerStartButton);
-					break;
-
-				case 'T': case '4':
-					simulateClick(game.editor.teleportButton);
-					break;
-
-				case 'E': case '5':
-					simulateClick(game.editor.eraserButton);
-					break;
-
-				default:
-					return;
-			}
-
-			e.preventDefault();
+		if(game.state == 'editing' && document.activeElement != game.chatBar) {
+			editor.handleKeyEvent(e);
 			return;
 		}
 

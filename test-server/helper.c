@@ -217,7 +217,7 @@ cJSON *encodegamepars(struct game *gm) {
  */
 
 // returns NULL on error
-char *jsongetstr(cJSON *json, char* obj) {
+char *jsongetstr(cJSON *json, char *obj) {
 	json = cJSON_GetObjectItem(json, obj);
 	if(!json) {
 		if(DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
@@ -227,7 +227,7 @@ char *jsongetstr(cJSON *json, char* obj) {
 }
 
 // returns -1 on error
-int jsongetint(cJSON *json, char* obj) {
+int jsongetint(cJSON *json, char *obj) {
 	json = cJSON_GetObjectItem(json, obj);
 	if(!json) {
 		if(DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
@@ -237,7 +237,7 @@ int jsongetint(cJSON *json, char* obj) {
 }
 
 // returns -1 on error
-double jsongetdouble(cJSON *json, char* obj) {
+double jsongetdouble(cJSON *json, char *obj) {
 	json = cJSON_GetObjectItem(json, obj);
 	if(!json) {
 		if(DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
@@ -247,17 +247,17 @@ double jsongetdouble(cJSON *json, char* obj) {
 }
 
 // returns NULL on error
-cJSON *jsongetjson(cJSON *json, char* obj) {
+cJSON *jsongetjson(cJSON *json, char *obj) {
 	json = cJSON_GetObjectItem(json, obj);
-	if(!json) {
-		if(DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
-		return 0;
-	}
+
+	if(!json && DEBUG_MODE)
+		printf("json parse error! object '%s' not found!\n", obj);
+
 	return json;
 }
 
 // to check if a member exists
-cJSON *jsoncheckjson(cJSON *json, char* obj) {
+cJSON *jsoncheckjson(cJSON *json, char *obj) {
 	return cJSON_GetObjectItem(json, obj);
 }
 
