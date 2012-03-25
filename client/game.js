@@ -2,7 +2,8 @@ window.onload = function() {
 	game = new GameEngine();
 	mouse = new Vector(0, 0);
 	pencil.onload();
-	editor.onload(); 	
+	editor.onload(); 
+	domManager.onload();
 	var localPlayer = game.localPlayer;
 	var audioController = game.audioController;
 
@@ -123,18 +124,7 @@ window.onload = function() {
 		connect();
 	}
 	
-	window.onresize = function() {
-		this.clearTimeout(this.resizeTimeout);
-		this.resizeTimeout = this.setTimeout(function() { 
-			if(game.state == 'editing')
-				game.editor.resize();
-			else if (game.state == 'playing' || game.state == 'watching' || 
-			 game.state == 'ended' || game.state == 'countdown')
-				game.resize();
-		}, resizeDelay);
-
-		resizeChat();
-	}
+	window.onresize = function() { domManager.windowResize(); };
 
 	/* way to see sidebar for touch screens */
 	if(touchDevice || alwaysHideSidebar) {

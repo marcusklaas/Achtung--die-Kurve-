@@ -145,12 +145,12 @@ var editor = (function() {
 			return;
 
 		if(seg.mode == 'playerStart') {
-			drawIndicatorArrow(context, seg.x1, seg.y1, seg.angle, playerColors[0]);
-			setLineColor(context, mapSegmentColor, 1);
+			canvasManager.drawIndicatorArrow(context, seg.x1, seg.y1, seg.angle, playerColors[0]);
+			canvasManager.setLineColor(context, mapSegmentColor, 1);
 		}
 		else if(seg.mode == 'teleport') {
-			drawTeleport(context, seg);
-			setLineColor(context, mapSegmentColor, 1);
+			canvasManager.drawTeleport(context, seg);
+			canvasManager.setLineColor(context, mapSegmentColor, 1);
 		}
 		else {
 			context.beginPath();
@@ -174,7 +174,7 @@ var editor = (function() {
 			canvas.height = h;
 			context.scale(game.scaleX, game.scaleY);
 			context.lineWidth = 3;
-			setLineColor(context, mapSegmentColor, 1);
+			canvasManager.setLineColor(context, mapSegmentColor, 1);
 			context.lineCap = 'round';
 	
 			for(var i = 0; i < this.segments.length; i++)
