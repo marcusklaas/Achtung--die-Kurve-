@@ -124,6 +124,8 @@ function EditorSegment(x1, y1, x2, y2, mode) {
 	this.teleportId = -5000;
 }
 
+EditorSegment.prototype = new Segment();
+
 EditorSegment.constructor = EditorSegment;
 
 /* Vector */
