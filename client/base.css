@@ -128,7 +128,7 @@ input[type=number] {
 #winAnnouncer {
 	display: none;
 	z-index: 500;
-	background-color: rgba(255, 255, 255, 0.3);
+	background-color: rgba(255, 255, 255, 0.4);
 	-webkit-border-radius: 10px;
 	-moz-border-radius: 10px;
 	border-radius: 10px;
@@ -140,6 +140,8 @@ input[type=number] {
 	font-size: 24px;
 	position: relative;
 	top: 40%;
+	box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+	/* border: 1px solid #999; */
 }
 
 .reward {
@@ -226,20 +228,21 @@ article {
 	position: absolute;
 	top: 0;
 	left: 0;
-	display: block;
+	display: none;
 	height: 100%;
 	width: 100%;
 	padding: 0;
-	margin-left: -20px;
 	-moz-box-sizing: border-box;
 	box-sizing: border-box;
+
+	/* margin-left: -20px;
 	opacity: 0;
 	z-index: 0;
-	overflow: hidden;
-	transition: padding-left 500ms ease-in-out, margin 150ms, opacity 150ms;
-	-webkit-transition: padding-left 500ms ease-in-out, margin 150ms, opacity 150ms;
-	-o-transition: padding-left 500ms ease-in-out, margin 150ms, opacity 150ms;
-	/* no mozilla transitions for page transition, it is not as smooth as webkit */
+	overflow: hidden; */
+
+	transition: padding-left 500ms ease-in-out; /* , margin 150ms, opacity 150ms; */
+	-webkit-transition: padding-left 500ms ease-in-out; /* , margin 150ms, opacity 150ms; */
+	-o-transition: padding-left 500ms ease-in-out; /* , margin 150ms, opacity 150ms; */
 	-moz-transition: padding-left 500ms ease-in-out; /* , margin 150ms, opacity 150ms; */
 }
 
@@ -251,16 +254,16 @@ article.translated {
 	-moz-transition: padding-left 500ms ease-in-out;
 }
 
-/* animaties gestolen van google chrome >:D */
 article.contentVisible {
-	margin-left: 0;
-	transition: padding-left 500ms ease-in-out, margin 300ms, opacity 300ms;
-	-webkit-transition: padding-left 500ms ease-in-out, margin 300ms, opacity 300ms;
-	-o-transition: padding-left 500ms ease-in-out, margin 300ms, opacity 300ms;
-	-moz-transition: padding-left 500ms ease-in-out; /* , margin 300ms, opacity 300ms; */
+	/* margin-left: 0;
 	opacity: 1;
 	z-index: 1;
-	overflow: auto;
+	overflow: auto; */
+	transition: padding-left 500ms ease-in-out; /* , margin 300ms, opacity 300ms; */
+	-webkit-transition: padding-left 500ms ease-in-out; /* , margin 300ms, opacity 300ms; */
+	-o-transition: padding-left 500ms ease-in-out; /* , margin 300ms, opacity 300ms; */
+	-moz-transition: padding-left 500ms ease-in-out; /* , margin 300ms, opacity 300ms; */
+	display: block;
 }
 
 #gameListContainer > section, #waitContainer > section, #connectionContainer > section {

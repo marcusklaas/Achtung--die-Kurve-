@@ -34,9 +34,6 @@ function GameEngine() {
 	this.canvasPos = new Vector(sidebarWidth, 0);
 
 	/* DOM elements */
-	this.playerList = document.getElementById('playerList').lastChild;
-	this.gameList = document.getElementById('gameList').lastChild;
-	this.chatBar = document.getElementById('chat');
 	this.sidebar = document.getElementById('sidebar');
 	this.debugBox = document.getElementById('status');
 	this.connectButton = document.getElementById('connect');
@@ -87,7 +84,7 @@ GameEngine.prototype.reset = function() {
 
 GameEngine.prototype.resetPlayers = function() {
 	this.players.length = 0;
-	this.clearPlayerList();
+	domManager.clearPlayerList();
 	this.host = null;
 }
 
@@ -105,7 +102,7 @@ GameEngine.prototype.connect = function(url, name, callback) {
 	
 	try {
 		this.websocket.onopen = function() {
-			self.gameMessage('Connected to server');
+			domManager.gameMessage('Connected to server');
 			self.connected = true;
 			self.syncWithServer();
 			callback();
@@ -118,15 +115,15 @@ GameEngine.prototype.connect = function(url, name, callback) {
 		}
 		this.websocket.onclose = function() {
 			if(self.connected) {
-				self.gameMessage('Disconnected from server');
+				domManager.gameMessage('Disconnected from server');
 				self.connected = false;
 			} else {
-				self.gameMessage('Could not connect to server');
+				domManager.gameMessage('Could not connect to server');
 			}
 			self.setGameState('new');
 		}
 	} catch(exception) {
-		self.gameMessage('Websocket exception! ' + exception.name + ': ' + exception.message);
+		domManager.gameMessage('Websocket exception! ' + exception.name + ': ' + exception.message);
 	}
 }
 
@@ -158,41 +155,41 @@ GameEngine.prototype.setGameState = function(newState) {
 
 	switch(newState) {
 		case 'lobby':
-			setOptionVisibility('disconnect');
-			setContentVisibility('gameListContainer');
+			domManager.setOptionVisibility('disconnect');
+			domManager.setContentVisibility('gameListContainer');
 			this.createButton.disabled = this.automatchButton.disabled = false;
 			break;
 		case 'editing':
-			setContentVisibility('editor');
+			domManager.setContentVisibility('editor');
 			break;
 		case 'countdown':
-			setContentVisibility('gameContainer');
-			this.setKickLinksVisibility();
+			domManager.setContentVisibility('gameContainer');
+			domManager.setKickLinksVisibility(false);
 			document.getElementById('gameTitle').className = 'leftSide';
 			document.getElementById('goalDisplay').style.display = 'block';
 			break;
 		case 'waiting':
-			setOptionVisibility('stop');
-			setContentVisibility('waitContainer');
+			domManager.setOptionVisibility('stop');
+			domManager.setContentVisibility('waitContainer');
 			this.startButton.disabled = false;
 			this.leaveButton.disabled = false;
 			break;
 		case 'playing':
-			setOptionVisibility('stop');
+			domManager.setOptionVisibility('stop');
 			break;
 		case 'ended':
 			if(this.setSidebarVisibility(true))
 				this.resize();
 
-			this.setKickLinksVisibility();
+			domManager.setKickLinksVisibility(this.host == this.localPlayer);
 
 			if(this.type == 'custom')
-				setOptionVisibility('back');
+				domManager.setOptionVisibility('back');
 			break;
 		case 'new':
 			resizeChat();
-			setContentVisibility('connectionContainer');
-			setOptionVisibility('nothing');
+			domManager.setContentVisibility('connectionContainer');
+			domManager.setOptionVisibility('nothing');
 			this.connectButton.disabled = false;
 			this.connectButton.innerHTML = 'Connect';
 			break;
@@ -226,13 +223,6 @@ GameEngine.prototype.joinGame = function(gameId) {
 GameEngine.prototype.joinLobby = function(player) {
 	this.sendMsg('joinLobby', {'playerName': player.playerName});
 	player.playerName = escapeString(player.playerName);
-}
-
-GameEngine.prototype.updateTitle = function(title) {
-	if(this.title != title) {
-		this.title = title;
-		document.getElementById('gameTitle').innerHTML = this.title;
-	}
 }
 
 GameEngine.prototype.getCollision = function(x1, y1, x2, y2) {
@@ -398,11 +388,11 @@ GameEngine.prototype.interpretMsg = function(msg) {
 		var obj = JSON.parse(msg.data);
 	}
 	catch(ex) {
-		self.gameMessage('JSON parse exception!');
+		domManager.gameMessage('JSON parse exception!');
 	}
 	
 	if(ultraVerbose && obj.mode != 'segments')
-		this.gameMessage('Received data: ' + msg.data);
+		domManager.gameMessage('Received data: ' + msg.data);
 
 	switch(obj.mode) {
 		case 'acceptUser':
@@ -414,7 +404,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 				this.createGame();
 			break;
 		case 'kickNotification':
-			this.gameMessage('You were kicked from the game');
+			domManager.gameMessage('You were kicked from the game');
 			break;
 		case 'joinedGame':
 			this.resetPlayers();
@@ -428,7 +418,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.addPlayer(this.localPlayer);
 
 			if(obj.type == 'lobby') {
-				this.updateTitle('Lobby');
+				domManager.updateTitle('Lobby');
 				var index = window.location.href.indexOf('?game=', 0)
 
 				if(!joinedLink && index != -1) {
@@ -478,19 +468,19 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			break;
 		case 'adjustGameTime':
 			if(acceptGameTimeAdjustments) {
-				//this.gameMessage('Adjusted game time by ' + obj.forward + ' msec');
+				//domManager.gameMessage('Adjusted game time by ' + obj.forward + ' msec');
 				this.gameStartTimestamp -= obj.forward;
 				this.ping += obj.forward;
 				this.adjustGameTimeMessagesReceived++;
 				this.displayDebugStatus();
 			} else
-				this.gameMessage('Game time adjustment of ' + obj.forward + ' msec rejected');
+				domManager.gameMessage('Game time adjustment of ' + obj.forward + ' msec rejected');
 			break;
 		case 'playerLeft':
 			var player = this.getPlayer(obj.playerId);
 			
 			if(this.state != 'lobby' || obj.reason != 'normal')
-				this.gameMessage(player.playerName + ' left the game' +
+				domManager.gameMessage(player.playerName + ' left the game' +
 				 (obj.reason == 'normal' ? '' : ' (' + obj.reason + ')'));
 
 			this.removePlayer(player);
@@ -519,7 +509,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 				}
 			}
 
-			this.sortPlayerList();		
+			domManager.sortPlayerList();		
 			break;
 		case 'endRound':
 			window.clearTimeout(this.gameloopTimeout);
@@ -535,13 +525,13 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			var player = (obj.winnerId != -1) ? this.getPlayer(obj.winnerId) : null;
 			var winner = (player != null) ? (player.playerName + ' won') : 'draw!';
 			this.setGameState('countdown');
-			this.gameMessage('Round ended: ' + winner);
+			domManager.gameMessage('Round ended: ' + winner);
 			break;			
 		case 'endGame':
 			this.setGameState('ended');
 			window.clearTimeout(this.gameloopTimeout);
 			var winner = this.getPlayer(obj.winnerId);			
-			this.gameMessage('Game over: ' + winner.playerName + ' won!');
+			domManager.gameMessage('Game over: ' + winner.playerName + ' won!');
 
 			var announcement = document.getElementById('winAnnouncer');
 			announcement.innerHTML = winner.playerName + ' won!';
@@ -560,17 +550,17 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			this.printChat(this.getPlayer(obj.playerId), obj.message);
 			break;
 		case 'newGame':
-			this.appendGameList(obj);
+			domManager.appendGameList(obj);
 			break;
 		case 'gameList':
-			this.buildGameList(obj.games);
+			domManager.buildGameList(obj.games);
 			break;
 		case 'segments':
 			this.handleSegmentsMessage(obj.segments);
 			this.debugSegments = this.debugSegments.concat(obj.segments);
 			break;
 		case 'stopSpamming':
-			this.gameMessage('You are flooding the chat. Your latest message has been blocked');
+			domManager.gameMessage('You are flooding the chat. Your latest message has been blocked');
 			break;
 		case 'setHost':
 			this.setHost(this.getPlayer(obj.playerId));
@@ -583,7 +573,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			else if(obj.reason == 'full') msg = 'game is full';
 			else if(obj.reason == 'kicked') msg = 'you are banned for another ' + obj.timer + ' milliseconds';
 
-			this.gameMessage('Could not join game: ' + msg);
+			domManager.gameMessage('Could not join game: ' + msg);
 
 			if(obj.reason == 'started')
 				document.getElementById('game' + obj.id).getElementsByTagName('button')[0].disabled = true;
@@ -598,7 +588,7 @@ GameEngine.prototype.interpretMsg = function(msg) {
 			}
 			break;
 		default:
-			this.gameMessage('Unknown mode ' + obj.mode + '!');
+			domManager.gameMessage('Unknown mode ' + obj.mode + '!');
 	}
 }
 
@@ -615,15 +605,6 @@ GameEngine.prototype.removePlayer = function(player) {
 		player.status = 'left';
 		player.updateRow();
 	}
-}
-
-GameEngine.prototype.setKickLinksVisibility = function() {
-	var showLinks = this.host == this.localPlayer &&
-	 (this.state == 'waiting' || this.state == 'ended' || this.state == 'editing');
-	var kickLinks = this.playerList.getElementsByTagName('a');
-
-	for(var i = 0; i < kickLinks.length; i++)
-		kickLinks[i].className = showLinks ? 'close' : 'close hidden';
 }
 
 GameEngine.prototype.setHost = function(player) {
@@ -655,98 +636,13 @@ GameEngine.prototype.setHost = function(player) {
 	for(var i = 0; i < inputElts.length; i++)
 		inputElts[i].disabled = !localHost;
 
-	this.setKickLinksVisibility();
-}
-
-GameEngine.prototype.buildGameList = function(list) {
-	var startedGames = new Array();
-
-	while(this.gameList.hasChildNodes())
-		this.gameList.removeChild(this.gameList.firstChild);
-
-	document.getElementById('noGames').style.display = 'block';
-
-	for(var i = 0; i < list.length; i++)
-		if(startedGamesDisplay != 'below' && list[i].state == 'started')
-			startedGames.push(list[i]);
-		else
-			this.appendGameList(list[i]);
-
-	if(startedGamesDisplay == 'below')
-		for(var i = 0; i < startedGames.length; i++)
-			this.appendGameList(startedGames[i]);
-}
-
-GameEngine.prototype.appendGameList = function(obj) {
-	var self = this;
-	document.getElementById('noGames').style.display = 'none';
-
-	var row = document.createElement('tr');
-	row.id = 'game' + obj.id;
-
-	var node = document.createElement('td');
-	node.innerHTML = obj.id;
-	row.appendChild(node);
-
-	node = document.createElement('td');
-	node.innerHTML = obj.type;
-	row.appendChild(node);
-
-	node = document.createElement('td');
-	var nameSpan = document.createElement('span');
-	nameSpan.innerHTML = obj.host != undefined ? obj.host : '-'; // FIXME: undefined is nooit nice -- fix dit en rest van gevallen
-	nameSpan.className = 'noverflow';
-	node.appendChild(nameSpan);
-	row.appendChild(node);
-
-	node = document.createElement('td');
-	node.innerHTML = obj.state;
-	row.appendChild(node);
-
-	node = document.createElement('td');
-	node.innerHTML = obj.n + "/" + (obj.type == 'custom' ? obj.nmax : obj.nmin);
-	row.appendChild(node);
-
-	var button = document.createElement('button');
-	button.innerHTML = 'Join';
-	button.disabled = (obj.state != 'lobby');
-	button.addEventListener('click', function() { self.joinGame(obj.id); });
-
-	node = document.createElement('td');
-	node.appendChild(button);
-	row.appendChild(node);
-
-	this.gameList.appendChild(row);
-}
-
-GameEngine.prototype.printChat = function(player, message) {
-	var escaped = escapeString(message);
-	var container = document.getElementById('messages');
-	var elt = document.createElement('li');
-	var nameContainer = document.createElement('span');
-	var displayName = player.isLocal ? 'me' : player.playerName;
-
-	nameContainer.innerHTML = displayName;
-	nameContainer.className = 'player';
-	elt.innerHTML = escaped;
-	elt.className = 'chatMessage';
-	
-	elt.insertBefore(nameContainer, elt.firstChild);
-    container.insertBefore(elt, container.firstChild);
-}
-
-GameEngine.prototype.gameMessage = function(msg) {
-	var container = document.getElementById('messages');
-	var elt = document.createElement('li');
-
-	elt.innerHTML = msg;
-	elt.className = 'gameMessage';
-    container.insertBefore(elt, container.firstChild);
+	domManager.setKickLinksVisibility(localHost &&
+	 (this.state == 'waiting' || this.state == 'ended' || this.state == 'editing'));
 }
 
 GameEngine.prototype.handleSegmentsMessage = function(segments) {
 	var ctx = this.baseContext;
-	setLineColor(ctx, [0, 0, 0], 1);
+	canvasManager.setLineColor(ctx, [0, 0, 0], 1);
 	ctx.lineWidth = 1;
 	ctx.beginPath();
 
@@ -791,9 +687,9 @@ GameEngine.prototype.handleSyncResponse = function(serverTime) {
 		var self = this;
 		window.setTimeout(function() {self.syncWithServer();}, this.syncTry * syncDelays);
 	} else {
-		this.gameMessage('Your current ping is ' + this.ping + ' msec');
+		domManager.gameMessage('Your current ping is ' + this.ping + ' msec');
 		if(ultraVerbose)
-			this.gameMessage('Synced with maximum error of ' + this.bestSyncPing + ' msec');
+			domManager.gameMessage('Synced with maximum error of ' + this.bestSyncPing + ' msec');
 		this.syncTry = -1;
 	}
 }
@@ -833,7 +729,7 @@ GameEngine.prototype.setParams = function(obj) {
 		document.getElementById('inkDelay').value = obj.inkdelay;
 
 		setPencilMode(obj.pencilmode);
-		this.updateTitle('Game ' + obj.id);
+		domManager.updateTitle('Game ' + obj.id);
 
 		var url = new String(window.location);
 		var hashPos = url.indexOf('?', 0);
@@ -867,13 +763,13 @@ GameEngine.prototype.sendMsg = function(mode, data) {
 		window.setTimeout(function() {
 			that.websocket.send(str);
 			if(ultraVerbose)
-				this.gameMessage('Sending data: ' + str);
+				domManager.gameMessage('Sending data: ' + str);
 		}, simulatedPing);	
 	}
 	else{
 		this.websocket.send(str);
 		if(ultraVerbose)
-			this.gameMessage('Sending data: ' + str);
+			domManager.gameMessage('Sending data: ' + str);
 	}
 }
 
@@ -890,7 +786,7 @@ GameEngine.prototype.addPlayer = function(player) {
 	player.points = 0;
 	player.isHost = false;
 	this.players[player.id] = player;
-	this.appendPlayerList(player);
+	domManager.appendPlayerList(player);
 
 	if(player == this.localPlayer)
 		pencil.updateColor();
@@ -1002,9 +898,8 @@ GameEngine.prototype.start = function(startPositions, startTime) {
 
 	var self = this;
 	this.gameloopTimeout = window.setTimeout(function() { self.realStart(); }, delay + this.tickLength);
-	this.focusChat();
+	domManager.focusChat();
 }
-
 
 GameEngine.prototype.revertBackup = function() {
 	var ceiledTick = Math.ceil(this.tick);
@@ -1057,21 +952,9 @@ GameEngine.prototype.updateContext = function(stateIndex, floorTick) {
 
 GameEngine.prototype.drawCrosses = function(stateIndex) {
 	for(var i = 0, len = this.crossQueue.length/ 2; i < len; i++)
-		this.drawCross(this.contexts[stateIndex], this.crossQueue[2 * i], this.crossQueue[2 * i + 1]); 
+		canvasManager.drawCross(this.contexts[stateIndex], this.crossQueue[2 * i], this.crossQueue[2 * i + 1]); 
 
-	this.crossQueue = [];
-}
-
-GameEngine.prototype.drawCross = function(ctx, x, y) {	
-	setLineColor(ctx, crossColor, 1);
-	ctx.lineWidth = crossLineWidth;
-	ctx.beginPath();
-	ctx.moveTo(x - crossSize / 2, y - crossSize / 2);
-	ctx.lineTo(x + crossSize / 2, y + crossSize / 2);
-	ctx.moveTo(x + crossSize / 2, y - crossSize / 2);
-	ctx.lineTo(x - crossSize / 2, y + crossSize / 2);
-	ctx.stroke();
-	ctx.lineWidth = lineWidth;
+	this.crossQueue.length = 0;
 }
 
 GameEngine.prototype.measureFPS = function() {
@@ -1227,8 +1110,8 @@ GameEngine.prototype.resize = function() {
 		this.initContext(this.contexts[i]);
 	}
 	
-	canvas.drawMapSegments(this.contexts[0]);
-	canvas.drawPencilSegments(this.contexts[0]);
+	canvasManager.drawMapSegments(this.contexts[0]);
+	canvasManager.drawPencilSegments(this.contexts[0]);
 
 	this.correctionTick = -backupStates[1] - 1;
 	this.revertBackup();
@@ -1258,61 +1141,6 @@ GameEngine.prototype.requestKick = function(id) {
 	this.sendMsg('kick', {'playerId': id});
 }
 
-GameEngine.prototype.appendPlayerList = function(player) {
-	var row = document.createElement('tr');
-	var nameNode = document.createElement('td');
-	var nameSpan = document.createElement('span');
-	var kickLink = document.createElement('a');
-	var statusNode = document.createElement('td');
-	var pointsNode = document.createElement('td');
-	var self = this;
-
-	nameSpan.innerHTML = player.playerName;
-	nameSpan.className = 'noverflow';
-	player.row = row;
-
-	kickLink.className = this.host == this.localPlayer ? 'close' : 'close hidden';
-	kickLink.innerHTML = 'x';
-	kickLink.addEventListener('click', function() { self.requestKick(parseInt(player.id)); });
-
-	this.playerList.appendChild(row);
-	if(player != this.localPlayer)
-		nameNode.appendChild(kickLink);
-	nameNode.appendChild(nameSpan);
-	row.appendChild(nameNode);
-	row.appendChild(statusNode);
-	row.appendChild(pointsNode);
-	player.updateRow();
-	resizeChat();
-}
-
-GameEngine.prototype.clearPlayerList = function() {
-	while(this.playerList.hasChildNodes())
-		this.playerList.removeChild(this.playerList.firstChild);
-	resizeChat();
-}
-
-/* sorts the player list by points in decreasing order */
-GameEngine.prototype.sortPlayerList = function() {
-	var rows = this.playerList.getElementsByTagName('tr'); // this is nodelist, we want array
-	var arr = [];
-
-	for (var i = 0, ref = arr.length = rows.length; i < ref; i++)
-		arr[i] = rows[i];
-
-	arr.sort(function(row1, row2) {
-		var score1 = parseInt(row1.lastChild.innerHTML);
-		var score2 = parseInt(row2.lastChild.innerHTML);
-		return score1 == score2 ? 0 : (score1 > score2 ? -1 : 1);
-	});
-
-	for(var i = 1; i < arr.length; i++)
-		if(arr[i] != this.playerList.lastChild) {
-			this.playerList.removeChild(arr[i]);
-			this.playerList.appendChild(arr[i]);
-		}
-}
-
 GameEngine.prototype.sendChat = function() {
 	var msg = this.chatBar.value;
 
@@ -1322,11 +1150,6 @@ GameEngine.prototype.sendChat = function() {
 	this.sendMsg('chat', {'message': msg});
 	this.chatBar.value = '';
 	this.printChat(this.localPlayer, msg);
-}
-
-GameEngine.prototype.focusChat = function() {
-	if(!touchDevice)
-		this.chatBar.focus();
 }
 
 GameEngine.prototype.backToGameLobby = function() {	

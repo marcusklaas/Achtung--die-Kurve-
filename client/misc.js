@@ -17,59 +17,6 @@ AudioController.prototype.playSound = function(name) {
 	this.sounds[name][Math.floor(Math.random() * this.sounds[name].length)].play();
 }
 
-/* Receiver */
-var receiver = (function() {
-	return {
-		handlePencilMessage: function(msg, player) {
-			var tickSolid = msg.readTick();
-			var reset = msg.readBool();
-			var pen = player.pen;
-			
-			if(reset)
-				pen.pos = msg.readPos();
-			
-			while(msg.at < msg.data.length) {
-				var pos = msg.readPos();
-				var seg = new TimedSegment(pen.pos.x, pen.pos.y, pos.x, pos.y, tickSolid);
-				
-				pen.seg.push(seg);
-				tickSolid++;
-				pen.pos = pos;
-			}
-		}
-	};
-}());
-
-/* Byte Message */
-ByteMessage = function(data, at) {
-	this.data = data;
-	this.at = at;
-}
-
-ByteMessage.prototype.readPos = function() {
-	var x, y;
-	var a = this.data.charCodeAt(this.at++);
-	var b = this.data.charCodeAt(this.at++);
-	var c = this.data.charCodeAt(this.at++);
-	
-	x = a | (b & 15) << 7;
-	y = b >> 4 | c << 3;
-	
-	return new Vector(x, y);
-}
-
-ByteMessage.prototype.readTick = function() {
-	var a = this.data.charCodeAt(this.at++);
-	var b = this.data.charCodeAt(this.at++);
-	var c = this.data.charCodeAt(this.at++);
-	
-	return a | b << 7 | c << 14;
-}
-
-ByteMessage.prototype.readBool = function() {
-	return this.data.charCodeAt(this.at++);
-}
-
 /* Segments */
 function Segment(x1, y1, x2, y2) {
 	this.x1 = x1;
@@ -97,7 +44,7 @@ Segment.prototype.draw = function(ctx) {
 
 Segment.prototype.stroke = function(ctx, color, alpha) {
 	ctx.beginPath();
-	setLineColor(ctx, color, alpha);
+	canvasManager.setLineColor(ctx, color, alpha);
 	ctx.lineCap = alpha == 1 ? lineCapStyle : 'butt';
 	this.draw(ctx);
 	ctx.stroke();
@@ -261,7 +208,19 @@ function segmentCollision(a, b) {
 }
 
 /* object that handles all drawing (deel van gameengine kan hier dan in) */
-var canvas = {
+var canvasManager = {
+	drawCross: function(ctx, x, y) {	
+		canvasManager.setLineColor(ctx, crossColor, 1);
+		ctx.lineWidth = crossLineWidth;
+		ctx.beginPath();
+		ctx.moveTo(x - crossSize / 2, y - crossSize / 2);
+		ctx.lineTo(x + crossSize / 2, y + crossSize / 2);
+		ctx.moveTo(x + crossSize / 2, y - crossSize / 2);
+		ctx.lineTo(x - crossSize / 2, y + crossSize / 2);
+		ctx.stroke();
+		ctx.lineWidth = lineWidth;
+	},
+
 	drawSegment: function(seg, color, alpha) {
 		for(var i = 0; i < backupStates.length; i++)
 			seg.stroke(game.contexts[i], color, alpha);
@@ -273,7 +232,7 @@ var canvas = {
 
 		if(game.mapSegments.length > 0) {
 			ctx.beginPath();
-			setLineColor(ctx, mapSegmentColor, 1);
+			canvasManager.setLineColor(ctx, mapSegmentColor, 1);
 
 			for(var i = 0; i < game.mapSegments.length; i++) {
 				var seg = game.mapSegments[i];
@@ -285,7 +244,7 @@ var canvas = {
 		}
 		
 		for(var i in game.mapTeleports)
-			drawTeleport(ctx, game.mapTeleports[i]);
+			canvasManager.drawTeleport(ctx, game.mapTeleports[i]);
 	}, 
 	
 	drawPencilSegments: function(ctx) {
@@ -294,14 +253,14 @@ var canvas = {
 			var pen = player.pen;
 			var switched = false;
 			
-			setLineColor(ctx, player.color, 1);
+			canvasManager.setLineColor(ctx, player.color, 1);
 			ctx.beginPath();
 			for(var j = 0; j < pen.seg.length; j++) {
 				var seg = pen.seg[j];
 				
 				if(seg.tick > game.tick && !switched) {
 					ctx.stroke();
-					setLineColor(ctx, player.color, pencilAlpha);
+					canvasManager.setLineColor(ctx, player.color, pencilAlpha);
 					ctx.beginPath();
 					switched = true;
 				}
@@ -310,65 +269,65 @@ var canvas = {
 			}
 			ctx.stroke();
 		}
+	},
+
+	drawTeleport: function(ctx, seg) {
+		canvasManager.setLineColor(ctx, playerColors[seg.teleportId], 1);
+		ctx.lineWidth = teleportLineWidth;
+		var dx = seg.x2 - seg.x1;
+		var dy = seg.y2 - seg.y1;
+		var len = getLength(dx, dy);
+
+		dx /= len;
+		dy /= len;
+		var dashes = Math.max(2, Math.round((len + dashSpacing) / (dashLength + dashSpacing)));
+		dashSpacing = (len + dashSpacing) / dashes - dashLength;
+	
+		ctx.beginPath();
+		var x = seg.x1;
+		var y = seg.y1;
+		for(var i = 0; i < dashes; i++) {
+			ctx.moveTo(x, y);
+			ctx.lineTo(x += dx * dashLength, y += dy * dashLength);
+			x += dx * dashSpacing;
+			y += dy * dashSpacing;
+		}
+		ctx.stroke();
+		ctx.lineWidth = lineWidth;
+	},
+
+	drawIndicatorArrow: function(ctx, x, y, angle, color) {
+		canvasManager.setLineColor(ctx, color, 1);
+		ctx.beginPath();
+		ctx.moveTo(x, y);
+		ctx.lineTo(x += Math.cos(angle) * indicatorLength, y += Math.sin(angle) * indicatorLength);
+		ctx.stroke();
+
+		ctx.fillStyle = getRGBstring(color);
+		ctx.beginPath();
+		var a = indicatorArrowOffset;
+		var b = indicatorArrowLength;
+		var c = ctx.lineWidth;
+		var d = Math.PI/ 4;
+	
+		x += Math.cos(angle) * a;
+		y += Math.sin(angle) * a;
+		for(var i = 0; i < 2; i++) {
+			ctx.moveTo(x + Math.cos(angle - d) * c, y + Math.sin(angle - d) * c);
+			ctx.arc(x, y, c, angle - d, angle + d, false);
+			x += Math.cos(angle) * b;
+			y += Math.sin(angle) * b;
+			ctx.lineTo(x, y);
+			ctx.closePath();
+		}
+		ctx.fill();
+	},
+
+	setLineColor: function(ctx, color, alpha) {
+		ctx.strokeStyle = 'rgba(' + color[0] + ', ' + color[1] + ', '
+		 + color[2] + ', ' + alpha + ')';
 	}
 };
-
-function setLineColor(ctx, color, alpha) {
-	ctx.strokeStyle = 'rgba(' + color[0] + ', ' + color[1] + ', '
-	 + color[2] + ', ' + alpha + ')';
-}
-
-function drawIndicatorArrow(ctx, x, y, angle, color) {
-	setLineColor(ctx, color, 1);
-	ctx.beginPath();
-	ctx.moveTo(x, y);
-	ctx.lineTo(x += Math.cos(angle) * indicatorLength, y += Math.sin(angle) * indicatorLength);
-	ctx.stroke();
-
-	ctx.fillStyle = getRGBstring(color);
-	ctx.beginPath();
-	var a = indicatorArrowOffset;
-	var b = indicatorArrowLength;
-	var c = ctx.lineWidth;
-	var d = Math.PI/ 4;
-	
-	x += Math.cos(angle) * a;
-	y += Math.sin(angle) * a;
-	for(var i = 0; i < 2; i++) {
-		ctx.moveTo(x + Math.cos(angle - d) * c, y + Math.sin(angle - d) * c);
-		ctx.arc(x, y, c, angle - d, angle + d, false);
-		x += Math.cos(angle) * b;
-		y += Math.sin(angle) * b;
-		ctx.lineTo(x, y);
-		ctx.closePath();
-	}
-	ctx.fill();
-}
-
-function drawTeleport(ctx, seg) {
-	setLineColor(ctx, playerColors[seg.teleportId], 1);
-	ctx.lineWidth = teleportLineWidth;
-	var dx = seg.x2 - seg.x1;
-	var dy = seg.y2 - seg.y1;
-	var len = getLength(dx, dy);
-
-	dx /= len;
-	dy /= len;
-	var dashes = Math.max(2, Math.round((len + dashSpacing) / (dashLength + dashSpacing)));
-	dashSpacing = (len + dashSpacing) / dashes - dashLength;
-	
-	ctx.beginPath();
-	var x = seg.x1;
-	var y = seg.y1;
-	for(var i = 0; i < dashes; i++) {
-		ctx.moveTo(x, y);
-		ctx.lineTo(x += dx * dashLength, y += dy * dashLength);
-		x += dx * dashSpacing;
-		y += dy * dashSpacing;
-	}
-	ctx.stroke();
-	ctx.lineWidth = lineWidth;
-}
 
 window.requestAnimFrame = (function() {
 	return  window.requestAnimationFrame       || 
@@ -382,41 +341,6 @@ window.requestAnimFrame = (function() {
 })();
 
 /* DOM/ UI functions */
-function setOptionVisibility(target) {
-	var sections = ['disconnect', 'stop', 'back'];
-
-	for(var i = 0; i < sections.length; i++) {
-		var elt = document.getElementById(sections[i]);
-		elt.style.display = (target == sections[i]) ? 'block' : 'none';
-	}
-}
-
-function setContentVisibility(target) {
-	var sections = ['connectionContainer', 'gameListContainer', 'editor',
-	 'waitContainer', 'gameContainer'];
-
-	for(var i = 0; i < sections.length; i++) {
-		var elt = document.getElementById(sections[i]);
-
-		if(target == sections[i])
-			elt.classList.add('contentVisible');
-		else
-			elt.classList.remove('contentVisible');
-	}
-}
-
-function resizeChat() {
-	var chat = document.getElementById('chatContainer');
-	var options = document.getElementById('options');
-	var playerList = document.getElementById('playerListContainer');
-	var chatForm = document.getElementById('chatForm');
-	var gameTitle = document.getElementById('gameTitle');
-	var margins = 30;
-	var maxHeight = document.body.clientHeight - options.offsetHeight
-	 - chatForm.offsetHeight - playerList.offsetHeight - gameTitle.offsetHeight - margins;
-	chat.style.maxHeight = maxHeight + 'px';
-}
-
 function getPencilMode() {
 	if(document.getElementById('pencilOn').lastChild.checked)
 		return 'on';
