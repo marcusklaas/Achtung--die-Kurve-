@@ -332,7 +332,7 @@ var editor = (function() {
 
 			startButton.addEventListener('click', function() {
 				game.setGameState('editing');
-				pos = findPos(canvas);
+				pos = domManager.findPos(canvas);
 				editor.resize();
 
 				interval = window.setInterval(function() {

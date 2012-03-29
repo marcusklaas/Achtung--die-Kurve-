@@ -35,7 +35,7 @@ var pencil = (function() {
 		
 		appendpos();
 		seg.setEnd(pos);
-		canvas.drawSegment(seg, game.localPlayer.color, pencilAlpha);
+		canvasManager.drawSegment(seg, game.localPlayer.color, pencilAlpha);
 	}
 	
 	function appendpos() {
@@ -145,8 +145,8 @@ Pen.prototype.reset = function() {
 Pen.prototype.doTick = function() {
 	if(!this.player.isLocal)
 		while(this.visibleIndex < this.seg.length)
-			canvas.drawSegment(this.seg[this.visibleIndex++], this.player.color, pencilAlpha);
+			canvasManager.drawSegment(this.seg[this.visibleIndex++], this.player.color, pencilAlpha);
 	
 	while(this.solidIndex < this.seg.length && this.seg[this.solidIndex].tick <= game.tick)
-		canvas.drawSegment(this.seg[this.solidIndex++], this.player.color, 1);
+		canvasManager.drawSegment(this.seg[this.solidIndex++], this.player.color, 1);
 }

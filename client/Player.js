@@ -134,9 +134,9 @@ Player.prototype.simulate = function(endTick, ctx, state) {
 		if(!handled) {
 			ctx.drawLine(state.x, state.y, state.x = nextX, state.y = nextY);
 			
-			/* wrap around */
-			if(this.game.torus && (state.x < 0 || state.x > this.game.width ||
-				state.y < 0 || state.y > this.game.height)) {
+			/* wrap around: FIXME: werkt niet meer goed sinds FP ticks */
+			if(this.game.torus && wholeTick && (state.x < 0 ||
+			 state.x > this.game.width || state.y < 0 || state.y > this.game.height)) {
 				if(state.x > this.game.width)
 					state.x = 0;
 				else if(state.x < 0)

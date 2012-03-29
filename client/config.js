@@ -62,11 +62,11 @@ var pencilAlpha = 0.2;
 /* debugging */
 var emulateTouch = false;
 var ultraVerbose = false;
-var simulatedPing = 250;
+var simulatedPing = 0;
 var extraGameStartTimeDifference = 0;
 var acceptGameTimeAdjustments = true;
 var jsProfiling = false;
-var simulateCPUlag = true;
+var simulateCPUlag = false;
 var displayDebugStatus = true;
 var fpsInterval = 500; // in msecs
 var debugRewards = false;

@@ -2,6 +2,7 @@ var domManager = (function() {
 	var playerList;
 	var gameList;
 	var chatBar;
+	var sidebar;
 	var resizeTimeout = null;
 
 	function resizeChat() {
@@ -36,6 +37,7 @@ var domManager = (function() {
 		playerList = document.getElementById('playerList').lastChild;
 		gameList = document.getElementById('gameList').lastChild;
 		chatBar = document.getElementById('chat');
+		sidebar = document.getElementById('sidebar');
 	};
 
 	domManager.windowResize = function() {
@@ -219,6 +221,41 @@ var domManager = (function() {
 			else
 				elt.classList.remove('contentVisible');
 		}
+	};
+
+	domManager.setSidebarVisibility = function(visible) {
+		if(visible == (sidebar.classList.contains('visible')))
+			return false;
+
+		sidebar.classList.toggle('visible');
+		document.getElementById('menuButton').innerHTML = visible ? '&lt;' : '&gt;';
+
+		var articles = document.getElementsByTagName('article');
+		for(var i = 0; i < articles.length; i++)
+			articles[i].classList.toggle('translated');
+
+		return true;
+	};
+
+	domManager.sidebarWidth = function() {
+		return sidebar.classList.contains('visible') ? sidebarWidth : 0;
+	};
+
+	domManager.toggleSidebar = function() {
+		this.setSidebarVisibility(!sidebar.classList.contains('visible'));
+		game.resize();
+	};
+
+	domManager.findPos = function(obj) {
+		var curleft = curtop = 0;
+		if (obj.offsetParent) {
+			do {
+				curleft += obj.offsetLeft;
+				curtop += obj.offsetTop;
+			} while(obj = obj.offsetParent);
+		}
+
+		return new Vector(curleft, curtop);
 	};
 
 	return domManager;

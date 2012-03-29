@@ -1,9 +1,9 @@
 window.onload = function() {
-	game = new GameEngine();
-	mouse = new Vector(0, 0);
+	game.onload();
 	pencil.onload();
 	editor.onload(); 
 	domManager.onload();
+	mouse = new Vector(0, 0);
 	var localPlayer = game.localPlayer;
 	var audioController = game.audioController;
 
@@ -47,10 +47,10 @@ window.onload = function() {
 	function connect() {
 		var playerName = document.getElementById('playername').value;
 
-		game.setSidebarVisibility(true);
+		domManager.setSidebarVisibility(true);
 
 		if(typeof playerName != 'string' || playerName.length < 1 || playerName.length > maxNameLength) {
-			game.gameMessage('Enter a cool nickname please (no longer than ' + maxNameLength + ' chars)');
+			domManager.gameMessage('Enter a cool nickname please (no longer than ' + maxNameLength + ' chars)');
 			return;
 		}
 
@@ -69,7 +69,7 @@ window.onload = function() {
 	
 		if(maxPlayers > 8 || maxPlayers < 1 || minPlayers > 8 || minPlayers < 1
 		 || minPlayers > maxPlayers) {
-			game.gameMessage('Min/ maxplayers unacceptable!');
+			domManager.gameMessage('Min/ maxplayers unacceptable!');
 			return;
 		}
 
@@ -116,7 +116,7 @@ window.onload = function() {
 		document.getElementById('minplayers').value = '1';
 		enableSound = false;
 	}
-	echo = function(msg) {game.gameMessage(msg);}
+	echo = function(msg) {domManager.gameMessage(msg);}
 		
 	/* auto connect if name is known */
 	if(playerName != null && playerName != '') {

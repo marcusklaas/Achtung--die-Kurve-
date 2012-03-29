@@ -19,7 +19,7 @@ function InputController(player, left, right) {
 
 	var self = this;
 	var game = player.game;
-	var canvas = player.game.baseCanvas;
+	var canvas = document.getElementById('baseCanvas');
 
 	/* listen for keyboard events */
 	window.addEventListener('keydown', function(e) {
