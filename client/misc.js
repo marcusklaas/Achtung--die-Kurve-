@@ -1,6 +1,32 @@
 /* Audio controller */
 AudioController = function() {
 	this.sounds = [];
+	this.enableSound = true;
+}
+
+AudioController.prototype.onload = function() {
+	/* listen to sound checkbox */
+	var checkBox = document.getElementById('sound');
+	var self = this;
+	var soundCookie = getCookie('sound');
+	
+	if(soundCookie != null & soundCookie == 'false')
+		checkBox.checked = this.enableSound = false;
+
+	checkBox.addEventListener('change', function(e) {
+		self.enableSound = checkBox.checked;
+		setCookie('sound', checkBox.checked ? 'true' : 'false', 30);
+	});
+	
+	/* add sounds */
+	//this.addSound('localDeath', 'sounds/wilhelm', ['ogg', 'mp3']);
+	//this.addSound('localDeath', 'sounds/loser', ['ogg', 'mp3']);
+	this.addSound('countdown', 'sounds/countdown', ['ogg', 'mp3']);
+	this.addSound('playerLeft', 'sounds/doorclose', ['ogg', 'mp3']);
+	this.addSound('newPlayer', 'sounds/playerjoint', ['ogg', 'wav']);
+	this.addSound('gameStart', 'sounds/whip', ['ogg', 'mp3']);
+	this.addSound('localWin', 'sounds/winner', ['ogg', 'mp3']);
+	this.addSound('chat', 'sounds/beep', ['ogg', 'mp3']);
 }
 
 AudioController.prototype.addSound = function(name, file, formats) {	
@@ -42,6 +68,7 @@ Segment.prototype.draw = function(ctx) {
 	ctx.lineTo(this.x2, this.y2);
 }
 
+/* FIXME: DO NOT USE THIS! use canvasmanager method instead! */
 Segment.prototype.stroke = function(ctx, color, alpha) {
 	ctx.beginPath();
 	canvasManager.setLineColor(ctx, color, alpha);
@@ -205,127 +232,168 @@ function segmentCollision(a, b) {
 	return (s >= 0 && s <= 1) ? s : -1;
 }
 
-/* object that handles all drawing (deel van gameengine kan hier dan in) */
-var canvasManager = {
-	drawCross: function(ctx, x, y) {	
-		canvasManager.setLineColor(ctx, crossColor, 1);
-		ctx.lineWidth = crossLineWidth;
-		ctx.beginPath();
-		ctx.moveTo(x - crossSize / 2, y - crossSize / 2);
-		ctx.lineTo(x + crossSize / 2, y + crossSize / 2);
-		ctx.moveTo(x + crossSize / 2, y - crossSize / 2);
-		ctx.lineTo(x - crossSize / 2, y + crossSize / 2);
-		ctx.stroke();
-		ctx.lineWidth = lineWidth;
-	},
+/* object that handles all drawing (deel van gameengine kan hier dan in) 
+ * TODO: wss kunnen hier ook contexts in geabstraheerd worden enzo */
+function createCanvasManager(game) {
+	/* private variables / methods go here */
 
-	drawSegment: function(seg, color, alpha) {
-		for(var i = 0; i < backupStates.length; i++)
-			seg.stroke(game.contexts[i], color, alpha);
-	}, 
-	
-	drawMapSegments: function(ctx) {
-		ctx.fillStyle = canvasColor;
-		ctx.fillRect(0, 0, game.width, game.height);
-
-		if(game.mapSegments.length > 0) {
+	var publicObject = {
+		drawCross: function(ctx, x, y) {	
+			this.setLineColor(ctx, crossColor, 1);
+			ctx.lineWidth = crossLineWidth;
 			ctx.beginPath();
-			canvasManager.setLineColor(ctx, mapSegmentColor, 1);
-
-			for(var i = 0; i < game.mapSegments.length; i++) {
-				var seg = game.mapSegments[i];
-				ctx.moveTo(seg.x1, seg.y1);
-				ctx.lineTo(seg.x2, seg.y2);
-			}
-
+			ctx.moveTo(x - crossSize / 2, y - crossSize / 2);
+			ctx.lineTo(x + crossSize / 2, y + crossSize / 2);
+			ctx.moveTo(x + crossSize / 2, y - crossSize / 2);
+			ctx.lineTo(x - crossSize / 2, y + crossSize / 2);
 			ctx.stroke();
-		}
-		
-		for(var i in game.mapTeleports)
-			canvasManager.drawTeleport(ctx, game.mapTeleports[i]);
-	}, 
+			ctx.lineWidth = lineWidth;
+		},
+
+		drawSegment: function(seg, color, alpha) {
+			for(var i = 0; i < backupStates.length; i++)
+				seg.stroke(game.contexts[i], color, alpha);
+		}, 
 	
-	drawPencilSegments: function(ctx) {
-		for(var i in game.players) {
-			var player = game.players[i];
-			var pen = player.pen;
-			var switched = false;
-			
-			canvasManager.setLineColor(ctx, player.color, 1);
-			ctx.beginPath();
-			for(var j = 0; j < pen.seg.length; j++) {
-				var seg = pen.seg[j];
-				
-				if(seg.tick > game.tick && !switched) {
-					ctx.stroke();
-					canvasManager.setLineColor(ctx, player.color, pencilAlpha);
-					ctx.beginPath();
-					switched = true;
+		drawMapSegments: function(ctx) {
+			ctx.fillStyle = canvasColor;
+			ctx.fillRect(0, 0, game.width, game.height);
+
+			if(game.mapSegments.length > 0) {
+				ctx.beginPath();
+				this.setLineColor(ctx, mapSegmentColor, 1);
+
+				for(var i = 0; i < game.mapSegments.length; i++) {
+					var seg = game.mapSegments[i];
+					ctx.moveTo(seg.x1, seg.y1);
+					ctx.lineTo(seg.x2, seg.y2);
 				}
+
+				ctx.stroke();
+			}
+		
+			for(var i in game.mapTeleports)
+				this.drawTeleport(ctx, game.mapTeleports[i]);
+		}, 
+	
+		drawPencilSegments: function(ctx) {
+			for(var i in game.players) {
+				var player = game.players[i];
+				var pen = player.pen;
+				var switched = false;
+			
+				this.setLineColor(ctx, player.color, 1);
+				ctx.beginPath();
+				for(var j = 0; j < pen.seg.length; j++) {
+					var seg = pen.seg[j];
 				
-				seg.draw(ctx);
+					if(seg.tick > game.tick && !switched) {
+						ctx.stroke();
+						this.setLineColor(ctx, player.color, pencilAlpha);
+						ctx.beginPath();
+						switched = true;
+					}
+				
+					seg.draw(ctx);
+				}
+				ctx.stroke();
+			}
+		},
+
+		drawTeleport: function(ctx, seg) {
+			this.setLineColor(ctx, playerColors[seg.teleportId], 1);
+			ctx.lineWidth = teleportLineWidth;
+			var dx = seg.x2 - seg.x1;
+			var dy = seg.y2 - seg.y1;
+			var len = getLength(dx, dy);
+
+			dx /= len;
+			dy /= len;
+			var dashes = Math.max(2, Math.round((len + dashSpacing) / (dashLength + dashSpacing)));
+			dashSpacing = (len + dashSpacing) / dashes - dashLength;
+	
+			ctx.beginPath();
+			var x = seg.x1;
+			var y = seg.y1;
+			for(var i = 0; i < dashes; i++) {
+				ctx.moveTo(x, y);
+				ctx.lineTo(x += dx * dashLength, y += dy * dashLength);
+				x += dx * dashSpacing;
+				y += dy * dashSpacing;
 			}
 			ctx.stroke();
-		}
-	},
+			ctx.lineWidth = lineWidth;
+		},
 
-	drawTeleport: function(ctx, seg) {
-		canvasManager.setLineColor(ctx, playerColors[seg.teleportId], 1);
-		ctx.lineWidth = teleportLineWidth;
-		var dx = seg.x2 - seg.x1;
-		var dy = seg.y2 - seg.y1;
-		var len = getLength(dx, dy);
-
-		dx /= len;
-		dy /= len;
-		var dashes = Math.max(2, Math.round((len + dashSpacing) / (dashLength + dashSpacing)));
-		dashSpacing = (len + dashSpacing) / dashes - dashLength;
-	
-		ctx.beginPath();
-		var x = seg.x1;
-		var y = seg.y1;
-		for(var i = 0; i < dashes; i++) {
+		drawIndicatorArrow: function(ctx, x, y, angle, color) {
+			this.setLineColor(ctx, color, 1);
+			ctx.beginPath();
 			ctx.moveTo(x, y);
-			ctx.lineTo(x += dx * dashLength, y += dy * dashLength);
-			x += dx * dashSpacing;
-			y += dy * dashSpacing;
-		}
-		ctx.stroke();
-		ctx.lineWidth = lineWidth;
-	},
+			ctx.lineTo(x += Math.cos(angle) * indicatorLength, y += Math.sin(angle) * indicatorLength);
+			ctx.stroke();
 
-	drawIndicatorArrow: function(ctx, x, y, angle, color) {
-		canvasManager.setLineColor(ctx, color, 1);
-		ctx.beginPath();
-		ctx.moveTo(x, y);
-		ctx.lineTo(x += Math.cos(angle) * indicatorLength, y += Math.sin(angle) * indicatorLength);
-		ctx.stroke();
-
-		ctx.fillStyle = getRGBstring(color);
-		ctx.beginPath();
-		var a = indicatorArrowOffset;
-		var b = indicatorArrowLength;
-		var c = ctx.lineWidth;
-		var d = Math.PI/ 4;
+			ctx.fillStyle = getRGBstring(color);
+			ctx.beginPath();
+			var a = indicatorArrowOffset;
+			var b = indicatorArrowLength;
+			var c = ctx.lineWidth;
+			var d = Math.PI/ 4;
 	
-		x += Math.cos(angle) * a;
-		y += Math.sin(angle) * a;
-		for(var i = 0; i < 2; i++) {
-			ctx.moveTo(x + Math.cos(angle - d) * c, y + Math.sin(angle - d) * c);
-			ctx.arc(x, y, c, angle - d, angle + d, false);
-			x += Math.cos(angle) * b;
-			y += Math.sin(angle) * b;
-			ctx.lineTo(x, y);
-			ctx.closePath();
-		}
-		ctx.fill();
-	},
+			x += Math.cos(angle) * a;
+			y += Math.sin(angle) * a;
+			for(var i = 0; i < 2; i++) {
+				ctx.moveTo(x + Math.cos(angle - d) * c, y + Math.sin(angle - d) * c);
+				ctx.arc(x, y, c, angle - d, angle + d, false);
+				x += Math.cos(angle) * b;
+				y += Math.sin(angle) * b;
+				ctx.lineTo(x, y);
+				ctx.closePath();
+			}
+			ctx.fill();
+		},
+	
+		drawDebugSegments: function(ctx, segments) {
+			this.setLineColor(ctx, [0, 0, 0], 1);
+			ctx.lineWidth = 1;
+			ctx.beginPath();
 
-	setLineColor: function(ctx, color, alpha) {
-		ctx.strokeStyle = 'rgba(' + color[0] + ', ' + color[1] + ', '
-		 + color[2] + ', ' + alpha + ')';
+			for(var i = 0; i < segments.length; i++) {
+				var s = segments[i];
+
+				if(s.x1 != s.x2 || s.y1 != s.y2) {
+					ctx.moveTo(s.x1, s.y1);
+					ctx.lineTo(s.x2, s.y2);
+				}
+				else if(debugZeroLengthSegs) {
+					ctx.moveTo(s.x1, s.y1);
+					ctx.arc(s.x1, s.y1, 5, 0, Math.PI * 2, false);
+				}
+			}
+
+			ctx.stroke();
+			ctx.lineWidth = lineWidth;
+		},
+	
+		initContext: function(ctx, scaleX, scaleY) {
+			ctx.scale(scaleX, scaleY);
+			ctx.lineWidth = lineWidth;
+			ctx.lineCap = lineCapStyle;
+			ctx.drawLine = function(x1, y1, x2, y2) {
+				ctx.beginPath();
+				ctx.moveTo(x1, y1);
+				ctx.lineTo(x2, y2);
+				ctx.stroke();
+			};
+		},
+
+		setLineColor: function(ctx, color, alpha) {
+			ctx.strokeStyle = 'rgba(' + color[0] + ', ' + color[1] + ', '
+			 + color[2] + ', ' + alpha + ')';
+		}
 	}
-};
+	
+	return publicObject;
+}
 
 window.requestAnimFrame = (function() {
 	return  window.requestAnimationFrame       || 

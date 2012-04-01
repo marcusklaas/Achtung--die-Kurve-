@@ -18,7 +18,7 @@ struct libwebsocket * __libwebsocket_client_connect_2(
     struct protoent* tcp_proto;
 #endif
 
-	fprintf(stderr, "__libwebsocket_client_connect_2\n");
+	debug("__libwebsocket_client_connect_2\n");
 
 	wsi->candidate_children_list = NULL;
 
@@ -43,7 +43,7 @@ struct libwebsocket * __libwebsocket_client_connect_2(
 	 * prepare the actual connection (to the proxy, if any)
 	 */
 
-	fprintf(stderr, "__libwebsocket_client_connect_2: address %s", wsi->c_address);
+	debug("__libwebsocket_client_connect_2: address %s", wsi->c_address);
 
 	server_hostent = gethostbyname(wsi->c_address);
 	if (server_hostent == NULL) {
@@ -66,7 +66,7 @@ struct libwebsocket * __libwebsocket_client_connect_2(
 
 	/* Disable Nagle */
 #if !defined(__APPLE__)
-	setsockopt(wsi->sock, SOL_TCP, TCP_NODELAY, &opt, sizeof(opt));
+	setsockopt(wsi->sock, SOL_TCP, TCP_NODELAY, (const void *)&opt, sizeof(opt));
 #else
     tcp_proto = getprotobyname("TCP");
     setsockopt(wsi->sock, tcp_proto->p_proto, TCP_NODELAY, &opt, sizeof(opt));
@@ -83,7 +83,7 @@ struct libwebsocket * __libwebsocket_client_connect_2(
 		goto oom4;
 	}
 
-	fprintf(stderr, "connected\n");
+	debug("connected\n");
 
 	/* into fd -> wsi hashtable */
 
@@ -304,8 +304,7 @@ libwebsocket_client_connect(struct libwebsocket_context *context,
 	}
 
 	if (handled) {
-		fprintf(stderr, "libwebsocket_client_connect: "
-							 "ext handling conn\n");
+		debug("libwebsocket_client_connect: ext handling conn\n");
 
 		libwebsocket_set_timeout(wsi,
 			PENDING_TIMEOUT_AWAITING_EXTENSION_CONNECT_RESPONSE, 5);
@@ -314,7 +313,7 @@ libwebsocket_client_connect(struct libwebsocket_context *context,
 		return wsi;
 	}
 
-	fprintf(stderr, "libwebsocket_client_connect: direct conn\n");
+	debug("libwebsocket_client_connect: direct conn\n");
 
 	return __libwebsocket_client_connect_2(context, wsi);
 

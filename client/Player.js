@@ -202,7 +202,7 @@ Player.prototype.drawIndicator = function() {
 	var y = this.states[0].y;
 	var angle = this.states[0].angle;
 
-	canvasManager.drawIndicatorArrow(ctx, x, y, angle, this.color);
+	this.game.canvasManager.drawIndicatorArrow(ctx, x, y, angle, this.color);
 	
 	/* draws name next to indicator */
 	var text = this.isLocal ? 'YOU' : this.playerName;

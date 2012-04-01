@@ -3,10 +3,12 @@ function MouseState() {
 	this.out = true;
 }
 
-var editor = (function() {
+function createEditor(game) {
 	var mouse = new MouseState();
 	var pos = [0, 0];
 	var mode = 'pencil';
+	var domManager = game.domManager;
+	var canvasManager = game.canvasManager;
 	var textField, canvas, context, container, interval;
 	var modal, pencilButton, lineButton, eraserButton, playerStartButton, teleportButton;
 
@@ -161,7 +163,7 @@ var editor = (function() {
 	}
 
 	/* return public object */
-	return {
+	var editor = {
 		mapChanged: false,
 		segments: new Array(),
 	
@@ -366,5 +368,7 @@ var editor = (function() {
 			canvas.addEventListener('touchend', getTouchEvent('up'), false);
 			canvas.addEventListener('touchcancel', getTouchEvent('up'), false);
 		}
-	}
-})();
+	};
+	
+	return editor;
+}

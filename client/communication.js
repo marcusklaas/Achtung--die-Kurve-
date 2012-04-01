@@ -1,5 +1,5 @@
-/* Receiver */
-var receiver = (function() {
+/* Receiver. TODO: deze zou veel meer communicatie moeten overnemen! */
+var createReceiver = function() {
 	return {
 		handlePencilMessage: function(msg, player) {
 			var tickSolid = msg.readTick();
@@ -19,7 +19,7 @@ var receiver = (function() {
 			}
 		}
 	};
-}());
+}
 
 /* Byte Message */
 ByteMessage = function(data, at) {
