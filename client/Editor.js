@@ -17,7 +17,7 @@ var editor = (function() {
 
 		if(ev != null) {
 			state.pos = game.getGamePos(ev);
-			if(ev.preventDefault)
+			if(ev.preventDefault && type != 'up')
 				ev.preventDefault();
 		}
 	
@@ -233,6 +233,8 @@ var editor = (function() {
 			}
 			else if(e.keyCode == 27)
 				closeModal();
+			else
+				return;
 
 			e.preventDefault();
 		},

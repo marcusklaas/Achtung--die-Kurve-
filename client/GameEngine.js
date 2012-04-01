@@ -187,7 +187,7 @@ GameEngine.prototype.setGameState = function(newState) {
 				domManager.setOptionVisibility('back');
 			break;
 		case 'new':
-			resizeChat();
+			//resizeChat(); -> kan functie niet vinden
 			domManager.setContentVisibility('connectionContainer');
 			domManager.setOptionVisibility('nothing');
 			this.connectButton.disabled = false;
@@ -598,7 +598,7 @@ GameEngine.prototype.removePlayer = function(player) {
 	if(this.state == 'waiting' || this.state == 'lobby' || this.state == 'editing' || player.status == 'left' ||
 	 (this.state == 'ended' && player.status == 'ready')) {
 		this.playerList.removeChild(player.row);
-		resizeChat();
+		//resizeChat(); -> kan functie niet vinden
 	} else {
 		player.id += '_left';
 		this.players[player.id] = player;

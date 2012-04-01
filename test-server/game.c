@@ -211,7 +211,7 @@ struct map *createmap(cJSON *j) {
 		seg->x2 = jsongetint(j, "x2");
 		seg->y2 = jsongetint(j, "y2");
 
-		if(!strcmp(jsongetstr(j, "mode"), "playerStart")) {
+		if(jsoncheckjson(j, "mode") && !strcmp(jsongetstr(j, "mode"), "playerStart")) {
 			seg->x2 = jsongetdouble(j, "angle");
 			seg->nxt = map->playerstarts;
 			map->playerstarts = seg;
@@ -225,7 +225,7 @@ struct map *createmap(cJSON *j) {
 				continue;
 			}
 
-			if(!strcmp(jsongetstr(j, "mode"), "teleport")) {
+			if(jsoncheckjson(j, "mode") && !strcmp(jsongetstr(j, "mode"), "teleport")) {
 				int id = jsongetint(j, "teleportId");
 
 				if(id < 0 || id >= MAX_TELEPORTS) {
