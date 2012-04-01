@@ -44,7 +44,8 @@ function GameEngine() {
 	this.backButton = document.getElementById('back');
 	this.startButton = document.getElementById('startGame');
 	this.hostContainer = document.getElementById('hostContainer');
-	this.addComputerButton = document.getElementById('addComputer');
+	this.addComputerEasyButton = document.getElementById('addComputerEasy');
+	this.addComputerHardButton = document.getElementById('addComputerHard');
 	this.nonhostContainer = document.getElementById('nonhostContainer');
 
 	/* extra inits */
@@ -133,8 +134,8 @@ GameEngine.prototype.leaveGame = function() {
 	this.leaveButton.disabled = true;
 }
 
-GameEngine.prototype.addComputer = function() {
-	this.sendMsg('addComputer', {});
+GameEngine.prototype.addComputer = function(type) {
+	this.sendMsg('addComputer', {type: type});
 }
 
 /* this function handles user interface changes for state transitions */
@@ -846,7 +847,7 @@ GameEngine.prototype.sendStartGame = function() {
 	
 	if(debugComputers > 0)
 		for(var i = 0; i < debugComputers; i++)
-			this.addComputer();
+			this.addComputer('hard');
 
 	this.sendMsg('startGame', obj);
 	this.startButton.disabled = true;

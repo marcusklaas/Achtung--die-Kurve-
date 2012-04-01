@@ -369,13 +369,25 @@ int checkkick(struct game *gm, struct user *usr) {
 	return 0;
 }
 
-void addcomputer(struct game *gm) {
-	struct user *comp = smalloc(sizeof(struct user));
+void addcomputer(struct game *gm, char *type) {
+	struct user *comp;
+	int i;
+	
+	for(i = 0; i < NUM_AI; i++)
+		if(!strcmp(type, AI_TYPE_NAME[i]))
+			break;
+	
+	if(i == NUM_AI)
+		return;
+	
+	loggame(gm, "adding computer of type %s\n", type);
+	comp = smalloc(sizeof(struct user));
 	iniuser(comp, 0);
 	comp->human = 0;
 	comp->name = smalloc(MAX_NAME_LENGTH + 1);
-	strcpy(comp->name, COMPUTER_NAME);
-	comp->inputmechanism = COMPUTER_AI;
+	strcpy(comp->name, AI_NAME[i]);
+	comp->inputmechanism = AI_INPUTMECHANISM[i];
+	comp->strength = AI_STRENGTH[i];
 	joingame(gm, comp);
 }
 

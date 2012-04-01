@@ -276,10 +276,10 @@ void setupaidata(struct user *usr) {
 	data->dietick = INT_MAX;
 	newheadbranch(data, gm);
 	
-	for(i = 0; i < AI_NUM_DODGE; i++) {
-		x = AI_DODGE[i].length / max(TURN_SPEED, gm->ts) * 1000 / TICK_LENGTH;
+	for(i = 0; i < AI_NUM_DODGE[usr->strength]; i++) {
+		x = AI_DODGE[usr->strength][i].length / max(TURN_SPEED, gm->ts) * 1000 / TICK_LENGTH;
 		data->dodge[i].ticks = min(AI_MAX_TICKS, ceil(x));
-		data->dodge[i].depth = AI_DODGE[i].depth;
+		data->dodge[i].depth = AI_DODGE[usr->strength][i].depth;
 	}
 	
 	x = AI_MIN_STEER / max(TURN_SPEED, gm->ts) * 1000 / TICK_LENGTH;
@@ -288,7 +288,7 @@ void setupaidata(struct user *usr) {
 	x = AI_MAX_STEER / max(TURN_SPEED, gm->ts) * 1000 / TICK_LENGTH;
 	data->maxsteer_ticks = max(data->minsteer_ticks + 1, x);
 	
-	x = AI_PREDICTION_LENGTH / max(TURN_SPEED, gm->ts) * 1000 / TICK_LENGTH;
+	x = AI_PREDICTION_LENGTH[usr->strength] / max(TURN_SPEED, gm->ts) * 1000 / TICK_LENGTH;
 	data->prediction_ticks = x;
 
 	for(x = 0; x < COMPUTER_DELAY; x++)
@@ -436,7 +436,7 @@ void trynextdodge(struct user *usr, struct mapaidata *data, struct game *gm) {
 			}
 		}
 		if(data->dietick < INT_MAX) {
-			data->nxtdodge = (data->nxtdodge + 1) % AI_NUM_DODGE;
+			data->nxtdodge = (data->nxtdodge + 1) % AI_NUM_DODGE[usr->strength];
 		}
 	}
 }

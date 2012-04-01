@@ -98,8 +98,12 @@ window.onload = function() {
 		game.backToGameLobby();
 	}, false);
 	
-	game.addComputerButton.addEventListener('click', function() {
-		game.addComputer();
+	game.addComputerEasyButton.addEventListener('click', function() {
+		game.addComputer('easy');
+	}, false);
+	
+	game.addComputerHardButton.addEventListener('click', function() {
+		game.addComputer('hard');
 	}, false);
 
 	var minPlayers = getCookie('minPlayers');

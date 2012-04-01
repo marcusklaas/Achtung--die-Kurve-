@@ -530,13 +530,13 @@ void simgame(struct game *gm) {
 			}
 			
 			simuser(&usr->state, usr, 1);
-			if(gm->aigame && usr->human && usr->aimapstate.tick == gm->tick) {
+			if(gm->aigame && (usr->inputmechanism != inputmechanism_mapai) && usr->aimapstate.tick == gm->tick) {
 				no_collision_usr = usr;
 				no_collision_tick = usr->branchtick;
 				simuserfull(&usr->aimapstate, usr, 1, 1, 1, 0);
 				no_collision_usr = 0;
 			}
-			if(gm->aigame && usr->human && gm->tick % USER_PREDICTION_INTERVAL == 0) {
+			if(gm->aigame && (usr->inputmechanism != inputmechanism_mapai) && gm->tick % USER_PREDICTION_INTERVAL == 0) {
 				struct userpos pos = usr->aimapstate;
 				int endtick = gm->tick + SERVER_DELAY / TICK_LENGTH + USER_PREDICTION_LENGTH;
 				
@@ -580,7 +580,7 @@ void queueinput(struct user *usr, int tick, int turn) {
 	else
 		usr->inputtail = usr->inputtail->nxt = input;
 	
-	if(usr->gm->aigame && usr->human) {
+	if(usr->gm->aigame && (usr->inputmechanism != inputmechanism_mapai)) {
 		no_collision_usr = usr;
 		no_collision_tick = usr->branchtick;
 		while(usr->aimapstate.tick < tick && usr->aimapstate.alive) {

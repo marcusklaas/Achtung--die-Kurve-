@@ -303,14 +303,19 @@ callback_game(struct libwebsocket_context * context,
 			}
 		}
 		else if(!strcmp(mode, "addComputer")) {
+			char *type;
+			
 			if(u->gm->host != u || u->gm->state != GS_LOBBY || 
 			 u->gm->nmax <= u->gm->n) {
 				warning("user %d tried to add computer, but does not meet reqs\n", u->id);
 				break;
 			}
+			
+			type = jsongetstr(json, "type");
+			if(!type)
+				break;
 
-			loggame(u->gm, "adding computer player\n");
-			addcomputer(u->gm);
+			addcomputer(u->gm, type);
 		}
 		else if(!strcmp(mode, "createGame")) {
 			if(DEBUG_MODE) printf("user %d is creating a game\n", u->id);
