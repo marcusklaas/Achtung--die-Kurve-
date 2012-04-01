@@ -195,11 +195,14 @@ void newheadbranch(struct mapaidata *data, struct game *gm) {
 void allocinputroom(struct mapaidata *data, int tick) {
 	if(!data->input) {
 		data->inputcap = max(1024, tick);
-		data->input = smalloc(data->inputcap);
+		data->input = scalloc(data->inputcap, 1);
 	}
 	if(data->inputcap < tick) {
+		int cap = data->inputcap;
+		
 		data->inputcap = max(data->inputcap * 2, tick);
 		data->input = srealloc(data->input, data->inputcap);
+		memset(data->input + cap, 0, data->inputcap - cap);
 	}
 }
 
@@ -549,9 +552,14 @@ void inputmechanism_mapai(struct user *usr, int tick) {
 		int turn = data->input[tick] - 2;
 
 		if(turn != usr->lastinputturn) {
-			usr->aimapstate.turn = turn;
-			queueinput(usr, tick, usr->aimapstate.turn);
-			sendsteer(usr, tick, usr->aimapstate.turn, 0);
+			if(turn > 1 || turn < -1) {
+				printf("wrong input, ai needs fix\n");
+			}
+			else {
+				usr->aimapstate.turn = turn;
+				queueinput(usr, tick, usr->aimapstate.turn);
+				sendsteer(usr, tick, usr->aimapstate.turn, 0);
+			}
 		}
 	}
 

@@ -19,7 +19,7 @@ function createEditor(game) {
 
 		if(ev != null) {
 			state.pos = game.getGamePos(ev);
-			if(ev.preventDefault)
+			if(ev.preventDefault && type != 'up')
 				ev.preventDefault();
 		}
 	
@@ -235,6 +235,8 @@ function createEditor(game) {
 			}
 			else if(e.keyCode == 27)
 				closeModal();
+			else
+				return;
 
 			e.preventDefault();
 		},

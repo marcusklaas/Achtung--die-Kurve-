@@ -67,7 +67,11 @@ var extraGameStartTimeDifference = 0;
 var acceptGameTimeAdjustments = true;
 var jsProfiling = false;
 var simulateCPUlag = false;
+<<<<<<< HEAD
 var displayDebugStatus = true;
+=======
+var displayDebugStatus = false;
+>>>>>>> master
 var fpsInterval = 500; // in msecs
 var debugRewards = false;
 var alwaysHideSidebar = false;

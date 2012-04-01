@@ -4,7 +4,7 @@ function createPencil(game, mouse) {
 	var mouse = game.mouse;
 	var inkDiv, indicator;
 	var pos = new Vector(0, 0);
-	var outbuffer = new Array()
+	var outbuffer = new Array();
 	var ink, down, enabled;
 	var mouseDownInk, inkRegen, startInk, inkMinDistance, maxInk;
 	

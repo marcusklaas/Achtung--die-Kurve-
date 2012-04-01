@@ -117,7 +117,7 @@ var rareNaam = (function() { // zodat we het zien als sommige plekken nog op een
 				return true;
 			}
 		}
-	
+
 		switch(mode) {
 			case modePencil:
 				var msg = new ByteMessage(str, 1);
@@ -343,6 +343,7 @@ var rareNaam = (function() { // zodat we het zien als sommige plekken nog op een
 					GameEngine.sendStartGame();
 				break;
 			case 'joinFailed':
+				/* TODO: dit hele blok zou naar domManager kunnen */
 				var msg = 'game already started';
 				if(obj.reason == 'notFound') msg = 'game not found';
 				else if(obj.reason == 'full') msg = 'game is full';
