@@ -1,5 +1,7 @@
 /* pencil of local player */
-var pencil = (function() {
+function createPencil(game, mouse) {
+	var canvasManager = game.canvasManager;
+	var mouse = game.mouse;
 	var inkDiv, indicator;
 	var pos = new Vector(0, 0);
 	var outbuffer = new Array();
@@ -54,7 +56,7 @@ var pencil = (function() {
 		}, 
 		
 		lower: function() {
-			if(!pencil.isLowerable())
+			if(!this.isLowerable()) // was eerst pencil.isLowerable() maar global pencil bestaat niet meer.. dit zou ook moeten werken (tog?) anders deze literal ff naam geven (bijv pencil ;P)
 				return;
 				
 			mouse.copyTo(pos);
@@ -124,16 +126,16 @@ var pencil = (function() {
 			indicator = document.getElementById('inkIndicator');
 		}
 	};
-}());
+}
 
 /* pencil that is controlled by server */
 var Pen = function(player) {
-	this.seg = [];
-	this.pos = new Vector(0, 0);
+	this.seg;
+	this.pos;
 	this.solidIndex = 0;
 	this.visibleIndex = 0;
 	this.player = player;
-};
+}
 
 Pen.prototype.reset = function() {
 	this.seg = [];
@@ -143,6 +145,8 @@ Pen.prototype.reset = function() {
 }
 
 Pen.prototype.doTick = function() {
+	var canvasManager = this.player.game.canvasManager;
+	
 	if(!this.player.isLocal)
 		while(this.visibleIndex < this.seg.length)
 			canvasManager.drawSegment(this.seg[this.visibleIndex++], this.player.color, pencilAlpha);

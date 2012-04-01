@@ -13,7 +13,7 @@ else if(location.href.indexOf('C:/Dropbox') != -1)
 	serverURL = "ws://localhost:7681";
 
 /* visual stuff */
-var vSync = true;
+var vSync = false;
 var maxCanvasStretch = 1.10; // max 20% stretch in either direction
 var holeAlpha = 0.2;
 var lineWidth = 3; // only visual, does not influence collisions
@@ -67,7 +67,11 @@ var extraGameStartTimeDifference = 0;
 var acceptGameTimeAdjustments = true;
 var jsProfiling = false;
 var simulateCPUlag = false;
+<<<<<<< HEAD
+var displayDebugStatus = true;
+=======
 var displayDebugStatus = false;
+>>>>>>> master
 var fpsInterval = 500; // in msecs
 var debugRewards = false;
 var alwaysHideSidebar = false;
