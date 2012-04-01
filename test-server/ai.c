@@ -1,3 +1,28 @@
+const int AI_NUM_DODGE[AI_STRENGTH_LEVELS] = {7, 3};
+const double AI_PREDICTION_LENGTH[AI_STRENGTH_LEVELS] = {PI * 10, PI * 3};
+const struct dodge AI_DODGE[AI_STRENGTH_LEVELS][AI_MAX_NUM_DODGE] = {
+	{
+		{PI,			3, 0}, 
+		{PI,			3, 0}, 
+		{2 * PI,		3, 0},
+		{PI / 2,		4, 0}, 
+		{PI * 3 / 2,	5, 0}, 
+		{PI * 2,		6, 0}, 
+		{PI * 4, 		0, 0}
+	},
+	{	
+		{PI,			3, 0}, 
+		{PI,			3, 0}, 
+		{2 * PI,		3, 0}
+	}
+};
+
+#define NUM_AI 3
+const char AI_TYPE_NAME[NUM_AI][20] = {"hard", "easy", "old"};
+const char AI_NAME[NUM_AI][20] = {"computer (hard)", "computer (easy)", "computer"};
+void (*AI_INPUTMECHANISM[NUM_AI]) (struct user *usr, int tick) = {inputmechanism_mapai, inputmechanism_mapai, inputmechanism_marcusai};
+const int AI_STRENGTH[NUM_AI] = {AI_HARD, AI_EASY, 0};
+
 /* inputmechanisms determine how users are controlled. in particular whether they
  * are player or computer controlled. returns turn for current tick */
 void inputmechanism_human(struct user *usr, int tick) {;}

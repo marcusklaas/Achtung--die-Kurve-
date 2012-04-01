@@ -1,50 +1,16 @@
-void *smalloc(size_t size);
-void *scalloc(size_t num, size_t size);
-cJSON *encodegamepars(struct game *gm);
-void resetpencil(struct pencil *p, struct user *u);
-void cleanpencil(struct pencil *p);
-void simpencil(struct pencil *p);
-void regenink(struct pencil *p, int tick);
-struct game *creategame(int gametype, int nmin, int nmax);
-void endgame(struct game *gm, struct user *winner);
-void joingame(struct game *gm, struct user *newusr);
-double getlength(double x, double y);
-char *gametypetostr(int gametype, char *buf);
-char *pencilmodetostr(int pencilmode, char *buf);
-void addsegment(struct game *gm, struct seg *seg);
-double checkcollision(struct game *gm, struct seg *seg);
-void endround(struct game *gm);
-void tiles(struct game *gm, struct seg *seg, int *tileindices);
-void clearinputs(struct user *usr);
-char *checkname(char *name);
-void handledeath(struct user *usr);
-int pointsystem_trivial(int players, int alive);
-int pointsystem_wta(int players, int alive);
-int pointsystem_rik(int players, int alive);
-void allocroom(struct buffer *buf, int size);
-void appendheader(struct buffer *buf, char type, char player);
-void appendpos(struct buffer *buf, int x, int y);
-void logtime();
-void logwarningtime();
-int checkkick(struct game *gm, struct user *usr);
-void freekicklist(struct kicknode *kick);
-void inputmechanism_human(struct user *usr, int tick);
-void inputmechanism_circling(struct user *usr, int tick);
-void inputmechanism_marcusai(struct user *usr, int tick);
-void inputmechanism_random(struct user *usr, int tick);
-void inputmechanism_checktangent(struct user *usr, int tick);
-void inputmechanism_mapai(struct user *usr, int tick);
-void deleteuser(struct user *usr);
-void updategamelist();
-char *statetostr(int gamestate, char *str);
-cJSON *jsoncreate(char *mode);
-static long servermsecs();
-int getnewbranch(struct game *gm);
-void simuserfull(struct userpos *state, struct user *usr, char addsegments, char aimap, char solid, int branch);
-void addsegmentfull(struct game *gm, struct seg *seg, char aimap, struct user *usr, int tick, int branch);
-void extendpath(struct user *usr, struct mapaidata *data, struct game *gm);
-void appendchar(struct buffer *buf, char c);
+/* macros */
+#define jsonaddnum cJSON_AddNumberToObject
+#define jsonaddstr cJSON_AddStringToObject
+#define jsonaddfalse cJSON_AddFalseToObject
+#define jsonaddtrue cJSON_AddTrueToObject
+#define jsonaddjson cJSON_AddItemToObject
+#define jsonprint cJSON_PrintUnformatted
+#define jsonaddbool(json, name, value) cJSON_AddItemToObject(json, name, cJSON_CreateBool(value))
+#define jsondel	cJSON_Delete
+#define max(a,b) ((b) > (a) ? (b) : (a))
+#define min(a,b) ((b) > (a) ? (a) : (b))
 
+/* some constants */
 #define EPS 0.0001
 #define PI 3.141592653589793
 #define MAX_GAME_WIDTH 2047
@@ -93,41 +59,10 @@ void appendchar(struct buffer *buf, char c);
 #define USER_PREDICTION_LENGTH (1000 / TICK_LENGTH)
 #define AI_MAX_COMPUTATION 500
 #define AI_MAX_DEPTH 10
-
-struct dodge {
-	float length;
-	int depth, ticks;
-};
-
 #define AI_STRENGTH_LEVELS 2
 #define AI_HARD 0
 #define AI_EASY 1
 #define AI_MAX_NUM_DODGE 7
-const int AI_NUM_DODGE[AI_STRENGTH_LEVELS] = {7, 3};
-const double AI_PREDICTION_LENGTH[AI_STRENGTH_LEVELS] = {PI * 10, PI * 3};
-const struct dodge AI_DODGE[AI_STRENGTH_LEVELS][AI_MAX_NUM_DODGE] = {
-	{
-		{PI,			3, 0}, 
-		{PI,			3, 0}, 
-		{2 * PI,		3, 0},
-		{PI / 2,		4, 0}, 
-		{PI * 3 / 2,	5, 0}, 
-		{PI * 2,		6, 0}, 
-		{PI * 4, 		0, 0}
-	},
-	{	
-		{PI,			3, 0}, 
-		{PI,			3, 0}, 
-		{2 * PI,		3, 0}
-	}
-};
-
-#define NUM_AI 3
-const char AI_TYPE_NAME[NUM_AI][20] = {"hard", "easy", "old"};
-const char AI_NAME[NUM_AI][20] = {"computer (hard)", "computer (easy)", "computer"};
-const void (*AI_INPUTMECHANISM[NUM_AI]) (struct user *usr, int tick) = {inputmechanism_mapai, inputmechanism_mapai, inputmechanism_marcusai};
-const int AI_STRENGTH[NUM_AI] = {AI_HARD, AI_EASY, 0};
-
 
 /* byte messages */
 #define MODE_MODIFIED 0
@@ -210,6 +145,12 @@ const int AI_STRENGTH[NUM_AI] = {AI_HARD, AI_EASY, 0};
 /* http server */
 #define LOCAL_RESOURCE_PATH "../client"
 #define LOCAL_PATH_LENGTH 9 // is there a better way?
+
+/* structs */
+struct dodge {
+	float length;
+	int depth, ticks;
+};
 
 enum demo_protocols {
 	PROTOCOL_HTTP = 0, // always first
@@ -397,13 +338,50 @@ struct buffer {
 	char *start, *at, *end;
 };
 
-#define jsonaddnum cJSON_AddNumberToObject
-#define jsonaddstr cJSON_AddStringToObject
-#define jsonaddfalse cJSON_AddFalseToObject
-#define jsonaddtrue cJSON_AddTrueToObject
-#define jsonaddjson cJSON_AddItemToObject
-#define jsonprint cJSON_PrintUnformatted
-#define jsonaddbool(json, name, value) cJSON_AddItemToObject(json, name, cJSON_CreateBool(value))
-#define jsondel	cJSON_Delete
-#define max(a,b) ((b) > (a) ? (b) : (a))
-#define min(a,b) ((b) > (a) ? (a) : (b))
+/* function definitions */
+void *smalloc(size_t size);
+void *scalloc(size_t num, size_t size);
+cJSON *encodegamepars(struct game *gm);
+void resetpencil(struct pencil *p, struct user *u);
+void cleanpencil(struct pencil *p);
+void simpencil(struct pencil *p);
+void regenink(struct pencil *p, int tick);
+struct game *creategame(int gametype, int nmin, int nmax);
+void endgame(struct game *gm, struct user *winner);
+void joingame(struct game *gm, struct user *newusr);
+double getlength(double x, double y);
+char *gametypetostr(int gametype, char *buf);
+char *pencilmodetostr(int pencilmode, char *buf);
+void addsegment(struct game *gm, struct seg *seg);
+double checkcollision(struct game *gm, struct seg *seg);
+void endround(struct game *gm);
+void tiles(struct game *gm, struct seg *seg, int *tileindices);
+void clearinputs(struct user *usr);
+char *checkname(char *name);
+void handledeath(struct user *usr);
+int pointsystem_trivial(int players, int alive);
+int pointsystem_wta(int players, int alive);
+int pointsystem_rik(int players, int alive);
+void allocroom(struct buffer *buf, int size);
+void appendheader(struct buffer *buf, char type, char player);
+void appendpos(struct buffer *buf, int x, int y);
+void logtime();
+void logwarningtime();
+int checkkick(struct game *gm, struct user *usr);
+void freekicklist(struct kicknode *kick);
+void inputmechanism_human(struct user *usr, int tick);
+void inputmechanism_circling(struct user *usr, int tick);
+void inputmechanism_marcusai(struct user *usr, int tick);
+void inputmechanism_random(struct user *usr, int tick);
+void inputmechanism_checktangent(struct user *usr, int tick);
+void inputmechanism_mapai(struct user *usr, int tick);
+void deleteuser(struct user *usr);
+void updategamelist();
+char *statetostr(int gamestate, char *str);
+cJSON *jsoncreate(char *mode);
+static long servermsecs();
+int getnewbranch(struct game *gm);
+void simuserfull(struct userpos *state, struct user *usr, char addsegments, char aimap, char solid, int branch);
+void addsegmentfull(struct game *gm, struct seg *seg, char aimap, struct user *usr, int tick, int branch);
+void extendpath(struct user *usr, struct mapaidata *data, struct game *gm);
+void appendchar(struct buffer *buf, char c);
