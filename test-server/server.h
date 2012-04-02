@@ -37,6 +37,7 @@
 
 /* default game settings */
 #define TORUS_MODE 0
+#define GOAL 20
 #define VELOCITY 70 // pixels per sec
 #define GAME_WIDTH 1024
 #define GAME_HEIGHT 644
@@ -49,7 +50,6 @@
 #define COMPUTER_SEARCH_DEPTH 2 // for marcusai
 #define COMPUTER_SEARCH_ANGLE 3.141592
 #define COMPUTER_SEARCH_CAREFULNESS 2 // how long we go straight in seconds
-
 #define AI_MAX_TICKS 100
 #define AI_MIN_STEER 0
 #define AI_MAX_STEER (PI / 4)
@@ -141,6 +141,7 @@
 #define GS_STARTED 1
 #define GS_REMOVING_GAME 2
 #define GS_ENDED 3
+#define GS_TERMINATED 4 // free game resource when possible
 
 /* http server */
 #define LOCAL_RESOURCE_PATH "../client"
@@ -220,6 +221,10 @@ struct game {
 	
 	struct branch *branch;
 	int branchlen, branchcap;
+	
+	/* HARDCORE THREADING, YO -- EXPERIMENTAL n shit */
+	pthread_t thread;
+	pthread_mutex_t lock; // we don't want to process tick and messages at same time
 };
 
 struct pencilseg {

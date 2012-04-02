@@ -6,12 +6,14 @@
 #include <sys/time.h>
 #include <time.h>
 #include <limits.h>
+#include <pthread.h>
 
 #include "../lib/libwebsockets.h"
 #include "../cjson/cJSON.c"
 #include "server.h"
 
 struct libwebsocket_context *ctx;
+static pthread_mutex_t gamelistlock; // need this lock in order to add/ remove stuff from gamelist
 static struct game *lobby, *headgame = 0;
 static int usrc = 0; // user count
 static int gmc = 1; // game count
@@ -139,6 +141,10 @@ callback_game(struct libwebsocket_context * context,
 	case LWS_CALLBACK_BROADCAST:
 		break;
 
+	/* TODO: dit stuk moet herschreven worden zodat hij game lockt eerdat hij message behandelt.
+	 * verder mag een game niet meer direct verwijderd worden zodra er geen spelers meer inzitten
+	 * maar moet state op GS_TERMINATED gezet worden zodat de thread zelf netjes de boel kan
+	 * opruimen */
 	case LWS_CALLBACK_RECEIVE:
 		msgsize = strlen(inchar);
 		bufsize = u->recvbuf ? strlen(u->recvbuf) : 0;
@@ -452,13 +458,10 @@ static struct option options[] = {
 int main(int argc, char **argv) {
 	int n = 0;
 	int port = 7681;
-	struct libwebsocket_context *context;
 	int opts = 0;
 	char interface_name[128] = "";
-	const char * interface = NULL;
+	const char *interface = 0;
 
-	srand(6);
-	
 	while (n >= 0) {
 		n = getopt_long(argc, argv, "ci:khsp:", options, NULL);
 		if (n < 0)
@@ -482,20 +485,26 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	context = libwebsocket_create_context(port, interface, protocols,
+	ctx = libwebsocket_create_context(port, interface, protocols,
 				libwebsocket_internal_extensions,
 				NULL, NULL, -1, -1, opts);
-	if (context == NULL) {
+	if (!ctx) {
 		printf("libwebsocket init failed\n");
 		return -1;
 	}
 
-	ctx = context;
+	pthread_mutex_init(&gamelistlock, 0);
 	lobby = scalloc(1, sizeof(struct game));
 	lobby->type = GT_LOBBY;
+	initgame(lobby);
 
 	printf("server started on port %d\n", port);
-	mainloop();
+	
+	while(5000)
+		libwebsocket_service(ctx, -1);
+	
+	/* sequential code
+	mainloop(); */
 
 	/* fork code
 	n = libwebsockets_fork_service_loop(context);
@@ -505,7 +514,7 @@ int main(int argc, char **argv) {
 	}
 	mainloop();*/
 
-	libwebsocket_context_destroy(context);
+	libwebsocket_context_destroy(ctx);
 
 	return 0;
 }

@@ -560,7 +560,7 @@ void simgame(struct game *gm) {
 		}
 	}
 
-	if((SEND_SEGMENTS || SEND_AIMAP_SEGMENTS) && gm->tick % 1 == 0)
+	if((SEND_SEGMENTS || SEND_AIMAP_SEGMENTS) && gm->tick % 1 == 0) // huh? is dat laatste niet altijd waar?
 		airsegments(gm);
 	
 	if(gm->alive == 0 || (gm->n > 1 && gm->alive == 1 && !KEEP_PLAYING_ONE_ALIVE))

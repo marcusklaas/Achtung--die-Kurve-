@@ -1,4 +1,4 @@
-﻿void newgamelist() {
+void newgamelist() {
 	cJSON *games = encodegamelist();
 
 	if(gamelist)
@@ -19,14 +19,9 @@ void updategamelist() {
 	}
 }
 
-void remgame(struct game *gm) {
-	struct user *usr, *nxt;
+void unlinkgame(struct game *gm) {
+	pthread_mutex_lock(&gamelistlock);
 
-	if(DEBUG_MODE)
-		printf("deleting game %p\n", (void *) gm);
-		
-	gm->state = GS_REMOVING_GAME;
-	
 	if(headgame == gm)
 		headgame = gm->nxt;
 	else {
@@ -34,6 +29,18 @@ void remgame(struct game *gm) {
 		for(a = headgame; a->nxt != gm; a = a->nxt);
 		a->nxt = gm->nxt;
 	}
+	
+	pthread_mutex_unlock(&gamelistlock);
+}
+
+void remgame(struct game *gm) {
+	struct user *usr, *nxt;
+
+	if(DEBUG_MODE)
+		printf("deleting game %p\n", (void *) gm);
+		
+	unlinkgame(gm);
+	gm->state = GS_REMOVING_GAME;
 
 	for(usr = gm->usr; usr; usr = nxt) {
 		nxt = usr->nxt;
@@ -43,7 +50,6 @@ void remgame(struct game *gm) {
 		else
 			deleteuser(usr);
 	}
-
 
 	if(gm->map)
 		freemap(gm->map);
@@ -72,7 +78,7 @@ struct game *findgame(int nmin, int nmax) {
 		gm = bestgame;
 		gm->nmin = max(gm->nmin, nmin);
 		gm->nmax = min(gm->nmax, nmax);
-		gm->goal = 20; // TEMP REMOVAL // ceil(roundavgpts(gm->n + 1, gm->pointsys) * AUTO_ROUNDS);
+		gm->goal = GOAL;
 		json = encodegamepars(gm);
 		airjson(json, gm, 0);
 		jsondel(json);
@@ -90,9 +96,7 @@ struct user *findplayer(struct game *gm, int id) {
 /* takes game id and returns pointer to game */
 struct game *searchgame(int gameid) {
 	struct game *gm;
-
 	for(gm = headgame; gm && gameid != gm->id; gm = gm->nxt);
-
 	return gm;
 }
 
@@ -240,6 +244,44 @@ void joingame(struct game *gm, struct user *newusr) {
 	}
 }
 
+/* loop run by each game's thread */
+static void *gameloop(void *gameptr) {
+	struct game *gm = (struct game *) gameptr;
+	long now;
+	int sleeptime;
+	
+	while(gm->state != GS_TERMINATED) {
+		now = servermsecs();
+		sleeptime = (gm->start - now)/ TICK_LENGTH; // FIXME: moet ook slapen als game niet gestart is
+		
+		if(sleeptime > 0)
+			usleep(1000 * sleeptime);
+			
+		pthread_mutex_lock(&gm->lock); // we want access, make sure we don't get message in mean time
+		
+		if(gm->state == GS_STARTED)
+			simgame(gm);
+			
+		if(gm->type == GT_LOBBY) {
+			airgamelist();
+			serverticks++;
+		}
+
+		resetspamcounters(gm, serverticks);
+		pthread_mutex_unlock(&gm->lock); // we done
+	}
+	
+	remgame(gm); // TODO: make this and all relevant functions thread-safe!
+	
+	return (void *) 5000;
+}
+
+/* get a game's thread up and running */
+void initgame(struct game *gm) {
+	pthread_mutex_init(&gm->lock, 0);
+	pthread_create(&gm->thread, 0, gameloop, (void *) gm);
+}
+
 struct game *creategame(int gametype, int nmin, int nmax) {
 	struct game *gm = scalloc(1, sizeof(struct game));
 	
@@ -257,8 +299,7 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	gm->ts = TURN_SPEED;
 	gm->pencilmode = PM_DEFAULT;
 	gm->pointsys = pointsystem_rik;
-	gm->nxt = headgame;
-	gm->goal = 20; /* TEMP REMOVAL // ceil(AUTO_ROUNDS * roundavgpts(2, gm->pointsys)); */
+	gm->goal = GOAL;
 	gm->torus = TORUS_MODE;
 	gm->inkcap = MAX_INK;
 	gm->inkregen = INK_PER_SEC;
@@ -267,12 +308,19 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	gm->inkmousedown = MOUSEDOWN_INK;
 	gm->hsize = HOLE_SIZE;
 	gm->hfreq = HOLE_FREQ;
+	
+	pthread_mutex_lock(&gamelistlock);
+	gm->nxt = headgame;
 	headgame = gm;
+	pthread_mutex_unlock(&gamelistlock);
+	
+	initgame(gm);
 
 	return gm;
 }
 
-/* tries to simgame every game every TICK_LENGTH milliseconds */
+/* DEPRECATED! we going to multithread this thing yo!11
+ * tries to simgame every game every TICK_LENGTH milliseconds */
 void mainloop() {
 	int sleepuntil;
 	long now;
