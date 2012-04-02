@@ -146,11 +146,12 @@ Pen.prototype.reset = function() {
 
 Pen.prototype.doTick = function() {
 	var canvasManager = this.player.game.canvasManager;
+	var gameTick = this.player.game.tick;
 	
 	if(!this.player.isLocal)
 		while(this.visibleIndex < this.seg.length)
 			canvasManager.drawSegment(this.seg[this.visibleIndex++], this.player.color, pencilAlpha);
 	
-	while(this.solidIndex < this.seg.length && this.seg[this.solidIndex].tick <= game.tick)
+	while(this.solidIndex < this.seg.length && this.seg[this.solidIndex].tick <= gameTick)
 		canvasManager.drawSegment(this.seg[this.solidIndex++], this.player.color, 1);
 }

@@ -23,14 +23,13 @@ var rareNaam = (function() { // zodat we het zien als sommige plekken nog op een
 	var modifiedInputs = 0;
 	var redraws = 0;
 	var countdown = 0;
-	var correctionTick = 0;
 	var tock = 0;
 	
 	/* private methods */
 	/* this only resets things like canvas, but keeps the player info */
 	function reset() {
-		correctionTick = 0;
-		GameEngine.tick = -1;
+		GameEngine.correctionTick = 0;
+		GameEngine.tick = tock = -1;
 		redraws = 0;
 		adjustGameTimeMessagesReceived = 0;
 		modifiedInputs = 0;
@@ -45,6 +44,7 @@ var rareNaam = (function() { // zodat we het zien als sommige plekken nog op een
 		document.getElementById('winAnnouncer').style.display = 'none';
 	
 		GameEngine.pencil.reset();
+		/* TODO: reset pens too? */
 	}
 	
 	function resetPlayers() {
@@ -71,7 +71,8 @@ var rareNaam = (function() { // zodat we het zien als sommige plekken nog op een
 			var tickDelta = (c & (16 + 32 + 64)) >> 4;
 			tickDelta |= d << 3;
 
-			correctionTick = Math.min(GameEngine.localPlayer.inputs[input].tick += tickDelta, correctionTick);
+			GameEngine.correctionTick = Math.min(GameEngine.localPlayer.inputs[input].tick += tickDelta,
+			 GameEngine.correctionTick);
 		
 			return true;
 		}
@@ -152,7 +153,7 @@ var rareNaam = (function() { // zodat we het zien als sommige plekken nog op een
 		player.inputs.push(new Turn(newTurn, tick, 0, 0, false));
 	
 		if(tick <= Math.floor(tock))
-			correctionTick = Math.min(correctionTick, tick);
+			GameEngine.correctionTick = Math.min(GameEngine.correctionTick, tick);
 	}
 	
 	function interpretMsg(msg) {
@@ -294,7 +295,7 @@ var rareNaam = (function() { // zodat we het zien als sommige plekken nog op een
 				
 				// simulate to finalTick
 				tock = GameEngine.tick = Math.max(GameEngine.tick, obj.finalTick);
-				correctionTick = Math.min(correctionTick, obj.finalTick);
+				GameEngine.correctionTick = Math.min(GameEngine.correctionTick, obj.finalTick);
 				GameEngine.revertBackup();
 				
 				var player = (obj.winnerId != -1) ? GameEngine.getPlayer(obj.winnerId) : null;
@@ -331,7 +332,7 @@ var rareNaam = (function() { // zodat we het zien als sommige plekken nog op een
 				GameEngine.domManager.buildGameList(obj.games);
 				break;
 			case 'segments':
-				this.canvasManager.drawDebugSegments(GameEngine.baseContext, obj.segments);
+				GameEngine.canvasManager.drawDebugSegments(GameEngine.baseContext, obj.segments);
 				debugSegments = debugSegments.concat(obj.segments);
 				break;
 			case 'stopSpamming':
@@ -369,11 +370,10 @@ var rareNaam = (function() { // zodat we het zien als sommige plekken nog op een
 	}
 	
 	function realStart() {
-		GameEngine.baseContext.drawImage(canvases[0], 0, 0, this.width, this.height);
+		GameEngine.baseContext.drawImage(canvases[0], 0, 0, GameEngine.width, GameEngine.height);
 		GameEngine.audioController.playSound('gameStart');
 		GameEngine.setGameState('playing');
 		GameEngine.sendMsg('enableInput', {});
-		GameEngine.tick = 0;
 		gameloop();
 	}
 	
@@ -413,7 +413,7 @@ var rareNaam = (function() { // zodat we het zien als sommige plekken nog op een
 			}
 
 			GameEngine.tick = Math.min(nextIntegerTick, endTick);
-			correctionTick = Math.ceil(GameEngine.tick);
+			GameEngine.correctionTick = Math.ceil(GameEngine.tick);
 			tock = Math.max(0, GameEngine.tick - tickTockDifference);
 		}
 
@@ -481,6 +481,7 @@ var rareNaam = (function() { // zodat we het zien als sommige plekken nog op een
 		this.width = 0;
 		this.height = 0;
 		this.velocity = 0;
+		this.correctionTick = 0;
 		this.tick = 0;
 		this.holeSize = this.holeFreq = 0;
 		this.pencilMode = 'off';
@@ -882,14 +883,14 @@ var rareNaam = (function() { // zodat we het zien als sommige plekken nog op een
 		var ceiledTick = Math.ceil(this.tick);
 
 		/* false alarm, no revert required */
-		if(correctionTick >= ceiledTick)
+		if(this.correctionTick >= ceiledTick)
 			return;
 
 		redraws++;
 		this.displayDebugStatus();
 
 		/* calculate closest restore point */
-		for(var stateIndex = backupStates.length - 1; correctionTick < ceiledTick - backupStates[stateIndex]; stateIndex--);
+		for(var stateIndex = backupStates.length - 1; this.correctionTick < ceiledTick - backupStates[stateIndex]; stateIndex--);
 
 		/* reset next state to this point */
 		for(var i in players) {
@@ -900,7 +901,7 @@ var rareNaam = (function() { // zodat we het zien als sommige plekken nog op een
 		/* copy to next canvas */
 		var nextContext = this.contexts[stateIndex + 1];
 		nextContext.drawImage(canvases[stateIndex], 0, 0, this.width, this.height);
-		correctionTick = ceiledTick - backupStates[stateIndex + 1];
+		this.correctionTick = ceiledTick - backupStates[stateIndex + 1];
 
 		/* simulate every player up to next backup point */
 		this.updateContext(stateIndex + 1, true);
@@ -915,13 +916,13 @@ var rareNaam = (function() { // zodat we het zien als sommige plekken nog op een
 	GameEngine.updateContext = function(stateIndex, floorTick) {
 		for(var i in players) {
 			var player = players[i];
-			var tick = player.isLocal ? this.tick : tock;
-			tick -= backupStates[stateIndex];
+			var playerTick = player.isLocal ? this.tick : tock;
+			playerTick -= backupStates[stateIndex];
 
 			if(floorTick)
-				tick = Math.floor(tick);
+				playerTick = Math.floor(playerTick);
 
-			player.simulate(tick, this.contexts[stateIndex], player.states[stateIndex]);
+			player.simulate(playerTick, this.contexts[stateIndex], player.states[stateIndex]);
 		}
 
 		this.drawCrosses(stateIndex);
@@ -1013,7 +1014,7 @@ var rareNaam = (function() { // zodat we het zien als sommige plekken nog op een
 		this.canvasManager.drawMapSegments(this.contexts[0]);
 		this.canvasManager.drawPencilSegments(this.contexts[0]);
 
-		correctionTick = -backupStates[1] - 1;
+		this.correctionTick = -backupStates[1] - 1;
 		this.revertBackup();
 	};
 

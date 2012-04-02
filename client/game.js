@@ -1,4 +1,4 @@
-/* global vars */
+/* global vars. TODO: move to GameEngine */
 var enableSound = true;
 var joinedLink = false;
 
@@ -13,8 +13,8 @@ else if(location.href.indexOf('C:/Dropbox') != -1)
 	serverURL = "ws://localhost:7681";
 
 /* visual stuff */
-var vSync = false;
-var maxCanvasStretch = 1.10; // max 20% stretch in either direction
+var vSync = true;
+var maxCanvasStretch = 1.10; // max 10% stretch in either direction
 var holeAlpha = 0.2;
 var lineWidth = 3; // only visual, does not influence collisions
 var lineCapStyle = 'round';

@@ -68,16 +68,6 @@ Segment.prototype.draw = function(ctx) {
 	ctx.lineTo(this.x2, this.y2);
 }
 
-/* FIXME: DO NOT USE THIS! use canvasmanager method instead! */
-Segment.prototype.stroke = function(ctx, color, alpha) {
-	ctx.beginPath();
-	canvasManager.setLineColor(ctx, color, alpha);
-	ctx.lineCap = alpha == 1 ? lineCapStyle : 'butt';
-	this.draw(ctx);
-	ctx.stroke();
-	ctx.lineCap = lineCapStyle;
-}
-
 function TimedSegment(x1, y1, x2, y2, tick) {
 	Segment.call(this, x1, y1, x2, y2);
 	this.tick = tick;
@@ -252,10 +242,21 @@ function createCanvasManager(game) {
 			ctx.lineWidth = lineWidth;
 		},
 
+		/* all canvases */
 		drawSegment: function(seg, color, alpha) {
 			for(var i = 0; i < backupStates.length; i++)
-				seg.stroke(game.contexts[i], color, alpha);
-		}, 
+				this.strokeSegment(seg, game.contexts[i], color, alpha);
+		},
+		
+		/* specific canvas */
+		strokeSegment: function(seg, ctx, color, alpha) {
+			ctx.beginPath();
+			this.setLineColor(ctx, color, alpha);
+			ctx.lineCap = alpha == 1 ? lineCapStyle : 'butt';
+			seg.draw(ctx);
+			ctx.stroke();
+			ctx.lineCap = lineCapStyle;
+		},
 	
 		drawMapSegments: function(ctx) {
 			ctx.fillStyle = canvasColor;

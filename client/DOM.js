@@ -330,7 +330,7 @@ function createDomManager(game) {
 		resizeChat();
 	};
 	
-	domManager.splicePlayerList = function() {
+	domManager.splicePlayerList = function(player) {
 		playerList.removeChild(player.row);
 		resizeChat();
 	};
