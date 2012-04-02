@@ -671,10 +671,15 @@ void printgame(struct game *gm) {
 }
 
 void printgames() {
-	struct game *gm = headgame;
+	struct game *gm;
+	
+	pthread_mutex_lock(&gamelistlock);
+	gm = headgame;	
 	if(!gm) printf("no games active\n");
 	for(; gm; gm =gm->nxt)
 		printgame(gm);
+		
+	pthread_mutex_unlock(&gamelistlock);
 }
 
 void printseg(struct seg *seg) {

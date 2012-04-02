@@ -105,9 +105,14 @@ void leavegame(struct user *usr, int reason) {
 	struct user *curr;
 	char buf[20];
 	cJSON *json;
-
-	if(DEBUG_MODE && gm->type != GT_LOBBY)
+	
+	if(DEBUG_MODE && gm->type != GT_LOBBY) {
 		printf("user %d is leaving his game!\n", usr->id);
+		fflush(stdout);
+	}
+	
+	/* only call this function when owning the game lock */
+	assert(EBUSY == pthread_mutex_trylock(&usr->gm->lock));
 
 	if(gm->state == GS_STARTED && usr->state.alive) {
 		usr->state.alive = 0;
@@ -148,8 +153,10 @@ void leavegame(struct user *usr, int reason) {
 	jsondel(json);
 
 	if(gm->type != GT_LOBBY) {
-		if(gm->state != GS_REMOVING_GAME && !curr)
-			remgame(gm);
+		if(gm->state != GS_REMOVING_GAME && !curr) {
+			//remgame(gm);
+			gm->state = GS_TERMINATED;
+		}
 		else if(gm->state == GS_STARTED && gm->n == 1)
 			endround(gm);
 	}
@@ -161,12 +168,20 @@ void joingame(struct game *gm, struct user *newusr) {
 	struct user *usr;
 	char buf[20];
 	cJSON *json;
-
-	if(newusr->gm)
-		leavegame(newusr, LEAVE_NORMAL);
-
-	if(DEBUG_MODE)
+	
+	if(DEBUG_MODE) {
 		printf("user %d is joining game %p\n", newusr->id, (void*)gm);
+		fflush(stdout);
+	}
+
+	if(newusr->gm) {
+		struct game *oldgame = newusr->gm;
+		pthread_mutex_lock(&oldgame->lock);
+		leavegame(newusr, LEAVE_NORMAL);
+		pthread_mutex_unlock(&oldgame->lock);
+	}
+	
+	pthread_mutex_lock(&gm->lock); // lock game
 
 	newusr->gm = gm;
 	newusr->points = 0;
@@ -236,6 +251,7 @@ void joingame(struct game *gm, struct user *newusr) {
 		newgamelist();
 	}
 	
+	pthread_mutex_unlock(&gm->lock); // unlock game
 	gamelistcurrent = 0;
 
 	if(DEBUG_MODE) {
@@ -244,42 +260,80 @@ void joingame(struct game *gm, struct user *newusr) {
 	}
 }
 
+/* thread-safe */
+void kickplayer(struct user *host, int victimid) {
+	struct game *gm = host->gm;
+	struct user *victim = findplayer(gm, victimid);
+	struct kicknode *kick;
+
+	if(!victim || gm->host != host || gm->state != GS_LOBBY) {
+		warning("user %d tried to kick usr %d, but does"
+		 " not meet requirements\n", host->id, victimid);
+		return;
+	}
+
+	log("host %d kicked user %d\n", host->id, victimid);
+	pthread_mutex_lock(&gm->lock); // lock game
+
+	leavegame(victim, LEAVE_KICKED);
+
+	if(victim->human) {
+		cJSON *j = jsoncreate("kickNotification");
+		
+		kick = smalloc(sizeof(struct kicknode));
+		kick->usr = victim;
+		kick->expiration = servermsecs() + KICK_REJOIN_TIME;
+		kick->nxt = gm->kicklist;
+		gm->kicklist = kick;
+
+		sendjson(j, victim);
+		jsondel(j);
+		joingame(lobby, victim);
+	}
+	else
+		deleteuser(victim);
+		
+	pthread_mutex_unlock(&gm->lock); // unlock game
+}
+
 /* loop run by each game's thread */
 static void *gameloop(void *gameptr) {
 	struct game *gm = (struct game *) gameptr;
-	long now;
-	int sleeptime;
+	long sleeptime;
 	
 	while(gm->state != GS_TERMINATED) {
-		now = servermsecs();
-		sleeptime = (gm->start - now)/ TICK_LENGTH; // FIXME: moet ook slapen als game niet gestart is
+		if(gm->state == GS_STARTED)
+			sleeptime = gm->tick * TICK_LENGTH + gm->start - servermsecs();
+		else
+			sleeptime = TICK_LENGTH;	
 		
 		if(sleeptime > 0)
 			usleep(1000 * sleeptime);
 			
-		pthread_mutex_lock(&gm->lock); // we want access, make sure we don't get message in mean time
-		
+		pthread_mutex_lock(&gm->lock); // lock game
 		if(gm->state == GS_STARTED)
 			simgame(gm);
-			
-		if(gm->type == GT_LOBBY) {
-			airgamelist();
-			serverticks++;
-		}
 
 		resetspamcounters(gm, serverticks);
 		pthread_mutex_unlock(&gm->lock); // we done
 	}
 	
-	remgame(gm); // TODO: make this and all relevant functions thread-safe!
+	remgame(gm);
 	
 	return (void *) 5000;
 }
 
-/* get a game's thread up and running */
-void initgame(struct game *gm) {
-	pthread_mutex_init(&gm->lock, 0);
-	pthread_create(&gm->thread, 0, gameloop, (void *) gm);
+/* loop run by lobby */
+static void *lobbyloop(void *ptr) {
+	while(5000) {
+		pthread_mutex_lock(&lobby->lock);
+		airgamelist();
+		resetspamcounters(lobby, serverticks++);
+		pthread_mutex_unlock(&lobby->lock);
+		usleep(1000 * TICK_LENGTH);
+	}
+	
+	return (void *) "whatever";
 }
 
 struct game *creategame(int gametype, int nmin, int nmax) {
@@ -314,7 +368,8 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	headgame = gm;
 	pthread_mutex_unlock(&gamelistlock);
 	
-	initgame(gm);
+	pthread_mutex_init(&gm->lock, 0);
+	pthread_create(&gm->thread, 0, gameloop, (void *) gm);
 
 	return gm;
 }
@@ -361,8 +416,12 @@ void iniuser(struct user *usr, struct libwebsocket *wsi) {
 void deleteuser(struct user *usr) {
 	int i;
 	
-	if(usr->gm)
+	if(usr->gm) {
+		struct game *gm = usr->gm;
+		pthread_mutex_lock(&gm->lock);
 		leavegame(usr, LEAVE_DISCONNECT);
+		pthread_mutex_unlock(&gm->lock);
+	}
 
 	clearinputs(usr);
 	cleanpencil(&(usr->pencil));
@@ -438,4 +497,3 @@ void addcomputer(struct game *gm, char *type) {
 	comp->strength = AI_STRENGTH[i];
 	joingame(gm, comp);
 }
-

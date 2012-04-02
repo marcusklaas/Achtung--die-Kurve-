@@ -7,6 +7,8 @@
 #include <time.h>
 #include <limits.h>
 #include <pthread.h>
+#include <assert.h>
+#include <errno.h>
 
 #include "../lib/libwebsockets.h"
 #include "../cjson/cJSON.c"
@@ -181,34 +183,7 @@ callback_game(struct libwebsocket_context * context,
 			break;
 		}
 		else if(!strcmp(mode, "kick")) {
-			int victimid = jsongetint(json, "playerId");
-			struct user *victim = findplayer(u->gm, victimid);
-			struct kicknode *kick;
-
-			if(!victim || u->gm->host - u || u->gm->state != GS_LOBBY) {
-				warning("user %d tried to kick usr %d, but does not meet requirements\n", u->id, victimid);
-				break;
-			}
-
-			log("host %d kicked user %d\n", u->id, victimid);
-
-			leavegame(victim, LEAVE_KICKED);
-
-			if(victim->human) {
-				kick = smalloc(sizeof(struct kicknode));
-				kick->usr = victim;
-				kick->expiration = servermsecs() + KICK_REJOIN_TIME;
-				kick->nxt = u->gm->kicklist;
-				u->gm->kicklist = kick;
-
-				j = jsoncreate("kickNotification");
-				sendjson(j, victim);
-				jsondel(j);
-
-				joingame(lobby, victim);
-			}
-			else
-				deleteuser(victim);
+			kickplayer(u, jsongetint(json, "playerId"));
 		}
 		else if(!strcmp(mode, "join")) {
 			int gameid, kicktimer = 0;
@@ -399,9 +374,7 @@ callback_game(struct libwebsocket_context * context,
 			startgame(u->gm);
 		}
 		else if(strcmp(mode, "input") == 0) {
-			if(!checkspam(u, SPAM_CAT_STEERING) && u->gm
-			 && u->gm->state == GS_STARTED && !u->ignoreinput)
-				interpretinput(json, u);
+			interpretinput(json, u);
 		}
 		else if(!strcmp(mode, "pencil")) {
 			if(u->gm && u->gm->state == GS_STARTED && !u->ignoreinput
@@ -496,12 +469,13 @@ int main(int argc, char **argv) {
 	pthread_mutex_init(&gamelistlock, 0);
 	lobby = scalloc(1, sizeof(struct game));
 	lobby->type = GT_LOBBY;
-	initgame(lobby);
+	pthread_mutex_init(&lobby->lock, 0);
+	pthread_create(&lobby->thread, 0, lobbyloop, (void *) 5000);
 
 	printf("server started on port %d\n", port);
 	
 	while(5000)
-		libwebsocket_service(ctx, -1);
+		libwebsocket_service(ctx, 10);
 	
 	/* sequential code
 	mainloop(); */

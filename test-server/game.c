@@ -560,7 +560,7 @@ void simgame(struct game *gm) {
 		}
 	}
 
-	if((SEND_SEGMENTS || SEND_AIMAP_SEGMENTS) && gm->tick % 1 == 0) // huh? is dat laatste niet altijd waar?
+	if((SEND_SEGMENTS || SEND_AIMAP_SEGMENTS) && gm->tick % 1 == 0)
 		airsegments(gm);
 	
 	if(gm->alive == 0 || (gm->n > 1 && gm->alive == 1 && !KEEP_PLAYING_ONE_ALIVE))
@@ -593,23 +593,33 @@ void queueinput(struct user *usr, int tick, int turn) {
 }
 
 void interpretinput(cJSON *json, struct user *usr) {
-	int turn = jsongetint(json, "turn");
-	int tick = jsongetint(json, "tick");
-	long now = servermsecs();
-	int delay, msgtick = tick;
-	int time = tick * TICK_LENGTH + TICK_LENGTH/ 2;
+	long now;
+	int turn,delay, msgtick, tick, time;
 	cJSON *j;
 	
+	pthread_mutex_lock(&usr->gm->lock);
+	
+	turn = jsongetint(json, "turn");
+	msgtick = tick = jsongetint(json, "tick");
+	now = servermsecs();
+	time = tick * TICK_LENGTH + TICK_LENGTH/ 2;
+	
 	/* some checks */
+	if(checkspam(usr, SPAM_CAT_STEERING) || !usr->gm
+	 || usr->gm->state != GS_STARTED || usr->ignoreinput) {
+	 	if(SHOW_WARNING)
+			printf("input not accepted from user %d.\n", usr->id);
+		goto exit;
+	}
 	if(turn < -1 || turn > 1 || turn == usr->lastinputturn) {
 		if(SHOW_WARNING)
 			printf("invalid user input received from user %d.\n", usr->id);
-		return;
+		goto exit;
 	}
 	if(!usr->state.alive) {
 		if(SHOW_WARNING)
 			printf("received input for dead user %d? ignoring..\n", usr->id);
-		return;
+		goto exit;
 	}
 
 	if(tick < usr->gm->tick) {
@@ -665,6 +675,9 @@ void interpretinput(cJSON *json, struct user *usr) {
 	}
 
 	sendsteer(usr, tick, turn, delay);
+	
+	exit:
+	pthread_mutex_unlock(&usr->gm->lock);
 }
 
 void clearinputs(struct user *usr) {
