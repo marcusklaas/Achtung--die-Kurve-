@@ -474,6 +474,7 @@ int main(int argc, char **argv) {
 
 	printf("server started on port %d\n", port);
 	
+	/* hmmm we moeten blijkbaar we die service steeds herstarten.. kan dat anders? */
 	while(5000)
 		libwebsocket_service(ctx, 10);
 	

@@ -133,7 +133,7 @@ void startround(struct game *gm) {
 			usr->aimapstate = usr->state;
 	}
 
-	gm->start = serverticks * TICK_LENGTH + laterround * COOLDOWN + COUNTDOWN;
+	gm->start = servermsecs() + laterround * COOLDOWN + COUNTDOWN;
 	gm->tick = -(COUNTDOWN + SERVER_DELAY + laterround * COOLDOWN)/ TICK_LENGTH;
 	gm->state = GS_STARTED;
 	gm->alive = gm->n;
@@ -237,12 +237,14 @@ struct map *createmap(cJSON *j) {
 
 				if(!telbuffer[id]) {
 					telbuffer[id] = seg;
-				} else if(telbuffer[id] == &taken) {
+				}
+				else if(telbuffer[id] == &taken) {
 					warning("createmap teleport error\n");
 					free(seg);
 					j = j->next;
 					continue;
-				} else {
+				}
+				else {
 					struct teleport *tela, *telb;
 
 					tela = createteleport(seg, telbuffer[id], id);
@@ -258,7 +260,8 @@ struct map *createmap(cJSON *j) {
 					telbuffer[id] = &taken;
 				}
 
-			} else {
+			}
+			else {
 				seg->nxt = map->seg;
 				map->seg = seg;
 			}
@@ -366,7 +369,8 @@ void simuserfull(struct userpos *state, struct user *usr, char addsegments, char
 			state->x = t->dest.x1 + t->dx * r + cos(state->angle) / 10;
 			state->y = t->dest.y1 + t->dy * r + sin(state->angle) / 10;
 			handled = 1; 
-		} else if(!inhole || !HACKS) {
+		}
+		else if(!inhole || !HACKS) {
 			dieseg = seg;
 			state->x = seg.x2 = (1 - cut) * seg.x1 + cut * seg.x2;
 			state->y = seg.y2 = (1 - cut) * seg.y1 + cut * seg.y2;
@@ -383,9 +387,7 @@ void simuserfull(struct userpos *state, struct user *usr, char addsegments, char
 	}
 
 	if(!handled && outside) {
-
 		if(usr->gm->torus) {
-
 			if(state->x > usr->gm->w)
 				state->x = 0;
 			else if(state->x < 0)
@@ -395,8 +397,8 @@ void simuserfull(struct userpos *state, struct user *usr, char addsegments, char
 				state->y = 0;
 			else if(state->y < 0)
 				state->y = usr->gm->h;
-
-		} else {
+		}
+		else {
 			state->alive = 0;
 		}
 	}
@@ -525,18 +527,23 @@ void simgame(struct game *gm) {
 				usr->state.turn = input->turn;
 				usr->inputhead = input->nxt;
 				free(input);
+				
 				if(!usr->inputhead)
 					usr->inputtail = 0;
 			}
 			
 			simuser(&usr->state, usr, 1);
-			if(gm->aigame && (usr->inputmechanism != inputmechanism_mapai) && usr->aimapstate.tick == gm->tick) {
+			
+			if(gm->aigame && (usr->inputmechanism != inputmechanism_mapai) &&
+			 usr->aimapstate.tick == gm->tick) {
 				no_collision_usr = usr;
 				no_collision_tick = usr->branchtick;
 				simuserfull(&usr->aimapstate, usr, 1, 1, 1, 0);
 				no_collision_usr = 0;
 			}
-			if(gm->aigame && (usr->inputmechanism != inputmechanism_mapai) && gm->tick % USER_PREDICTION_INTERVAL == 0) {
+			
+			if(gm->aigame && (usr->inputmechanism != inputmechanism_mapai) &&
+			 gm->tick % USER_PREDICTION_INTERVAL == 0) {
 				struct userpos pos = usr->aimapstate;
 				int endtick = gm->tick + SERVER_DELAY / TICK_LENGTH + USER_PREDICTION_LENGTH;
 				
@@ -544,6 +551,7 @@ void simgame(struct game *gm) {
 					gm->branch[usr->branch].tick = 0;
 					gm->branch[usr->branch].closed = 1;
 				}
+				
 				usr->branch = getnewbranch(gm);
 				usr->branchtick = pos.tick;
 				pos.turn = 0;
@@ -551,6 +559,7 @@ void simgame(struct game *gm) {
 				while(pos.tick < endtick && pos.alive)
 					simuserfull(&pos, usr, 1, 1, 1, usr->branch);
 			}
+			
 			if(!usr->state.alive) {
 				if(GOD_MODE)
 					usr->state.alive = 1;
@@ -583,9 +592,10 @@ void queueinput(struct user *usr, int tick, int turn) {
 	if(usr->gm->aigame && (usr->inputmechanism != inputmechanism_mapai)) {
 		no_collision_usr = usr;
 		no_collision_tick = usr->branchtick;
-		while(usr->aimapstate.tick < tick && usr->aimapstate.alive) {
+		
+		while(usr->aimapstate.tick < tick && usr->aimapstate.alive)
 			simuserfull(&usr->aimapstate, usr, 1, 1, 1, 0);
-		}
+		
 		usr->aimapstate.turn = turn;
 		simuserfull(&usr->aimapstate, usr, 1, 1, 1, 0);
 		no_collision_usr = 0;
@@ -622,17 +632,18 @@ void interpretinput(cJSON *json, struct user *usr) {
 		goto exit;
 	}
 
+	/* tick correction */
 	if(tick < usr->gm->tick) {
 		if(SHOW_WARNING)
 			printf("received msg from user %d of %d msec old! tick incremented by %d\n",
 			 usr->id, (int) (now - usr->gm->start - time), usr->gm->tick - tick);
 		tick = usr->gm->tick;
 	}
+	
 	if(tick <= usr->lastinputtick)
 		tick = usr->lastinputtick + 1;
-	delay = tick - msgtick;
-
-	if(delay)
+		
+	if((delay = tick - msgtick))
 		usr->gm->modifieds++;
 	
 	queueinput(usr, tick, turn);	
@@ -648,6 +659,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 		usr->deltaat = 0;
 		usr->deltaon = 1;
 	}
+	
 	if(usr->deltaon) {
 		int max = 0, i, tot = 0;
 		usr->deltaon = 0;

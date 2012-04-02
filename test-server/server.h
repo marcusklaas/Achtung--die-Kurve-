@@ -139,9 +139,8 @@
 /* game states */
 #define GS_LOBBY 0
 #define GS_STARTED 1
-#define GS_REMOVING_GAME 2
+#define GS_REMOVING_GAME 2 // free game resource when possible
 #define GS_ENDED 3
-#define GS_TERMINATED 4 // free game resource when possible
 
 /* http server */
 #define LOCAL_RESOURCE_PATH "../client"

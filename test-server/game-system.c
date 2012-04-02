@@ -153,10 +153,8 @@ void leavegame(struct user *usr, int reason) {
 	jsondel(json);
 
 	if(gm->type != GT_LOBBY) {
-		if(gm->state != GS_REMOVING_GAME && !curr) {
-			//remgame(gm);
-			gm->state = GS_TERMINATED;
-		}
+		if(!curr)
+			gm->state = GS_REMOVING_GAME;
 		else if(gm->state == GS_STARTED && gm->n == 1)
 			endround(gm);
 	}
@@ -301,9 +299,9 @@ static void *gameloop(void *gameptr) {
 	struct game *gm = (struct game *) gameptr;
 	long sleeptime;
 	
-	while(gm->state != GS_TERMINATED) {
+	while(gm->state != GS_REMOVING_GAME) {
 		if(gm->state == GS_STARTED)
-			sleeptime = gm->tick * TICK_LENGTH + gm->start - servermsecs();
+			sleeptime = gm->tick * TICK_LENGTH + SERVER_DELAY + gm->start - servermsecs();
 		else
 			sleeptime = TICK_LENGTH;	
 		
@@ -372,37 +370,6 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	pthread_create(&gm->thread, 0, gameloop, (void *) gm);
 
 	return gm;
-}
-
-/* DEPRECATED! we going to multithread this thing yo!11
- * tries to simgame every game every TICK_LENGTH milliseconds */
-void mainloop() {
-	int sleepuntil;
-	long now;
-	struct game *gm;
-	static int lastheavyloadmsg;
-
-	while(1) {
-		for(gm = headgame; gm; gm = gm->nxt) {
-			if(gm->state == GS_STARTED)
-				simgame(gm);
-
-			resetspamcounters(gm, serverticks);
-		}
-		
-		airgamelist();
-		resetspamcounters(lobby, serverticks);
-		sleepuntil = ++serverticks * TICK_LENGTH;
-		now = servermsecs();
-
-		if(sleepuntil < now - 3 * TICK_LENGTH && now - lastheavyloadmsg > 100) {
-			warning("%ld msec behind on schedule!\n", now - sleepuntil);
-			lastheavyloadmsg = now;
-		}
-
-		do { libwebsocket_service(ctx, max(0, sleepuntil - now)); }
-		while(sleepuntil - (now = servermsecs()) > 0);
-	}
 }
 
 void iniuser(struct user *usr, struct libwebsocket *wsi) {
