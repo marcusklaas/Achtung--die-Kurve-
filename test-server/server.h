@@ -73,7 +73,7 @@
 #define MODE_SETMAP (8 + 7)
 
 /* debugging */
-#define DEBUG_MODE 1
+#define DEBUG_MODE 0
 #define PENCIL_DEBUG 0
 #define ULTRA_VERBOSE 0
 #define SHOW_WARNING 0

@@ -5,12 +5,17 @@
 #include <string.h>
 #include <sys/time.h>
 #include <time.h>
+#include <limits.h>
+#include <pthread.h>
+#include <assert.h>
+#include <errno.h>
 
 #include "../lib/libwebsockets.h"
 #include "../cjson/cJSON.c"
 #include "server.h"
 
 struct libwebsocket_context *ctx;
+static pthread_mutex_t gamelistlock; // need this lock in order to add/ remove stuff from gamelist
 static struct game *lobby, *headgame = 0;
 static int usrc = 0; // user count
 static int gmc = 1; // game count
@@ -26,30 +31,33 @@ static int spam_intervals[SPAM_CAT_COUNT] = {SPAM_JOINLEAVE_INTERVAL, SPAM_CHAT_
  SPAM_SETTINGS_INTERVAL, SPAM_STEERING_INTERVAL};
 
 #include "helper.c"
+#include "collision-detection.c"
 #include "game.c"
+#include "ai.c"
+#include "game-system.c"
+#include "pencil.c"
 
 int main(int cn, char *crs[]) {
 	struct game *gm;
 	long start = servermsecs();
-	int games = 10;
-	int computers = 2;
+	int i, j, games = 1E2, computers = 2;
 
-	gm = creategame(GT_CUSTOM, computers, computers);
+	srand(start);
 	lobby = scalloc(1, sizeof(struct game)); // for silly reasons
 	lobby->type = GT_LOBBY;
 
-	srand(start);
+	for(i = 0; i < games; i++) {
+		gm = creategame(GT_CUSTOM, computers, computers);
+		
+		for(j = 0; j < computers; j++)
+			addcomputer(gm, "easy");
+	}
 
-	while(computers--)
-		addcomputer(gm);
+	/* wait for all threads to finish */
+	for(gm = headgame; gm; gm = gm->nxt)
+		pthread_join(gm->thread, (void *) 0); // wait for threads to finish before return
 
-	gm->usr->inputmechanism = inputmechanism_marcusai;
-
-	while(games--)
-		for(startgame(gm); gm->state == GS_STARTED; serverticks++)
-			simgame(gm);
-
-	printf("\n\n\n%lu ticks took %lu msecs\n", serverticks, servermsecs() - start);
+	printf("\n\n\n%d games took %lu msecs\n", games, servermsecs() - start);
 
 	return 0;
 }

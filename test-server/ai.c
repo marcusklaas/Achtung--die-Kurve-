@@ -199,13 +199,15 @@ int getnewbranch(struct game *gm) {
 		gm->branchcap = 10;
 		gm->branch = smalloc(sizeof(struct branch) * gm->branchcap);
 		gm->branchlen = 1;
-	} else if(gm->branchlen == gm->branchcap) {
+	}
+	else if(gm->branchlen == gm->branchcap) {
 		gm->branchcap *= 2;
 		gm->branch = srealloc(gm->branch, sizeof(struct branch) * gm->branchcap);
 	}
 	
 	gm->branch[gm->branchlen].closed = 0;
 	gm->branch[gm->branchlen].tick = INT_MAX;
+	
 	return gm->branchlen++;
 }
 
@@ -222,6 +224,7 @@ void allocinputroom(struct mapaidata *data, int tick) {
 		data->inputcap = max(1024, tick);
 		data->input = scalloc(data->inputcap, 1);
 	}
+	
 	if(data->inputcap < tick) {
 		int cap = data->inputcap;
 		
@@ -455,7 +458,8 @@ void trynextdodge(struct user *usr, struct mapaidata *data, struct game *gm) {
 				data->dietick = INT_MAX;
 				data->extendpos = pos;
 				data->nxtdodge = 0;
-			} else {
+			}
+			else {
 				data->dieseg = rd->dieseg;
 				data->dietick = rd->bestpos.tick;
 			}
@@ -538,7 +542,6 @@ void inputmechanism_mapai(struct user *usr, int tick) {
 	
 	/* check if our future path suddenly collides with something */
 	if(usr->dietick < INT_MAX) {
-	
 		data->dietick = usr->dietick;
 		data->dieseg = usr->dieseg;
 		data->nxtdodge = 1;
@@ -546,7 +549,6 @@ void inputmechanism_mapai(struct user *usr, int tick) {
 		truncatebranch(data, data->dietick, usr);
 	}
 	else if(data->dietick < INT_MAX && !data->nxtdodge) {
-	
 		/* check if danger has passed */
 		if(data->dieseg.x1 != -1 && checkaimapcollision(usr, &data->dieseg, data->dietick - 1, 1, 0) == -1) {
 			data->dietick = INT_MAX;
@@ -558,17 +560,14 @@ void inputmechanism_mapai(struct user *usr, int tick) {
 	}
 	
 	if(data->computation > 0) {
-	
 		/* we did too many computations and now should wait */
 		if(DEBUG_MAPAI)
 			printf("computation excess %d\n", data->computation);
 	} 
 	else if(data->nxtdodge) {
-		
 		trynextdodge(usr, data, gm);
 	}
 	else if(data->extendpos.tick - tick < data->prediction_ticks && data->dietick == INT_MAX) {
-		
 		extendpath(usr, data, gm);
 	}
 	
@@ -590,5 +589,6 @@ void inputmechanism_mapai(struct user *usr, int tick) {
 
 	if(data->computation > 0)
 		data->computation -= AI_MAX_COMPUTATION;
+	
 	simuserfull(&usr->aimapstate, usr, 0, 1, 0, 0);
 }
