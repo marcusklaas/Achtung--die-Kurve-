@@ -264,6 +264,14 @@ function createDomManager(game) {
 	
 		var playerName = getCookie('playerName');
 	
+		/* for debugging purposes */
+		if(location.href.indexOf('C:/Dropbox') != -1) {
+			playerName = 'piet';
+			document.getElementById('sound').checked = false;
+			game.audioController.enableSound = false; // huh waarom werkt dit niet
+			document.getElementById('minplayers').value = 1;
+		}
+	
 		/* auto connect if name is known */
 		if(playerName != null && playerName != '') {
 			document.getElementById('playername').value = playerName;
