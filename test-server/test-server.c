@@ -121,7 +121,7 @@ callback_game(struct libwebsocket_context * context,
 
 	case LWS_CALLBACK_SERVER_WRITEABLE:
 		if(ULTRA_VERBOSE) printf("LWS_CALLBACK_SERVER_WRITEABLE. %d queued messages\n", u->sbat);
-		pthread_mutex_lock(&u->comlock);
+		assert(!pthread_mutex_lock(&u->comlock));
 		
 		for(i = 0; i < u->sbat; i++) {
 			char *str = u->sb[i];
@@ -470,15 +470,15 @@ int main(int argc, char **argv) {
 		return -1;
 	}
 
-	pthread_mutex_init(&gamelistlock, 0);
 	lobby = scalloc(1, sizeof(struct game));
 	lobby->type = GT_LOBBY;
+	pthread_mutex_init(&gamelistlock, 0);
 	pthread_mutex_init(&lobby->lock, 0);
 	pthread_create(&lobby->thread, 0, lobbyloop, (void *) 5000);
 
 	printf("server started on port %d\n", port);
 	
-	/* send waiting messages every 10ms */
+	/* send queued messages every 10ms */
 	while(5000)
 		libwebsocket_service(ctx, 10);
 	

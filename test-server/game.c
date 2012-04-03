@@ -607,7 +607,7 @@ void interpretinput(cJSON *json, struct user *usr) {
 	int turn,delay, msgtick, tick, time;
 	cJSON *j;
 	
-	pthread_mutex_lock(&usr->gm->lock);
+	assert(!pthread_mutex_lock(&usr->gm->lock));
 	
 	turn = jsongetint(json, "turn");
 	msgtick = tick = jsongetint(json, "tick");

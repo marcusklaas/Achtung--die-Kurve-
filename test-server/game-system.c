@@ -20,7 +20,7 @@ void updategamelist() {
 }
 
 void unlinkgame(struct game *gm) {
-	pthread_mutex_lock(&gamelistlock);
+	assert(!pthread_mutex_lock(&gamelistlock));
 
 	if(headgame == gm)
 		headgame = gm->nxt;
@@ -100,6 +100,7 @@ struct game *searchgame(int gameid) {
 	return gm;
 }
 
+/* only call this function when owning the game lock! */
 void leavegame(struct user *usr, int reason) {
 	struct game *gm = usr->gm;
 	struct user *curr;
@@ -111,9 +112,6 @@ void leavegame(struct user *usr, int reason) {
 		fflush(stdout);
 	}
 	
-	/* only call this function when owning the game lock */
-	assert(EBUSY == pthread_mutex_trylock(&usr->gm->lock));
-
 	if(gm->state == GS_STARTED && usr->state.alive) {
 		usr->state.alive = 0;
 		handledeath(usr);
@@ -174,12 +172,12 @@ void joingame(struct game *gm, struct user *newusr) {
 
 	if(newusr->gm) {
 		struct game *oldgame = newusr->gm;
-		pthread_mutex_lock(&oldgame->lock);
+		assert(!pthread_mutex_lock(&oldgame->lock));
 		leavegame(newusr, LEAVE_NORMAL);
 		pthread_mutex_unlock(&oldgame->lock);
 	}
 	
-	pthread_mutex_lock(&gm->lock); // lock game
+	assert(!pthread_mutex_lock(&gm->lock)); // lock game
 
 	newusr->gm = gm;
 	newusr->points = 0;
@@ -271,7 +269,7 @@ void kickplayer(struct user *host, int victimid) {
 	}
 
 	log("host %d kicked user %d\n", host->id, victimid);
-	pthread_mutex_lock(&gm->lock); // lock game
+	assert(!pthread_mutex_lock(&gm->lock)); // lock game
 
 	leavegame(victim, LEAVE_KICKED);
 
@@ -308,7 +306,7 @@ static void *gameloop(void *gameptr) {
 		if(sleeptime > 0)
 			usleep(1000 * sleeptime);
 			
-		pthread_mutex_lock(&gm->lock); // lock game
+		assert(!pthread_mutex_lock(&gm->lock)); // lock game
 		if(gm->state == GS_STARTED)
 			simgame(gm);
 
@@ -324,7 +322,7 @@ static void *gameloop(void *gameptr) {
 /* loop run by lobby */
 static void *lobbyloop(void *ptr) {
 	while(5000) {
-		pthread_mutex_lock(&lobby->lock);
+		assert(!pthread_mutex_lock(&lobby->lock));
 		airgamelist();
 		resetspamcounters(lobby, serverticks++);
 		pthread_mutex_unlock(&lobby->lock);
@@ -361,7 +359,7 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	gm->hsize = HOLE_SIZE;
 	gm->hfreq = HOLE_FREQ;
 	
-	pthread_mutex_lock(&gamelistlock);
+	assert(!pthread_mutex_lock(&gamelistlock));
 	gm->nxt = headgame;
 	headgame = gm;
 	pthread_mutex_unlock(&gamelistlock);
@@ -386,7 +384,7 @@ void deleteuser(struct user *usr) {
 	
 	if(usr->gm) {
 		struct game *gm = usr->gm;
-		pthread_mutex_lock(&gm->lock);
+		assert(!pthread_mutex_lock(&gm->lock));
 		leavegame(usr, LEAVE_DISCONNECT);
 		pthread_mutex_unlock(&gm->lock);
 	}

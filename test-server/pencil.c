@@ -42,7 +42,6 @@ void queuepencilseg(struct pencil *p, int x, int y) {
 	p->ticksolid++;
 }
 
-/* FIXME: make me thread safe! */
 void handlepencilmsg(cJSON *json, struct user *usr) {
 	struct pencil *p = &usr->pencil;
 	struct buffer buf;
@@ -65,7 +64,7 @@ void handlepencilmsg(cJSON *json, struct user *usr) {
 		json = json->next;
 
 	appendchar(&buf, mousedown);
-	pthread_mutex_lock(&usr->gm->lock);
+	assert(!pthread_mutex_lock(&usr->gm->lock));
 	
 	while(json) {
 		int x, y, tick;
