@@ -177,10 +177,10 @@ void joingame(struct game *gm, struct user *newusr) {
 		pthread_mutex_unlock(&oldgame->lock);
 	}
 	
-	assert(!pthread_mutex_lock(&gm->lock)); // lock game
-
 	newusr->gm = gm;
 	newusr->points = 0;
+	
+	assert(!pthread_mutex_lock(&gm->lock)); // lock game
 
 	/* set newusr->index */
 	if(gm->type != GT_LOBBY) {
@@ -304,7 +304,7 @@ static void *gameloop(void *gameptr) {
 			sleeptime = TICK_LENGTH;	
 		
 		if(sleeptime > 0)
-			usleep(1000 * sleeptime);
+			msleep(sleeptime);
 			
 		assert(!pthread_mutex_lock(&gm->lock)); // lock game
 		if(gm->state == GS_STARTED)
@@ -326,7 +326,7 @@ static void *lobbyloop(void *ptr) {
 		airgamelist();
 		resetspamcounters(lobby, serverticks++);
 		pthread_mutex_unlock(&lobby->lock);
-		usleep(1000 * TICK_LENGTH);
+		msleep(TICK_LENGTH);
 	}
 	
 	return (void *) "whatever";
