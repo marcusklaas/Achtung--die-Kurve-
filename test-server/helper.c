@@ -596,6 +596,17 @@ char *getFileExt(char *path) {
 	return ext;
 }
 
+#ifdef _WIN32
+	#include <windows.h>
+	inline void msleep(unsigned int msecs) {
+		Sleep(msecs);
+	}
+#else
+	inline void msleep(unsigned int msecs) {
+		usleep(1000 * msecs);
+	}
+#endif
+
 static long servermsecs() {
 	static struct timeval tv;
 	static long serverstart = -1;

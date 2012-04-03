@@ -40,24 +40,20 @@ static int spam_intervals[SPAM_CAT_COUNT] = {SPAM_JOINLEAVE_INTERVAL, SPAM_CHAT_
 int main(int cn, char *crs[]) {
 	struct game *gm;
 	long start = servermsecs();
-	int i, j, games = 1E2, computers = 2;
+	int i, j, games = 3E2, computers = 8;
 
 	srand(start);
 	lobby = scalloc(1, sizeof(struct game)); // for silly reasons
 	lobby->type = GT_LOBBY;
 
 	for(i = 0; i < games; i++) {
-		gm = creategame(GT_CUSTOM, computers, computers);
+		gm = creategame(GT_AUTO, computers, computers);
 		
 		for(j = 0; j < computers; j++)
-			addcomputer(gm, "easy");
+			addcomputer(gm, "hard");
 	}
-
-	/* wait for all threads to finish */
-	for(gm = headgame; gm; gm = gm->nxt)
-		pthread_join(gm->thread, (void *) 0); // wait for threads to finish before return
-
-	printf("\n\n\n%d games took %lu msecs\n", games, servermsecs() - start);
+	
+	/* does not terminate */
 
 	return 0;
 }
