@@ -1012,7 +1012,9 @@ var rareNaam = (function() { // zodat we het zien als sommige plekken nog op een
 		}
 	
 		this.canvasManager.drawMapSegments(this.contexts[0]);
-		this.canvasManager.drawPencilSegments(this.contexts[0]);
+		
+		for(i in players)
+			this.canvasManager.drawPencilSegments(this.contexts[0], players[i]);
 
 		this.correctionTick = -backupStates[1] - 1;
 		this.revertBackup();

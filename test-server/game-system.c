@@ -378,6 +378,7 @@ void iniuser(struct user *usr, struct libwebsocket *wsi) {
 	usr->wsi = wsi;
 	usr->inputmechanism = inputmechanism_human;
 	usr->human = 1;
+	pthread_mutex_init(&usr->comlock, 0);
 }
 
 void deleteuser(struct user *usr) {

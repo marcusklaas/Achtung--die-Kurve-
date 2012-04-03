@@ -29,7 +29,7 @@
 #define MIN_WIN_DIFF 1 // minimum point lead required to win a game
 #define AUTO_ROUNDS 7 // number of expected rounds in automatch
 #define MAX_PLAYERSTART_TRIES 100
-#define GAMELIST_UPDATE_INTERVAL 10000
+#define GAMELIST_UPDATE_INTERVAL 2000
 #define MAX_USERS_IN_GAME 8
 #define KICK_REJOIN_TIME 15000
 #define MAX_TELEPORTS 8
@@ -258,34 +258,29 @@ struct user {
 	struct user *nxt;
 	char *name;
 	char human;
-
-	void (*inputmechanism)(struct user *, int);
-	int strength;
 	
-	char *recvbuf;		// receivebuffer
-	int sbmsglen[SB_MAX]; // length of messages in sendbuffer
-	char *sb[SB_MAX];	// sendbuffer
-	int sbat;			// sendbuffer at
-	
-	struct userpos state;	// used in simulation (these are thus SERVER_DELAY behind)
-	struct userpos aistate, aimapstate;	
-	int points, lastinputtick, lastinputturn, inputcount, gamelistage;
-	char ignoreinput;
-	
-	int hstart, hsize, hfreq;	// hole start, hole size, hole frequency  //TODO: should be moved to userpos
-
+	/* user states */
+	struct userpos state, aistate, aimapstate;
+	struct pencil pencil;
 	struct userinput *inputhead, // store unhandled user inputs in queue
 					 *inputtail; // insert at tail, remove at head
-
-	struct libwebsocket *wsi;
-	int msgcounter[SPAM_CAT_COUNT];		// number of inputs and chat messages received
-	int deltaat, delta[DELTA_COUNT];
-	char deltaon;
-	struct pencil pencil;
+	int points, lastinputtick, lastinputturn, inputcount, gamelistage;
+	int hstart, hsize, hfreq; // hole start, hole size, hole frequency  //TODO: should be moved to userpos
 	
-	int branch, branchtick, dietick;
+	/* communication */
+	struct libwebsocket *wsi;
+	int msgcounter[SPAM_CAT_COUNT];	// number of inputs and chat messages received
+	int deltaat, delta[DELTA_COUNT];
+	char ignoreinput, deltaon;
+	pthread_mutex_t comlock;
+	char *recvbuf, *sb[SB_MAX];	// receivebuffer, sendbuffer
+	int sbmsglen[SB_MAX], sbat;	// length of messages in sendbuffer, sendbuffer index
+	
+	/* artificial intelligence */
+	int strength, branch, branchtick, dietick;
 	struct seg dieseg;
-	void *aidata;
+	struct mapaidata *aidata;
+	void (*inputmechanism)(struct user *, int);
 };
 
 struct aimap {

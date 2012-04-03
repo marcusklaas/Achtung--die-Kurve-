@@ -121,7 +121,8 @@ callback_game(struct libwebsocket_context * context,
 
 	case LWS_CALLBACK_SERVER_WRITEABLE:
 		if(ULTRA_VERBOSE) printf("LWS_CALLBACK_SERVER_WRITEABLE. %d queued messages\n", u->sbat);
-
+		pthread_mutex_lock(&u->comlock);
+		
 		for(i = 0; i < u->sbat; i++) {
 			char *str = u->sb[i];
 
@@ -137,7 +138,8 @@ callback_game(struct libwebsocket_context * context,
 			free(str);
 		}
 		u->sbat = 0;
-
+		pthread_mutex_unlock(&u->comlock);
+		
 		break;
 
 	case LWS_CALLBACK_BROADCAST:
@@ -285,6 +287,8 @@ callback_game(struct libwebsocket_context * context,
 		}
 		else if(!strcmp(mode, "addComputer")) {
 			char *type;
+			
+			/* NOTE: it is okay to not lock game here */
 			
 			if(u->gm->host != u || u->gm->state != GS_LOBBY || 
 			 u->gm->nmax <= u->gm->n) {
@@ -474,7 +478,7 @@ int main(int argc, char **argv) {
 
 	printf("server started on port %d\n", port);
 	
-	/* hmmm we moeten blijkbaar we die service steeds herstarten.. kan dat anders? */
+	/* send waiting messages every 10ms */
 	while(5000)
 		libwebsocket_service(ctx, 10);
 	

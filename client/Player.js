@@ -63,10 +63,8 @@ Player.prototype.finalSteer = function(obj) {
 	this.inputs[i + 1] = new Turn(0, tick, obj.x, obj.y, true);
 	this.finalTick = tick;
 
-	if(tick <= Math.ceil(this.states[backupStates.length - 1].tick)) {
+	if(tick <= Math.ceil(this.states[backupStates.length - 1].tick))
 		this.game.correctionTick = Math.min(this.game.correctionTick, tick);
-		this.game.domManager.gameMessage('player died, new correctionTick = ' + this.game.correctionTick);
-	}
 }
 
 Player.prototype.setSegmentStyle = function(ctx, inHole) {

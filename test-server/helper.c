@@ -286,6 +286,8 @@ void sendstr(char *str, int len, struct user *u) {
 	// being freed inside callback
 	buf = smalloc(PRE_PADDING + len + POST_PADDING);
 	memcpy(buf + PRE_PADDING, str, len);
+	
+	pthread_mutex_lock(&u->comlock);
 
 	u->sbmsglen[u->sbat] = len;
 	u->sb[u->sbat++] = buf;
@@ -300,6 +302,7 @@ void sendstr(char *str, int len, struct user *u) {
 	}
 
 	libwebsocket_callback_on_writable(ctx, u->wsi);
+	pthread_mutex_unlock(&u->comlock);
 }
 
 void sendjson(cJSON *json, struct user *u) {

@@ -279,28 +279,27 @@ function createCanvasManager(game) {
 				this.drawTeleport(ctx, game.mapTeleports[i]);
 		}, 
 	
-		drawPencilSegments: function(ctx) {
-			for(var i in game.players) {
-				var player = game.players[i];
-				var pen = player.pen;
-				var switched = false;
+		drawPencilSegments: function(ctx, player) {
+			var pen = player.pen;
+			var switched = false;
+		
+			this.setLineColor(ctx, player.color, 1);
+			ctx.beginPath();
 			
-				this.setLineColor(ctx, player.color, 1);
-				ctx.beginPath();
-				for(var j = 0; j < pen.seg.length; j++) {
-					var seg = pen.seg[j];
-				
-					if(seg.tick > game.tick && !switched) {
-						ctx.stroke();
-						this.setLineColor(ctx, player.color, pencilAlpha);
-						ctx.beginPath();
-						switched = true;
-					}
-				
-					seg.draw(ctx);
+			for(var j = 0; j < pen.seg.length; j++) {
+				var seg = pen.seg[j];
+			
+				if(!switched && seg.tick > game.tick) {
+					ctx.stroke();
+					this.setLineColor(ctx, player.color, pencilAlpha);
+					ctx.beginPath();
+					switched = true;
 				}
-				ctx.stroke();
+			
+				seg.draw(ctx);
 			}
+			
+			ctx.stroke();
 		},
 
 		drawTeleport: function(ctx, seg) {
