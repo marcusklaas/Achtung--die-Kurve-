@@ -598,11 +598,11 @@ char *getFileExt(char *path) {
 
 #ifdef _WIN32
 	#include <windows.h>
-	inline void msleep(unsigned int msecs) {
+	void msleep(unsigned int msecs) {
 		Sleep(msecs);
 	}
 #else
-	inline void msleep(unsigned int msecs) {
+	void msleep(unsigned int msecs) {
 		usleep(1000 * msecs);
 	}
 #endif

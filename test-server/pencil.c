@@ -93,7 +93,7 @@ void handlepencilmsg(cJSON *json, struct user *usr) {
 			mousedown = 0;
 		}
 		else {
-			double d = getlength(p->x - x, p->y - y); // dubbel-D ? ;-) => whaha
+			double d = getlength(p->x - x, p->y - y);
 
 			if(!p->down) {
 				warningplayer(usr, "error: pencil move: pencil not down\n");
@@ -107,6 +107,9 @@ void handlepencilmsg(cJSON *json, struct user *usr) {
 			
 			if(d < INK_MIN_DISTANCE)
 				p->down = 0;
+			
+			if(p->x == x && p->y == y)
+				break;
 			
 			p->ink -= d;
 			queuepencilseg(p, x, y);

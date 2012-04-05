@@ -268,7 +268,7 @@ function createDomManager(game) {
 		if(location.href.indexOf('C:/Dropbox') != -1) {
 			playerName = 'piet';
 			document.getElementById('sound').checked = false;
-			game.audioController.enableSound = false; // huh waarom werkt dit niet
+			game.audioController.enableSound = false;
 			document.getElementById('minplayers').value = 1;
 		}
 	

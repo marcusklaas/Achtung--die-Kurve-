@@ -59,7 +59,6 @@ function createEditor(game) {
 						seg.angle = getAngle(seg.x2 - seg.x1, seg.y2 - seg.y1);
 						break;
 					case 'teleport':
-						//TODO: some visual feedback for these return statements - wat do u mean?
 						if(getLength(seg.x2 - seg.x1, seg.y2 - seg.y1) < minTeleportSize ||
 						 (seg.teleportId = getNextTeleportId()) == -1)
 							return;

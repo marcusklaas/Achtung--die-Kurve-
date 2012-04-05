@@ -37,7 +37,7 @@ AudioController.prototype.addSound = function(name, file, formats) {
 }
 
 AudioController.prototype.playSound = function(name) {
-	if(!enableSound || typeof this.sounds[name] != 'object')
+	if(!this.enableSound || typeof this.sounds[name] != 'object')
 		return;
 
 	this.sounds[name][Math.floor(Math.random() * this.sounds[name].length)].play();

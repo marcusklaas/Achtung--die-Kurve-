@@ -14,7 +14,8 @@ function createPencil(game, mouse) {
 	}
 	
 	function move() {
-		var seg = pos.link(mouse);
+		var newpos = mouse.clone();
+		var seg = pos.link(newpos);
 		var d = seg.getLength();
 		
 		if(ink < d + epsilon) {
@@ -23,20 +24,22 @@ function createPencil(game, mouse) {
 			if(ink < epsilon)
 				return;
 			
-			var v = mouse.clone().subtract(pos);
-			v.scale((ink - epsilon) / d);
-			v.x = v.x < 0 ? Math.ceil(v.x) : Math.floor(v.x);
-			v.y = v.y < 0 ? Math.ceil(v.y) : Math.floor(v.y);
-			pos.add(v);
-			ink -= v.getLength();
-		}
-		else {
-			mouse.copyTo(pos);
-			ink -= d;
+			newpos.subtract(pos);
+			newpos.scale((ink - epsilon) / d);
+			newpos.x = newpos.x < 0 ? Math.ceil(newpos.x) : Math.floor(newpos.x);
+			newpos.y = newpos.y < 0 ? Math.ceil(newpos.y) : Math.floor(newpos.y);
+			newpos.add(pos);
+			
+			seg.setEnd(newpos);
+			d = seg.getLength();
 		}
 		
+		if(d == 0)
+			return;
+		
+		ink -= d;
+		newpos.copyTo(pos);
 		appendpos();
-		seg.setEnd(pos);
 		canvasManager.drawSegment(seg, game.localPlayer.color, pencilAlpha);
 	}
 	
@@ -56,7 +59,7 @@ function createPencil(game, mouse) {
 		}, 
 		
 		lower: function() {
-			if(!this.isLowerable()) // was eerst pencil.isLowerable() maar global pencil bestaat niet meer.. dit zou ook moeten werken (tog?) anders deze literal ff naam geven (bijv pencil ;P)
+			if(!this.isLowerable())
 				return;
 				
 			mouse.copyTo(pos);
