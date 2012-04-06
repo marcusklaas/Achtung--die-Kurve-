@@ -64,7 +64,7 @@ function createDomManager(game) {
 
 	function resizeWindow() {
 		if(game.state == 'editing')
-			editor.resize();
+			game.editor.resize();
 
 		else if(game.state == 'playing' || game.state == 'watching' || 
 		 game.state == 'ended' || game.state == 'countdown')

@@ -6,7 +6,6 @@ var rareNaam = (function() { // zodat we het zien als sommige plekken nog op een
 	var indexToPlayer = new Array(8);
 	var websocket;
 	var receiver;
-	var torus = false;
 	var connected = false;
 	var canvasContainer; 
 	var fpsMeasureTick = 0;
@@ -478,6 +477,7 @@ var rareNaam = (function() { // zodat we het zien als sommige plekken nog op een
 		this.type = 'custom';
 		this.scaleX = this.scaleY = 0;
 		this.noMapSent = false;
+		this.torus = false;
 		this.width = 0;
 		this.height = 0;
 		this.velocity = 0;
@@ -727,7 +727,7 @@ var rareNaam = (function() { // zodat we het zien als sommige plekken nog op een
 		this.holeSize = obj.hsize;
 		this.holeFreq = obj.hfreq;
 		this.pencilMode = obj.pencilmode;
-		torus = (obj.torus != 0);
+		this.torus = (obj.torus != 0);
 
 		if(this.pencilMode != 'off')
 			this.pencil.setParameters(obj);
@@ -745,7 +745,7 @@ var rareNaam = (function() { // zodat we het zien als sommige plekken nog op een
 			document.getElementById('holeSize').value = this.holeSize;
 			document.getElementById('holeFreq').value = this.holeFreq;
 			document.getElementById('goal').value = obj.goal;
-			document.getElementById('torus').checked = torus;
+			document.getElementById('torus').checked = this.torus;
 			document.getElementById('inkCapacity').value = obj.inkcap;
 			document.getElementById('inkRegen').value = obj.inkregen;
 			document.getElementById('inkDelay').value = obj.inkdelay;
