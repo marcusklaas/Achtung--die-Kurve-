@@ -99,6 +99,18 @@ Player.prototype.simulate = function(endTick, ctx, state) {
 			continue;
 		}
 		
+		if(this.game.torus && wholeTick) {
+			if(state.x > this.game.width)
+				state.x = 0;
+			else if(state.x < 0)
+				state.x = this.game.width;
+
+			if(state.y > this.game.height)
+				state.y = 0;
+			else if(state.y < 0)
+				state.y = this.game.height;
+		}
+		
 		if(wholeTick && nextInput != null && nextInput.tick == state.tick) {
 			if(nextInput.finalTurn) {
 				ctx.drawLine(state.x, state.y, nextInput.x, nextInput.y);
@@ -133,19 +145,6 @@ Player.prototype.simulate = function(endTick, ctx, state) {
 		
 		if(!handled) {
 			ctx.drawLine(state.x, state.y, state.x = nextX, state.y = nextY);
-			
-			/* wrap around: FIXME: werkt niet meer goed sinds FP ticks */
-			if(this.game.torus && wholeTick) {
-				if(state.x > this.game.width)
-					state.x = 0;
-				else if(state.x < 0)
-					state.x = this.game.width;
-
-				if(state.y > this.game.height)
-					state.y = 0;
-				else if(state.y < 0)
-					state.y = this.game.height;
-			}
 		}
 		
 		state.tick = Math.min(Math.floor(state.tick + 1), endTick);
