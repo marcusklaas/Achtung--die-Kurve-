@@ -182,13 +182,26 @@ int libwebsocket_parse(struct libwebsocket *wsi, unsigned char c)
 			if (strcasecmp(lws_tokens[n].token, wsi->name_buffer))
 				continue;
 			debug("known hdr '%s'\n", wsi->name_buffer);
-			wsi->parser_state = WSI_TOKEN_GET_URI + n;
-			wsi->current_alloc_len = LWS_INITIAL_HDR_ALLOC;
 
+			/*
+			 * WSORIGIN is protocol equiv to ORIGIN,
+			 * JWebSocket likes to send it, map to ORIGIN
+			 */
+			if (n == WSI_TOKEN_SWORIGIN)
+				n = WSI_TOKEN_ORIGIN;
+
+			wsi->parser_state = WSI_TOKEN_GET_URI + n;
+
+			n = WSI_TOKEN_COUNT;
+
+			/*  If the header has been seen already, just append */
+			if (wsi->utf8_token[wsi->parser_state].token)
+				continue;
+
+			wsi->current_alloc_len = LWS_INITIAL_HDR_ALLOC;
 			wsi->utf8_token[wsi->parser_state].token =
 						 malloc(wsi->current_alloc_len);
 			wsi->utf8_token[wsi->parser_state].token_len = 0;
-			n = WSI_TOKEN_COUNT;
 		}
 
 		/* colon delimiter means we just don't know this name */
@@ -291,7 +304,9 @@ libwebsocket_rx_sm(struct libwebsocket *wsi, unsigned char c)
 	int handled;
 	int m;
 
-//	fprintf(stderr, "RX: %02X ", c);
+#if 0
+	fprintf(stderr, "RX: %02X ", c);
+#endif
 
 	switch (wsi->lws_rx_parse_state) {
 	case LWS_RXPS_NEW:
@@ -691,7 +706,8 @@ issue:
 
 
 	case LWS_RXPS_PAYLOAD_UNTIL_LENGTH_EXHAUSTED:
-		if (wsi->ietf_spec_revision < 4 || (wsi->all_zero_nonce && wsi->ietf_spec_revision >= 5))
+		if (wsi->ietf_spec_revision < 4 ||
+			 (wsi->all_zero_nonce && wsi->ietf_spec_revision >= 5))
 			wsi->rx_user_buffer[LWS_SEND_BUFFER_PRE_PADDING +
 			       (wsi->rx_user_buffer_head++)] = c;
 		else
@@ -721,7 +737,7 @@ spill:
 				 * fine he has told us he is closing too, let's
 				 * finish our close
 				 */
-				fprintf(stderr, "seen client close ack\n");
+				debug("seen client close ack\n");
 				return -1;
 			}
 			debug("server sees client close packet\n");
@@ -909,7 +925,8 @@ int libwebsocket_client_rx_sm(struct libwebsocket *wsi, unsigned char c)
 			if (wsi->ietf_spec_revision < 7)
 				switch (c & 0xf) {
 				case LWS_WS_OPCODE_04__CONTINUATION:
-					wsi->opcode = LWS_WS_OPCODE_07__CONTINUATION;
+					wsi->opcode =
+						LWS_WS_OPCODE_07__CONTINUATION;
 					break;
 				case LWS_WS_OPCODE_04__CLOSE:
 					wsi->opcode = LWS_WS_OPCODE_07__CLOSE;
@@ -921,14 +938,16 @@ int libwebsocket_client_rx_sm(struct libwebsocket *wsi, unsigned char c)
 					wsi->opcode = LWS_WS_OPCODE_07__PONG;
 					break;
 				case LWS_WS_OPCODE_04__TEXT_FRAME:
-					wsi->opcode = LWS_WS_OPCODE_07__TEXT_FRAME;
+					wsi->opcode =
+						  LWS_WS_OPCODE_07__TEXT_FRAME;
 					break;
 				case LWS_WS_OPCODE_04__BINARY_FRAME:
-					wsi->opcode = LWS_WS_OPCODE_07__BINARY_FRAME;
+					wsi->opcode =
+						LWS_WS_OPCODE_07__BINARY_FRAME;
 					break;
 				default:
 					fprintf(stderr, "reserved opcodes not "
-							    "usable pre v7 protocol\n");
+						   "usable pre v7 protocol\n");
 					return -1;
 				}
 			else
@@ -980,7 +999,7 @@ int libwebsocket_client_rx_sm(struct libwebsocket *wsi, unsigned char c)
 			else {
 				if (c)
 					wsi->lws_rx_parse_state =
-							LWS_RXPS_PAYLOAD_UNTIL_LENGTH_EXHAUSTED;
+					LWS_RXPS_PAYLOAD_UNTIL_LENGTH_EXHAUSTED;
 				else {
 					wsi->lws_rx_parse_state = LWS_RXPS_NEW;
 					goto spill;
@@ -1003,7 +1022,7 @@ int libwebsocket_client_rx_sm(struct libwebsocket *wsi, unsigned char c)
 		else {
 			if (wsi->rx_packet_length)
 				wsi->lws_rx_parse_state =
-						LWS_RXPS_PAYLOAD_UNTIL_LENGTH_EXHAUSTED;
+					LWS_RXPS_PAYLOAD_UNTIL_LENGTH_EXHAUSTED;
 			else {
 				wsi->lws_rx_parse_state = LWS_RXPS_NEW;
 				goto spill;
@@ -1069,7 +1088,7 @@ int libwebsocket_client_rx_sm(struct libwebsocket *wsi, unsigned char c)
 		else {
 			if (wsi->rx_packet_length)
 				wsi->lws_rx_parse_state =
-						LWS_RXPS_PAYLOAD_UNTIL_LENGTH_EXHAUSTED;
+					LWS_RXPS_PAYLOAD_UNTIL_LENGTH_EXHAUSTED;
 			else {
 				wsi->lws_rx_parse_state = LWS_RXPS_NEW;
 				goto spill;
@@ -1187,12 +1206,12 @@ spill:
 				debug("seen server's close ack\n");
 				return -1;
 			}
-			fprintf(stderr, "client sees server close packet len = %d\n", wsi->rx_user_buffer_head);
+			debug("client sees server close packet len = %d\n", wsi->rx_user_buffer_head);
 			/* parrot the close packet payload back */
 			n = libwebsocket_write(wsi, (unsigned char *)
 			   &wsi->rx_user_buffer[LWS_SEND_BUFFER_PRE_PADDING],
 				     wsi->rx_user_buffer_head, LWS_WRITE_CLOSE);
-			fprintf(stderr, "client writing close ack returned %d\n", n);
+			debug("client writing close ack returned %d\n", n);
 			wsi->state = WSI_STATE_RETURNED_CLOSE_ALREADY;
 			/* close the connection */
 			return -1;
@@ -1338,7 +1357,7 @@ libwebsocket_0405_frame_mask_generate(struct libwebsocket *wsi)
 	 */
 
 	memcpy(buf, wsi->frame_masking_nonce_04, 4);
-	
+
 	memcpy(buf + 4, wsi->masking_key_04, 20);
 
 	/* concatenate the nonce with the connection key then hash it */
@@ -1360,7 +1379,7 @@ void lws_stderr_hexdump(unsigned char *buf, size_t len)
 		start = n;
 
 		fprintf(stderr, "%04X: ", start);
-		
+
 		for (m = 0; m < 16 && n < len; m++)
 			fprintf(stderr, "%02X ", buf[n++]);
 		while (m++ < 16)
@@ -1406,14 +1425,13 @@ int lws_issue_raw(struct libwebsocket *wsi, unsigned char *buf, size_t len)
 			return -1;
 		}
 		if (m) /* handled */ {
-//			fprintf(stderr, "ext sent it\n");
+/*			fprintf(stderr, "ext sent it\n"); */
 			return 0;
 		}
 	}
 
-	if (!wsi->sock) {
+	if (!wsi->sock)
 		fprintf(stderr, "** error 0 sock but expected to send\n");
-	}
 
 	/*
 	 * nope, send it on the socket directly
@@ -1479,7 +1497,7 @@ lws_issue_raw_ext_access(struct libwebsocket *wsi,
 					LWS_EXT_CALLBACK_PACKET_TX_PRESEND,
 				   wsi->active_extensions_user[n], &eff_buf, 0);
 			if (m < 0) {
-				fprintf(stderr, "Extension reports fatal error\n");
+				fprintf(stderr, "Extension: fatal error\n");
 				return -1;
 			}
 			if (m)
@@ -1494,7 +1512,7 @@ lws_issue_raw_ext_access(struct libwebsocket *wsi,
 
 		if (eff_buf.token_len)
 			if (lws_issue_raw(wsi, (unsigned char *)eff_buf.token,
-							     eff_buf.token_len))
+							    eff_buf.token_len))
 				return -1;
 
 		/* we used up what we had */
@@ -1559,7 +1577,8 @@ int libwebsocket_write(struct libwebsocket *wsi, unsigned char *buf,
 	int pre = 0;
 	int post = 0;
 	int shift = 7;
-	int masked7 = wsi->mode == LWS_CONNMODE_WS_CLIENT && wsi->xor_mask != xor_no_mask;
+	int masked7 = wsi->mode == LWS_CONNMODE_WS_CLIENT &&
+						  wsi->xor_mask != xor_no_mask;
 	unsigned char *dropmask = NULL;
 	unsigned char is_masked_bit = 0;
 
@@ -1652,7 +1671,7 @@ int libwebsocket_write(struct libwebsocket *wsi, unsigned char *buf,
 			 * v5 mandates the first byte of close packet
 			 * in both client and server directions
 			 */
-			
+
 			switch (wsi->ietf_spec_revision) {
 			case 0:
 			case 4:
@@ -1662,7 +1681,7 @@ int libwebsocket_write(struct libwebsocket *wsi, unsigned char *buf,
 
 				if (len < 1)
 					len = 1;
-				
+
 				switch (wsi->mode) {
 				case LWS_CONNMODE_WS_SERVING:
 					/*
@@ -1767,7 +1786,8 @@ int libwebsocket_write(struct libwebsocket *wsi, unsigned char *buf,
 		 * to control the raw packet payload content
 		 */
 
-		if (!(protocol & LWS_WRITE_CLIENT_IGNORE_XOR_MASK) && wsi->xor_mask != xor_no_mask) {
+		if (!(protocol & LWS_WRITE_CLIENT_IGNORE_XOR_MASK) &&
+						wsi->xor_mask != xor_no_mask) {
 
 			if (libwebsocket_0405_frame_mask_generate(wsi)) {
 				fprintf(stderr, "libwebsocket_write: "
@@ -1788,7 +1808,8 @@ int libwebsocket_write(struct libwebsocket *wsi, unsigned char *buf,
 				 * in v7, just mask the payload
 				 */
 				for (n = 0; n < (int)len; n++)
-					dropmask[n + 4] = wsi->xor_mask(wsi, dropmask[n + 4]);
+					dropmask[n + 4] =
+					   wsi->xor_mask(wsi, dropmask[n + 4]);
 
 
 			if (wsi->ietf_spec_revision < 7) {
@@ -1800,7 +1821,8 @@ int libwebsocket_write(struct libwebsocket *wsi, unsigned char *buf,
 
 			if (dropmask)
 				/* copy the frame nonce into place */
-				memcpy(dropmask, wsi->frame_masking_nonce_04, 4);
+				memcpy(dropmask,
+					       wsi->frame_masking_nonce_04, 4);
 
 		} else {
 			if (wsi->ietf_spec_revision < 7) {
@@ -1901,7 +1923,8 @@ int libwebsockets_serve_http_file(struct libwebsocket *wsi, const char *file,
 			"Server: libwebsockets\x0d\x0a"
 			"Content-Type: %s\x0d\x0a"
 			"Content-Length: %u\x0d\x0a"
-			"\x0d\x0a", content_type, (unsigned int)stat_buf.st_size);
+			"\x0d\x0a", content_type,
+					(unsigned int)stat_buf.st_size);
 
 	libwebsocket_write(wsi, (unsigned char *)buf, p - buf, LWS_WRITE_HTTP);
 

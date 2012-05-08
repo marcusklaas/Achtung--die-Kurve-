@@ -4,17 +4,8 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 		<title>Achtung, die Kurve!</title>
-		<link rel="stylesheet" type="text/css" href="alt.css" />
-		<script src="DOM.js"></script>
-		<script src="communication.js"></script>
-		<script src="GameEngine.js"></script>
-		<script src="Player.js"></script>
-		<script src="InputController.js"></script>
-		<script src="Editor.js"></script>
-		<script src="misc.js"></script>
-		<script src="Pencil.js"></script>
-		<script src="buzz.js"></script>
-		<script src="game.js"></script>
+		<link rel="stylesheet" type="text/css" href="base.css" />
+		<script src="minified.js"></script>
 	</head>
 	<body>
 		<aside id="sidebar">
@@ -50,7 +41,7 @@
 			<section id="canvasContainer">
 				<div id="menuButton">&lt;</div>
 				<canvas id="baseCanvas"></canvas>
-				<h2 id="winAnnouncer"></h2>
+				<div id="winAnnouncer"></div>
 				<div id="status"></div>
 				<div id="inkIndicator">
 					<div id="inkWrap">
@@ -62,63 +53,55 @@
 
 		<article id="connectionContainer" class="contentVisible">
 			<section>
-				<div class="contentWrap">
-					<header>
-						<h1>Achtung, die Kurve!</h1>
-					</header>
+				<h1>Achtung, die Kurve!</h1>
 
-					<div id="noWebsocket" class="alert alert-error">
-						It seems like your browser does not support websockets! This is required to play the game. Please consider trying a websocket compliant browser like Firefox, Chrome or Safari.
-					</div>
+				<div id="noWebsocket" class="alert alert-error">
+					It seems like your browser does not support websockets! This is required to play the game. Please consider trying a websocket compliant browser like Firefox, Chrome or Safari.
+				</div>
 
-					<div id="introduction">
-						<p id="welcome">Welcome to our online remake of the classic Achtung die Kurve! Instead of running on a single computer, this version works over the internet. If you are unfamiliar with the game, check out the quick-start guide below. Otherwise, enter your nickname and have fun!</p>
-						<div id="connectForm">
-							<input type="text" id="playername" placeholder="playername" />
-							<button id="connect" class="primary">Connect</button>
-						</div>
-					</div>
-
-					<input type="checkbox" id="readMore" />
-					<label for="readMore">
-						<span>Expand quick start guide &darr;</span>
-						<span>Collapse quick start guide &uarr;</span>
-					</label>
-
-					<div id="guide">
-						<h3>The goal</h3>
-						<p>In this game you are a snake which you can steer in two directions. The ultimate goal of the game has always been to survive as long as possible. You do this by avoiding collision with yourself, other players, the edges of the map and other obstacles. Every time an opponent fails to do this, you receive some points. The first player to reach a set point limit wins the game! Simple enough, right? When you die, you do not have to sit and wait until the next round: you can then draw obstacles on the map to sabotage the players that are still alive. <strong>Pro-tip:</strong> go for the player that is leading in points!</p>
-						<h3>The basic controls</h3>
-						<p>The basic controls are fairly simple, but depend on the type of device you are playing the game on. For machines with keyboards connected, you can steer your snake to the left or the right by holding the respective arrow keys. On fancy touch devices like mobile phones or tablets, you can steer by pressing the left and right of the playing field. To draw obstacles, simply click and drag on the playing field with either the mouse or a finger, depending on your machine. Keep an eye on the ink indicator in the bottom right corner of the field!</p>
-						<h3>Automatches</h3>
-						<p>There are two types of games. Automatches and custom games. Automatches are the easiest way to find a game. You specify with how many people you'd like to play and press the automatch button. You automatically join a game which fits your requirements, or a new game is created if such a game cannot be found. The game automatically starts when there are enough players. These automatches always use the default settings.</p>
-						<h3>Custom games</h3>
-						<p>Custom games on the other hand have a host, who desides when the game starts and has the authority to kick people from the game. The host can also set the game parameters to values of his or her liking (within reason). In addition, it is possible to add computer players to the game. Finally, you can also build your own map. Create obstacles, fixed starting positions and even teleporters! There are incredibly many different ways to make the game even more crazy!</p>
+				<div id="introduction">
+					<p id="welcome">Welcome to our online remake of the classic Achtung die Kurve! Instead of running on a single computer, this version works over the internet. If you are unfamiliar with the game, check out the quick-start guide below. Otherwise, enter your nickname and have fun!</p>
+					<div id="connectForm">
+						<input type="text" id="playername" placeholder="playername" />
+						<button id="connect" class="primary">Connect</button>
 					</div>
 				</div>
-				
-				<footer>
+
+				<input type="checkbox" id="readMore" />
+				<label for="readMore">
+					<span>Expand quick start guide &darr;</span>
+					<span>Collapse quick start guide &uarr;</span>
+				</label>
+
+				<div id="guide">
+					<h3>The goal</h3>
+					<p>In this game you are a snake which you can steer in two directions. The ultimate goal of the game has always been to survive as long as possible. You do this by avoiding collision with yourself, other players, the edges of the map and other obstacles. Every time an opponent fails to do this, you receive some points. The first player to reach a set point limit wins the game! Simple enough, right? When you die, you do not have to sit and wait until the next round: you can then draw obstacles on the map to sabotage the players that are still alive. <strong>Pro-tip:</strong> go for the player that is leading in points!</p>
+					<h3>The basic controls</h3>
+					<p>The basic controls are fairly simple, but depend on the type of device you are playing the game on. For machines with keyboards connected, you can steer your snake to the left or the right by holding the respective arrow keys. On fancy touch devices like mobile phones or tablets, you can steer by pressing the left and right of the playing field. To draw obstacles, simply click and drag on the playing field with either the mouse or a finger, depending on your machine. Keep an eye on the ink indicator in the bottom right corner of the field!</p>
+					<h3>Automatches</h3>
+					<p>There are two types of games. Automatches and custom games. Automatches are the easiest way to find a game. You specify with how many people you'd like to play and press the automatch button. You automatically join a game which fits your requirements, or a new game is created if such a game cannot be found. The game automatically starts when there are enough players. These automatches always use the default settings.</p>
+					<h3>Custom games</h3>
+					<p>Custom games on the other hand have a host, who desides when the game starts and has the authority to kick people from the game. The host can also set the game parameters to values of his or her liking (within reason). In addition, it is possible to add computer players to the game. Finally, you can also build your own map. Create obstacles, fixed starting positions and even teleporters! There are incredibly many different ways to make the game even more crazy!</p>
+				</div>
+
+				<div id="credits">
 					This game was made by Marcus and Rik as a holiday project. The code is hosted at <a href="https://github.com/marcusklaas/Achtung--die-Kurve-">github</a>, which you are free to fork. If you have any suggestions or complaints, or if you just want to tell us what you think about the game, send us an email at <a href="mailto:devnull@diekurve.net">devnull@diekurve.net</a>!
-				</footer>
+				</div>
 			</section>
 		</article>
 
 		<article id="gameListContainer">
 			<section>
-				<div class="contentWrap">
-					<header>
-						<h2>Game List</h2>
-					</header>
-					<div id="listWrapper">
-						<table id="gameList" class="zebra-striped bordered-table">
-						<thead><tr><th>#</th><th>Type</th><th>Host</th><th>State</th><th>Players</th><th></th></tr></thead>
-						<tbody></tbody></table>
-						<div id="noGames">No games active!</div>
-					</div>
+				<h2>Game List</h2>
+				<div id="listWrapper">
+					<table id="gameList" class="zebra-striped bordered-table">
+					<thead><tr><th>#</th><th>Type</th><th>Host</th><th>State</th><th>Players</th><th></th></tr></thead>
+					<tbody></tbody></table>
+					<div id="noGames">No games active!</div>
 				</div>
-
-				<a id="createGame" class="btn primary">Create Game</a>
 				
+				<a id="createGame" class="btn primary">Create Game</a>
+
 				<div id="automatchContainer">
 					<span class="add-on">Minimum players</span><input type="number" min="1" max="8" steps="1" value="2" id="minplayers" /><span class="add-on">Maximum players</span><input type="number" min="1" max="8" steps="1" value="2" id="maxplayers" /><a id="automatch" class="btn primary">Automatch</a>
 				</div>
@@ -168,18 +151,14 @@
 					<div class="btn-group">
 						<a id="editorDone" class="btn primary">Done</a>
 					</div>
-				</div>
-			</div>
-		</section>
-	</article>
+				</div>		
+			</section>
+		</article>
 
-	<article id="waitContainer">
-		<section>
-			<div class="contentWrap">
-				<header>
-					<h2>Game Settings</h2>
-				</header>
-				<table id="details">
+		<article id="waitContainer">
+			<section>
+				<h2>Game Settings</h2>
+				<table id="details" class="table-condensed">
 					<tr>
 						<td>Minimum players</td>
 						<td><input id="nmin" type="number" disabled /></td>
@@ -244,25 +223,22 @@
 
 				<div id="hostContainer">
 					<div class="btn-group">
-						<a id="addComputerEasy" class="btn">+ Easy AI</a>
+						<a id="addComputerEasy" class="btn">Easy AI</a>
+						<a id="addComputerHard" class="btn">Hard AI</a>
 					</div>
 				
 					<div class="btn-group">
-						<a id="addComputerHard" class="btn">+ Hard AI</a>
-					</div>
-			
-					<div class="btn-group">
 						<a id="editorStart" class="btn">Customize Map</a>
 					</div>
-			
+				
 					<div class="btn-group">
 						<a id="startGame" class="btn primary">Start Game</a>
 					</div>
 				</div>
-	
+		
 				<div id="nonhostContainer"></div>
 
-				<div id="friendInviter">Don't play alone, invite your friends!</div>
+				<div id="friendInviter" class="alert alert-info">Don't play alone, invite your friends!</div>
 			</section>
 		</article>
 	</body>

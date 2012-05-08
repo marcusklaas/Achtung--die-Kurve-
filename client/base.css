@@ -462,6 +462,7 @@ label[for="readMore"] > span {
 }
 
 #sound {
+	margin: 0;
 	display: inline;
 }
 
@@ -636,8 +637,7 @@ tr.left td:first-child { /* FIXME: dit kruist de x als je de host bent ipv playe
 }
 
 input, textarea, select {
-	display: inline-block;#
-	width: 210px;
+	display: inline-block;
 	height: 18px;
 	padding: 4px;
 	font-size: 13px;
@@ -669,6 +669,10 @@ input:focus, textarea:focus {
 	outline: thin dotted \9; */ /* weggehaald voor redenen der fakking lelijkheid */
 }
 
+input[type=radio], input[type=checkbox] {
+	margin: 5px 0 5px 0;
+}
+
 label, input, button, select, textarea {
 	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 	font-size: 13px;
@@ -686,10 +690,15 @@ textarea:disabled {
 
 /* automatch met hulp van bootstrap */
 #automatchContainer {
-	display: inline;
+	float: right;
 	white-space: nowrap;
 	word-spacing: 0;
 	line-height: 18px;
+}
+
+#createGame {
+	float: right;
+	margin: 0 0 5px 5px;
 }
 
 #automatchContainer input {
@@ -942,16 +951,14 @@ table tbody th {
 	vertical-align: top;
 }
 
-.condensed-table th, .condensed-table td {
-	padding: 5px 5px 4px;
+.table-condensed th, .table-condensed td {
+	padding: 6px 6px 5px;
 }
 
 .bordered-table {
 	border: 1px solid #ddd;
 	border-collapse: separate;
 	*border-collapse: collapse;
-	/* IE7, collapse table to remove spacing */
-
 	-webkit-border-radius: 4px;
 	-moz-border-radius: 4px;
 	border-radius: 4px;
@@ -991,8 +998,4 @@ table tbody th {
 
 .zebra-striped tbody tr:hover td, .zebra-striped tbody tr:hover th {
 	background-color: #f5f5f5;
-}
-
-table .header {
-	cursor: pointer;
 }

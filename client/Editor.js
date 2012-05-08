@@ -128,11 +128,6 @@ function createEditor(game) {
 		}
 	}
 
-	function closeModal() {
-		overlay.style.display = 'none';
-		modal.style.display = 'none';
-	}
-
 	function inMode() {
 		for(var i = 0; i < arguments.length; i++)
 			if(mode == arguments[i])
@@ -270,6 +265,11 @@ function createEditor(game) {
 			eraserButton.mode = 'eraser';
 			playerStartButton.mode = 'playerStart';
 			teleportButton.mode = 'teleport';
+			
+			function closeModal() {
+				overlay.style.display = 'none';
+				modal.style.display = 'none';
+			}
 
 			function activate(node) {
 				var siblings = node.parentNode.getElementsByTagName('a');

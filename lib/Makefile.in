@@ -37,6 +37,10 @@ build_triplet = @build@
 host_triplet = @host@
 @EXT_GOOGLE_MUX_TRUE@am__append_1 = extension-x-google-mux.c
 @LIBCRYPTO_FALSE@am__append_2 = md5.c sha-1.c
+@MINGW_TRUE@am__append_3 = -w -I../win32port/win32helpers -I ../win32port/zlib/
+@MINGW_TRUE@am__append_4 = -lm -luser32 -ladvapi32 -lkernel32 -lgcc
+@MINGW_FALSE@am__append_5 = -rdynamic -fPIC -Werror
+@MINGW_FALSE@am__append_6 = -version-info 0:3
 subdir = lib
 DIST_COMMON = $(include_HEADERS) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in
@@ -235,10 +239,10 @@ dist_libwebsockets_la_SOURCES = libwebsockets.c handshake.c parsers.c \
 	libwebsockets.h base64-decode.c client-handshake.c extension.c \
 	extension-deflate-stream.c private-libwebsockets.h \
 	$(am__append_1) $(am__append_2)
-libwebsockets_la_CFLAGS := -rdynamic -fPIC -Wall -Werror -std=gnu99 -pedantic -c \
-	-DDATADIR=\"@datadir@\" -DLWS_OPENSSL_CLIENT_CERTS=\"@clientcertdir@\"
-
-libwebsockets_la_LDFLAGS = -lz -version-info 0:3
+libwebsockets_la_CFLAGS := -Wall -std=gnu99 -pedantic $(am__append_3) \
+	$(am__append_5) -c -DINSTALL_DATADIR=\"@datadir@\" \
+	-DLWS_OPENSSL_CLIENT_CERTS=\"@clientcertdir@\"
+libwebsockets_la_LDFLAGS := $(am__append_4) $(am__append_6) -lz
 all: all-am
 
 .SUFFIXES:
@@ -523,7 +527,7 @@ distdir: $(DISTFILES)
 	done
 check-am: all-am
 check: check-am
-all-am: Makefile $(LTLIBRARIES) $(HEADERS) all-local
+all-am: Makefile $(LTLIBRARIES) $(HEADERS)
 installdirs:
 	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(includedir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
@@ -631,30 +635,21 @@ uninstall-am: uninstall-includeHEADERS uninstall-libLTLIBRARIES
 
 .MAKE: install-am install-strip
 
-.PHONY: CTAGS GTAGS all all-am all-local check check-am clean \
-	clean-generic clean-libLTLIBRARIES clean-libtool ctags \
-	distclean distclean-compile distclean-generic \
-	distclean-libtool distclean-tags distdir dvi dvi-am html \
-	html-am info info-am install install-am install-data \
-	install-data-am install-dvi install-dvi-am install-exec \
-	install-exec-am install-html install-html-am \
-	install-includeHEADERS install-info install-info-am \
-	install-libLTLIBRARIES install-man install-pdf install-pdf-am \
-	install-ps install-ps-am install-strip installcheck \
-	installcheck-am installdirs maintainer-clean \
+.PHONY: CTAGS GTAGS all all-am check check-am clean clean-generic \
+	clean-libLTLIBRARIES clean-libtool ctags distclean \
+	distclean-compile distclean-generic distclean-libtool \
+	distclean-tags distdir dvi dvi-am html html-am info info-am \
+	install install-am install-data install-data-am install-dvi \
+	install-dvi-am install-exec install-exec-am install-html \
+	install-html-am install-includeHEADERS install-info \
+	install-info-am install-libLTLIBRARIES install-man install-pdf \
+	install-pdf-am install-ps install-ps-am install-strip \
+	installcheck installcheck-am installdirs maintainer-clean \
 	maintainer-clean-generic mostlyclean mostlyclean-compile \
 	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
 	tags uninstall uninstall-am uninstall-includeHEADERS \
 	uninstall-libLTLIBRARIES
 
-
-all-local:
-	 ../scripts/kernel-doc -html \
-                libwebsockets.c \
-		parsers.c \
-		client-handshake.c \
-                libwebsockets.h \
-			> ../libwebsockets-api-doc.html
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
