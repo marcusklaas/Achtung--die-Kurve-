@@ -47,7 +47,7 @@ $ ./configure
 $ make clean
 $ make
 $ sudo make install
-$ server/diekurve-server
+$ server/kurveserver
 
 should be enough to get a server listening on port 7861.
 
@@ -88,7 +88,7 @@ Using SSL on the server side
 
 To test it using SSL/WSS, just run the test server with
 
-$ diekurve-server --ssl
+$ kurveserver --ssl
 
 and use the URL
 
@@ -132,4 +132,4 @@ same test server too and see the circles, etc.
 It also works compatibly with deflate-stream automatically.
 
 2012-04-12  Andy Green <andy@warmcat.com>
-2012-05-08  Marcus & Rik <mail@diekurve.net>
+2012-05-09  Marcus & Rik <mail@diekurve.net>

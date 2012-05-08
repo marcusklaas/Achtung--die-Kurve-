@@ -34,8 +34,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-bin_PROGRAMS = kurve-server$(EXEEXT)
-@MINGW_TRUE@am__append_1 = -luser32 -ladvapi32 -lkernel32 -lgcc -lws2_32 -lz
+bin_PROGRAMS = kurveserver$(EXEEXT)
 subdir = server
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -48,12 +47,11 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
-am_kurve_server_OBJECTS = kurve_server-server.$(OBJEXT)
-kurve_server_OBJECTS = $(am_kurve_server_OBJECTS)
-am__DEPENDENCIES_1 =
-kurve_server_DEPENDENCIES = $(am__DEPENDENCIES_1)
-kurve_server_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(kurve_server_CFLAGS) \
+am_kurveserver_OBJECTS = kurveserver-server.$(OBJEXT)
+kurveserver_OBJECTS = $(am_kurveserver_OBJECTS)
+kurveserver_DEPENDENCIES =
+kurveserver_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(kurveserver_CFLAGS) \
 	$(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -68,8 +66,8 @@ CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-SOURCES = $(kurve_server_SOURCES)
-DIST_SOURCES = $(kurve_server_SOURCES)
+SOURCES = $(kurveserver_SOURCES)
+DIST_SOURCES = $(kurveserver_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -187,15 +185,9 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-kurve_server_SOURCES = server.c
-kurve_server_LDADD = -L../lib -lwebsockets -lm $(am__append_1)
-@MINGW_FALSE@kurve_server_CFLAGS := -Werror -Wall -pthread -std=gnu99 \
-@MINGW_FALSE@	-pedantic -DINSTALL_DATADIR=\"@datadir@\" \
-@MINGW_FALSE@	-DLWS_OPENSSL_CLIENT_CERTS=\"@clientcertdir@\"
-@MINGW_TRUE@kurve_server_CFLAGS := -w -I../win32port/win32helpers \
-@MINGW_TRUE@	-Wall -pthread -std=gnu99 -pedantic \
-@MINGW_TRUE@	-DINSTALL_DATADIR=\"@datadir@\" \
-@MINGW_TRUE@	-DLWS_OPENSSL_CLIENT_CERTS=\"@clientcertdir@\"
+kurveserver_SOURCES = server.c
+kurveserver_LDADD = -L../lib -lwebsockets -lm
+kurveserver_CFLAGS = -Wall -pthread -std=gnu99 -pedantic -DINSTALL_DATADIR=\"@datadir@\" -DLWS_OPENSSL_CLIENT_CERTS=\"@clientcertdir@\"
 all: all-am
 
 .SUFFIXES:
@@ -273,9 +265,9 @@ clean-binPROGRAMS:
 	list=`for p in $$list; do echo "$$p"; done | sed 's/$(EXEEXT)$$//'`; \
 	echo " rm -f" $$list; \
 	rm -f $$list
-kurve-server$(EXEEXT): $(kurve_server_OBJECTS) $(kurve_server_DEPENDENCIES) $(EXTRA_kurve_server_DEPENDENCIES) 
-	@rm -f kurve-server$(EXEEXT)
-	$(kurve_server_LINK) $(kurve_server_OBJECTS) $(kurve_server_LDADD) $(LIBS)
+kurveserver$(EXEEXT): $(kurveserver_OBJECTS) $(kurveserver_DEPENDENCIES) $(EXTRA_kurveserver_DEPENDENCIES) 
+	@rm -f kurveserver$(EXEEXT)
+	$(kurveserver_LINK) $(kurveserver_OBJECTS) $(kurveserver_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -283,7 +275,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/kurve_server-server.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/kurveserver-server.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -306,19 +298,19 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LTCOMPILE) -c -o $@ $<
 
-kurve_server-server.o: server.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(kurve_server_CFLAGS) $(CFLAGS) -MT kurve_server-server.o -MD -MP -MF $(DEPDIR)/kurve_server-server.Tpo -c -o kurve_server-server.o `test -f 'server.c' || echo '$(srcdir)/'`server.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/kurve_server-server.Tpo $(DEPDIR)/kurve_server-server.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='server.c' object='kurve_server-server.o' libtool=no @AMDEPBACKSLASH@
+kurveserver-server.o: server.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(kurveserver_CFLAGS) $(CFLAGS) -MT kurveserver-server.o -MD -MP -MF $(DEPDIR)/kurveserver-server.Tpo -c -o kurveserver-server.o `test -f 'server.c' || echo '$(srcdir)/'`server.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/kurveserver-server.Tpo $(DEPDIR)/kurveserver-server.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='server.c' object='kurveserver-server.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(kurve_server_CFLAGS) $(CFLAGS) -c -o kurve_server-server.o `test -f 'server.c' || echo '$(srcdir)/'`server.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(kurveserver_CFLAGS) $(CFLAGS) -c -o kurveserver-server.o `test -f 'server.c' || echo '$(srcdir)/'`server.c
 
-kurve_server-server.obj: server.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(kurve_server_CFLAGS) $(CFLAGS) -MT kurve_server-server.obj -MD -MP -MF $(DEPDIR)/kurve_server-server.Tpo -c -o kurve_server-server.obj `if test -f 'server.c'; then $(CYGPATH_W) 'server.c'; else $(CYGPATH_W) '$(srcdir)/server.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/kurve_server-server.Tpo $(DEPDIR)/kurve_server-server.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='server.c' object='kurve_server-server.obj' libtool=no @AMDEPBACKSLASH@
+kurveserver-server.obj: server.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(kurveserver_CFLAGS) $(CFLAGS) -MT kurveserver-server.obj -MD -MP -MF $(DEPDIR)/kurveserver-server.Tpo -c -o kurveserver-server.obj `if test -f 'server.c'; then $(CYGPATH_W) 'server.c'; else $(CYGPATH_W) '$(srcdir)/server.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/kurveserver-server.Tpo $(DEPDIR)/kurveserver-server.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='server.c' object='kurveserver-server.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(kurve_server_CFLAGS) $(CFLAGS) -c -o kurve_server-server.obj `if test -f 'server.c'; then $(CYGPATH_W) 'server.c'; else $(CYGPATH_W) '$(srcdir)/server.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(kurveserver_CFLAGS) $(CFLAGS) -c -o kurveserver-server.obj `if test -f 'server.c'; then $(CYGPATH_W) 'server.c'; else $(CYGPATH_W) '$(srcdir)/server.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
