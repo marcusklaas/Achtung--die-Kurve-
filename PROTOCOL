@@ -1,0 +1,34 @@
+= messages sent by client =
+
+mode: input
+steer: -1 for right steer key down, 0 for current steer key up, 1 for left steer key down
+tick: tick in which this input will be simulated
+- inputs should be sent with strictly increasing tick value.
+- server will modify tick value when simulation is ahead of tick
+
+mode: pencil
+data: array of which every three consecutive elements correspond to a pencil position: int x, int y, int tick. one exception: the first element of the array can be -1, which denotes that the first position is a pencil down position
+
+= server byte messages =
+to save on bandwidth, the server sends some common messages in binary instead of in JSON. the data is encoded in characters. these so-called byte messages are in bigEndian format (but platform independant, both server as client!).
+
+x is for reserved bit
+d is for tick-delta (difference with last input tick)
+i is for player index
+j is for input index
+t is for turn change. always 2 options for turn. 0 encodes the most left option, 1 the most right
+m is for mode
+. is for free bit
+
+input message
+NOTE: does not have mode member!
+layout: xdddtiii xddddddd
+
+input modification message
+layout: xjjjjmmm xjjjjjjj xdddjjjj xddddddd
+
+tick update message
+layout: xdiiimmm xddddddd xddddddd
+
+position on the map is encoded in 3 bytes
+layout: xxxxxxx yyyxxxx yyyyyyy (x for x position, y for y position, and only first 7 bits of each byte are shown)
