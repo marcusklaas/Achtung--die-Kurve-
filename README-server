@@ -9,12 +9,9 @@ Always run the server from the server directory, or the server will not be able
 to find the client files.
 
 Please note that the whole build-process has only been somewhat rigerously
-tested on a 64bit Ubuntu machine and a 32bit Debian machine. We have been able
-to compile and run the server on Windows 7 and a ARM machine, though. The 
-windows build is not without challenges (mostly getting pthreads working)
-The libwebsockets project is quite portable and actually has some win32 code,
-which we did not include here. It should be possible to get the server running
-on most systems with some effort (and/ or expertise) 
+tested on a 64bit Ubuntu machine, a 32bit Debian machine and a 64bit windows 7 
+machine. However, it should be possible to get the server running on most 
+systems with some effort (and/ or expertise).
 
 The rest of this file is copied from the libwebsockets project. Stuff like 
 custom configs and SSL we have never tried. It might work, but don't expect it
