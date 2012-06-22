@@ -39,8 +39,8 @@ var dashLength = 5; // for teleports
 var dashSpacing = 5;
 
 /* general settings */
-var syncTries = 2;
-var syncDelays = 50;
+var syncTries = 10;
+var syncDelays = 20;
 var tickTockDifference = 2; // desired difference between tock and tick
 var backupStates = [Infinity, 40, 10, 0]; // how many ticks the different backup states should trail
 var resizeDelay = 200; // the duration the window should have a constant size before calling resize

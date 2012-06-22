@@ -443,20 +443,21 @@ var rareNaam = (function() { // zodat we het zien als sommige plekken nog op een
 	function handleSyncResponse(serverTime) {
 		if(syncTry == -1) {
 			ping = 0;
-			bestSyncPing = 9999;
+			bestSyncPing = 1e6;
 			worstSyncPing = 0;
 			syncTry = 0;
 		}
 
 		var newPing = (Date.now() - syncSendTime)/ 2;
+
 		if(newPing < bestSyncPing) {
 			bestSyncPing = newPing;
 			serverTimeDifference = (serverTime + newPing) - Date.now();
 		}
 
 		if(newPing > worstSyncPing) {
-			ping += worstSyncPing;
-			worstSyncPing = ping/ (syncTries - 1);
+			ping += worstSyncPing/ (syncTries - 1);
+			worstSyncPing = newPing;
 		}
 		else
 			ping += newPing/ (syncTries - 1);
@@ -464,6 +465,7 @@ var rareNaam = (function() { // zodat we het zien als sommige plekken nog op een
 		if(++syncTry < syncTries)
 			window.setTimeout(syncWithServer, syncTry * syncDelays);
 		else {
+			ping = Math.round(ping);
 			GameEngine.domManager.gameMessage('Your current ping is ' + ping + ' msec');
 			if(ultraVerbose)
 				GameEngine.domManager.gameMessage('Synced with maximum error of ' + bestSyncPing + ' msec');
