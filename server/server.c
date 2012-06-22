@@ -290,7 +290,7 @@ callback_game(struct libwebsocket_context * context,
 			
 			/* NOTE: it is okay to not lock game here */
 			
-			if(u->gm->host != u || u->gm->state != GS_LOBBY || 
+			if(!u->gm || u->gm->host != u || u->gm->state != GS_LOBBY || 
 			 u->gm->nmax <= u->gm->n) {
 				warning("user %d tried to add computer, but does not meet reqs\n", u->id);
 				break;
