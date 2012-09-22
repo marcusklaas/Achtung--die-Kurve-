@@ -6,7 +6,7 @@ var joinedLink = false;
 var keyCodeLeft = 37;
 var keyCodeRight = 39;
 
-var serverURL = "ws://diekurve.net:7681"; // websocket game server
+var serverURL = "ws://h1918649.stratoserver.net:7681"; // websocket game server
 if(location.href.indexOf('7681') != -1)
 	serverURL = location.href.replace('http', 'ws');
 else if(location.href.indexOf('C:/Dropbox') != -1)
@@ -39,6 +39,7 @@ var dashLength = 5; // for teleports
 var dashSpacing = 5;
 
 /* general settings */
+var email = 'diekurve.net' + '@g' + 'mail.com';
 var syncTries = 10;
 var syncDelays = 20;
 var tickTockDifference = 2; // desired difference between tock and tick

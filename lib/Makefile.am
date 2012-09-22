@@ -19,7 +19,7 @@ else
 dist_libwebsockets_la_SOURCES += md5.c sha-1.c
 endif
 
-libwebsockets_la_CFLAGS:=-Wall -std=gnu99 -pedantic
+libwebsockets_la_CFLAGS:=-g -Wall -std=gnu99 -pedantic -O0
 libwebsockets_la_LDFLAGS:=
 
 if MINGW

@@ -158,6 +158,8 @@ cJSON *encodegame(struct game *gm) {
 	cJSON *json = cJSON_CreateObject();
 	char buf[20];
 
+	//assert(!pthread_mutex_lock(&gm->lock));
+
 	jsonaddnum(json, "id", gm->id);
 	jsonaddnum(json, "n", gm->n);
 	jsonaddnum(json, "nmin", gm->nmin);
@@ -167,6 +169,9 @@ cJSON *encodegame(struct game *gm) {
 
 	jsonaddstr(json, "type", gametypetostr(gm->type, buf));
 	jsonaddstr(json, "state", statetostr(gm->state, buf));
+
+	//pthread_mutex_unlock(&gm->lock);
+
 	return json;
 }
 

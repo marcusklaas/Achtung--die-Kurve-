@@ -95,7 +95,8 @@ void cJSON_Delete(cJSON *c)
 /* Parse the input text to generate a number, and populate the result into item. */
 static const char *parse_number(cJSON *item,const char *num)
 {
-	double n=0,sign=1,scale=0;int subscale=0,signsubscale=1;
+	double n=0,sign=1,scale=0;
+	long subscale=0,signsubscale=1;
 
 	/* Could use sscanf for this? */
 	if (*num=='-') sign=-1,num++;	/* Has sign? */
@@ -110,7 +111,7 @@ static const char *parse_number(cJSON *item,const char *num)
 	n=sign*n*pow(10.0,(scale+subscale*signsubscale));	/* number = +/- number.fraction * 10^+/- exponent */
 	
 	item->valuedouble=n;
-	item->valueint=(int)n;
+	item->valueint=(long)n;
 	item->type=cJSON_Number;
 	return num;
 }
@@ -123,7 +124,7 @@ static char *print_number(cJSON *item)
 	if (fabs(((double)item->valueint)-d)<=DBL_EPSILON && d<=INT_MAX && d>=INT_MIN)
 	{
 		str=(char*)cJSON_malloc(21);	/* 2^64+1 can be represented in 21 chars. */
-		if (str) sprintf(str,"%d",item->valueint);
+		if (str) sprintf(str,"%ld",item->valueint);
 	}
 	else
 	{
@@ -502,13 +503,13 @@ cJSON *cJSON_CreateNull()						{cJSON *item=cJSON_New_Item();if(item)item->type=
 cJSON *cJSON_CreateTrue()						{cJSON *item=cJSON_New_Item();if(item)item->type=cJSON_True;return item;}
 cJSON *cJSON_CreateFalse()						{cJSON *item=cJSON_New_Item();if(item)item->type=cJSON_False;return item;}
 cJSON *cJSON_CreateBool(int b)					{cJSON *item=cJSON_New_Item();if(item)item->type=b?cJSON_True:cJSON_False;return item;}
-cJSON *cJSON_CreateNumber(double num)			{cJSON *item=cJSON_New_Item();if(item){item->type=cJSON_Number;item->valuedouble=num;item->valueint=(int)num;}return item;}
+cJSON *cJSON_CreateNumber(double num)			{cJSON *item=cJSON_New_Item();if(item){item->type=cJSON_Number;item->valuedouble=num;item->valueint=(long)num;}return item;}
 cJSON *cJSON_CreateString(const char *string)	{cJSON *item=cJSON_New_Item();if(item){item->type=cJSON_String;item->valuestring=cJSON_strdup(string);}return item;}
 cJSON *cJSON_CreateArray()						{cJSON *item=cJSON_New_Item();if(item)item->type=cJSON_Array;return item;}
 cJSON *cJSON_CreateObject()						{cJSON *item=cJSON_New_Item();if(item)item->type=cJSON_Object;return item;}
 
 /* Create Arrays: */
-cJSON *cJSON_CreateIntArray(int *numbers,int count)				{int i;cJSON *n=0,*p=0,*a=cJSON_CreateArray();for(i=0;a && i<count;i++){n=cJSON_CreateNumber(numbers[i]);if(!i)a->child=n;else suffix_object(p,n);p=n;}return a;}
+cJSON *cJSON_CreateIntArray(long *numbers,int count)				{int i;cJSON *n=0,*p=0,*a=cJSON_CreateArray();for(i=0;a && i<count;i++){n=cJSON_CreateNumber(numbers[i]);if(!i)a->child=n;else suffix_object(p,n);p=n;}return a;}
 cJSON *cJSON_CreateFloatArray(float *numbers,int count)			{int i;cJSON *n=0,*p=0,*a=cJSON_CreateArray();for(i=0;a && i<count;i++){n=cJSON_CreateNumber(numbers[i]);if(!i)a->child=n;else suffix_object(p,n);p=n;}return a;}
 cJSON *cJSON_CreateDoubleArray(double *numbers,int count)		{int i;cJSON *n=0,*p=0,*a=cJSON_CreateArray();for(i=0;a && i<count;i++){n=cJSON_CreateNumber(numbers[i]);if(!i)a->child=n;else suffix_object(p,n);p=n;}return a;}
 cJSON *cJSON_CreateStringArray(const char **strings,int count)	{int i;cJSON *n=0,*p=0,*a=cJSON_CreateArray();for(i=0;a && i<count;i++){n=cJSON_CreateString(strings[i]);if(!i)a->child=n;else suffix_object(p,n);p=n;}return a;}

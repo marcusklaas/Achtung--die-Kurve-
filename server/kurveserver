@@ -31,13 +31,13 @@ DUALCASE=1; export DUALCASE # for MKS sh
 # if CDPATH is set.
 (unset CDPATH) >/dev/null 2>&1 && unset CDPATH
 
-relink_command="(cd /home/marcus/adk/server; { test -z \"\${LIBRARY_PATH+set}\" || unset LIBRARY_PATH || { LIBRARY_PATH=; export LIBRARY_PATH; }; }; { test -z \"\${COMPILER_PATH+set}\" || unset COMPILER_PATH || { COMPILER_PATH=; export COMPILER_PATH; }; }; { test -z \"\${GCC_EXEC_PREFIX+set}\" || unset GCC_EXEC_PREFIX || { GCC_EXEC_PREFIX=; export GCC_EXEC_PREFIX; }; }; { test -z \"\${LD_RUN_PATH+set}\" || unset LD_RUN_PATH || { LD_RUN_PATH=; export LD_RUN_PATH; }; }; { test -z \"\${LD_LIBRARY_PATH+set}\" || unset LD_LIBRARY_PATH || { LD_LIBRARY_PATH=; export LD_LIBRARY_PATH; }; }; PATH=/usr/lib/lightdm/lightdm:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games; export PATH; gcc -Wall -pthread -std=gnu99 -pedantic -DINSTALL_DATADIR=\\\"/usr/local/share\\\" -DLWS_OPENSSL_CLIENT_CERTS=\\\"/etc/pki/tls/certs/\\\" -g -O2 -o \$progdir/\$file kurveserver-server.o  -L../lib /home/marcus/adk/lib/.libs/libwebsockets.so -lm -pthread -Wl,-rpath -Wl,/home/marcus/adk/lib/.libs)"
+relink_command="(cd /var/www/achtung/server; { test -z \"\${LIBRARY_PATH+set}\" || unset LIBRARY_PATH || { LIBRARY_PATH=; export LIBRARY_PATH; }; }; { test -z \"\${COMPILER_PATH+set}\" || unset COMPILER_PATH || { COMPILER_PATH=; export COMPILER_PATH; }; }; { test -z \"\${GCC_EXEC_PREFIX+set}\" || unset GCC_EXEC_PREFIX || { GCC_EXEC_PREFIX=; export GCC_EXEC_PREFIX; }; }; { test -z \"\${LD_RUN_PATH+set}\" || unset LD_RUN_PATH || { LD_RUN_PATH=; export LD_RUN_PATH; }; }; { test -z \"\${LD_LIBRARY_PATH+set}\" || unset LD_LIBRARY_PATH || { LD_LIBRARY_PATH=; export LD_LIBRARY_PATH; }; }; PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games; export PATH; gcc -g -Wall -O0 -pthread -std=gnu99 -pedantic -DINSTALL_DATADIR=\\\"/usr/local/share\\\" -DLWS_OPENSSL_CLIENT_CERTS=\\\"/etc/pki/tls/certs/\\\" -g -O2 -o \$progdir/\$file kurveserver-server.o  -L../lib /var/www/achtung/lib/.libs/libwebsockets.so -lm -pthread -Wl,-rpath -Wl,/var/www/achtung/lib/.libs)"
 
 # This environment variable determines our operation mode.
 if test "$libtool_install_magic" = "%%%MAGIC variable%%%"; then
   # install mode needs the following variables:
   generated_by_libtool_version='2.4.2'
-  notinst_deplibs=' /home/marcus/adk/lib/libwebsockets.la'
+  notinst_deplibs=' /var/www/achtung/lib/libwebsockets.la'
 else
   # When we are sourced in execute mode, $file and $ECHO are already set.
   if test "$libtool_execute_magic" != "%%%MAGIC variable%%%"; then

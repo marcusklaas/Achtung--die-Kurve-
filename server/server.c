@@ -19,12 +19,12 @@ static pthread_mutex_t gamelistlock; // need this lock in order to add/ remove s
 static struct game *lobby, *headgame = 0;
 static int usrc = 0; // user count
 static int gmc = 1; // game count
-static unsigned long serverticks = 0;
+static long serverticks = 0;
 static char *gamelist = 0; // JSON string
 static int gamelistlen = 0; // strlen of gamelist
-static int gamelistage = 0; // servermsecs() on which encodedgamelist was last updated
+static long gamelistage = 0; // servermsecs() on which encodedgamelist was last updated
 static char gamelistcurrent = 1; // 0 if gamelist is not up to date
-static int lastlogtime, lastwarninglogtime;
+static long lastlogtime, lastwarninglogtime;
 static int spam_maxs[SPAM_CAT_COUNT] = {SPAM_JOINLEAVE_MAX, SPAM_CHAT_MAX,
  SPAM_SETTINGS_MAX, SPAM_STEERING_MAX};
 static int spam_intervals[SPAM_CAT_COUNT] = {SPAM_JOINLEAVE_INTERVAL, SPAM_CHAT_INTERVAL,
@@ -254,7 +254,7 @@ callback_game(struct libwebsocket_context * context,
 		}
 		else if(!strcmp(mode, "getTime")) {
 			j = jsoncreate("time");
-			jsonaddnum(j, "time", (int) servermsecs());
+			jsonaddnum(j, "time", servermsecs());
 			sendjson(j, u);
 			jsondel(j);
 		}

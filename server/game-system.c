@@ -1,12 +1,16 @@
 void newgamelist() {
-	cJSON *games = encodegamelist();
+	cJSON *games;
+
+	assert(!pthread_mutex_lock(&gamelistlock));
+	games = encodegamelist();
+	pthread_mutex_unlock(&gamelistlock);
 
 	if(gamelist)
 		free(gamelist);
 
 	gamelist = jsonprint(games);
 	gamelistlen = strlen(gamelist);
-	jsondel(games);
+	jsondel(games);	
 }
 
 void updategamelist() {
@@ -106,6 +110,8 @@ void leavegame(struct user *usr, int reason) {
 	struct user *curr;
 	char buf[20];
 	cJSON *json;
+
+	//assert(EDEADLK == pthread_mutex_lock(&gm->lock));
 	
 	if(DEBUG_MODE && gm->type != GT_LOBBY) {
 		printf("user %d is leaving his game!\n", usr->id);
@@ -131,24 +137,25 @@ void leavegame(struct user *usr, int reason) {
 	/* check if there still human players in list */
 	for(curr = gm->usr; curr && !curr->human; curr = curr->nxt);
 
-	if(curr && gm->host == usr) {
+	if(gm->host == usr) {
 		gm->host = curr;
-		airhost(gm);
 		gamelistcurrent = 0;
+
+		if(curr) {
+			airhost(gm);
+
+			json = jsoncreate("playerLeft");
+			jsonaddnum(json, "playerId", usr->id);
+			jsonaddstr(json, "reason", leavereasontostr(reason, buf));
+			airjson(json, gm, 0);
+			jsondel(json);
+		}
 	}
 
 	gm->n--;
 	usr->nxt = 0;
 	usr->gm = 0;
-	
 	userclearstartround(usr);
-
-	/* send message to group: this player left */
-	json = jsoncreate("playerLeft");
-	jsonaddnum(json, "playerId", usr->id);
-	jsonaddstr(json, "reason", leavereasontostr(reason, buf));
-	airjson(json, gm, 0);
-	jsondel(json);
 
 	if(gm->type != GT_LOBBY) {
 		if(!curr)
@@ -269,7 +276,7 @@ void kickplayer(struct user *host, int victimid) {
 	}
 
 	log("host %d kicked user %d\n", host->id, victimid);
-	assert(!pthread_mutex_lock(&gm->lock)); // lock game
+	assert(!pthread_mutex_lock(&gm->lock));
 
 	leavegame(victim, LEAVE_KICKED);
 
@@ -289,7 +296,7 @@ void kickplayer(struct user *host, int victimid) {
 	else
 		deleteuser(victim);
 		
-	pthread_mutex_unlock(&gm->lock); // unlock game
+	pthread_mutex_unlock(&gm->lock);
 }
 
 /* loop run by each game's thread */

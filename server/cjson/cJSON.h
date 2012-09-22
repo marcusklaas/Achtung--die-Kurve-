@@ -47,7 +47,7 @@ typedef struct cJSON {
 	int type;					/* The type of the item, as above. */
 
 	char *valuestring;			/* The item's string, if type==cJSON_String */
-	int valueint;				/* The item's number, if type==cJSON_Number */
+	long valueint;				/* The item's number, if type==cJSON_Number */
 	double valuedouble;			/* The item's number, if type==cJSON_Number */
 
 	char *string;				/* The item's name string, if this item is the child of, or is in the list of subitems of an object. */
@@ -92,7 +92,7 @@ extern cJSON *cJSON_CreateArray();
 extern cJSON *cJSON_CreateObject();
 
 /* These utilities create an Array of count items. */
-extern cJSON *cJSON_CreateIntArray(int *numbers,int count);
+extern cJSON *cJSON_CreateIntArray(long *numbers,int count);
 extern cJSON *cJSON_CreateFloatArray(float *numbers,int count);
 extern cJSON *cJSON_CreateDoubleArray(double *numbers,int count);
 extern cJSON *cJSON_CreateStringArray(const char **strings,int count);

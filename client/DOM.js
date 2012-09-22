@@ -188,6 +188,11 @@ function createDomManager(game) {
 				e.stopPropagation();
 			}, true);
 		}
+
+		/* fill email */
+		var emailAnchor = document.getElementById('email');
+		emailAnchor.href = 'mailto:' + email;
+		emailAnchor.innerHTML = email;
 		
 		/* hide alert box for browsers with websockets */
 		if('WebSocket' in window || 'MozWebSocket' in window)
