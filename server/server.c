@@ -348,6 +348,9 @@ callback_game(struct libwebsocket_context * context,
 			u->gm->inkdelay = min(20000, max(0, jsongetint(json, "inkdelay")));
 			u->gm->torus = (0 != jsongetint(json, "torus"));
 
+			if(!u->gm->hsize && !u->gm->hfreq)
+				u->gm->hsize = 1;
+
 			j = encodegamepars(u->gm);
 			airjson(j, u->gm, 0);
 			jsondel(j);
