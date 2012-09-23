@@ -141,15 +141,16 @@ void leavegame(struct user *usr, int reason) {
 		gm->host = curr;
 		gamelistcurrent = 0;
 
-		if(curr) {
+		if(curr)
 			airhost(gm);
+	}
 
-			json = jsoncreate("playerLeft");
-			jsonaddnum(json, "playerId", usr->id);
-			jsonaddstr(json, "reason", leavereasontostr(reason, buf));
-			airjson(json, gm, 0);
-			jsondel(json);
-		}
+	if(curr) {
+		json = jsoncreate("playerLeft");
+		jsonaddnum(json, "playerId", usr->id);
+		jsonaddstr(json, "reason", leavereasontostr(reason, buf));
+		airjson(json, gm, 0);
+		jsondel(json);
 	}
 
 	gm->n--;
