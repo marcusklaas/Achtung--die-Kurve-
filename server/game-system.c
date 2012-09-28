@@ -342,7 +342,8 @@ static void *lobbyloop(void *ptr) {
 
 struct game *creategame(int gametype, int nmin, int nmax) {
 	struct game *gm = scalloc(1, sizeof(struct game));
-	
+	pthread_attr_t thread_attr;
+
 	if(DEBUG_MODE)
 		printf("creating game %p\n", (void*)gm);
 
@@ -366,14 +367,17 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	gm->inkmousedown = MOUSEDOWN_INK;
 	gm->hsize = HOLE_SIZE;
 	gm->hfreq = HOLE_FREQ;
-	
+
 	assert(!pthread_mutex_lock(&gamelistlock));
 	gm->nxt = headgame;
 	headgame = gm;
 	pthread_mutex_unlock(&gamelistlock);
-	
+
+	pthread_attr_init(&thread_attr);
+	pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_DETACHED);
+
 	pthread_mutex_init(&gm->lock, 0);
-	pthread_create(&gm->thread, 0, gameloop, (void *) gm);
+	pthread_create(&gm->thread, &thread_attr, gameloop, (void *) gm);
 
 	return gm;
 }
