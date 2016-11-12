@@ -273,3 +273,11 @@ __pycache__/
 
 # Cake - Uncomment if you are using it
 # tools/
+
+
+## EXTRA
+
+!pthread/dll/x86
+!pthread/dll/x64
+!pthread/lib/x86
+!pthread/lib/x64

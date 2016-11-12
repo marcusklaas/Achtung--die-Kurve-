@@ -6,3 +6,7 @@ stdout
 core
 gedit.sh
 .fuse_hidden*
+
+# win32port output directories
+Release/
+Debug/
