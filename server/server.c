@@ -441,6 +441,7 @@ int main(int argc, char **argv) {
 	int opts = 0;
 	char interface_name[128] = "";
 	const char *interface = 0;
+	int flush_timer = 0;
 
 	while (n >= 0) {
 		n = getopt_long(argc, argv, "ci:khsp:", options, NULL);
@@ -482,8 +483,12 @@ int main(int argc, char **argv) {
 	printf("server started on port %d\n", port);
 
 	/* send queued messages every 10ms */
-	while (5000)
+	while (5000) {
 		libwebsocket_service(ctx, 10);
+		if ((flush_timer++) % (FLUSH_INTERVAL / 10) == 0) {
+			fflush(stdout);
+		}
+	}
 
 	/* sequential code
 	mainloop(); */

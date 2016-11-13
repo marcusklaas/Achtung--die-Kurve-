@@ -34,6 +34,7 @@
 #define KICK_REJOIN_TIME 15000
 #define MAX_TELEPORTS 8
 #define HACKS 1
+#define FLUSH_INTERVAL 5000 // in msecs
 
 /* default game settings */
 #define TORUS_MODE 0
