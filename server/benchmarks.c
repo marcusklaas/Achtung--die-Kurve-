@@ -25,10 +25,10 @@ static int gamelistlen = 0; // strlen of gamelist
 static int gamelistage = 0; // servermsecs() on which encodedgamelist was last updated
 static char gamelistcurrent = 1; // 0 if gamelist is not up to date
 static int lastlogtime, lastwarninglogtime;
-static int spam_maxs[SPAM_CAT_COUNT] = {SPAM_JOINLEAVE_MAX, SPAM_CHAT_MAX,
- SPAM_SETTINGS_MAX, SPAM_STEERING_MAX};
-static int spam_intervals[SPAM_CAT_COUNT] = {SPAM_JOINLEAVE_INTERVAL, SPAM_CHAT_INTERVAL,
- SPAM_SETTINGS_INTERVAL, SPAM_STEERING_INTERVAL};
+static int spam_maxs[SPAM_CAT_COUNT] = { SPAM_JOINLEAVE_MAX, SPAM_CHAT_MAX,
+ SPAM_SETTINGS_MAX, SPAM_STEERING_MAX };
+static int spam_intervals[SPAM_CAT_COUNT] = { SPAM_JOINLEAVE_INTERVAL, SPAM_CHAT_INTERVAL,
+ SPAM_SETTINGS_INTERVAL, SPAM_STEERING_INTERVAL };
 
 #include "helper.c"
 #include "collision-detection.c"
@@ -46,13 +46,13 @@ int main(int cn, char *crs[]) {
 	lobby = scalloc(1, sizeof(struct game)); // for silly reasons
 	lobby->type = GT_LOBBY;
 
-	for(i = 0; i < games; i++) {
+	for (i = 0; i < games; i++) {
 		gm = creategame(GT_AUTO, computers, computers);
-		
-		for(j = 0; j < computers; j++)
+
+		for (j = 0; j < computers; j++)
 			addcomputer(gm, "hard");
 	}
-	
+
 	/* does not terminate */
 
 	return 0;

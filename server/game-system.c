@@ -5,17 +5,17 @@ void newgamelist() {
 	games = encodegamelist();
 	pthread_mutex_unlock(&gamelistlock);
 
-	if(gamelist)
+	if (gamelist)
 		free(gamelist);
 
 	gamelist = jsonprint(games);
 	gamelistlen = strlen(gamelist);
-	jsondel(games);	
+	jsondel(games);
 }
 
 void updategamelist() {
-	if(!gamelistcurrent) {
-		if(DEBUG_MODE)
+	if (!gamelistcurrent) {
+		if (DEBUG_MODE)
 			printf("updating gamelist \n");
 		newgamelist();
 		gamelistage = servermsecs();
@@ -26,36 +26,36 @@ void updategamelist() {
 void unlinkgame(struct game *gm) {
 	assert(!pthread_mutex_lock(&gamelistlock));
 
-	if(headgame == gm)
+	if (headgame == gm)
 		headgame = gm->nxt;
 	else {
 		struct game *a;
-		for(a = headgame; a->nxt != gm; a = a->nxt);
+		for (a = headgame; a->nxt != gm; a = a->nxt);
 		a->nxt = gm->nxt;
 	}
-	
+
 	pthread_mutex_unlock(&gamelistlock);
 }
 
 void remgame(struct game *gm) {
 	struct user *usr, *nxt;
 
-	if(DEBUG_MODE)
-		printf("deleting game %p\n", (void *) gm);
-		
+	if (DEBUG_MODE)
+		printf("deleting game %p\n", (void *)gm);
+
 	unlinkgame(gm);
 	gm->state = GS_REMOVING_GAME;
 
-	for(usr = gm->usr; usr; usr = nxt) {
+	for (usr = gm->usr; usr; usr = nxt) {
 		nxt = usr->nxt;
 
-		if(usr->human)
+		if (usr->human)
 			joingame(lobby, usr);
 		else
 			deleteuser(usr);
 	}
 
-	if(gm->map)
+	if (gm->map)
 		freemap(gm->map);
 
 	clearstartround(gm);
@@ -69,15 +69,15 @@ void remgame(struct game *gm) {
 struct game *findgame(int nmin, int nmax) {
 	struct game *gm, *bestgame = 0;
 
-	if(DEBUG_MODE)
+	if (DEBUG_MODE)
 		printf("findgame called \n");
 
 	/* get oldest suitable game */
-	for(gm = headgame; gm; gm = gm->nxt)
-		if(gm->state == GS_LOBBY && gm->nmin <= nmax && gm->nmax >= nmin && gm->type == GT_AUTO)
+	for (gm = headgame; gm; gm = gm->nxt)
+		if (gm->state == GS_LOBBY && gm->nmin <= nmax && gm->nmax >= nmin && gm->type == GT_AUTO)
 			bestgame = gm;
-			
-	if(bestgame) {
+
+	if (bestgame) {
 		cJSON *json;
 		gm = bestgame;
 		gm->nmin = max(gm->nmin, nmin);
@@ -87,20 +87,20 @@ struct game *findgame(int nmin, int nmax) {
 		airjson(json, gm, 0);
 		jsondel(json);
 	}
-	
+
 	return bestgame;
 }
 
 struct user *findplayer(struct game *gm, int id) {
 	struct user *waldo;
-	for(waldo = gm->usr; waldo && waldo->id != id; waldo = waldo->nxt);
+	for (waldo = gm->usr; waldo && waldo->id != id; waldo = waldo->nxt);
 	return waldo;
 }
 
 /* takes game id and returns pointer to game */
 struct game *searchgame(int gameid) {
 	struct game *gm;
-	for(gm = headgame; gm && gameid != gm->id; gm = gm->nxt);
+	for (gm = headgame; gm && gameid != gm->id; gm = gm->nxt);
 	return gm;
 }
 
@@ -112,40 +112,40 @@ void leavegame(struct user *usr, int reason) {
 	cJSON *json;
 
 	//assert(EDEADLK == pthread_mutex_lock(&gm->lock));
-	
-	if(DEBUG_MODE && gm->type != GT_LOBBY) {
+
+	if (DEBUG_MODE && gm->type != GT_LOBBY) {
 		printf("user %d is leaving his game!\n", usr->id);
 		fflush(stdout);
 	}
-	
-	if(gm->state == GS_STARTED && usr->state.alive) {
+
+	if (gm->state == GS_STARTED && usr->state.alive) {
 		usr->state.alive = 0;
 		handledeath(usr);
 	}
-	
-	if(gm->state == GS_STARTED)
+
+	if (gm->state == GS_STARTED)
 		logplayer(usr, "ragequit\n");
 
 	/* remove user from linked list */
-	if(gm->usr == usr)
+	if (gm->usr == usr)
 		gm->usr = usr->nxt;
 	else {
-		for(curr = gm->usr; curr->nxt && curr->nxt != usr; curr = curr->nxt);
+		for (curr = gm->usr; curr->nxt && curr->nxt != usr; curr = curr->nxt);
 		curr->nxt = usr->nxt;
 	}
 
 	/* check if there still human players in list */
-	for(curr = gm->usr; curr && !curr->human; curr = curr->nxt);
+	for (curr = gm->usr; curr && !curr->human; curr = curr->nxt);
 
-	if(gm->host == usr) {
+	if (gm->host == usr) {
 		gm->host = curr;
 		gamelistcurrent = 0;
 
-		if(curr)
+		if (curr)
 			airhost(gm);
 	}
 
-	if(curr) {
+	if (curr) {
 		json = jsoncreate("playerLeft");
 		jsonaddnum(json, "playerId", usr->id);
 		jsonaddstr(json, "reason", leavereasontostr(reason, buf));
@@ -158,44 +158,44 @@ void leavegame(struct user *usr, int reason) {
 	usr->gm = 0;
 	userclearstartround(usr);
 
-	if(gm->type != GT_LOBBY) {
-		if(!curr)
+	if (gm->type != GT_LOBBY) {
+		if (!curr)
 			gm->state = GS_REMOVING_GAME;
-		else if(gm->state == GS_STARTED && gm->n == 1)
+		else if (gm->state == GS_STARTED && gm->n == 1)
 			endround(gm);
 	}
 
-	if(DEBUG_MODE) printgames();
+	if (DEBUG_MODE) printgames();
 }
 
 void joingame(struct game *gm, struct user *newusr) {
 	struct user *usr;
 	char buf[20];
 	cJSON *json;
-	
-	if(DEBUG_MODE) {
+
+	if (DEBUG_MODE) {
 		printf("user %d is joining game %p\n", newusr->id, (void*)gm);
 		fflush(stdout);
 	}
 
-	if(newusr->gm) {
+	if (newusr->gm) {
 		struct game *oldgame = newusr->gm;
 		assert(!pthread_mutex_lock(&oldgame->lock));
 		leavegame(newusr, LEAVE_NORMAL);
 		pthread_mutex_unlock(&oldgame->lock);
 	}
-	
+
 	newusr->gm = gm;
 	newusr->points = 0;
-	
+
 	assert(!pthread_mutex_lock(&gm->lock)); // lock game
 
 	/* set newusr->index */
-	if(gm->type != GT_LOBBY) {
+	if (gm->type != GT_LOBBY) {
 		int i;
-		for(i = 0; i < MAX_USERS_IN_GAME; i++) {
-			for(usr = gm->usr; usr && usr->index != i; usr = usr->nxt);
-			if(!usr)
+		for (i = 0; i < MAX_USERS_IN_GAME; i++) {
+			for (usr = gm->usr; usr && usr->index != i; usr = usr->nxt);
+			if (!usr)
 				break;
 		}
 		newusr->index = i;
@@ -205,7 +205,7 @@ void joingame(struct game *gm, struct user *newusr) {
 	newusr->nxt = gm->usr;
 	gm->usr = newusr;
 	gm->n++;
-	if(gm->type == GT_CUSTOM && !gm->host)
+	if (gm->type == GT_CUSTOM && !gm->host)
 		gm->host = newusr;
 
 	/* tell user s/he joined a game */
@@ -217,48 +217,48 @@ void joingame(struct game *gm, struct user *newusr) {
 
 	/* tell players of game someone new joined and send a message to the new
 	 * player for every other player that is already in the game */
-	for(usr = gm->usr; usr; usr = usr->nxt) {
+	for (usr = gm->usr; usr; usr = usr->nxt) {
 		json = jsoncreate("newPlayer");
 		jsonaddnum(json, "playerId", usr->id);
 		jsonaddnum(json, "index", usr->index);
 		jsonaddstr(json, "playerName", usr->name);
-		if(usr == newusr)
+		if (usr == newusr)
 			airjson(json, gm, newusr);
 		else
 			sendjson(json, newusr);
 		jsondel(json);
 	}
-	
+
 	/* send either game details or game list */
-	if(gm->type == GT_LOBBY)
+	if (gm->type == GT_LOBBY)
 		sendgamelist(newusr);
 	else {
 		json = encodegamepars(gm);
 		sendjson(json, newusr);
 		jsondel(json);
-		
-		if(gm->map)
+
+		if (gm->map)
 			sendmap(gm->map, newusr);
-		if(gm->host)
+		if (gm->host)
 			sendhost(gm->host, newusr);
 	}
 
-	if(gm->type == GT_AUTO && gm->n >= gm->nmin)
+	if (gm->type == GT_AUTO && gm->n >= gm->nmin)
 		startgame(gm);
 
 	/* tell everyone in lobby of new game */
-	if(gm->n == 1) {
+	if (gm->n == 1) {
 		json = encodegame(gm);
 		cJSON_AddStringToObject(json, "mode", "newGame");
 		airjson(json, lobby, newusr);
 		jsondel(json);
 		newgamelist();
 	}
-	
+
 	pthread_mutex_unlock(&gm->lock); // unlock game
 	gamelistcurrent = 0;
 
-	if(DEBUG_MODE) {
+	if (DEBUG_MODE) {
 		printf("user %d joined game %p\n", newusr->id, (void *)gm);
 		printgames();
 	}
@@ -270,9 +270,9 @@ void kickplayer(struct user *host, int victimid) {
 	struct user *victim = findplayer(gm, victimid);
 	struct kicknode *kick;
 
-	if(!victim || gm->host != host || gm->state != GS_LOBBY) {
+	if (!victim || gm->host != host || gm->state != GS_LOBBY) {
 		warning("user %d tried to kick usr %d, but does"
-		 " not meet requirements\n", host->id, victimid);
+			" not meet requirements\n", host->id, victimid);
 		return;
 	}
 
@@ -281,9 +281,9 @@ void kickplayer(struct user *host, int victimid) {
 
 	leavegame(victim, LEAVE_KICKED);
 
-	if(victim->human) {
+	if (victim->human) {
 		cJSON *j = jsoncreate("kickNotification");
-		
+
 		kick = smalloc(sizeof(struct kicknode));
 		kick->usr = victim;
 		kick->expiration = servermsecs() + KICK_REJOIN_TIME;
@@ -296,7 +296,7 @@ void kickplayer(struct user *host, int victimid) {
 	}
 	else
 		deleteuser(victim);
-		
+
 	pthread_mutex_unlock(&gm->lock);
 }
 
@@ -304,47 +304,47 @@ void kickplayer(struct user *host, int victimid) {
 static void *gameloop(void *gameptr) {
 	struct game *gm = (struct game *) gameptr;
 	long sleeptime;
-	
-	while(gm->state != GS_REMOVING_GAME) {
-		if(gm->state == GS_STARTED)
+
+	while (gm->state != GS_REMOVING_GAME) {
+		if (gm->state == GS_STARTED)
 			sleeptime = gm->tick * TICK_LENGTH + SERVER_DELAY + gm->start - servermsecs();
 		else
-			sleeptime = TICK_LENGTH;	
-		
-		if(sleeptime > 0)
+			sleeptime = TICK_LENGTH;
+
+		if (sleeptime > 0)
 			msleep(sleeptime);
-			
+
 		assert(!pthread_mutex_lock(&gm->lock)); // lock game
-		if(gm->state == GS_STARTED)
+		if (gm->state == GS_STARTED)
 			simgame(gm);
 
 		resetspamcounters(gm, serverticks);
 		pthread_mutex_unlock(&gm->lock); // we done
 	}
-	
+
 	remgame(gm);
-	
-	return (void *) 5000;
+
+	return (void *)5000;
 }
 
 /* loop run by lobby */
 static void *lobbyloop(void *ptr) {
-	while(5000) {
+	while (5000) {
 		assert(!pthread_mutex_lock(&lobby->lock));
 		airgamelist();
 		resetspamcounters(lobby, serverticks++);
 		pthread_mutex_unlock(&lobby->lock);
 		msleep(TICK_LENGTH);
 	}
-	
-	return (void *) 0;
+
+	return (void *)0;
 }
 
 struct game *creategame(int gametype, int nmin, int nmax) {
 	struct game *gm = scalloc(1, sizeof(struct game));
 	pthread_attr_t thread_attr;
 
-	if(DEBUG_MODE)
+	if (DEBUG_MODE)
 		printf("creating game %p\n", (void*)gm);
 
 	gm->id = gmc++;
@@ -377,7 +377,7 @@ struct game *creategame(int gametype, int nmin, int nmax) {
 	pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_DETACHED);
 
 	pthread_mutex_init(&gm->lock, 0);
-	pthread_create(&gm->thread, &thread_attr, gameloop, (void *) gm);
+	pthread_create(&gm->thread, &thread_attr, gameloop, (void *)gm);
 
 	return gm;
 }
@@ -393,8 +393,8 @@ void iniuser(struct user *usr, struct libwebsocket *wsi) {
 
 void deleteuser(struct user *usr) {
 	int i;
-	
-	if(usr->gm) {
+
+	if (usr->gm) {
 		struct game *gm = usr->gm;
 		assert(!pthread_mutex_lock(&gm->lock));
 		leavegame(usr, LEAVE_DISCONNECT);
@@ -404,23 +404,23 @@ void deleteuser(struct user *usr) {
 	clearinputs(usr);
 	cleanpencil(&(usr->pencil));
 
-	if(usr->name)
+	if (usr->name)
 		free(usr->name);
-	
-	for(i = 0; i < usr->sbat; i++)
+
+	for (i = 0; i < usr->sbat; i++)
 		free(usr->sb[i]);
 
-	if(usr->recvbuf)
+	if (usr->recvbuf)
 		free(usr->recvbuf);
 
-	if(!usr->human)
+	if (!usr->human)
 		free(usr);
 }
 
 void freekicklist(struct kicknode *kick) {
 	struct kicknode *nxt;
 
-	while(kick) {
+	while (kick) {
 		nxt = kick->nxt;
 		free(kick);
 		kick = nxt;
@@ -434,9 +434,9 @@ int checkkick(struct game *gm, struct user *usr) {
 	struct kicknode *prev = 0, *kick;
 	long now = servermsecs();
 
-	for(kick = gm->kicklist; kick; kick = kick->nxt) {
-		if(now >= kick->expiration) {
-			if(prev)
+	for (kick = gm->kicklist; kick; kick = kick->nxt) {
+		if (now >= kick->expiration) {
+			if (prev)
 				prev->nxt = 0;
 			else
 				gm->kicklist = 0;
@@ -445,7 +445,7 @@ int checkkick(struct game *gm, struct user *usr) {
 			return 0;
 		}
 
-		if(kick->usr == usr)
+		if (kick->usr == usr)
 			return kick->expiration - now;
 
 		prev = kick;
@@ -457,14 +457,14 @@ int checkkick(struct game *gm, struct user *usr) {
 void addcomputer(struct game *gm, char *type) {
 	struct user *comp;
 	int i;
-	
-	for(i = 0; i < NUM_AI; i++)
-		if(!strcmp(type, AI_TYPE_NAME[i]))
+
+	for (i = 0; i < NUM_AI; i++)
+		if (!strcmp(type, AI_TYPE_NAME[i]))
 			break;
-	
-	if(i == NUM_AI)
+
+	if (i == NUM_AI)
 		return;
-	
+
 	loggame(gm, "adding computer of type %s\n", type);
 	comp = smalloc(sizeof(struct user));
 	iniuser(comp, 0);

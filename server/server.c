@@ -25,10 +25,10 @@ static int gamelistlen = 0; // strlen of gamelist
 static long gamelistage = 0; // servermsecs() on which encodedgamelist was last updated
 static char gamelistcurrent = 1; // 0 if gamelist is not up to date
 static long lastlogtime, lastwarninglogtime;
-static int spam_maxs[SPAM_CAT_COUNT] = {SPAM_JOINLEAVE_MAX, SPAM_CHAT_MAX,
- SPAM_SETTINGS_MAX, SPAM_STEERING_MAX};
-static int spam_intervals[SPAM_CAT_COUNT] = {SPAM_JOINLEAVE_INTERVAL, SPAM_CHAT_INTERVAL,
- SPAM_SETTINGS_INTERVAL, SPAM_STEERING_INTERVAL};
+static int spam_maxs[SPAM_CAT_COUNT] = { SPAM_JOINLEAVE_MAX, SPAM_CHAT_MAX,
+ SPAM_SETTINGS_MAX, SPAM_STEERING_MAX };
+static int spam_intervals[SPAM_CAT_COUNT] = { SPAM_JOINLEAVE_INTERVAL, SPAM_CHAT_INTERVAL,
+ SPAM_SETTINGS_INTERVAL, SPAM_STEERING_INTERVAL };
 
 #include "helper.c"
 #include "collision-detection.c"
@@ -39,46 +39,46 @@ static int spam_intervals[SPAM_CAT_COUNT] = {SPAM_JOINLEAVE_INTERVAL, SPAM_CHAT_
 
 /* this protocol server (always the first one) just knows how to do HTTP */
 static int callback_http(struct libwebsocket_context * context,
-		struct libwebsocket *wsi,
-		enum libwebsocket_callback_reasons reason, void *user,
-		void *in, size_t len)
+	struct libwebsocket *wsi,
+	enum libwebsocket_callback_reasons reason, void *user,
+	void *in, size_t len)
 {
-	if(reason == LWS_CALLBACK_HTTP) {
+	if (reason == LWS_CALLBACK_HTTP) {
 		char *ext, mime[32];
 		char path[MAX_FILE_REQ_LEN + LOCAL_PATH_LENGTH + 1];
-	
-		if(ULTRA_VERBOSE)
-			printf("serving HTTP URI %s\n", (char *) in);
-		
+
+		if (ULTRA_VERBOSE)
+			printf("serving HTTP URI %s\n", (char *)in);
+
 		/* making sure request is reasonable */
-		if(strlen(in) > MAX_FILE_REQ_LEN || strstr(in, ".."))
+		if (strlen(in) > MAX_FILE_REQ_LEN || strstr(in, ".."))
 			return 0;
 
 		ext = getFileExt(in);
 
 		strcpy(path, LOCAL_RESOURCE_PATH);
 		strcat(path, in);
-		if(!strcmp(in, "/") || strrchr(in, '?') == (char *) in + 1) // ignore get variables (for now)
+		if (!strcmp(in, "/") || strrchr(in, '?') == (char *)in + 1) // ignore get variables (for now)
 			strcpy(path + LOCAL_PATH_LENGTH, "/index.html");
-		if(!strcmp(ext, "ico"))
+		if (!strcmp(ext, "ico"))
 			strcpy(mime, "image/x-icon");
-		else if(!strcmp(ext, "js"))
+		else if (!strcmp(ext, "js"))
 			strcpy(mime, "text/javascript");
-		else if(!strcmp(ext, "css"))
+		else if (!strcmp(ext, "css"))
 			strcpy(mime, "text/css");
-		else if(!strcmp(ext, "ogg"))
+		else if (!strcmp(ext, "ogg"))
 			strcpy(mime, "audio/ogg");
-		else if(!strcmp(ext, "mp3"))
+		else if (!strcmp(ext, "mp3"))
 			strcpy(mime, "audio/mpeg");
-		else if(!strcmp(ext, "wav"))
+		else if (!strcmp(ext, "wav"))
 			strcpy(mime, "audio/wav");
 		else
 			strcpy(mime, "text/html");
-		
-		if(ULTRA_VERBOSE)
+
+		if (ULTRA_VERBOSE)
 			printf("serving %s, %s\n", path, mime);
-		
-		if(libwebsockets_serve_http_file(wsi, path, mime))
+
+		if (libwebsockets_serve_http_file(wsi, path, mime))
 			warning("Failed to send file %s\n", path);
 
 		free(ext);
@@ -89,21 +89,21 @@ static int callback_http(struct libwebsocket_context * context,
 
 static int
 callback_game(struct libwebsocket_context * context,
-			struct libwebsocket *wsi,
-			enum libwebsocket_callback_reasons reason,
-			void *user, void *in, size_t len)
+	struct libwebsocket *wsi,
+	enum libwebsocket_callback_reasons reason,
+	void *user, void *in, size_t len)
 {
 	struct user *u = user;
-	char *inchar= in;
+	char *inchar = in;
 	cJSON *json = 0, *j;
 	char *mode;
 	int i, msgsize, bufsize;
 
 	switch (reason) {
 	case LWS_CALLBACK_ESTABLISHED:
-		if(DEBUG_MODE) printf("LWS_CALLBACK_ESTABLISHED\n");
+		if (DEBUG_MODE) printf("LWS_CALLBACK_ESTABLISHED\n");
 		iniuser(u, wsi);
-		
+
 		/* new user, tell him house rules */
 		json = jsoncreate("acceptUser");
 		jsonaddnum(json, "playerId", u->id);
@@ -116,17 +116,17 @@ callback_game(struct libwebsocket_context * context,
 
 	case LWS_CALLBACK_CLOSED:
 		logplayer(u, "disconnected\n");
-		deleteuser(u);		
+		deleteuser(u);
 		break;
 
 	case LWS_CALLBACK_SERVER_WRITEABLE:
-		if(ULTRA_VERBOSE) printf("LWS_CALLBACK_SERVER_WRITEABLE. %d queued messages\n", u->sbat);
+		if (ULTRA_VERBOSE) printf("LWS_CALLBACK_SERVER_WRITEABLE. %d queued messages\n", u->sbat);
 		assert(!pthread_mutex_lock(&u->comlock));
-		
-		for(i = 0; i < u->sbat; i++) {
+
+		for (i = 0; i < u->sbat; i++) {
 			char *str = u->sb[i];
 
-			if(ULTRA_VERBOSE) {
+			if (ULTRA_VERBOSE) {
 				// zero terminate for print
 				char *tmp = smalloc(u->sbmsglen[i] + 1);
 				memcpy(tmp, str + PRE_PADDING, u->sbmsglen[i]);
@@ -134,36 +134,36 @@ callback_game(struct libwebsocket_context * context,
 				printf("send msg %s to user %d\n", tmp, u->id);
 			}
 
-			libwebsocket_write(wsi, (unsigned char*) str + PRE_PADDING, u->sbmsglen[i], LWS_WRITE_TEXT);
+			libwebsocket_write(wsi, (unsigned char*)str + PRE_PADDING, u->sbmsglen[i], LWS_WRITE_TEXT);
 			free(str);
 		}
 		u->sbat = 0;
 		pthread_mutex_unlock(&u->comlock);
-		
+
 		break;
 
 	case LWS_CALLBACK_BROADCAST:
 		break;
 
-	/* TODO: dit stuk moet herschreven worden zodat hij game lockt eerdat hij message behandelt.
-	 * verder mag een game niet meer direct verwijderd worden zodra er geen spelers meer inzitten
-	 * maar moet state op GS_TERMINATED gezet worden zodat de thread zelf netjes de boel kan
-	 * opruimen */
+		/* TODO: dit stuk moet herschreven worden zodat hij game lockt eerdat hij message behandelt.
+		 * verder mag een game niet meer direct verwijderd worden zodra er geen spelers meer inzitten
+		 * maar moet state op GS_TERMINATED gezet worden zodat de thread zelf netjes de boel kan
+		 * opruimen */
 	case LWS_CALLBACK_RECEIVE:
 		msgsize = strlen(inchar);
 		bufsize = u->recvbuf ? strlen(u->recvbuf) : 0;
-		
-		if(ULTRA_VERBOSE) printf("received: %s\n", inchar);
+
+		if (ULTRA_VERBOSE) printf("received: %s\n", inchar);
 
 		/* buffer msg */
-		if(libwebsockets_remaining_packet_payload(wsi) > 0) {
+		if (libwebsockets_remaining_packet_payload(wsi) > 0) {
 			u->recvbuf = srealloc(u->recvbuf, (bufsize + msgsize + 1) * sizeof(char));
 			strcpy(u->recvbuf + bufsize, inchar);
-			break; 
+			break;
 		}
 
 		/* unbuffer msg */
-		if(u->recvbuf) {
+		if (u->recvbuf) {
 			u->recvbuf = srealloc(u->recvbuf, (bufsize + msgsize + 1) * sizeof(char));
 			strcpy(u->recvbuf + bufsize, inchar);
 			json = cJSON_Parse(u->recvbuf);
@@ -173,48 +173,48 @@ callback_game(struct libwebsocket_context * context,
 		else
 			json = cJSON_Parse(inchar);
 
-		if(!json) {
+		if (!json) {
 			warning("invalid json! received: %s\n", inchar);
 			break;
 		}
 
 		mode = jsongetstr(json, "mode");
 
-		if(!mode) {
+		if (!mode) {
 			warning("no mode specified!\n");
 			break;
 		}
-		else if(!strcmp(mode, "kick")) {
+		else if (!strcmp(mode, "kick")) {
 			kickplayer(u, jsongetint(json, "playerId"));
 		}
-		else if(!strcmp(mode, "join")) {
+		else if (!strcmp(mode, "join")) {
 			int gameid, kicktimer = 0;
 			struct game *gm;
 
-			if(u->gm != lobby)
+			if (u->gm != lobby)
 				break;
 
 			gameid = jsongetint(json, "id");
 			gm = searchgame(gameid);
 
-			if(DEBUG_MODE)
+			if (DEBUG_MODE)
 				printf("Received join package! Game-id: %d, user-id: %d, gm: %p\n",
-				 gameid, u->id, (void *) gm);
+					gameid, u->id, (void *)gm);
 
-			if(gm && gm->state == GS_LOBBY && gm->nmax > gm->n &&
-			 !(kicktimer = checkkick(gm, u)) && !checkspam(u, SPAM_CAT_JOINLEAVE))
+			if (gm && gm->state == GS_LOBBY && gm->nmax > gm->n &&
+				!(kicktimer = checkkick(gm, u)) && !checkspam(u, SPAM_CAT_JOINLEAVE))
 				joingame(gm, u);
 			else {
 				j = jsoncreate("joinFailed");
 				jsonaddnum(j, "id", gameid); // remind client what game he tried to join
 
-				if(!gm)
+				if (!gm)
 					jsonaddstr(j, "reason", "notFound");
-				else if(gm->state - GS_LOBBY)
+				else if (gm->state - GS_LOBBY)
 					jsonaddstr(j, "reason", "started");
-				else if(kicktimer){
+				else if (kicktimer) {
 					jsonaddstr(j, "reason", "kicked");
-					jsonaddnum(j, "timer", kicktimer);					
+					jsonaddnum(j, "timer", kicktimer);
 				}
 				else
 					jsonaddstr(j, "reason", "full");
@@ -223,15 +223,15 @@ callback_game(struct libwebsocket_context * context,
 				jsondel(j);
 			}
 		}
-		else if(!strcmp(mode, "chat")) {
+		else if (!strcmp(mode, "chat")) {
 			char *msg = jsongetstr(json, "message");
 
-			if(!u->gm) {
+			if (!u->gm) {
 				warning("user %d tried to chat, but no one's listening\n", u->id);
 				break;
 			}
 
-			if(checkspam(u, SPAM_CAT_CHAT)) {
+			if (checkspam(u, SPAM_CAT_CHAT)) {
 				warning("user %d is spamming in chat\n", u->id);
 				j = jsoncreate("stopSpamming");
 				sendjson(j, u);
@@ -239,7 +239,7 @@ callback_game(struct libwebsocket_context * context,
 				break;
 			}
 
-			if(strlen(msg) > MAX_CHAT_LENGTH) {
+			if (strlen(msg) > MAX_CHAT_LENGTH) {
 				warning("Chat message by user %d too long. Truncating..\n", u->id);
 				msg[MAX_CHAT_LENGTH] = 0;
 			}
@@ -252,15 +252,15 @@ callback_game(struct libwebsocket_context * context,
 			airjson(j, u->gm, u);
 			jsondel(j);
 		}
-		else if(!strcmp(mode, "getTime")) {
+		else if (!strcmp(mode, "getTime")) {
 			j = jsoncreate("time");
 			jsonaddnum(j, "time", servermsecs());
 			sendjson(j, u);
 			jsondel(j);
 		}
-		else if(!strcmp(mode, "joinLobby")) {
+		else if (!strcmp(mode, "joinLobby")) {
 			// player can join only once
-			if(u->name)
+			if (u->name)
 				break;
 
 			u->name = checkname(jsongetstr(json, "playerName"));
@@ -269,75 +269,75 @@ callback_game(struct libwebsocket_context * context,
 
 			joingame(lobby, u);
 		}
-		else if(!strcmp(mode, "requestGame")) {
+		else if (!strcmp(mode, "requestGame")) {
 			int nmin = jsongetint(json, "minPlayers");
 			int nmax = jsongetint(json, "maxPlayers");
-			
-			if(DEBUG_MODE) printf("user %d requested game\n", u->id);
 
-			if(u->gm != lobby || checkspam(u, SPAM_CAT_JOINLEAVE))
+			if (DEBUG_MODE) printf("user %d requested game\n", u->id);
+
+			if (u->gm != lobby || checkspam(u, SPAM_CAT_JOINLEAVE))
 				break;
 
-			if(0 < nmin && nmin <= nmax && nmax <= 8) {
+			if (0 < nmin && nmin <= nmax && nmax <= 8) {
 				struct game *gm = findgame(nmin, nmax);
-				if(!gm)
+				if (!gm)
 					gm = creategame(GT_AUTO, nmin, nmax);
 				joingame(gm, u);
 			}
 		}
-		else if(!strcmp(mode, "addComputer")) {
+		else if (!strcmp(mode, "addComputer")) {
 			char *type;
-			
+
 			/* NOTE: it is okay to not lock game here */
-			
-			if(!u->gm || u->gm->host != u || u->gm->state != GS_LOBBY || 
-			 u->gm->nmax <= u->gm->n) {
+
+			if (!u->gm || u->gm->host != u || u->gm->state != GS_LOBBY ||
+				u->gm->nmax <= u->gm->n) {
 				warning("user %d tried to add computer, but does not meet reqs\n", u->id);
 				break;
 			}
-			
+
 			type = jsongetstr(json, "type");
-			if(!type)
+			if (!type)
 				break;
 
 			addcomputer(u->gm, type);
 		}
-		else if(!strcmp(mode, "createGame")) {
-			if(DEBUG_MODE) printf("user %d is creating a game\n", u->id);
+		else if (!strcmp(mode, "createGame")) {
+			if (DEBUG_MODE) printf("user %d is creating a game\n", u->id);
 
-			if(u->gm != lobby) {
+			if (u->gm != lobby) {
 				warning("user tried to create game. but he is not in lobby."
-				 " he might not have a name etc.\n");
+					" he might not have a name etc.\n");
 				break;
 			}
-			
+
 			joingame(creategame(GT_CUSTOM, 2, 8), u);
 		}
-		else if(!strcmp(mode, "leaveGame")) {
-			if(!checkspam(u, SPAM_CAT_JOINLEAVE) && u->gm && u->gm - lobby)
+		else if (!strcmp(mode, "leaveGame")) {
+			if (!checkspam(u, SPAM_CAT_JOINLEAVE) && u->gm && u->gm - lobby)
 				joingame(lobby, u);
 		}
-		else if(!strcmp(mode, "setParams")) {
-			if(!u->gm || u->gm->type != GT_CUSTOM || u->gm->state != GS_LOBBY || 
-			 u->gm->host != u) {
+		else if (!strcmp(mode, "setParams")) {
+			if (!u->gm || u->gm->type != GT_CUSTOM || u->gm->state != GS_LOBBY ||
+				u->gm->host != u) {
 				warning("user %d tried to set params but not host of custom game"
-				 " in lobby state\n", u->id);
+					" in lobby state\n", u->id);
 				break;
 			}
 
-			if(checkspam(u, SPAM_CAT_SETTINGS)) {
+			if (checkspam(u, SPAM_CAT_SETTINGS)) {
 				warning("user %d is trying to update game params too quickly\n", u->id);
 				break;
 			}
 
-			if(DEBUG_MODE)
-				printf("Setting params for game %p.\n", (void *) u->gm);
+			if (DEBUG_MODE)
+				printf("Setting params for game %p.\n", (void *)u->gm);
 
 			u->gm->paramupd = servermsecs();
 			u->gm->w = min(MAX_GAME_WIDTH, max(100, jsongetint(json, "w")));
 			u->gm->h = min(MAX_GAME_HEIGHT, max(100, jsongetint(json, "h")));
 			u->gm->v = min(1000, max(1, jsongetint(json, "v")));
-			u->gm->ts = (int) (min(10, max(0, jsongetdouble(json, "ts"))) * 1000) / 1000.0; 
+			u->gm->ts = (int)(min(10, max(0, jsongetdouble(json, "ts"))) * 1000) / 1000.0;
 			u->gm->hsize = min(1000, max(0, jsongetint(json, "hsize")));
 			u->gm->hfreq = min(10000, max(0, jsongetint(json, "hfreq")));
 			u->gm->goal = min(1000, max(1, jsongetint(json, "goal")));
@@ -348,49 +348,49 @@ callback_game(struct libwebsocket_context * context,
 			u->gm->inkdelay = min(20000, max(0, jsongetint(json, "inkdelay")));
 			u->gm->torus = (0 != jsongetint(json, "torus"));
 
-			if(!u->gm->hsize && !u->gm->hfreq)
+			if (!u->gm->hsize && !u->gm->hfreq)
 				u->gm->hsize = 1;
 
 			j = encodegamepars(u->gm);
 			airjson(j, u->gm, 0);
 			jsondel(j);
 		}
-		else if(!strcmp(mode, "startGame")) {
-			if(!u->gm || u->gm->type != GT_CUSTOM || u->gm->state != GS_LOBBY || 
-			 u->gm->host != u) {
+		else if (!strcmp(mode, "startGame")) {
+			if (!u->gm || u->gm->type != GT_CUSTOM || u->gm->state != GS_LOBBY ||
+				u->gm->host != u) {
 				warning("user %d tried to start game but not host of custom game"
-				 " in lobby state\n", u->id);
+					" in lobby state\n", u->id);
 				break;
 			}
 
-			if(servermsecs() - u->gm->paramupd < UNLOCK_INTERVAL) {
+			if (servermsecs() - u->gm->paramupd < UNLOCK_INTERVAL) {
 				warning("user %d is trying to start game too soon after update\n", u->id);
 				break;
 			}
 
 			j = jsoncheckjson(json, "segments");
-			
-			if(j) {
-				if(u->gm->map)
+
+			if (j) {
+				if (u->gm->map)
 					freemap(u->gm->map);
 				u->gm->map = createmap(j->child);
-				
+
 				airmap(u->gm->map, u->gm, 0);
 			}
 
 			startgame(u->gm);
 		}
-		else if(strcmp(mode, "input") == 0) {
+		else if (strcmp(mode, "input") == 0) {
 			interpretinput(json, u);
 		}
-		else if(!strcmp(mode, "pencil")) {
-			if(u->gm && u->gm->state == GS_STARTED && !u->ignoreinput
-			 && (u->gm->pencilmode == PM_ON
-			 || (u->gm->pencilmode == PM_ONDEATH && !u->state.alive)))
-				handlepencilmsg(json, u); 		
+		else if (!strcmp(mode, "pencil")) {
+			if (u->gm && u->gm->state == GS_STARTED && !u->ignoreinput
+				&& (u->gm->pencilmode == PM_ON
+					|| (u->gm->pencilmode == PM_ONDEATH && !u->state.alive)))
+				handlepencilmsg(json, u);
 		}
-		else if(!strcmp(mode, "enableInput")) {
-			u->ignoreinput = 0;		
+		else if (!strcmp(mode, "enableInput")) {
+			u->ignoreinput = 0;
 		}
 		else
 			warning("unkown mode!\n");
@@ -401,7 +401,7 @@ callback_game(struct libwebsocket_context * context,
 		break;
 	}
 
-	if(json)
+	if (json)
 		jsondel(json);
 
 	return 0;
@@ -460,14 +460,14 @@ int main(int argc, char **argv) {
 			break;
 		case 'h':
 			printf("Usage: server "
-					     "[-p=<p>]\n");
+				"[-p=<p>]\n");
 			exit(1);
 		}
 	}
 
 	ctx = libwebsocket_create_context(port, interface, protocols,
-				libwebsocket_internal_extensions,
-				NULL, NULL, -1, -1, opts);
+		libwebsocket_internal_extensions,
+		NULL, NULL, -1, -1, opts);
 	if (!ctx) {
 		printf("libwebsocket init failed\n");
 		return -1;
@@ -477,14 +477,14 @@ int main(int argc, char **argv) {
 	lobby->type = GT_LOBBY;
 	pthread_mutex_init(&gamelistlock, 0);
 	pthread_mutex_init(&lobby->lock, 0);
-	pthread_create(&lobby->thread, 0, lobbyloop, (void *) 5000);
+	pthread_create(&lobby->thread, 0, lobbyloop, (void *)5000);
 
 	printf("server started on port %d\n", port);
-	
+
 	/* send queued messages every 10ms */
-	while(5000)
+	while (5000)
 		libwebsocket_service(ctx, 10);
-	
+
 	/* sequential code
 	mainloop(); */
 

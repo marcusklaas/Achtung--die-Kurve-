@@ -18,10 +18,10 @@
  * MEMORY-RELATED
  */
 
-// safe malloc, exit(500) on error
+ // safe malloc, exit(500) on error
 void *smalloc(size_t size) {
 	void *a = malloc(size);
-	if(!a) {
+	if (!a) {
 		printf("malloc failed, exiting..\n");
 		exit(500);
 	}
@@ -30,7 +30,7 @@ void *smalloc(size_t size) {
 
 void *scalloc(size_t num, size_t size) {
 	void *a = calloc(num, size);
-	if(!a) {
+	if (!a) {
 		printf("calloc failed, exiting..\n");
 		exit(500);
 	}
@@ -39,7 +39,7 @@ void *scalloc(size_t num, size_t size) {
 
 void *srealloc(void *ptr, size_t size) {
 	void *a = realloc(ptr, size);
-	if(!a) {
+	if (!a) {
 		printf("realloc failed, exiting..\n");
 		exit(500);
 	}
@@ -52,7 +52,7 @@ struct seg *copyseg(const struct seg *a) {
 
 void freesegments(struct seg *seg) {
 	struct seg *nxt;
-	for(; seg; seg = nxt) {
+	for (; seg; seg = nxt) {
 		nxt = seg->nxt;
 		free(seg);
 	}
@@ -60,7 +60,7 @@ void freesegments(struct seg *seg) {
 
 void freeteleports(struct teleport *tp) {
 	struct teleport *nxt;
-	for(; tp; tp = nxt) {
+	for (; tp; tp = nxt) {
 		nxt = tp->nxt;
 		free(tp);
 	}
@@ -73,12 +73,12 @@ void createaimap(struct game *gm) {
 
 void freeaimap(struct game *gm) {
 	int i;
-	for(i = 0; i < gm->htiles * gm->vtiles; i++) {
+	for (i = 0; i < gm->htiles * gm->vtiles; i++) {
 		struct aitile *tile = gm->aimap->tile + i;
-		if(tile->seg)
+		if (tile->seg)
 			free(tile->seg);
 	}
-	
+
 	free(gm->aimap->tile);
 	free(gm->aimap);
 	gm->aimap = 0;
@@ -86,14 +86,14 @@ void freeaimap(struct game *gm) {
 
 void freemapaidata(struct mapaidata *data) {
 	struct linkedbranch *lb = data->headbranch, *nxt;
-	
-	while(lb) {
+
+	while (lb) {
 		nxt = lb->nxt;
 		free(lb);
 		lb = nxt;
 	}
-	
-	if(data->input) {
+
+	if (data->input) {
 		free(data->input);
 		data->input = 0;
 	}
@@ -114,13 +114,13 @@ struct buffer encodemap(struct map *map) {
 	struct buffer buf;
 	struct seg *seg;
 	struct teleport *tel;
-	
+
 	buf.start = 0;
 	appendheader(&buf, MODE_SETMAP, 0);
 	*buf.at++ = 0; // to make sure msg length at least 3
 	*buf.at++ = 0;
 
-	for(tel = map->teleports; tel; tel = tel->nxt) {
+	for (tel = map->teleports; tel; tel = tel->nxt) {
 		appendchar(&buf, tel->colorid | 32);
 		seg = &tel->seg;
 		appendpos(&buf, seg->x1, seg->y1);
@@ -133,7 +133,7 @@ struct buffer encodemap(struct map *map) {
 	// this marks start of segments
 	appendchar(&buf, 0);
 
-	for(seg = map->seg; seg; seg = seg->nxt) {
+	for (seg = map->seg; seg; seg = seg->nxt) {
 		appendpos(&buf, seg->x1, seg->y1);
 		appendpos(&buf, seg->x2, seg->y2);
 	}
@@ -142,12 +142,12 @@ struct buffer encodemap(struct map *map) {
 
 cJSON *encodesegments(struct seg *seg) {
 	cJSON *ar = cJSON_CreateArray();
-	while(seg) {
+	while (seg) {
 		cJSON *a = cJSON_CreateObject();
-		jsonaddnum(a,"x1", seg->x1);
-		jsonaddnum(a,"y1", seg->y1);
-		jsonaddnum(a,"x2", seg->x2);
-		jsonaddnum(a,"y2", seg->y2);
+		jsonaddnum(a, "x1", seg->x1);
+		jsonaddnum(a, "y1", seg->y1);
+		jsonaddnum(a, "x2", seg->x2);
+		jsonaddnum(a, "y2", seg->y2);
 		cJSON_AddItemToArray(ar, a);
 		seg = seg->nxt;
 	}
@@ -164,7 +164,7 @@ cJSON *encodegame(struct game *gm) {
 	jsonaddnum(json, "n", gm->n);
 	jsonaddnum(json, "nmin", gm->nmin);
 	jsonaddnum(json, "nmax", gm->nmax);
-	if(gm->host)
+	if (gm->host)
 		jsonaddstr(json, "host", gm->host->name);
 
 	jsonaddstr(json, "type", gametypetostr(gm->type, buf));
@@ -178,11 +178,11 @@ cJSON *encodegame(struct game *gm) {
 cJSON *encodegamelist() {
 	struct game *gm;
 	cJSON *game, *gmArr, *json = jsoncreate("gameList");
-	
+
 	gmArr = cJSON_CreateArray();
 	cJSON_AddItemToObject(json, "games", gmArr);
 
-	for(gm = headgame; gm; gm = gm->nxt) {
+	for (gm = headgame; gm; gm = gm->nxt) {
 		game = encodegame(gm);
 		cJSON_AddItemToArray(gmArr, game);
 	}
@@ -213,7 +213,7 @@ cJSON *encodegamepars(struct game *gm) {
 	jsonaddnum(json, "inkdelay", gm->inkdelay);
 	jsonaddnum(json, "inkstart", gm->inkstart);
 	jsonaddnum(json, "inkmousedown", gm->inkmousedown);
-	
+
 	return json;
 }
 
@@ -221,11 +221,11 @@ cJSON *encodegamepars(struct game *gm) {
  * JSON HELP FUNCTIONS
  */
 
-// returns NULL on error
+ // returns NULL on error
 char *jsongetstr(cJSON *json, char *obj) {
 	json = cJSON_GetObjectItem(json, obj);
-	if(!json) {
-		if(DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
+	if (!json) {
+		if (DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
 		return 0;
 	}
 	return json->valuestring;
@@ -234,8 +234,8 @@ char *jsongetstr(cJSON *json, char *obj) {
 // returns -1 on error
 int jsongetint(cJSON *json, char *obj) {
 	json = cJSON_GetObjectItem(json, obj);
-	if(!json) {
-		if(DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
+	if (!json) {
+		if (DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
 		return -1;
 	}
 	return json->valueint;
@@ -244,8 +244,8 @@ int jsongetint(cJSON *json, char *obj) {
 // returns -1 on error
 double jsongetdouble(cJSON *json, char *obj) {
 	json = cJSON_GetObjectItem(json, obj);
-	if(!json) {
-		if(DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
+	if (!json) {
+		if (DEBUG_MODE) printf("json parse error! object '%s' not found!\n", obj);
 		return -1;
 	}
 	return json->valuedouble;
@@ -255,7 +255,7 @@ double jsongetdouble(cJSON *json, char *obj) {
 cJSON *jsongetjson(cJSON *json, char *obj) {
 	json = cJSON_GetObjectItem(json, obj);
 
-	if(!json && DEBUG_MODE)
+	if (!json && DEBUG_MODE)
 		printf("json parse error! object '%s' not found!\n", obj);
 
 	return json;
@@ -276,28 +276,28 @@ cJSON *jsoncreate(char *mode) {
  * LIBWEBSOCKETS HELP FUNCTIONS
  */
 
-/* pads str and puts it in send buffer for user */
+ /* pads str and puts it in send buffer for user */
 void sendstr(char *str, int len, struct user *u) {
 	char *buf;
 
-	if(!u->human)
+	if (!u->human)
 		return;
 
-	if(u->sbat == SB_MAX) {
-		if(SHOW_WARNING) printf("send-buffer full.\n");
+	if (u->sbat == SB_MAX) {
+		if (SHOW_WARNING) printf("send-buffer full.\n");
 		return;
 	}
 
 	// being freed inside callback
 	buf = smalloc(PRE_PADDING + len + POST_PADDING);
 	memcpy(buf + PRE_PADDING, str, len);
-	
+
 	pthread_mutex_lock(&u->comlock);
 
 	u->sbmsglen[u->sbat] = len;
 	u->sb[u->sbat++] = buf;
 
-	if(ULTRA_VERBOSE) {
+	if (ULTRA_VERBOSE) {
 		// zero terminate for print
 		char *tmp = smalloc(len + 1);
 		memcpy(tmp, buf + PRE_PADDING, len);
@@ -313,7 +313,7 @@ void sendstr(char *str, int len, struct user *u) {
 void sendjson(cJSON *json, struct user *u) {
 	char *buf;
 
-	if(!u->human)
+	if (!u->human)
 		return;
 
 	buf = jsonprint(json);
@@ -324,8 +324,8 @@ void sendjson(cJSON *json, struct user *u) {
 void airstr(char *msg, int len, struct game *gm, struct user *outsider) {
 	struct user *usr;
 
-	for(usr = gm->usr; usr; usr = usr->nxt)
-		if(usr != outsider)
+	for (usr = gm->usr; usr; usr = usr->nxt)
+		if (usr != outsider)
 			sendstr(msg, len, usr);
 }
 
@@ -351,7 +351,7 @@ void sendmap(struct map *map, struct user *usr) {
 void sendgamelist(struct user *usr) {
 	updategamelist();
 
-	if(gamelistage > usr->gamelistage) {
+	if (gamelistage > usr->gamelistage) {
 		usr->gamelistage = gamelistage;
 		sendstr(gamelist, gamelistlen, usr);
 	}
@@ -384,7 +384,7 @@ void airdeath(struct user *usr, int tick, int reward) {
 }
 
 void airsegments(struct game *gm) {
-	if(gm->tosend) {
+	if (gm->tosend) {
 		cJSON *json = jsoncreate("segments");
 		cJSON *ar = encodesegments(gm->tosend);
 		freesegments(gm->tosend);
@@ -397,14 +397,14 @@ void airsegments(struct game *gm) {
 
 void airgamelist() {
 	struct user *usr;
-	static int updateticks = GAMELIST_UPDATE_INTERVAL/ TICK_LENGTH;
-	int i = 0, maxsends = ceil(lobby->n * (float) (serverticks % updateticks) / updateticks);
+	static int updateticks = GAMELIST_UPDATE_INTERVAL / TICK_LENGTH;
+	int i = 0, maxsends = ceil(lobby->n * (float)(serverticks % updateticks) / updateticks);
 
 	// should be faster?
 	// maxsends = lobby->n * (serverticks % updateticks) / updateticks + 1;
 
-	for(usr = lobby->usr; usr && i++ < maxsends; usr = usr->nxt)
-		if(servermsecs() - GAMELIST_UPDATE_INTERVAL > usr->gamelistage)
+	for (usr = lobby->usr; usr && i++ < maxsends; usr = usr->nxt)
+		if (servermsecs() - GAMELIST_UPDATE_INTERVAL > usr->gamelistage)
 			sendgamelist(usr);
 }
 
@@ -412,9 +412,9 @@ void airgamelist() {
  * BYTE MESSAGES
  */
 
-/* sends updated tick for the last input of usr in 4 bytes
- * m = mode, j = input index, d = tickdelta
- * layout: xjjjjmmm xjjjjjjj xdddjjjj xddddddd */
+ /* sends updated tick for the last input of usr in 4 bytes
+  * m = mode, j = input index, d = tickdelta
+  * layout: xjjjjmmm xjjjjjjj xdddjjjj xddddddd */
 void sendmodified(struct user *usr, int tickdelta) {
 	char response[4];
 	int index = usr->inputcount;
@@ -455,10 +455,10 @@ void encodesteer(char *target, unsigned short index, unsigned short tickdelta, u
 }
 
 char getturnchange(char newturn, char oldturn) {
-	if(newturn == 1)
+	if (newturn == 1)
 		return 1;
 
-	if(newturn == -1)
+	if (newturn == -1)
 		return 0;
 
 	return oldturn == 1;
@@ -471,7 +471,7 @@ void sendsteer(struct user *usr, int tick, int turn, int delay) {
 	int tickdelta = tick - usr->lastinputtick;
 
 	/* not enough bits to encode tickdelta, work around this */
-	if(tickdelta >= (1 << 10)) {
+	if (tickdelta >= (1 << 10)) {
 		sendtickupdate(usr, tickdelta - 1);
 		tickdelta = 1;
 	}
@@ -479,7 +479,7 @@ void sendsteer(struct user *usr, int tick, int turn, int delay) {
 	encodesteer(response, usr->index, tickdelta, turndelta);
 	airstr(response, 2, usr->gm, usr);
 
-	if(delay)
+	if (delay)
 		sendmodified(usr, delay);
 
 	usr->lastinputtick = tick;
@@ -488,17 +488,18 @@ void sendsteer(struct user *usr, int tick, int turn, int delay) {
 }
 
 void allocroom(struct buffer *buf, int size) {
-	if(!buf->start) {
+	if (!buf->start) {
 		buf->at = buf->start = smalloc(size);
 		buf->end = buf->start + size;
-	} else if(buf->end - buf->at < size){
+	}
+	else if (buf->end - buf->at < size) {
 		int len = buf->at - buf->start;
 		int capacity = buf->end - buf->start;
-		
+
 		capacity *= 2;
-		if(capacity < size)
+		if (capacity < size)
 			capacity = size;
-		
+
 		buf->start = srealloc(buf->start, capacity);
 		buf->at = buf->start + len;
 		buf->end = buf->start + capacity;
@@ -534,37 +535,37 @@ void appendtick(struct buffer *buf, int tick) {
  */
 
 char *gametypetostr(int gametype, char *str) {
-	if(gametype == GT_AUTO)
+	if (gametype == GT_AUTO)
 		return strcpy(str, "auto");
-	if(gametype == GT_LOBBY)
+	if (gametype == GT_LOBBY)
 		return strcpy(str, "lobby");
 	return strcpy(str, "custom");
 }
 
 char *statetostr(int gamestate, char *str) {
-	if(gamestate == GS_LOBBY)
+	if (gamestate == GS_LOBBY)
 		return strcpy(str, "lobby");
 	return (gamestate == GS_STARTED) ? strcpy(str, "started") : strcpy(str, "ended");
 }
 
 char *leavereasontostr(int reason, char *str) {
-	if(reason == LEAVE_NORMAL)
+	if (reason == LEAVE_NORMAL)
 		return strcpy(str, "normal");
-	if(reason == LEAVE_DISCONNECT)
+	if (reason == LEAVE_DISCONNECT)
 		return strcpy(str, "disconnected");
 	return strcpy(str, "kicked");
 }
 
 char *pencilmodetostr(int pencilmode, char *str) {
-	if(pencilmode == PM_ON)
+	if (pencilmode == PM_ON)
 		return strcpy(str, "on");
 	return (pencilmode == PM_ONDEATH) ? strcpy(str, "ondeath") : strcpy(str, "off");
 }
 
 int strtopencilmode(char *pencilstr) {
-	if(!strcmp(pencilstr, "on"))
+	if (!strcmp(pencilstr, "on"))
 		return PM_ON;
-	if(!strcmp(pencilstr, "ondeath"))
+	if (!strcmp(pencilstr, "ondeath"))
 		return PM_ONDEATH;
 	return PM_OFF;
 }
@@ -573,12 +574,12 @@ int strtopencilmode(char *pencilstr) {
  * REST
  */
 
-float roundavgpts(int players, int (*pointsys)(int, int)) {
+float roundavgpts(int players, int(*pointsys)(int, int)) {
 	int i, total = 0;
 
-	for(i = players; --i; total += i * pointsys(players, i));
+	for (i = players; --i; total += i * pointsys(players, i));
 
-	return total/ (float) players;
+	return total / (float)players;
 }
 
 /* is there no extension, return "" */
@@ -586,44 +587,44 @@ char *getFileExt(char *path) {
 	char *ext, *point = strrchr(path, '.');
 	int extLen;
 
-	if(!point || point < strrchr(path, '/'))
+	if (!point || point < strrchr(path, '/'))
 		return scalloc(1, 1);
-	
+
 	point++;
 
 	ext = smalloc((extLen = strlen(point)) + 1);
-	ext[extLen] = 0; 
+	ext[extLen] = 0;
 
 	/* do some strtolower action (why isnt this in standard libs? :S) */
-	for(point += --extLen; extLen >= 0; point--)
+	for (point += --extLen; extLen >= 0; point--)
 		ext[extLen--] = ('A' <= *point && *point <= 'Z') ? ((*point) - 26) : *point;
 
 	return ext;
 }
 
 #ifdef _WIN32
-	#include <windows.h>
-	void msleep(unsigned int msecs) {
-		Sleep(msecs);
-	}
+#include <windows.h>
+void msleep(unsigned int msecs) {
+	Sleep(msecs);
+}
 #else
-	void msleep(unsigned int msecs) {
-		usleep(1000 * msecs);
-	}
+void msleep(unsigned int msecs) {
+	usleep(1000 * msecs);
+}
 #endif
 
 static long servermsecs() {
 	static struct timeval tv;
 	static long serverstart = -1;
 
-	if(serverstart == -1) {
+	if (serverstart == -1) {
 		serverstart = 0;
 		serverstart = servermsecs();
 	}
 
 	gettimeofday(&tv, 0);
 
-	return 1000 * tv.tv_sec + tv.tv_usec/ 1000 - serverstart;
+	return 1000 * tv.tv_sec + tv.tv_usec / 1000 - serverstart;
 }
 
 double getlength(double x, double y) {
@@ -635,9 +636,9 @@ double getseglength(struct seg *seg) {
 }
 
 double getangle(double x, double y) {
-	if(x == 0)
+	if (x == 0)
 		return y < 0 ? PI * 3 / 2 : PI / 2;
-		
+
 	return atan(y / x) + (x > 0 ? 0 : PI);
 }
 
@@ -647,7 +648,7 @@ double getsegangle(struct seg *seg) {
 
 char seginside(struct seg *seg, int w, int h) {
 	return min(seg->x1, seg->x2) >= 0 && min(seg->y1, seg->y2) >= 0 &&
-	 max(seg->x1, seg->x2) <= w && max(seg->y1, seg->y2) <= h;
+		max(seg->x1, seg->x2) <= w && max(seg->y1, seg->y2) <= h;
 }
 
 /* point systems specify how many points the remaining players get when
@@ -667,8 +668,8 @@ int pointsystem_rik(int players, int alive) {
 		6,3,1,0,0,0,0,0,
 		6,4,2,1,0,0,0,0
 	};
-	int map[] = {-1, 0,0, 1, 2,2,2, 3,3};
-	
+	int map[] = { -1, 0,0, 1, 2,2,2, 3,3 };
+
 	return points[map[players] * 8 + alive - 1] - points[map[players] * 8 + alive];
 }
 
@@ -683,7 +684,7 @@ void printuser(struct user *u) {
 void printgame(struct game *gm) {
 	struct user *usr;
 	printf("game %p: n = %d, state = %d, users =\n", (void *)gm, gm->n, gm->state);
-	for(usr = gm->usr; usr; usr = usr->nxt) {
+	for (usr = gm->usr; usr; usr = usr->nxt) {
 		printf("\t");
 		printuser(usr);
 	}
@@ -691,13 +692,13 @@ void printgame(struct game *gm) {
 
 void printgames() {
 	struct game *gm;
-	
+
 	pthread_mutex_lock(&gamelistlock);
-	gm = headgame;	
-	if(!gm) printf("no games active\n");
-	for(; gm; gm =gm->nxt)
+	gm = headgame;
+	if (!gm) printf("no games active\n");
+	for (; gm; gm = gm->nxt)
 		printgame(gm);
-		
+
 	pthread_mutex_unlock(&gamelistlock);
 }
 
@@ -714,7 +715,7 @@ void printjson(cJSON *json) {
 void logtime() {
 	long now = servermsecs();
 
-	if(now - lastlogtime > 1000 * 60 * 5) {
+	if (now - lastlogtime > 1000 * 60 * 5) {
 		struct tm *local;
 		time_t t;
 
@@ -729,7 +730,7 @@ void logtime() {
 void logwarningtime() {
 	long now = servermsecs();
 
-	if(now - lastwarninglogtime > 1000 * 60 * 5) {
+	if (now - lastwarninglogtime > 1000 * 60 * 5) {
 		struct tm *local;
 		time_t t;
 
@@ -744,7 +745,7 @@ void logwarningtime() {
 void logstartgame(struct game *gm) {
 	loggame(gm, "started! players: %d\n", gm->n);
 
-	if(gm->type == GT_CUSTOM) {
+	if (gm->type == GT_CUSTOM) {
 		char *a;
 		cJSON *j;
 
@@ -755,7 +756,7 @@ void logstartgame(struct game *gm) {
 		free(a);
 		jsondel(j);
 
-		if(gm->map) {
+		if (gm->map) {
 			j = encodesegments(gm->map->seg);
 			a = cJSON_PrintUnformatted(j);
 			log("%s\n", a);
@@ -770,7 +771,7 @@ void logstartgame(struct game *gm) {
  * INPUT_CONTROL
  */
 
-/* returns 1 in case of spam, 0 if OK */
+ /* returns 1 in case of spam, 0 if OK */
 int checkspam(struct user *usr, int category) {
 	return ++usr->msgcounter[category] > spam_maxs[category];
 }
@@ -780,27 +781,27 @@ void resetspamcounters(struct game *gm, int tick) {
 	struct user *usr;
 	int i, reset;
 
-	for(i = 0; i < SPAM_CAT_COUNT; i++) {
+	for (i = 0; i < SPAM_CAT_COUNT; i++) {
 		reset = (tick % spam_intervals[i]) == 0;
 
-		for(usr = gm->usr; usr; usr = usr->nxt)
-			if(reset)
+		for (usr = gm->usr; usr; usr = usr->nxt)
+			if (reset)
 				usr->msgcounter[i] = 0;
 	}
 }
 
-/* checks that 0 < name size <= MAX_NAME_LENGTH and does not exclusively consist of 
+/* checks that 0 < name size <= MAX_NAME_LENGTH and does not exclusively consist of
  * chars like space */
 char *checkname(char *name) {
-	char nameok = 0, notonly[1] = {' '}, *checkedName;
+	char nameok = 0, notonly[1] = { ' ' }, *checkedName;
 	int i, j;
 
-	for(i = 0; name[i]; i++)
-		for(j = 0; j < 1; j++)
+	for (i = 0; name[i]; i++)
+		for (j = 0; j < 1; j++)
 			nameok |= name[i] != notonly[j];
 
 	checkedName = smalloc(MAX_NAME_LENGTH + 1);
-	
+
 	strncpy(checkedName, nameok ? name : SHAME_NAME, MAX_NAME_LENGTH);
 	checkedName[MAX_NAME_LENGTH] = 0;
 

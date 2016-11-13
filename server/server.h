@@ -206,7 +206,7 @@ struct game {
 		timeadjustments;
 
 	long start;	// start in msecs after server start
-	int (*pointsys)(int, int); // function that determines points on death
+	int(*pointsys)(int, int); // function that determines points on death
 	double ts;				// turning speed in radians per sec
 	struct seg **seg;		// two dimensional array of linked lists, one for each tile
 	struct user *usr, *host;// user list, game host
@@ -217,10 +217,10 @@ struct game {
 	struct kicknode *kicklist; // for remembering who was kicked so that they dont rejoin too soon
 	struct aimap *aimap;
 	char aigame;
-	
+
 	struct branch *branch;
 	int branchlen, branchcap;
-	
+
 	/* HARDCORE THREADING, YO -- EXPERIMENTAL n shit */
 	pthread_t thread;
 	pthread_mutex_t lock; // we don't want to process tick and messages at same time
@@ -258,15 +258,15 @@ struct user {
 	struct user *nxt;
 	char *name;
 	char human;
-	
+
 	/* user states */
 	struct userpos state, aistate, aimapstate;
 	struct pencil pencil;
 	struct userinput *inputhead, // store unhandled user inputs in queue
-					 *inputtail; // insert at tail, remove at head
+		*inputtail; // insert at tail, remove at head
 	int points, lastinputtick, lastinputturn, inputcount, gamelistage;
 	int hstart, hsize, hfreq; // hole start, hole size, hole frequency  //TODO: should be moved to userpos
-	
+
 	/* communication */
 	struct libwebsocket *wsi;
 	int msgcounter[SPAM_CAT_COUNT];	// number of inputs and chat messages received
@@ -275,12 +275,12 @@ struct user {
 	pthread_mutex_t comlock;
 	char *recvbuf, *sb[SB_MAX];	// receivebuffer, sendbuffer
 	int sbmsglen[SB_MAX], sbat;	// length of messages in sendbuffer, sendbuffer index
-	
+
 	/* artificial intelligence */
 	int strength, branch, branchtick, dietick;
 	struct seg dieseg;
 	struct mapaidata *aidata;
-	void (*inputmechanism)(struct user *, int);
+	void(*inputmechanism)(struct user *, int);
 };
 
 struct aimap {
