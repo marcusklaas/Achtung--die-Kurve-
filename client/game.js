@@ -6,11 +6,7 @@ var joinedLink = false;
 var keyCodeLeft = 37;
 var keyCodeRight = 39;
 
-var serverURL = "ws://h1918649.stratoserver.net:7681"; // websocket game server
-if(location.href.indexOf('7681') != -1)
-	serverURL = location.href.replace('http', 'ws');
-else if(location.href.indexOf('C:/Dropbox') != -1)
-	serverURL = "ws://localhost:7681";
+var serverURL = location.href.replace('http', 'ws');
 
 /* visual stuff */
 var vSync = true;
