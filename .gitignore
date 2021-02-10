@@ -2,7 +2,6 @@
 server.o
 stderr
 stdout
-.*
 core
 gedit.sh
 .fuse_hidden*

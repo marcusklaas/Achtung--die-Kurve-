@@ -1,3 +1,14 @@
+Quick start (using Docker)
+--------------------------
+Follow these steps to install and run the Achtung server using Docker:
+
+- Install [Docker](https://www.docker.com/products/docker-desktop)
+- Create a Docker image. Run the following command inside the root directory of the repository: `docker build --pull --rm -f "Dockerfile" -t achtung:latest .`
+- Run the Docker image: `docker run --rm -it -p 7681:7681/tcp achtung:latest ./kurveserver -p 7681`
+- Browse to [http://localhost:7681](http://localhost:7681).
+
+If you do not want to use Docker, then continue reading.
+
 READ THIS
 ---------
 

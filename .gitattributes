@@ -1,0 +1,14 @@
+* text=auto
+aclocal.m4 text eol=lf
+config.guess text eol=lf
+config.h.in text eol=lf
+config.sub text eol=lf
+configure text eol=lf
+configure.ac text eol=lf
+depcomp text eol=lf
+install-sh text eol=lf
+ltmain.sh text eol=lf
+Makefile.am text eol=lf
+Makefile.in text eol=lf
+missing text eol=lf
+kurveserver text eol=lf
